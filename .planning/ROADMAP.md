@@ -64,12 +64,13 @@ Plans:
   3. A module can register its own job queue and handlers, and a dedicated worker instance processes jobs via `bun run worker`
   4. Transactional emails (password reset, welcome, billing notifications) send reliably through the job queue
   5. Usage-based billing tracks tenant consumption and reports metered usage to Stripe
-**Plans**: TBD
+**Plans:** 4 plans
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
-- [ ] 03-03: TBD
+- [ ] 03-01-PLAN.md -- BullMQ queue infrastructure package, worker entrypoint with module job iteration, env validation
+- [ ] 03-02-PLAN.md -- Billing module skeleton: Drizzle schema, Stripe client, webhook pipeline, tenant.created hook
+- [ ] 03-03-PLAN.md -- Billing CQRS commands (checkout, cancel, change, portal, one-time) and queries, API wiring
+- [ ] 03-04-PLAN.md -- Usage-based billing, transactional email via Resend, auth email integration, schema push, verification
 
 ### Phase 4: Frontend Applications
 **Goal**: A complete customer-facing app and admin dashboard both connected to the backend via type-safe Eden Treaty, sharing a common UI component library
@@ -113,6 +114,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 |-------|----------------|--------|-----------|
 | 1. Foundation & Core Infrastructure | 0/3 | Planned | - |
 | 2. Auth & Multitenancy | 0/3 | Planned | - |
-| 3. Billing & Background Jobs | 0/3 | Not started | - |
+| 3. Billing & Background Jobs | 0/4 | Planned | - |
 | 4. Frontend Applications | 0/3 | Not started | - |
 | 5. Production Hardening | 0/2 | Not started | - |
