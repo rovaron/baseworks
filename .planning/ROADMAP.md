@@ -33,7 +33,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans:** 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md -- Monorepo structure, shared packages, environment config, database connection
+- [x] 01-01-PLAN.md -- Monorepo structure, shared packages, environment config, database connection
 - [ ] 01-02-PLAN.md -- Module registry, CQRS bus, event bus, example module
 - [ ] 01-03-PLAN.md -- Tenant scoping, dual entrypoint (API/worker), integration testing
 
