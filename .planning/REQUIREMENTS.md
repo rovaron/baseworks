@@ -9,9 +9,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Foundation
 
-- [ ] **FNDTN-01**: Module registry loads modules dynamically based on configuration file
-- [ ] **FNDTN-02**: Each module declares its routes, commands, queries, jobs, and events in a standard format
-- [ ] **FNDTN-03**: CQRS command handlers process mutations and emit domain events
+- [x] **FNDTN-01**: Module registry loads modules dynamically based on configuration file
+- [x] **FNDTN-02**: Each module declares its routes, commands, queries, jobs, and events in a standard format
+- [x] **FNDTN-03**: CQRS command handlers process mutations and emit domain events
 - [ ] **FNDTN-04**: CQRS query handlers execute read-only operations with tenant scoping
 - [x] **FNDTN-05**: Drizzle ORM connects to PostgreSQL with typed schema and migration tooling
 - [ ] **FNDTN-06**: Tenant-scoped database wrapper auto-injects tenant_id filtering on all queries
@@ -128,9 +128,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FNDTN-01 | Phase 1 | Pending |
-| FNDTN-02 | Phase 1 | Pending |
-| FNDTN-03 | Phase 1 | Pending |
+| FNDTN-01 | Phase 1 | Complete |
+| FNDTN-02 | Phase 1 | Complete |
+| FNDTN-03 | Phase 1 | Complete |
 | FNDTN-04 | Phase 1 | Pending |
 | FNDTN-05 | Phase 1 | Complete |
 | FNDTN-06 | Phase 1 | Pending |
