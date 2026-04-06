@@ -1,9 +1,12 @@
 import { env } from "@baseworks/config";
-import { createDb } from "@baseworks/db";
+import { createDb, scopedDb } from "@baseworks/db";
+import type { HandlerContext } from "@baseworks/shared";
 import { Elysia } from "elysia";
 import cors from "@elysiajs/cors";
 import swagger from "@elysiajs/swagger";
 import { ModuleRegistry } from "./core/registry";
+import { tenantMiddleware } from "./core/middleware/tenant";
+import { errorMiddleware } from "./core/middleware/error";
 import { logger } from "./lib/logger";
 
 // Create database instance
@@ -20,16 +23,27 @@ await registry.loadAll();
 
 // Create Elysia app
 const app = new Elysia()
+  // Global error handling -- registered first
+  .use(errorMiddleware)
   .use(cors())
   .use(swagger())
-  .state("db", db)
-  .state("tenantId", "dev-tenant") // TODO: Plan 03 wires real tenant from session
-  .state("emit", (event: string, data: unknown) => registry.getEventBus().emit(event, data))
-  .state("registry", registry)
+  // Health check -- registered BEFORE tenantMiddleware so it does not require tenant context
   .get("/health", () => ({
     status: "ok",
     modules: registry.getLoadedNames(),
-  }));
+  }))
+  // Tenant-scoped routes group
+  .use(tenantMiddleware)
+  .derive({ as: "scoped" }, (ctx: any) => {
+    const tenantId: string = ctx.tenantId;
+    return {
+      handlerCtx: {
+        tenantId,
+        db: scopedDb(db, tenantId),
+        emit: (event: string, data: unknown) => registry.getEventBus().emit(event, data),
+      } satisfies HandlerContext,
+    };
+  });
 
 // Attach module routes (cast needed due to Elysia's complex generic inference)
 registry.attachRoutes(app as any);

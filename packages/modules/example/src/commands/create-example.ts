@@ -8,14 +8,13 @@ export const CreateExampleInput = Type.Object({
 });
 
 export const createExample = defineCommand(CreateExampleInput, async (input, ctx) => {
+  // scopedDb.insert auto-injects tenantId -- no manual injection needed
   const [result] = await ctx.db
     .insert(examples)
     .values({
-      tenantId: ctx.tenantId,
       title: input.title,
       description: input.description ?? null,
-    })
-    .returning();
+    });
 
   ctx.emit("example.created", { id: result.id, tenantId: ctx.tenantId });
 
