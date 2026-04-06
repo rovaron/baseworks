@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-02-PLAN.md
-last_updated: "2026-04-06T09:19:42.550Z"
+stopped_at: Completed 02-03-PLAN.md
+last_updated: "2026-04-06T09:24:39.344Z"
 last_activity: 2026-04-06
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 6
-  completed_plans: 5
-  percent: 83
+  completed_plans: 6
+  percent: 100
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-05)
 ## Current Position
 
 Phase: 2 of 5 (Auth & Multitenancy)
-Plan: 2 of 3 in current phase (complete)
+Plan: 3 of 3 in current phase (complete)
 Status: Ready to execute
 Last activity: 2026-04-06
 
@@ -57,6 +57,7 @@ Progress: [||||||....] 67%
 | Phase 01 P03 | 6min | 3 tasks | 15 files |
 | Phase 02 P01 | 5min | 3 tasks | 15 files |
 | Phase 02 P02 | 4min | 3 tasks | 6 files |
+| Phase 02 P03 | 3min | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -83,6 +84,8 @@ Recent decisions affecting current work:
 - [Phase 02]: Tenant middleware auto-selects first org when activeOrganizationId is null (Pitfall 3)
 - [Phase 02]: requireRole scoped via .group() to isolate owner-only route from other routes
 - [Phase 02]: Auth routes mounted before tenant middleware via registry.getAuthRoutes() separation
+- [Phase 02]: get-profile uses ctx.userId + direct DB query via createDb, not auth.api.getSession with empty Headers
+- [Phase 02]: Auth CQRS commands wrap auth.api.* methods (not scopedDb) for auth-managed tables per Pitfall 6
 
 ### Pending Todos
 
@@ -96,6 +99,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-06T09:19:42.544Z
-Stopped at: Completed 02-02-PLAN.md
+Last session: 2026-04-06T09:24:39.338Z
+Stopped at: Completed 02-03-PLAN.md
 Resume file: None

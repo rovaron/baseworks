@@ -32,9 +32,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **TNNT-01**: Every user belongs to at least one tenant
 - [x] **TNNT-02**: All data queries are automatically filtered by tenant_id via scoped DB wrapper
-- [ ] **TNNT-03**: Tenant CRUD operations available (create, read, update, delete)
+- [x] **TNNT-03**: Tenant CRUD operations available (create, read, update, delete)
 - [x] **TNNT-04**: Basic RBAC with owner/admin/member roles per tenant
-- [ ] **TNNT-05**: User can update their profile (name, email, avatar, password)
+- [x] **TNNT-05**: User can update their profile (name, email, avatar, password)
 
 ### Billing
 
@@ -145,9 +145,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-06 | Phase 2 | Complete |
 | TNNT-01 | Phase 2 | Complete |
 | TNNT-02 | Phase 2 | Complete |
-| TNNT-03 | Phase 2 | Pending |
+| TNNT-03 | Phase 2 | Complete |
 | TNNT-04 | Phase 2 | Complete |
-| TNNT-05 | Phase 2 | Pending |
+| TNNT-05 | Phase 2 | Complete |
 | BILL-01 | Phase 3 | Pending |
 | BILL-02 | Phase 3 | Pending |
 | BILL-03 | Phase 3 | Pending |
