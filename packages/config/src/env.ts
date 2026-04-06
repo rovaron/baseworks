@@ -15,7 +15,26 @@ export const env = createEnv({
     GOOGLE_CLIENT_SECRET: z.string().optional(),
     GITHUB_CLIENT_ID: z.string().optional(),
     GITHUB_CLIENT_SECRET: z.string().optional(),
+    STRIPE_SECRET_KEY: z.string().min(1).optional(),
+    STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
+    RESEND_API_KEY: z.string().min(1).optional(),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,
 });
+
+/**
+ * Assert that REDIS_URL is present when the instance role requires it.
+ * Roles "worker" and "all" need Redis for BullMQ job processing.
+ *
+ * @returns The validated REDIS_URL string
+ * @throws Error if REDIS_URL is missing for a role that requires it
+ */
+export function assertRedisUrl(role: string, redisUrl?: string): string {
+  if ((role === "worker" || role === "all") && !redisUrl) {
+    throw new Error(
+      `REDIS_URL is required when INSTANCE_ROLE is "${role}". Set REDIS_URL in your environment.`,
+    );
+  }
+  return redisUrl as string;
+}
