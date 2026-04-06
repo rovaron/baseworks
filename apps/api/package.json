@@ -10,6 +10,7 @@
     "pino-pretty": "^13.0.0",
     "@baseworks/db": "workspace:*",
     "@baseworks/shared": "workspace:*",
-    "@baseworks/config": "workspace:*"
+    "@baseworks/config": "workspace:*",
+    "drizzle-orm": "^0.45.0"
   }
 }
