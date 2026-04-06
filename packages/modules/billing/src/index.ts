@@ -1,11 +1,14 @@
 import type { ModuleDefinition } from "@baseworks/shared";
 import { billingRoutes } from "./routes";
 import { processWebhook } from "./jobs/process-webhook";
+import { syncUsage } from "./jobs/sync-usage";
+import { sendEmail } from "./jobs/send-email";
 import { createCheckoutSession } from "./commands/create-checkout-session";
 import { cancelSubscription } from "./commands/cancel-subscription";
 import { changeSubscription } from "./commands/change-subscription";
 import { createOneTimePayment } from "./commands/create-one-time-payment";
 import { createPortalSession } from "./commands/create-portal-session";
+import { recordUsage } from "./commands/record-usage";
 import { getSubscriptionStatus } from "./queries/get-subscription-status";
 import { getBillingHistory } from "./queries/get-billing-history";
 
@@ -31,6 +34,7 @@ export default {
     "billing:change-subscription": changeSubscription,
     "billing:create-one-time-payment": createOneTimePayment,
     "billing:create-portal-session": createPortalSession,
+    "billing:record-usage": recordUsage,
   },
   queries: {
     "billing:get-subscription-status": getSubscriptionStatus,
@@ -40,6 +44,14 @@ export default {
     "billing:process-webhook": {
       queue: "billing:process-webhook",
       handler: processWebhook,
+    },
+    "billing:sync-usage": {
+      queue: "billing:sync-usage",
+      handler: syncUsage,
+    },
+    "email:send": {
+      queue: "email:send",
+      handler: sendEmail,
     },
   },
   events: [

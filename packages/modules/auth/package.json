@@ -10,6 +10,7 @@
     "@baseworks/db": "workspace:*",
     "@baseworks/shared": "workspace:*",
     "@baseworks/config": "workspace:*",
+    "@baseworks/queue": "workspace:*",
     "elysia": "^1.4.0",
     "@sinclair/typebox": "0.34.49",
     "drizzle-orm": "^0.45.0"

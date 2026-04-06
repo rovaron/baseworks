@@ -6,13 +6,15 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "dependencies": {
-    "stripe": "^17.0.0",
+    "@baseworks/config": "workspace:*",
     "@baseworks/db": "workspace:*",
     "@baseworks/shared": "workspace:*",
-    "@baseworks/config": "workspace:*",
-    "elysia": "^1.4.0",
-    "drizzle-orm": "^0.45.0",
+    "@react-email/components": "1.0.11",
     "bullmq": "^5.0.0",
-    "pino": "^9.0.0"
+    "drizzle-orm": "^0.45.0",
+    "elysia": "^1.4.0",
+    "pino": "^9.0.0",
+    "resend": "6.10.0",
+    "stripe": "^17.0.0"
   }
 }

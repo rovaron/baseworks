@@ -3,6 +3,21 @@ import { organization, magicLink } from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { createDb } from "@baseworks/db";
 import { env } from "@baseworks/config";
+import { createQueue } from "@baseworks/queue";
+import type { Queue } from "bullmq";
+
+/**
+ * Lazy-initialized email queue.
+ * Per D-22: Only created if REDIS_URL is available.
+ * Falls back to console.log if Redis is not configured (dev/test).
+ */
+let emailQueue: Queue | null = null;
+function getEmailQueue(): Queue | null {
+  if (!emailQueue && env.REDIS_URL) {
+    emailQueue = createQueue("email:send", env.REDIS_URL);
+  }
+  return emailQueue;
+}
 
 const db = createDb(env.DATABASE_URL);
 
@@ -51,10 +66,16 @@ export const auth = betterAuth({
     minPasswordLength: 8,
     maxPasswordLength: 128,
     sendResetPassword: async ({ user, url }) => {
-      // Phase 2: console log placeholder (D-06)
-      // Phase 3: BullMQ job for actual email delivery via Resend
-      // Per T-02-03: void pattern -- do NOT await, do not reveal user existence via timing
-      console.log(`[AUTH] Password reset for ${user.email}: ${url}`);
+      const queue = getEmailQueue();
+      if (queue) {
+        await queue.add("password-reset", {
+          to: user.email,
+          template: "password-reset",
+          data: { url, userName: user.name },
+        });
+      } else {
+        console.log(`[AUTH] Password reset for ${user.email}: ${url}`);
+      }
     },
   },
   socialProviders,
@@ -67,9 +88,16 @@ export const auth = betterAuth({
     magicLink({
       expiresIn: 300, // 5 minutes per T-02-04
       sendMagicLink: async ({ email, url }) => {
-        // Phase 2: console log placeholder (D-05)
-        // Phase 3: BullMQ job for actual email delivery
-        console.log(`[AUTH] Magic link for ${email}: ${url}`);
+        const queue = getEmailQueue();
+        if (queue) {
+          await queue.add("magic-link", {
+            to: email,
+            template: "magic-link",
+            data: { url, email },
+          });
+        } else {
+          console.log(`[AUTH] Magic link for ${email}: ${url}`);
+        }
       },
     }),
   ],
