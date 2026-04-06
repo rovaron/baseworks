@@ -10,7 +10,7 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "outDir": "./dist",
+    "noEmit": true,
     "paths": {
       "@baseworks/db": ["./packages/db/src"],
       "@baseworks/db/*": ["./packages/db/src/*"],
@@ -20,11 +20,9 @@
       "@baseworks/config/*": ["./packages/config/src/*"]
     }
   },
-  "references": [
-    { "path": "./packages/db" },
-    { "path": "./packages/shared" },
-    { "path": "./packages/config" },
-    { "path": "./apps/api" }
+  "include": [
+    "packages/*/src/**/*.ts",
+    "apps/*/src/**/*.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }
