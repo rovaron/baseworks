@@ -11,6 +11,11 @@ export {
   member,
   invitation,
 } from "./schema";
+export {
+  billingCustomers,
+  webhookEvents,
+  usageRecords,
+} from "./schema";
 export { scopedDb } from "./helpers/scoped-db";
 export type { ScopedDb } from "./helpers/scoped-db";
 export { unscopedDb } from "./helpers/unscoped-db";
