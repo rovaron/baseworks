@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 2 context gathered
-last_updated: "2026-04-06T09:06:22.967Z"
-last_activity: 2026-04-06 -- Phase 02 planning complete
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-04-06T09:12:53.522Z"
+last_activity: 2026-04-06 -- Phase 02 Plan 01 complete
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 6
-  completed_plans: 3
-  percent: 50
+  completed_plans: 4
+  percent: 67
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-05)
 
 **Core value:** Clone, configure, and start building a multitenant SaaS in minutes -- not weeks.
-**Current focus:** Phase 1: Foundation & Core Infrastructure
+**Current focus:** Phase 2: Auth & Multitenancy
 
 ## Current Position
 
-Phase: 1 of 5 (Foundation & Core Infrastructure)
-Plan: 3 of 3 in current phase
-Status: Ready to execute
-Last activity: 2026-04-06 -- Phase 02 planning complete
+Phase: 2 of 5 (Auth & Multitenancy)
+Plan: 1 of 3 in current phase (complete)
+Status: Executing Phase 2
+Last activity: 2026-04-06 -- Phase 02 Plan 01 complete
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [||||||....] 67%
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P01 | 4min | 3 tasks | 28 files |
 | Phase 01 P02 | 5min | 3 tasks | 19 files |
 | Phase 01 P03 | 6min | 3 tasks | 15 files |
+| Phase 02 P01 | 5min | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,10 @@ Recent decisions affecting current work:
 - [Phase 01]: Used Elysia .state() for injecting db, tenantId, emit into route handler context
 - [Phase 01]: Used any types in ScopedDb interface to avoid Drizzle complex generic inference issues
 - [Phase 01]: handlerCtx injected via derive chain, routes access ctx.handlerCtx not ctx.store
+- [Phase 02]: Conditional OAuth providers -- only added if env vars are set, avoids undefined clientId errors
+- [Phase 02]: basePath '/api/auth' + .mount(auth.handler) without prefix avoids path doubling (Pitfall 1)
+- [Phase 02]: Auth schema uses better-auth column names without project helpers -- auth tables ARE the tenant system
+- [Phase 02]: requireRole uses auth.api.getFullOrganization to resolve member role
 
 ### Pending Todos
 
@@ -86,6 +91,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-06T08:37:03.131Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-auth-multitenancy/02-CONTEXT.md
+Last session: 2026-04-06T09:12:02Z
+Stopped at: Completed 02-01-PLAN.md
+Resume file: .planning/phases/02-auth-multitenancy/02-01-SUMMARY.md

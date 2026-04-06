@@ -21,12 +21,12 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Authentication
 
-- [ ] **AUTH-01**: User can sign up with email and password via better-auth
-- [ ] **AUTH-02**: User can log in with OAuth providers (Google, GitHub)
-- [ ] **AUTH-03**: User can log in via magic link (passwordless email)
-- [ ] **AUTH-04**: User session persists securely via database-backed sessions
-- [ ] **AUTH-05**: User can reset password via email link
-- [ ] **AUTH-06**: Auth module integrates with Elysia as a better-auth plugin/handler
+- [x] **AUTH-01**: User can sign up with email and password via better-auth
+- [x] **AUTH-02**: User can log in with OAuth providers (Google, GitHub)
+- [x] **AUTH-03**: User can log in via magic link (passwordless email)
+- [x] **AUTH-04**: User session persists securely via database-backed sessions
+- [x] **AUTH-05**: User can reset password via email link
+- [x] **AUTH-06**: Auth module integrates with Elysia as a better-auth plugin/handler
 
 ### Multitenancy
 
@@ -137,12 +137,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FNDTN-07 | Phase 1 | Complete |
 | FNDTN-08 | Phase 1 | Complete |
 | FNDTN-09 | Phase 1 | Complete |
-| AUTH-01 | Phase 2 | Pending |
-| AUTH-02 | Phase 2 | Pending |
-| AUTH-03 | Phase 2 | Pending |
-| AUTH-04 | Phase 2 | Pending |
-| AUTH-05 | Phase 2 | Pending |
-| AUTH-06 | Phase 2 | Pending |
+| AUTH-01 | Phase 2 | Complete |
+| AUTH-02 | Phase 2 | Complete |
+| AUTH-03 | Phase 2 | Complete |
+| AUTH-04 | Phase 2 | Complete |
+| AUTH-05 | Phase 2 | Complete |
+| AUTH-06 | Phase 2 | Complete |
 | TNNT-01 | Phase 2 | Pending |
 | TNNT-02 | Phase 2 | Pending |
 | TNNT-03 | Phase 2 | Pending |
