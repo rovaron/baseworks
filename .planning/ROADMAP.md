@@ -30,12 +30,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Database queries through the tenant-scoped wrapper only return data belonging to the requesting tenant -- never cross-tenant data
   4. The same codebase can start as an API server or a worker by changing the entrypoint/env config
   5. The application crashes immediately on startup if required environment variables are missing or invalid
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
-- [ ] 01-03: TBD
+- [ ] 01-01-PLAN.md -- Monorepo structure, shared packages, environment config, database connection
+- [ ] 01-02-PLAN.md -- Module registry, CQRS bus, event bus, example module
+- [ ] 01-03-PLAN.md -- Tenant scoping, dual entrypoint (API/worker), integration testing
 
 ### Phase 2: Auth & Multitenancy
 **Goal**: Users can create accounts, log in through multiple methods, and operate within tenant boundaries with role-based permissions
@@ -111,7 +111,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation & Core Infrastructure | 0/3 | Not started | - |
+| 1. Foundation & Core Infrastructure | 0/3 | Planned | - |
 | 2. Auth & Multitenancy | 0/3 | Not started | - |
 | 3. Billing & Background Jobs | 0/3 | Not started | - |
 | 4. Frontend Applications | 0/3 | Not started | - |
