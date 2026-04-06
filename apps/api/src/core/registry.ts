@@ -79,6 +79,16 @@ export class ModuleRegistry {
     );
   }
 
+  /**
+   * Returns the auth module's routes plugin for mounting BEFORE tenant middleware.
+   * Auth routes (signup, login, OAuth callbacks) must not require tenant context.
+   */
+  getAuthRoutes(): any {
+    const authModule = this.loaded.get("auth");
+    if (authModule?.routes) return authModule.routes;
+    return null;
+  }
+
   attachRoutes(app: Elysia<any>): void {
     if (this.config.role === "worker") {
       logger.info("Worker role -- skipping route attachment");
@@ -86,6 +96,8 @@ export class ModuleRegistry {
     }
 
     for (const [name, def] of this.loaded) {
+      // Auth routes are mounted separately before tenant middleware
+      if (name === "auth") continue;
       if (def.routes) {
         app.use(def.routes as any);
         logger.info({ module: name }, "Routes attached");

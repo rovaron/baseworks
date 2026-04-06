@@ -4,6 +4,7 @@ import type { HandlerContext } from "@baseworks/shared";
 import { Elysia } from "elysia";
 import cors from "@elysiajs/cors";
 import swagger from "@elysiajs/swagger";
+import { requireRole } from "@baseworks/module-auth";
 import { ModuleRegistry } from "./core/registry";
 import { tenantMiddleware } from "./core/middleware/tenant";
 import { errorMiddleware } from "./core/middleware/error";
@@ -12,10 +13,10 @@ import { logger } from "./lib/logger";
 // Create database instance
 const db = createDb(env.DATABASE_URL);
 
-// Create module registry
+// Create module registry -- auth module loaded alongside example
 const registry = new ModuleRegistry({
   role: env.INSTANCE_ROLE as "api" | "worker" | "all",
-  modules: ["example"],
+  modules: ["auth", "example"],
 });
 
 // Load all configured modules
@@ -27,25 +28,48 @@ const app = new Elysia()
   .use(errorMiddleware)
   .use(cors())
   .use(swagger())
-  // Health check -- registered BEFORE tenantMiddleware so it does not require tenant context
+  // Health check -- no auth, no tenant context required
   .get("/health", () => ({
     status: "ok",
     modules: registry.getLoadedNames(),
-  }))
-  // Tenant-scoped routes group
+  }));
+
+// Auth routes -- mounted BEFORE tenant middleware so signup/login/OAuth
+// callbacks do NOT require tenant context (D-16)
+const authRoutes = registry.getAuthRoutes();
+if (authRoutes) {
+  app.use(authRoutes as any);
+}
+
+// Tenant-scoped routes group -- requires authenticated session
+app
   .use(tenantMiddleware)
   .derive({ as: "scoped" }, (ctx: any) => {
     const tenantId: string = ctx.tenantId;
     return {
       handlerCtx: {
         tenantId,
+        userId: ctx.userId,
         db: scopedDb(db, tenantId),
         emit: (event: string, data: unknown) => registry.getEventBus().emit(event, data),
       } satisfies HandlerContext,
     };
   });
 
-// Attach module routes (cast needed due to Elysia's complex generic inference)
+// Owner-only route: delete tenant (per D-13, TNNT-04)
+// Wrapped in a group to scope requireRole("owner") to this route only
+app.group("/api", (group) =>
+  group
+    .use(requireRole("owner"))
+    .delete("/tenant", (ctx: any) => {
+      return {
+        message: "Tenant deletion initiated",
+        tenantId: ctx.tenantId,
+      };
+    }),
+);
+
+// Attach non-auth module routes (auth routes already mounted above)
 registry.attachRoutes(app as any);
 
 // Start server
