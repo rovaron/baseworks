@@ -51,7 +51,7 @@ Plans:
 
 Plans:
 - [x] 02-01-PLAN.md -- better-auth instance, Drizzle schema, Elysia routes, auth macro, module registration
-- [ ] 02-02-PLAN.md -- Session-based tenant middleware, auto-create personal tenant, RBAC enforcement
+- [x] 02-02-PLAN.md -- Session-based tenant middleware, auto-create personal tenant, RBAC enforcement
 - [ ] 02-03-PLAN.md -- Tenant CRUD commands/queries, user profile management, full module interface
 
 ### Phase 3: Billing & Background Jobs

@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-04-06T09:12:53.522Z"
-last_activity: 2026-04-06 -- Phase 02 Plan 01 complete
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-04-06T09:19:42.550Z"
+last_activity: 2026-04-06
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 6
-  completed_plans: 4
-  percent: 67
+  completed_plans: 5
+  percent: 83
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-04-05)
 ## Current Position
 
 Phase: 2 of 5 (Auth & Multitenancy)
-Plan: 1 of 3 in current phase (complete)
-Status: Executing Phase 2
-Last activity: 2026-04-06 -- Phase 02 Plan 01 complete
+Plan: 2 of 3 in current phase (complete)
+Status: Ready to execute
+Last activity: 2026-04-06
 
 Progress: [||||||....] 67%
 
@@ -56,6 +56,7 @@ Progress: [||||||....] 67%
 | Phase 01 P02 | 5min | 3 tasks | 19 files |
 | Phase 01 P03 | 6min | 3 tasks | 15 files |
 | Phase 02 P01 | 5min | 3 tasks | 15 files |
+| Phase 02 P02 | 4min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,10 @@ Recent decisions affecting current work:
 - [Phase 02]: basePath '/api/auth' + .mount(auth.handler) without prefix avoids path doubling (Pitfall 1)
 - [Phase 02]: Auth schema uses better-auth column names without project helpers -- auth tables ARE the tenant system
 - [Phase 02]: requireRole uses auth.api.getFullOrganization to resolve member role
+- [Phase 02]: databaseHooks inline in auth.ts to avoid circular dependency -- hook uses closure reference to auth instance
+- [Phase 02]: Tenant middleware auto-selects first org when activeOrganizationId is null (Pitfall 3)
+- [Phase 02]: requireRole scoped via .group() to isolate owner-only route from other routes
+- [Phase 02]: Auth routes mounted before tenant middleware via registry.getAuthRoutes() separation
 
 ### Pending Todos
 
@@ -91,6 +96,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-06T09:12:02Z
-Stopped at: Completed 02-01-PLAN.md
-Resume file: .planning/phases/02-auth-multitenancy/02-01-SUMMARY.md
+Last session: 2026-04-06T09:19:42.544Z
+Stopped at: Completed 02-02-PLAN.md
+Resume file: None
