@@ -5,6 +5,7 @@ import { Elysia } from "elysia";
 import cors from "@elysiajs/cors";
 import swagger from "@elysiajs/swagger";
 import { requireRole } from "@baseworks/module-auth";
+import { registerBillingHooks } from "@baseworks/module-billing";
 import { ModuleRegistry } from "./core/registry";
 import { tenantMiddleware } from "./core/middleware/tenant";
 import { errorMiddleware } from "./core/middleware/error";
@@ -16,11 +17,14 @@ const db = createDb(env.DATABASE_URL);
 // Create module registry -- auth module loaded alongside example
 const registry = new ModuleRegistry({
   role: env.INSTANCE_ROLE as "api" | "worker" | "all",
-  modules: ["auth", "example"],
+  modules: ["auth", "billing", "example"],
 });
 
 // Load all configured modules
 await registry.loadAll();
+
+// Register billing hooks (auto-create Stripe customer on tenant.created)
+registerBillingHooks(registry.getEventBus());
 
 // Create Elysia app
 const app = new Elysia()

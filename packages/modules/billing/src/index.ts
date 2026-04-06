@@ -1,6 +1,13 @@
 import type { ModuleDefinition } from "@baseworks/shared";
 import { billingRoutes } from "./routes";
 import { processWebhook } from "./jobs/process-webhook";
+import { createCheckoutSession } from "./commands/create-checkout-session";
+import { cancelSubscription } from "./commands/cancel-subscription";
+import { changeSubscription } from "./commands/change-subscription";
+import { createOneTimePayment } from "./commands/create-one-time-payment";
+import { createPortalSession } from "./commands/create-portal-session";
+import { getSubscriptionStatus } from "./queries/get-subscription-status";
+import { getBillingHistory } from "./queries/get-billing-history";
 
 export { registerBillingHooks } from "./hooks/on-tenant-created";
 
@@ -10,19 +17,24 @@ export { registerBillingHooks } from "./hooks/on-tenant-created";
  * Per D-23: Module exports routes, commands, queries, jobs, events.
  *
  * Routes: /api/billing/webhooks (Stripe webhook endpoint)
+ * Commands: checkout, cancel, change, one-time payment, portal session
+ * Queries: subscription status, billing history
  * Jobs: billing:process-webhook (async webhook event processing)
  * Events: subscription.created, subscription.cancelled, payment.succeeded, payment.failed
- *
- * Commands and queries will be added in Plan 03 (checkout, portal, subscription management).
  */
 export default {
   name: "billing",
   routes: billingRoutes,
   commands: {
-    // Commands added in Plan 03
+    "billing:create-checkout-session": createCheckoutSession,
+    "billing:cancel-subscription": cancelSubscription,
+    "billing:change-subscription": changeSubscription,
+    "billing:create-one-time-payment": createOneTimePayment,
+    "billing:create-portal-session": createPortalSession,
   },
   queries: {
-    // Queries added in Plan 03
+    "billing:get-subscription-status": getSubscriptionStatus,
+    "billing:get-billing-history": getBillingHistory,
   },
   jobs: {
     "billing:process-webhook": {
