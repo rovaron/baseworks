@@ -12,10 +12,10 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **FNDTN-01**: Module registry loads modules dynamically based on configuration file
 - [x] **FNDTN-02**: Each module declares its routes, commands, queries, jobs, and events in a standard format
 - [x] **FNDTN-03**: CQRS command handlers process mutations and emit domain events
-- [ ] **FNDTN-04**: CQRS query handlers execute read-only operations with tenant scoping
+- [x] **FNDTN-04**: CQRS query handlers execute read-only operations with tenant scoping
 - [x] **FNDTN-05**: Drizzle ORM connects to PostgreSQL with typed schema and migration tooling
-- [ ] **FNDTN-06**: Tenant-scoped database wrapper auto-injects tenant_id filtering on all queries
-- [ ] **FNDTN-07**: Instance can run as API server, worker, or specific module set via entrypoint and env config
+- [x] **FNDTN-06**: Tenant-scoped database wrapper auto-injects tenant_id filtering on all queries
+- [x] **FNDTN-07**: Instance can run as API server, worker, or specific module set via entrypoint and env config
 - [x] **FNDTN-08**: Bun workspaces monorepo structure with shared packages (db, types, ui, api-client)
 - [x] **FNDTN-09**: Environment variable validation at startup with typed config
 
@@ -131,10 +131,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FNDTN-01 | Phase 1 | Complete |
 | FNDTN-02 | Phase 1 | Complete |
 | FNDTN-03 | Phase 1 | Complete |
-| FNDTN-04 | Phase 1 | Pending |
+| FNDTN-04 | Phase 1 | Complete |
 | FNDTN-05 | Phase 1 | Complete |
-| FNDTN-06 | Phase 1 | Pending |
-| FNDTN-07 | Phase 1 | Pending |
+| FNDTN-06 | Phase 1 | Complete |
+| FNDTN-07 | Phase 1 | Complete |
 | FNDTN-08 | Phase 1 | Complete |
 | FNDTN-09 | Phase 1 | Complete |
 | AUTH-01 | Phase 2 | Pending |
