@@ -34,7 +34,6 @@ export const createTenant = defineCommand(
           slug,
           userId: ctx.userId,
         },
-        headers: new Headers(),
       });
 
       ctx.emit("tenant.created", {

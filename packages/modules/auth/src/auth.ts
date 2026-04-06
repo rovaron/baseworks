@@ -126,8 +126,8 @@ export const auth = betterAuth({
               body: {
                 name: `${displayName}'s Workspace`,
                 slug: `personal-${user.id.slice(0, 8)}`,
+                userId: user.id,
               },
-              headers: new Headers(),
             });
             console.log(`[AUTH] Auto-created personal tenant for user: ${user.id}`);
           } catch (error) {

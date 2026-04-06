@@ -32,12 +32,31 @@ export const errorMiddleware = new Elysia({ name: "error-handler" }).onError(
         };
 
       default: {
-        // Check for tenant context errors
-        if (errMsg === "Missing tenant context") {
+        // Check for tenant context / auth errors from tenant middleware
+        if (
+          errMsg === "Missing tenant context" ||
+          errMsg === "Unauthorized"
+        ) {
+          set.status = 401;
+          return {
+            success: false,
+            error: "UNAUTHORIZED",
+          };
+        }
+
+        if (errMsg === "No active tenant") {
           set.status = 401;
           return {
             success: false,
             error: "MISSING_TENANT_CONTEXT",
+          };
+        }
+
+        if (errMsg === "Forbidden") {
+          set.status = 403;
+          return {
+            success: false,
+            error: "FORBIDDEN",
           };
         }
 
