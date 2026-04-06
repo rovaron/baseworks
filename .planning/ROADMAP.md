@@ -47,12 +47,12 @@ Plans:
   3. Every user belongs to a tenant, and creating/reading/updating/deleting tenants works through the module's CQRS handlers
   4. A tenant member with "member" role cannot perform admin-only actions; an "owner" can perform all actions
   5. A user can update their profile (name, email, avatar, password) within their tenant context
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
-- [ ] 02-03: TBD
+- [ ] 02-01-PLAN.md -- better-auth instance, Drizzle schema, Elysia routes, auth macro, module registration
+- [ ] 02-02-PLAN.md -- Session-based tenant middleware, auto-create personal tenant, RBAC enforcement
+- [ ] 02-03-PLAN.md -- Tenant CRUD commands/queries, user profile management, full module interface
 
 ### Phase 3: Billing & Background Jobs
 **Goal**: Tenants can subscribe to plans, manage billing through Stripe, and asynchronous work (webhooks, emails) processes reliably through job queues
@@ -112,7 +112,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation & Core Infrastructure | 0/3 | Planned | - |
-| 2. Auth & Multitenancy | 0/3 | Not started | - |
+| 2. Auth & Multitenancy | 0/3 | Planned | - |
 | 3. Billing & Background Jobs | 0/3 | Not started | - |
 | 4. Frontend Applications | 0/3 | Not started | - |
 | 5. Production Hardening | 0/2 | Not started | - |
