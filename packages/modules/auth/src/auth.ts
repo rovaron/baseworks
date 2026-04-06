@@ -77,4 +77,36 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 24 * 7, // 7 days
     updateAge: 60 * 60 * 24, // Refresh session every 24 hours
   },
+  /**
+   * Database hooks for auto-creating a personal tenant on signup.
+   * Per D-08: Every user gets a personal organization (tenant) with owner role.
+   * Per TNNT-01: Ensures every user belongs to at least one tenant from signup.
+   *
+   * The hook uses `auth` via closure -- the reference resolves at call time
+   * (after betterAuth() returns), so there is no circular dependency.
+   *
+   * Per Pitfall 3: activeOrganizationId may not be set after org creation.
+   * The tenant middleware handles this by auto-selecting the user's first org.
+   */
+  databaseHooks: {
+    user: {
+      create: {
+        after: async (user: any) => {
+          try {
+            const displayName = user.name || user.email.split("@")[0];
+            await auth.api.createOrganization({
+              body: {
+                name: `${displayName}'s Workspace`,
+                slug: `personal-${user.id.slice(0, 8)}`,
+              },
+              headers: new Headers(),
+            });
+            console.log(`[AUTH] Auto-created personal tenant for user: ${user.id}`);
+          } catch (error) {
+            console.error("[AUTH] Failed to auto-create tenant for user:", user.id, error);
+          }
+        },
+      },
+    },
+  },
 });
