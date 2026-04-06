@@ -11,8 +11,8 @@ import { TypedEventBus } from "./event-bus";
 const moduleImportMap: Record<string, () => Promise<any>> = {
   example: () => import("@baseworks/module-example"),
   auth: () => import("@baseworks/module-auth"),
+  billing: () => import("@baseworks/module-billing"),
   // Future modules added here:
-  // billing: () => import('@baseworks/module-billing'),
 };
 
 export interface RegistryConfig {
