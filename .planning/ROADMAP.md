@@ -69,7 +69,7 @@ Plans:
 Plans:
 - [x] 03-01-PLAN.md -- BullMQ queue infrastructure package, worker entrypoint with module job iteration, env validation
 - [x] 03-02-PLAN.md -- Billing module skeleton: Drizzle schema, Stripe client, webhook pipeline, tenant.created hook
-- [ ] 03-03-PLAN.md -- Billing CQRS commands (checkout, cancel, change, portal, one-time) and queries, API wiring
+- [x] 03-03-PLAN.md -- Billing CQRS commands (checkout, cancel, change, portal, one-time) and queries, API wiring
 - [ ] 03-04-PLAN.md -- Usage-based billing, transactional email via Resend, auth email integration, schema push, verification
 
 ### Phase 4: Frontend Applications
