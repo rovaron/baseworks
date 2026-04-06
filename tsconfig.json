@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "paths": {
+      "@baseworks/db": ["./packages/db/src"],
+      "@baseworks/db/*": ["./packages/db/src/*"],
+      "@baseworks/shared": ["./packages/shared/src"],
+      "@baseworks/shared/*": ["./packages/shared/src/*"],
+      "@baseworks/config": ["./packages/config/src"],
+      "@baseworks/config/*": ["./packages/config/src/*"]
+    }
+  },
+  "references": [
+    { "path": "./packages/db" },
+    { "path": "./packages/shared" },
+    { "path": "./packages/config" },
+    { "path": "./apps/api" }
+  ],
+  "exclude": ["node_modules", "dist"]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "@baseworks/db",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "drizzle-orm": "^0.45.0",
+    "postgres": "^3.4.0",
+    "drizzle-typebox": "^0.3.0",
+    "@sinclair/typebox": "0.34.49",
+    "@baseworks/config": "workspace:*"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.0"
+  }
+}

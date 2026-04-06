@@ -1,0 +1,22 @@
+{
+  "name": "baseworks",
+  "private": true,
+  "workspaces": ["packages/*", "packages/modules/*", "apps/*"],
+  "scripts": {
+    "api": "bun run --watch apps/api/src/index.ts",
+    "worker": "bun run apps/api/src/worker.ts",
+    "db:generate": "bun drizzle-kit generate --config packages/db/drizzle.config.ts",
+    "db:migrate": "bun drizzle-kit migrate --config packages/db/drizzle.config.ts",
+    "db:push": "bun drizzle-kit push --config packages/db/drizzle.config.ts",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.0.0",
+    "typescript": "^5.5.0"
+  },
+  "overrides": {
+    "@sinclair/typebox": "0.34.49"
+  }
+}
