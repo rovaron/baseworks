@@ -14,7 +14,7 @@ export interface JobDefinition {
  */
 export interface ModuleDefinition {
   name: string;
-  routes?: (app: any) => any;
+  routes?: ((app: any) => any) | any;
   commands?: Record<string, CommandHandler<any, any>>;
   queries?: Record<string, QueryHandler<any, any>>;
   jobs?: Record<string, JobDefinition>;

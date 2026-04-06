@@ -1,0 +1,14 @@
+{
+  "name": "@baseworks/module-example",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@baseworks/shared": "workspace:*",
+    "@baseworks/db": "workspace:*",
+    "elysia": "^1.4.0",
+    "@sinclair/typebox": "0.34.49",
+    "drizzle-orm": "^0.45.0"
+  }
+}

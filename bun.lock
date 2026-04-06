@@ -43,6 +43,17 @@
         "drizzle-kit": "^0.31.0",
       },
     },
+    "packages/modules/example": {
+      "name": "@baseworks/module-example",
+      "version": "0.0.1",
+      "dependencies": {
+        "@baseworks/db": "workspace:*",
+        "@baseworks/shared": "workspace:*",
+        "@sinclair/typebox": "0.34.49",
+        "drizzle-orm": "^0.45.0",
+        "elysia": "^1.4.0",
+      },
+    },
     "packages/shared": {
       "name": "@baseworks/shared",
       "dependencies": {
@@ -60,6 +71,8 @@
     "@baseworks/config": ["@baseworks/config@workspace:packages/config"],
 
     "@baseworks/db": ["@baseworks/db@workspace:packages/db"],
+
+    "@baseworks/module-example": ["@baseworks/module-example@workspace:packages/modules/example"],
 
     "@baseworks/shared": ["@baseworks/shared@workspace:packages/shared"],
 
