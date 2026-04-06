@@ -802,22 +802,25 @@ export const timestampColumns = () => ({
 | A2 | Dynamic import of workspace packages (`import('@baseworks/module-example')`) works in Bun | Pattern 1 | MEDIUM -- If Bun's dynamic import doesn't resolve workspace packages, the module registry needs a different loading strategy (e.g., a static import map) |
 | A3 | drizzle-typebox 0.3.3 is compatible with Drizzle 0.45.2 and TypeBox 0.34.49 | Standard Stack | MEDIUM -- Version mismatch could cause type errors. Verify at install time. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Dynamic import of workspace packages in Bun**
+1. **Dynamic import of workspace packages in Bun** ✓ RESOLVED
    - What we know: Bun resolves `workspace:*` dependencies statically in import statements. Dynamic `import()` with workspace package names may or may not work.
    - What's unclear: Whether `await import('@baseworks/module-example')` resolves correctly at runtime.
    - Recommendation: Test early. If dynamic import fails, use a static import map in the registry config that maps module names to their exports.
+   - **Resolution:** Plan 01-02 T1 implements a static import map fallback in the registry config. Dynamic import tested first, fallback used if it fails.
 
-2. **TypeBox version alignment with Elysia 1.4.28**
+2. **TypeBox version alignment with Elysia 1.4.28** ✓ RESOLVED
    - What we know: Elysia uses TypeBox internally. drizzle-typebox also depends on TypeBox.
    - What's unclear: The exact TypeBox version Elysia 1.4.28 uses internally.
    - Recommendation: After `bun install`, run `bun pm ls @sinclair/typebox` to check for version conflicts. Add overrides if needed.
+   - **Resolution:** Plan 01-01 T1 adds `"overrides"` in root package.json to pin @sinclair/typebox. Version checked after install.
 
-3. **scopedDb wrapper completeness**
+3. **scopedDb wrapper completeness** ✓ RESOLVED
    - What we know: The wrapper covers select, insert, update, delete with tenant filtering.
    - What's unclear: How to handle Drizzle's relational queries (`db.query.table.findMany()`) with tenant scoping, and how to handle raw SQL when needed.
    - Recommendation: Start with the basic wrapper. Add relational query support when Phase 2 needs it. For raw SQL, require explicit `unscopedDb()`.
+   - **Resolution:** Plan 01-03 T1 implements basic wrapper (select/insert/update/delete). Relational query support deferred to Phase 2. Raw SQL requires explicit `unscopedDb()`.
 
 ## Environment Availability
 
