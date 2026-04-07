@@ -559,22 +559,25 @@ app.get("/api/billing/subscription", async (ctx: any) => {
 | A5 | Vite dev server proxy bypasses CORS cookie issues in development | Pitfall 4 | Would need to configure explicit CORS + credentials in dev. |
 | A6 | `react-router` v7 `createBrowserRouter` works without the Vite plugin (non-framework mode) | Pattern 6 | May need `@react-router/dev` Vite plugin for data mode. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Elysia `as any` Fix Strategy**
    - What we know: Lines 45 and 77 of `apps/api/src/index.ts` use `as any`, breaking Eden Treaty type chain.
    - What's unclear: Whether the registry pattern can return properly typed Elysia instances, or if routes need to be composed differently (e.g., direct method chaining instead of `registry.attachRoutes`).
    - Recommendation: In Plan 01, attempt to refactor by composing routes via `.use()` chains. If registry typing proves too complex, create a typed route aggregator that preserves the chain.
+   - RESOLVED: Plan 01 Task 1 refactors registry to return Elysia plugin via `getModuleRoutes()` and composes all routes via `.use()` chain. Typed route aggregator is the fallback.
 
 2. **Admin Cross-Tenant API Design**
    - What we know: Admin needs endpoints like `GET /api/admin/tenants`, `GET /api/admin/users`. These bypass tenant scoping.
    - What's unclear: Whether to create a separate Elysia group with its own middleware (no tenant context, just role check), or extend the existing route structure.
    - Recommendation: Create `/api/admin/*` route group with `requireRole("owner")` middleware. These routes use raw `db` (not `scopedDb`) for cross-tenant queries.
+   - RESOLVED: Plan 01 Task 1 creates `/api/admin/*` Elysia route group with `requireRole("owner")` middleware and raw db (not scopedDb).
 
 3. **Impersonation Mechanism**
    - What we know: ADMN-03 requires user impersonation.
    - What's unclear: Whether better-auth has a built-in impersonation feature, or if this needs a custom implementation.
    - Recommendation: Check better-auth docs for admin/impersonation plugin. Fallback: create a custom endpoint that creates a temporary session for the target user.
+   - RESOLVED: Plan 01 Task 1 implements `POST /api/admin/users/:id/impersonate` using better-auth admin API if available, falling back to custom session creation via `auth.api.createSession()`.
 
 ## Environment Availability
 
