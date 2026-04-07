@@ -1,5 +1,5 @@
 import type { ModuleDefinition } from "@baseworks/shared";
-import type { Elysia } from "elysia";
+import { Elysia } from "elysia";
 import { logger } from "../lib/logger";
 import { CqrsBus } from "./cqrs";
 import { TypedEventBus } from "./event-bus";
@@ -98,11 +98,37 @@ export class ModuleRegistry {
     for (const [name, def] of this.loaded) {
       // Auth routes are mounted separately before tenant middleware
       if (name === "auth") continue;
+      // Billing routes are mounted explicitly in app chain for type inference
+      if (name === "billing") continue;
       if (def.routes) {
         app.use(def.routes as any);
         logger.info({ module: name }, "Routes attached");
       }
     }
+  }
+
+  /**
+   * Returns a single Elysia plugin that chains all non-auth, non-billing module routes.
+   * Used in the app composition chain to preserve type inference for Eden Treaty.
+   */
+  getModuleRoutes(): Elysia<any> {
+    const plugin = new Elysia({ name: "module-routes" });
+
+    if (this.config.role === "worker") {
+      logger.info("Worker role -- skipping route attachment");
+      return plugin;
+    }
+
+    for (const [name, def] of this.loaded) {
+      // Auth and billing routes are mounted separately for type chain preservation
+      if (name === "auth" || name === "billing") continue;
+      if (def.routes) {
+        plugin.use(def.routes as any);
+        logger.info({ module: name }, "Routes attached via getModuleRoutes");
+      }
+    }
+
+    return plugin;
   }
 
   getCqrs(): CqrsBus {

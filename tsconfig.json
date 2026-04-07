@@ -18,13 +18,20 @@
       "@baseworks/shared/*": ["./packages/shared/src/*"],
       "@baseworks/config": ["./packages/config/src"],
       "@baseworks/config/*": ["./packages/config/src/*"],
-      "@baseworks/module-*": ["./packages/modules/*/src"]
+      "@baseworks/module-*": ["./packages/modules/*/src"],
+      "@baseworks/ui": ["./packages/ui/src"],
+      "@baseworks/ui/*": ["./packages/ui/src/*"],
+      "@baseworks/api-client": ["./packages/api-client/src"],
+      "@baseworks/api-client/*": ["./packages/api-client/src/*"],
+      "@baseworks/api": ["./apps/api/src"]
     }
   },
   "include": [
     "packages/*/src/**/*.ts",
+    "packages/*/src/**/*.tsx",
     "packages/modules/*/src/**/*.ts",
-    "apps/*/src/**/*.ts"
+    "apps/*/src/**/*.ts",
+    "apps/*/src/**/*.tsx"
   ],
   "exclude": ["node_modules", "dist"]
 }

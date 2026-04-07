@@ -1,9 +1,17 @@
-import { Elysia } from "elysia";
+import { Elysia, t } from "elysia";
 import { getStripe } from "./stripe";
 import { env } from "@baseworks/config";
 import { createDb, webhookEvents } from "@baseworks/db";
 import { eq } from "drizzle-orm";
 import { Queue } from "bullmq";
+import { createCheckoutSession } from "./commands/create-checkout-session";
+import { cancelSubscription } from "./commands/cancel-subscription";
+import { changeSubscription } from "./commands/change-subscription";
+import { createOneTimePayment } from "./commands/create-one-time-payment";
+import { createPortalSession } from "./commands/create-portal-session";
+import { recordUsage } from "./commands/record-usage";
+import { getSubscriptionStatus } from "./queries/get-subscription-status";
+import { getBillingHistory } from "./queries/get-billing-history";
 
 /**
  * Billing routes plugin.
@@ -99,4 +107,100 @@ export const billingRoutes = new Elysia({ prefix: "/api/billing" })
     }
 
     return { received: true };
+  })
+  // --- Billing HTTP routes (tenant-scoped, requires auth + tenant middleware) ---
+  .post("/checkout", async (ctx: any) => {
+    const result = await createCheckoutSession(ctx.body, ctx.handlerCtx);
+    if (!result.success) {
+      ctx.set.status = 400;
+      return { success: false, error: result.error };
+    }
+    return { success: true, data: result.data };
+  }, {
+    body: t.Object({
+      priceId: t.String(),
+      successUrl: t.String(),
+      cancelUrl: t.String(),
+    }),
+  })
+  .post("/cancel", async (ctx: any) => {
+    const result = await cancelSubscription({}, ctx.handlerCtx);
+    if (!result.success) {
+      ctx.set.status = 400;
+      return { success: false, error: result.error };
+    }
+    return { success: true };
+  })
+  .post("/change", async (ctx: any) => {
+    const result = await changeSubscription(ctx.body, ctx.handlerCtx);
+    if (!result.success) {
+      ctx.set.status = 400;
+      return { success: false, error: result.error };
+    }
+    return { success: true };
+  }, {
+    body: t.Object({
+      newPriceId: t.String(),
+    }),
+  })
+  .post("/one-time", async (ctx: any) => {
+    const result = await createOneTimePayment(ctx.body, ctx.handlerCtx);
+    if (!result.success) {
+      ctx.set.status = 400;
+      return { success: false, error: result.error };
+    }
+    return { success: true, data: result.data };
+  }, {
+    body: t.Object({
+      priceId: t.String(),
+      quantity: t.Optional(t.Number({ minimum: 1 })),
+      successUrl: t.String(),
+      cancelUrl: t.String(),
+    }),
+  })
+  .post("/portal", async (ctx: any) => {
+    const result = await createPortalSession(ctx.body, ctx.handlerCtx);
+    if (!result.success) {
+      ctx.set.status = 400;
+      return { success: false, error: result.error };
+    }
+    return { success: true, data: result.data };
+  }, {
+    body: t.Object({
+      returnUrl: t.String(),
+    }),
+  })
+  .post("/usage", async (ctx: any) => {
+    const result = await recordUsage(
+      { metric: ctx.body.featureKey, quantity: ctx.body.quantity },
+      ctx.handlerCtx,
+    );
+    if (!result.success) {
+      ctx.set.status = 400;
+      return { success: false, error: result.error };
+    }
+    return { success: true };
+  }, {
+    body: t.Object({
+      featureKey: t.String(),
+      quantity: t.Number({ minimum: 1 }),
+    }),
+  })
+  .get("/subscription", async (ctx: any) => {
+    const result = await getSubscriptionStatus({}, ctx.handlerCtx);
+    if (!result.success) {
+      ctx.set.status = 400;
+      return { success: false, error: result.error };
+    }
+    return { success: true, data: result.data };
+  })
+  .get("/history", async (ctx: any) => {
+    const limit = Number(ctx.query?.limit) || 20;
+    const offset = Number(ctx.query?.offset) || 0;
+    const result = await getBillingHistory({ limit }, ctx.handlerCtx);
+    if (!result.success) {
+      ctx.set.status = 400;
+      return { success: false, error: result.error };
+    }
+    return { success: true, data: result.data };
   });
