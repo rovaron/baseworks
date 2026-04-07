@@ -43,7 +43,22 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
       ) as typeof query;
     }
 
-    const tenants = await query.limit(limit).offset(offset);
+    // Count query for pagination (same filters, no limit/offset)
+    let countQuery = db.select({ count: count() }).from(organization);
+    if (search) {
+      const sanitized = escapeLike(search);
+      countQuery = countQuery.where(
+        or(
+          like(organization.name, `%${sanitized}%`),
+          like(organization.slug, `%${sanitized}%`),
+        ),
+      ) as typeof countQuery;
+    }
+
+    const [tenants, [totalResult]] = await Promise.all([
+      query.limit(limit).offset(offset),
+      countQuery,
+    ]);
 
     return {
       data: tenants.map((t) => ({
@@ -53,6 +68,7 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
         createdAt: t.createdAt,
         metadata: t.metadata ? JSON.parse(t.metadata) : null,
       })),
+      total: totalResult?.count ?? 0,
     };
   })
 
@@ -137,9 +153,24 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
       ) as typeof query;
     }
 
-    const users = await query.limit(limit).offset(offset);
+    // Count query for pagination (same filters, no limit/offset)
+    let userCountQuery = db.select({ count: count() }).from(user);
+    if (search) {
+      const sanitized = escapeLike(search);
+      userCountQuery = userCountQuery.where(
+        or(
+          like(user.name, `%${sanitized}%`),
+          like(user.email, `%${sanitized}%`),
+        ),
+      ) as typeof userCountQuery;
+    }
 
-    return { data: users };
+    const [users, [userTotalResult]] = await Promise.all([
+      query.limit(limit).offset(offset),
+      userCountQuery,
+    ]);
+
+    return { data: users, total: userTotalResult?.count ?? 0 };
   })
 
   .get("/users/:id", async (ctx: any) => {
