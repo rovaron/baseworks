@@ -223,16 +223,15 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
       return { success: false, error: "USER_NOT_FOUND" };
     }
 
-    // better-auth user table does not have a banned column by default.
-    // Store ban status in a metadata approach or extend the user table.
-    // For now, log the ban action. A proper implementation would require
-    // the admin plugin for better-auth or a custom banned column.
+    // TODO: better-auth user table does not have a banned column by default.
+    // Implement via better-auth admin plugin or a custom banned column.
     logger.info(
       { targetUserId: ctx.params.id, banned: ctx.body.banned, reason: ctx.body.banReason },
-      "Admin user ban/unban action",
+      "Admin user ban/unban action (not yet implemented)",
     );
 
-    return { success: true, message: ctx.body.banned ? "User banned" : "User unbanned" };
+    ctx.set.status = 501;
+    return { success: false, error: "NOT_IMPLEMENTED", message: "User ban/unban is not yet implemented" };
   }, {
     body: t.Object({
       banned: t.Boolean(),
@@ -255,7 +254,7 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
       return { success: false, error: "USER_NOT_FOUND" };
     }
 
-    // Log impersonation for audit trail (T-4-05)
+    // Log impersonation attempt for audit trail (T-4-05)
     logger.warn(
       {
         adminUserId: ctx.userId,
@@ -263,16 +262,17 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
         targetEmail: targetUser.email,
         action: "impersonate",
       },
-      "Admin impersonation initiated",
+      "Admin impersonation attempted (not yet implemented)",
     );
 
-    // Impersonation requires creating a session for the target user.
-    // This is a placeholder -- full implementation requires better-auth
-    // admin plugin or direct session creation via auth.api.
+    // TODO: Impersonation requires creating a session for the target user.
+    // Full implementation requires better-auth admin plugin or direct
+    // session creation via auth.api.
+    ctx.set.status = 501;
     return {
-      success: true,
-      message: "Impersonation session created",
-      targetUserId: targetId,
+      success: false,
+      error: "NOT_IMPLEMENTED",
+      message: "User impersonation is not yet implemented",
     };
   })
 
