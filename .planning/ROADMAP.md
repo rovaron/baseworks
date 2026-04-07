@@ -82,13 +82,13 @@ Plans:
   3. An admin can log into the admin dashboard and manage tenants (list, view, edit, deactivate) and users (list, view, impersonate, ban)
   4. Both apps make type-safe API calls via Eden Treaty with full TypeScript inference -- no manual type definitions
   5. Both apps share UI components from the shared-ui package with consistent Tailwind 4 styling
-**Plans**: TBD
+**Plans:** 3 plans
 **UI hint**: yes
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
-- [ ] 04-03: TBD
+- [ ] 04-01-PLAN.md -- Shared foundations: @baseworks/ui (shadcn + Tailwind 4), @baseworks/api-client (Eden Treaty + better-auth), fix App type export, billing HTTP routes, admin API routes
+- [ ] 04-02-PLAN.md -- Next.js customer app: scaffolding, auth pages, dashboard layout, billing pages, tenant context/switcher
+- [ ] 04-03-PLAN.md -- Vite admin dashboard: scaffolding, admin auth, tenant management, user management, billing overview, system health
 
 ### Phase 5: Production Hardening
 **Goal**: The entire stack is deployable via Docker (backend, workers, admin) and Vercel (customer app), with structured logging, health monitoring, and validated configuration
@@ -112,8 +112,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation & Core Infrastructure | 0/3 | Planned | - |
-| 2. Auth & Multitenancy | 0/3 | Planned | - |
-| 3. Billing & Background Jobs | 0/4 | Planned | - |
-| 4. Frontend Applications | 0/3 | Not started | - |
+| 1. Foundation & Core Infrastructure | 3/3 | Complete | - |
+| 2. Auth & Multitenancy | 3/3 | Complete | - |
+| 3. Billing & Background Jobs | 4/4 | Complete | - |
+| 4. Frontend Applications | 0/3 | Planned | - |
 | 5. Production Hardening | 0/2 | Not started | - |
