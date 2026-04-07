@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "paths": {
+      "@/*": ["./src/*"],
+      "@baseworks/ui": ["../../packages/ui/src"],
+      "@baseworks/ui/*": ["../../packages/ui/src/*"],
+      "@baseworks/api-client": ["../../packages/api-client/src"],
+      "@baseworks/api-client/*": ["../../packages/api-client/src/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["node_modules"]
+}
