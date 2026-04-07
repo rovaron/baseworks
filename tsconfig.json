@@ -11,6 +11,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "noEmit": true,
+    "jsx": "react-jsx",
     "paths": {
       "@baseworks/db": ["./packages/db/src"],
       "@baseworks/db/*": ["./packages/db/src/*"],
