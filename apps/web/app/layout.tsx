@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Toaster } from "@baseworks/ui/components/sonner";
 import { Providers } from "@/lib/providers";
 import "./globals.css";
 
@@ -12,6 +13,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="min-h-screen bg-background text-foreground antialiased">
         <Providers>{children}</Providers>
+        <Toaster />
       </body>
     </html>
   );
