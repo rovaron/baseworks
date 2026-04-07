@@ -86,7 +86,7 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 04-01-PLAN.md -- Shared foundations: @baseworks/ui (shadcn + Tailwind 4), @baseworks/api-client (Eden Treaty + better-auth), fix App type export, billing HTTP routes, admin API routes
+- [x] 04-01-PLAN.md -- Shared foundations: @baseworks/ui (shadcn + Tailwind 4), @baseworks/api-client (Eden Treaty + better-auth), fix App type export, billing HTTP routes, admin API routes
 - [ ] 04-02-PLAN.md -- Next.js customer app: scaffolding, auth pages, dashboard layout, billing pages, tenant context/switcher
 - [ ] 04-03-PLAN.md -- Vite admin dashboard: scaffolding, admin auth, tenant management, user management, billing overview, system health
 
