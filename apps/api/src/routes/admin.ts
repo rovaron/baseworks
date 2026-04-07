@@ -20,6 +20,21 @@ function escapeLike(input: string): string {
 
 const db = createDb(env.DATABASE_URL);
 
+/** Cached Redis connection for health checks to avoid per-request connection churn. */
+let healthRedis: any = null;
+
+async function getHealthRedis(redisUrl: string): Promise<any> {
+  if (healthRedis) return healthRedis;
+  const ioredis = await import("ioredis" as string);
+  const IORedis = ioredis.default || ioredis;
+  healthRedis = new IORedis(redisUrl, {
+    maxRetriesPerRequest: 1,
+    lazyConnect: true,
+  });
+  await healthRedis.connect();
+  return healthRedis;
+}
+
 export const adminRoutes = new Elysia({ prefix: "/api/admin" })
   .use(requireRole("owner"))
 
@@ -302,6 +317,7 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
   })
 
   // --- System Health ---
+  // Cached Redis connection for health checks to avoid connection churn (WR-04)
   .get("/system/health", async () => {
     const health: Record<string, any> = {
       uptime: process.uptime(),
@@ -311,10 +327,7 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
     // Check Redis connectivity if Redis is available
     if (env.REDIS_URL) {
       try {
-        // Use dynamic import to avoid hard dependency on ioredis types
-        const ioredis = await import("ioredis" as string);
-        const IORedis = ioredis.default || ioredis;
-        const redis = new IORedis(env.REDIS_URL, { maxRetriesPerRequest: 1 });
+        const redis = await getHealthRedis(env.REDIS_URL);
 
         // Get Redis memory info
         const info = await redis.info("memory");
@@ -323,9 +336,9 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
           connected: true,
           usedMemory: usedMemoryMatch?.[1] || "unknown",
         };
-
-        await redis.quit();
       } catch {
+        // Reset cached connection on failure so next request retries
+        healthRedis = null;
         health.redis = { connected: false, error: "Failed to connect" };
       }
     } else {
