@@ -5,6 +5,11 @@ import { requireRole } from "@baseworks/module-auth";
 import { eq, like, or, count } from "drizzle-orm";
 import { logger } from "../lib/logger";
 
+/** Escape LIKE meta-characters to prevent search injection. */
+function escapeLike(input: string): string {
+  return input.replace(/[%_\\]/g, (c) => "\\" + c);
+}
+
 /**
  * Admin API routes for cross-tenant operations.
  *
@@ -29,10 +34,11 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
       .from(organization);
 
     if (search) {
+      const sanitized = escapeLike(search);
       query = query.where(
         or(
-          like(organization.name, `%${search}%`),
-          like(organization.slug, `%${search}%`),
+          like(organization.name, `%${sanitized}%`),
+          like(organization.slug, `%${sanitized}%`),
         ),
       ) as typeof query;
     }
@@ -122,10 +128,11 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
       .from(user);
 
     if (search) {
+      const sanitized = escapeLike(search);
       query = query.where(
         or(
-          like(user.name, `%${search}%`),
-          like(user.email, `%${search}%`),
+          like(user.name, `%${sanitized}%`),
+          like(user.email, `%${sanitized}%`),
         ),
       ) as typeof query;
     }
