@@ -51,6 +51,7 @@ Components required for Phase 4, installed via shadcn CLI into `packages/ui/src/
 | Skeleton | Both apps | Loading states for async content |
 | Tabs | Customer app | Billing page sections (subscription, history, usage) |
 | Sonner (Toast) | Both apps | Success/error/info notifications |
+| Tooltip | Both apps | Accessible labels for icon-only sidebar items in collapsed state |
 
 **Source:** D-21 from CONTEXT.md.
 
@@ -81,15 +82,15 @@ Exceptions: Touch targets for sidebar navigation items and mobile interactions u
 | Role | Size | Weight | Line Height | CSS Class |
 |------|------|--------|-------------|-----------|
 | Body | 14px | 400 (regular) | 1.5 | `text-sm` |
-| Label | 14px | 500 (medium) | 1.4 | `text-sm font-medium` |
+| Label | 14px | 600 (semibold) | 1.4 | `text-sm font-semibold` |
 | Heading | 20px | 600 (semibold) | 1.2 | `text-xl font-semibold` |
-| Display | 28px | 700 (bold) | 1.2 | `text-2xl font-bold` (page titles only) |
+| Display | 28px | 600 (semibold) | 1.2 | `text-2xl font-semibold` (page titles only) |
 
-**Rationale:** 14px body is the shadcn default and works well for data-dense admin interfaces and dashboard layouts. 4 sizes provide clear hierarchy without bloat. Both apps share the same typographic scale.
+**Rationale:** 14px body is the shadcn default and works well for data-dense admin interfaces and dashboard layouts. 4 sizes provide clear hierarchy without bloat. Both apps share the same typographic scale. Two weights only: 400 (regular) for body text and 600 (semibold) for labels, headings, and display. Weight 500 (medium) removed — labels use semibold for stronger visual distinction. Weight 700 (bold) removed — display uses semibold for consistency with heading weight.
 
 **Font stack:** Tailwind 4 default sans-serif (`ui-sans-serif, system-ui, sans-serif`). No custom web fonts — keeps bundle minimal and load times fast for a starter kit.
 
-**Source:** shadcn/ui defaults. Weight 500 (medium) used for labels per shadcn convention.
+**Source:** shadcn/ui defaults. Collapsed to 2 weights per design contract rules.
 
 ---
 
@@ -136,7 +137,7 @@ shadcn/ui with `neutral` base color provides the full color token set via CSS cu
 | Manage billing CTA | "Manage billing" (opens Stripe portal) |
 | Empty state: dashboard | Heading: "Welcome to {tenant_name}" / Body: "Get started by exploring your dashboard." |
 | Empty state: billing (no subscription) | Heading: "No active subscription" / Body: "Choose a plan to unlock all features." / CTA: "View plans" |
-| Empty state: billing history | Heading: "No billing history" / Body: "Your invoices will appear here after your first payment." |
+| Empty state: billing history | Heading: "No billing history yet" / Body: "Your invoices will appear here after your first payment." |
 | Error state: API failure | "Something went wrong. Please try again or contact support if the problem persists." |
 | Error state: auth failure | "Invalid credentials. Please check your email and password." |
 | Error state: session expired | "Your session has expired. Please sign in again." |
@@ -147,16 +148,16 @@ shadcn/ui with `neutral` base color provides the full color token set via CSS cu
 | Element | Copy |
 |---------|------|
 | Login CTA | "Sign in to Admin" |
-| Empty state: tenants | Heading: "No tenants found" / Body: "Tenants will appear here when users create accounts." |
-| Empty state: users | Heading: "No users found" / Body: "Users will appear here when accounts are created." |
-| Empty state: billing overview | Heading: "No billing data" / Body: "Billing metrics will appear once tenants subscribe to plans." |
+| Empty state: tenants | Heading: "Your platform has no tenants yet" / Body: "When users create accounts, their tenants will appear here." |
+| Empty state: users | Heading: "No accounts registered yet" / Body: "Users will appear here once they sign up." |
+| Empty state: billing overview | Heading: "No billing activity yet" / Body: "Billing metrics will appear once tenants subscribe to plans." |
 | Error state: API failure | "Failed to load data. Check the API server status and try again." |
 | Error state: unauthorized | "You do not have admin privileges. Contact your system administrator." |
-| Deactivate tenant confirmation | Action: "Deactivate tenant" / Dialog: "Deactivating {tenant_name} will prevent all members from accessing the platform. This can be reversed." / Confirm: "Deactivate" / Dismiss: "Cancel" |
-| Ban user confirmation | Action: "Ban user" / Dialog: "Banning {user_email} will immediately end their session and prevent login. This can be reversed." / Confirm: "Ban user" / Dismiss: "Cancel" |
-| Impersonate user confirmation | Action: "Impersonate" / Dialog: "You are about to impersonate {user_email}. All actions will be logged." / Confirm: "Start impersonation" / Dismiss: "Cancel" |
+| Deactivate tenant confirmation | Action: "Deactivate tenant" / Dialog: "Deactivating {tenant_name} will prevent all members from accessing the platform. This can be reversed." / Confirm: "Deactivate tenant" / Dismiss: "Keep tenant active" |
+| Ban user confirmation | Action: "Ban user" / Dialog: "Banning {user_email} will immediately end their session and prevent login. This can be reversed." / Confirm: "Ban user" / Dismiss: "Keep user active" |
+| Impersonate user confirmation | Action: "Impersonate" / Dialog: "You are about to impersonate {user_email}. All actions will be logged." / Confirm: "Start impersonation" / Dismiss: "Return to admin" |
 
-**Source:** Inferred from REQUIREMENTS.md (CUST-01 through CUST-05, ADMN-01 through ADMN-05) and CONTEXT.md decisions. Verb + noun pattern for all CTAs.
+**Source:** Inferred from REQUIREMENTS.md (CUST-01 through CUST-05, ADMN-01 through ADMN-05) and CONTEXT.md decisions. Verb + noun pattern for all CTAs and confirm labels.
 
 ---
 
@@ -178,8 +179,9 @@ shadcn/ui with `neutral` base color provides the full color token set via CSS cu
 ```
 
 - Sidebar width: 240px (collapsed: 48px icon-only on mobile)
+- **Collapsed sidebar accessibility:** When the sidebar collapses to 48px icon-only mode, every navigation item must include an `aria-label` attribute with the full navigation label. Additionally, wrap each icon-only item in a Radix `Tooltip` (via shadcn Tooltip component) that displays the label on hover and focus, ensuring keyboard and screen reader users can identify each item.
 - Main content max-width: 1024px centered within remaining space
-- Page heading: Display typography (28px bold)
+- Page heading: Display typography (28px semibold)
 - Sidebar uses shadcn `Sidebar` component
 
 ### Admin Dashboard Layout
@@ -198,6 +200,7 @@ shadcn/ui with `neutral` base color provides the full color token set via CSS cu
 ```
 
 - Same sidebar width as customer app (consistency)
+- Same collapsed sidebar accessibility rules apply (aria-label + Tooltip on icon-only items)
 - Main content: full width (no max-width — admin tables need horizontal space)
 - Data tables use `@tanstack/react-table` with shadcn `Table` component
 
@@ -246,7 +249,7 @@ shadcn/ui with `neutral` base color provides the full color token set via CSS cu
 All destructive actions follow the same pattern:
 1. User clicks destructive button (red variant: `variant="destructive"`)
 2. Dialog opens with warning copy from copywriting contract
-3. Two buttons: confirm (destructive variant) and dismiss (outline variant)
+3. Two buttons: confirm (destructive variant with verb + noun label) and dismiss (outline variant with context-specific label)
 4. Confirm triggers API call with button loading state
 5. Success: Toast confirmation + data refresh
 6. Failure: Toast error message
@@ -259,7 +262,7 @@ All destructive actions follow the same pattern:
 
 | Registry | Blocks Used | Safety Gate |
 |----------|-------------|-------------|
-| shadcn official | Button, Card, Input, Label, Form, Select, Table, Dialog, DropdownMenu, Sidebar, Avatar, Badge, Separator, Skeleton, Tabs, Sonner | not required |
+| shadcn official | Button, Card, Input, Label, Form, Select, Table, Dialog, DropdownMenu, Sidebar, Avatar, Badge, Separator, Skeleton, Tabs, Sonner, Tooltip | not required |
 
 No third-party registries declared. All components from official shadcn registry only.
 
