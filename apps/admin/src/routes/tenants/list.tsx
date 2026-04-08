@@ -74,11 +74,13 @@ export function Component() {
       accessorKey: "name",
       header: "Name",
       enableSorting: true,
+      meta: { priority: 1 },
     },
     {
       accessorKey: "slug",
       header: "Slug",
       enableSorting: false,
+      meta: { priority: 3 },
     },
     {
       accessorKey: "createdAt",
@@ -86,6 +88,7 @@ export function Component() {
       enableSorting: true,
       cell: ({ row }) =>
         formatDistanceToNow(new Date(row.original.createdAt), { addSuffix: true }),
+      meta: { priority: 2 },
     },
     {
       id: "status",
@@ -98,10 +101,12 @@ export function Component() {
           <Badge variant="default">active</Badge>
         );
       },
+      meta: { priority: 1 },
     },
     {
       id: "actions",
       header: "",
+      meta: { cardHidden: true },
       cell: ({ row }) => (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
