@@ -63,9 +63,53 @@ logger.info(
   "Worker started",
 );
 
+// Health check HTTP server for Docker/infrastructure probes (D-06)
+const WORKER_HEALTH_PORT = Number(process.env.WORKER_HEALTH_PORT) || 3001;
+
+const healthServer = Bun.serve({
+  port: WORKER_HEALTH_PORT,
+  fetch: async (req) => {
+    const url = new URL(req.url);
+    if (url.pathname !== "/health") {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    const checks: Record<string, { status: string; error?: string; active?: number; queues?: string[] }> = {};
+
+    // Redis connectivity
+    try {
+      const { getRedisConnection } = await import("@baseworks/queue");
+      const redis = getRedisConnection(redisUrl);
+      await redis.ping();
+      checks.redis = { status: "up" };
+    } catch (err) {
+      checks.redis = { status: "down", error: "Failed to connect" };
+    }
+
+    // Worker/queue status
+    checks.workers = {
+      status: workers.length > 0 ? "up" : "down",
+      active: workers.length,
+      queues: workers.map((w) => w.name),
+    };
+
+    const allUp = checks.redis?.status === "up" && workers.length > 0;
+
+    return Response.json({
+      status: allUp ? "ok" : "degraded",
+      role: "worker",
+      checks,
+      uptime: Math.round(process.uptime()),
+    });
+  },
+});
+
+logger.info({ port: WORKER_HEALTH_PORT }, "Worker health server started");
+
 // Graceful shutdown handler
 async function shutdown() {
   logger.info("Worker shutting down...");
+  healthServer.stop();
   await Promise.all(workers.map((w) => w.close()));
   await closeConnection();
   process.exit(0);
