@@ -20,6 +20,7 @@ export const env = createEnv({
     RESEND_API_KEY: z.string().min(1).optional(),
     WEB_URL: z.string().url().default("http://localhost:3000"),
     ADMIN_URL: z.string().url().default("http://localhost:5173"),
+    WORKER_HEALTH_PORT: z.coerce.number().default(3001),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

@@ -2,6 +2,7 @@ import { env } from "@baseworks/config";
 import { createDb, scopedDb } from "@baseworks/db";
 import type { HandlerContext } from "@baseworks/shared";
 import { Elysia } from "elysia";
+import { sql } from "drizzle-orm";
 import cors from "@elysiajs/cors";
 import swagger from "@elysiajs/swagger";
 import { requireRole } from "@baseworks/module-auth";
@@ -9,6 +10,7 @@ import { registerBillingHooks } from "@baseworks/module-billing";
 import { ModuleRegistry } from "./core/registry";
 import { tenantMiddleware } from "./core/middleware/tenant";
 import { errorMiddleware } from "./core/middleware/error";
+import { requestTraceMiddleware } from "./core/middleware/request-trace";
 import { adminRoutes } from "./routes/admin";
 import { logger } from "./lib/logger";
 
@@ -37,6 +39,8 @@ const billingApiRoutes = billingModule?.routes;
 const app = new Elysia()
   // Global error handling -- registered first
   .use(errorMiddleware)
+  // Request tracing -- generates requestId, logs method/path/status/duration
+  .use(requestTraceMiddleware)
   .use(
     cors({
       credentials: true,
@@ -45,10 +49,41 @@ const app = new Elysia()
   )
   .use(swagger())
   // Health check -- no auth, no tenant context required
-  .get("/health", () => ({
-    status: "ok",
-    modules: registry.getLoadedNames(),
-  }))
+  // Enhanced with dependency status for Docker HEALTHCHECK and load balancer probes
+  .get("/health", async () => {
+    const checks: Record<string, { status: string; latency_ms?: number; error?: string }> = {};
+
+    // Database check
+    const dbStart = performance.now();
+    try {
+      await db.execute(sql`SELECT 1`);
+      checks.database = { status: "up", latency_ms: Math.round(performance.now() - dbStart) };
+    } catch (err) {
+      checks.database = { status: "down", error: "Failed to connect" };
+    }
+
+    // Redis check (if configured)
+    if (env.REDIS_URL) {
+      const redisStart = performance.now();
+      try {
+        const { getRedisConnection } = await import("@baseworks/queue");
+        const redis = getRedisConnection(env.REDIS_URL);
+        await redis.ping();
+        checks.redis = { status: "up", latency_ms: Math.round(performance.now() - redisStart) };
+      } catch (err) {
+        checks.redis = { status: "down", error: "Failed to connect" };
+      }
+    }
+
+    const allUp = Object.values(checks).every((c) => c.status === "up");
+
+    return {
+      status: allUp ? "ok" : "degraded",
+      modules: registry.getLoadedNames(),
+      checks,
+      uptime: Math.round(process.uptime()),
+    };
+  })
   // Auth routes -- mounted BEFORE tenant middleware so signup/login/OAuth
   // callbacks do NOT require tenant context (D-16)
   .use(authRoutes ?? new Elysia())
@@ -61,7 +96,11 @@ const app = new Elysia()
         tenantId,
         userId: ctx.userId,
         db: scopedDb(db, tenantId),
-        emit: (event: string, data: unknown) => registry.getEventBus().emit(event, data),
+        emit: (event: string, data: unknown) =>
+          registry.getEventBus().emit(event, {
+            ...((typeof data === "object" && data !== null) ? data : { data }),
+            _requestId: ctx.requestId,
+          }),
       } satisfies HandlerContext,
     };
   })
