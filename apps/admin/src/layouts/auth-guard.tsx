@@ -28,20 +28,37 @@ export function AuthGuard({ children }: AuthGuardProps) {
       return;
     }
 
-    // Check if user has owner role on any organization
+    // Check if user has owner role on any organization.
+    // organization.list() returns orgs without role info, so we need to
+    // set each as active and check the member's role via getFullOrganization.
     auth.organization
       .list()
-      .then((result) => {
-        if (result.error || !result.data) {
+      .then(async (result) => {
+        if (result.error || !result.data || result.data.length === 0) {
           setIsAdmin(false);
           setChecking(false);
           return;
         }
 
-        const hasOwnerRole = result.data.some(
-          (membership: any) => membership.role === "owner",
-        );
-        setIsAdmin(hasOwnerRole);
+        // Check each org for owner role
+        for (const org of result.data) {
+          const fullOrg = await auth.organization.getFullOrganization({
+            query: { organizationId: org.id },
+          });
+          if (fullOrg.data) {
+            const userId = session.data!.user.id;
+            const member = fullOrg.data.members.find(
+              (m: any) => m.userId === userId,
+            );
+            if (member?.role === "owner") {
+              setIsAdmin(true);
+              setChecking(false);
+              return;
+            }
+          }
+        }
+
+        setIsAdmin(false);
         setChecking(false);
       })
       .catch(() => {
