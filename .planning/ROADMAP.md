@@ -40,7 +40,11 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   3. User on tablet sees a collapsible icon-only sidebar that expands on interaction
   4. User can browse data tables on mobile via a card-based layout without horizontal scrolling
   5. All pages in both the customer app and admin dashboard render without horizontal overflow at 375px, 768px, and 1440px viewports
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 06-01-PLAN.md — Three-tier responsive sidebar (desktop/tablet/mobile) with localStorage persistence
+- [ ] 06-02-PLAN.md — Mobile card-based DataTable view with column priority metadata
+- [ ] 06-03-PLAN.md — Page-level responsive audit and fixes across both apps
 **UI hint**: yes
 
 ### Phase 7: Accessibility
@@ -105,7 +109,7 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10
 | 3. Billing & Background Jobs | v1.0 | 4/4 | Complete | 2026-04-07 |
 | 4. Frontend Applications | v1.0 | 3/3 | Complete | 2026-04-07 |
 | 5. Production Hardening | v1.0 | 2/2 | Complete | 2026-04-08 |
-| 6. Responsive Layouts | v1.1 | 0/0 | Not started | - |
+| 6. Responsive Layouts | v1.1 | 0/3 | Planned | - |
 | 7. Accessibility | v1.1 | 0/0 | Not started | - |
 | 8. Internationalization | v1.1 | 0/0 | Not started | - |
 | 9. Team Invites | v1.1 | 0/0 | Not started | - |
