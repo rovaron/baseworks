@@ -1,6 +1,6 @@
 "use client";
 
-import { SidebarProvider } from "@baseworks/ui/components/sidebar";
+import { SidebarProvider, SidebarInset } from "@baseworks/ui/components/sidebar";
 import { TenantProvider } from "@/components/tenant-provider";
 import { SidebarNav } from "@/components/sidebar-nav";
 
@@ -13,9 +13,9 @@ export default function DashboardLayout({
     <TenantProvider>
       <SidebarProvider>
         <SidebarNav />
-        <main className="flex-1 overflow-auto">
+        <SidebarInset>
           <div className="mx-auto max-w-4xl p-6">{children}</div>
-        </main>
+        </SidebarInset>
       </SidebarProvider>
     </TenantProvider>
   );

@@ -1,19 +1,43 @@
 import * as React from "react"
 
 const MOBILE_BREAKPOINT = 768
+const TABLET_BREAKPOINT = 1024
 
-export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
+type Breakpoint = "mobile" | "tablet" | "desktop"
+
+export function useBreakpoint(): Breakpoint {
+  const [breakpoint, setBreakpoint] = React.useState<Breakpoint | undefined>(
+    undefined
+  )
 
   React.useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
-    const onChange = () => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+    const mqlMobile = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
+    const mqlTablet = window.matchMedia(`(max-width: ${TABLET_BREAKPOINT - 1}px)`)
+
+    const update = () => {
+      const width = window.innerWidth
+      if (width < MOBILE_BREAKPOINT) {
+        setBreakpoint("mobile")
+      } else if (width < TABLET_BREAKPOINT) {
+        setBreakpoint("tablet")
+      } else {
+        setBreakpoint("desktop")
+      }
     }
-    mql.addEventListener("change", onChange)
-    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
-    return () => mql.removeEventListener("change", onChange)
+
+    mqlMobile.addEventListener("change", update)
+    mqlTablet.addEventListener("change", update)
+    update()
+
+    return () => {
+      mqlMobile.removeEventListener("change", update)
+      mqlTablet.removeEventListener("change", update)
+    }
   }, [])
 
-  return !!isMobile
+  return breakpoint ?? "desktop"
+}
+
+export function useIsMobile(): boolean {
+  return useBreakpoint() === "mobile"
 }
