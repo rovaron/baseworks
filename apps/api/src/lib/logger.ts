@@ -14,3 +14,8 @@ export const logger = pino({
       }
     : {}),
 });
+
+/** Create a child logger bound to a specific request ID for request-scoped tracing. */
+export function createRequestLogger(requestId: string) {
+  return logger.child({ requestId });
+}

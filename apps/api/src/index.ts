@@ -10,6 +10,7 @@ import { registerBillingHooks } from "@baseworks/module-billing";
 import { ModuleRegistry } from "./core/registry";
 import { tenantMiddleware } from "./core/middleware/tenant";
 import { errorMiddleware } from "./core/middleware/error";
+import { requestTraceMiddleware } from "./core/middleware/request-trace";
 import { adminRoutes } from "./routes/admin";
 import { logger } from "./lib/logger";
 
@@ -38,6 +39,8 @@ const billingApiRoutes = billingModule?.routes;
 const app = new Elysia()
   // Global error handling -- registered first
   .use(errorMiddleware)
+  // Request tracing -- generates requestId, logs method/path/status/duration
+  .use(requestTraceMiddleware)
   .use(
     cors({
       credentials: true,
@@ -93,7 +96,11 @@ const app = new Elysia()
         tenantId,
         userId: ctx.userId,
         db: scopedDb(db, tenantId),
-        emit: (event: string, data: unknown) => registry.getEventBus().emit(event, data),
+        emit: (event: string, data: unknown) =>
+          registry.getEventBus().emit(event, {
+            ...((typeof data === "object" && data !== null) ? data : { data }),
+            _requestId: ctx.requestId,
+          }),
       } satisfies HandlerContext,
     };
   })

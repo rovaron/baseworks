@@ -31,7 +31,22 @@ for (const [name, def] of registry.getLoaded()) {
     for (const [jobName, jobDef] of Object.entries(def.jobs)) {
       const worker = createWorker(
         jobDef.queue,
-        async (job) => jobDef.handler(job.data),
+        async (job) => {
+          // Extract request ID from job data for correlated logging (D-09)
+          const jobRequestId = job.data?._requestId;
+          const jobLog = jobRequestId
+            ? logger.child({ requestId: jobRequestId, jobId: job.id, queue: jobDef.queue })
+            : logger.child({ jobId: job.id, queue: jobDef.queue });
+          jobLog.info("Job started");
+          try {
+            const result = await jobDef.handler(job.data);
+            jobLog.info("Job completed");
+            return result;
+          } catch (err) {
+            jobLog.error({ err: String(err) }, "Job handler error");
+            throw err;
+          }
+        },
         redisUrl,
       );
 
