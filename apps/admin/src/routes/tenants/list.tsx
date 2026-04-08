@@ -86,8 +86,12 @@ export function Component() {
       accessorKey: "createdAt",
       header: "Created",
       enableSorting: true,
-      cell: ({ row }) =>
-        formatDistanceToNow(new Date(row.original.createdAt), { addSuffix: true }),
+      cell: ({ row }) => {
+        const d = row.original.createdAt ? new Date(row.original.createdAt) : null;
+        return d && !isNaN(d.getTime())
+          ? formatDistanceToNow(d, { addSuffix: true })
+          : "\u2014";
+      },
       meta: { priority: 2 },
     },
     {

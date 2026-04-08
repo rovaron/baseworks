@@ -109,7 +109,12 @@ export function Component() {
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Created</p>
-              <p>{formatDistanceToNow(new Date(tenant.createdAt), { addSuffix: true })}</p>
+              <p>{(() => {
+                const d = tenant.createdAt ? new Date(tenant.createdAt) : null;
+                return d && !isNaN(d.getTime())
+                  ? formatDistanceToNow(d, { addSuffix: true })
+                  : "\u2014";
+              })()}</p>
             </div>
             {tenant.memberCount !== undefined && (
               <div>
