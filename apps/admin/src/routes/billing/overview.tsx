@@ -31,6 +31,8 @@ export function Component() {
     },
   });
 
+  const isMobile = useIsMobile();
+
   if (error) {
     return (
       <div className="space-y-6">
@@ -76,7 +78,6 @@ export function Component() {
       amount / 100,
     );
 
-  const isMobile = useIsMobile();
   const hasData = totalSubscribers > 0 || distribution.length > 0;
 
   return (
