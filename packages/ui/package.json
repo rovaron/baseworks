@@ -33,11 +33,17 @@
     "zod": "4.3.6"
   },
   "peerDependencies": {
+    "@tanstack/react-table": "^8.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@tanstack/react-table": "8.21.3",
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.2",
     "@types/react": "19.2.14",
-    "@types/react-dom": "19.2.3"
+    "@types/react-dom": "19.2.3",
+    "jsdom": "29.0.2",
+    "vitest": "4.1.3"
   }
 }

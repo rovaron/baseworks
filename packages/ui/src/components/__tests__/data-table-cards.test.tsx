@@ -4,7 +4,7 @@ import {
   type ColumnDef,
   getCoreRowModel,
   useReactTable,
-  getSortingRowModel,
+  getSortedRowModel,
   getFilteredRowModel,
   type ColumnFiltersState,
 } from "@tanstack/react-table";
@@ -85,7 +85,7 @@ function TestWrapper({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getSortingRowModel: getSortingRowModel(),
+    getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     state: {
       columnFilters: filters,
@@ -150,8 +150,7 @@ describe("DataTableCards", () => {
       />
     );
 
-    // Filter chip should show column name and value
-    expect(screen.getByText(/status/i)).toBeInTheDocument();
-    expect(screen.getByText(/active/i)).toBeInTheDocument();
+    // Filter chip should show column name and filter value together
+    expect(screen.getByText(/Status: active/i)).toBeInTheDocument();
   });
 });
