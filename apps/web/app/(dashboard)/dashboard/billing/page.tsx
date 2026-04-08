@@ -367,7 +367,7 @@ function BillingHistory() {
     <div className="space-y-3">
       {items.map((item: any, index: number) => (
         <Card key={item.id ?? index}>
-          <CardContent className="flex items-center justify-between py-4">
+          <CardContent className="flex flex-wrap items-center justify-between gap-2 py-4">
             <div>
               <p className="text-sm font-medium">
                 {item.description ?? "Invoice"}
@@ -398,10 +398,10 @@ function BillingContent() {
       <h1 className="text-2xl font-semibold">Billing</h1>
 
       <Tabs value={tab ?? "subscription"} onValueChange={setTab}>
-        <TabsList>
-          <TabsTrigger value="subscription">Subscription</TabsTrigger>
-          <TabsTrigger value="history">History</TabsTrigger>
-          <TabsTrigger value="usage">Usage</TabsTrigger>
+        <TabsList className="w-full">
+          <TabsTrigger value="subscription" className="flex-1">Subscription</TabsTrigger>
+          <TabsTrigger value="history" className="flex-1">History</TabsTrigger>
+          <TabsTrigger value="usage" className="flex-1">Usage</TabsTrigger>
         </TabsList>
 
         <TabsContent value="subscription" className="space-y-8">

@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@baseworks/ui";
+import { useIsMobile } from "@baseworks/ui/hooks/use-mobile";
 import { api } from "@/lib/api";
 
 export function Component() {
@@ -75,6 +76,7 @@ export function Component() {
       amount / 100,
     );
 
+  const isMobile = useIsMobile();
   const hasData = totalSubscribers > 0 || distribution.length > 0;
 
   return (
@@ -158,36 +160,57 @@ export function Component() {
             <CardTitle>Recent Subscriptions</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tenant</TableHead>
-                  <TableHead>Plan</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Date</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            {isMobile ? (
+              <div className="space-y-3">
                 {recentSubscriptions.slice(0, 10).map((sub: any, i: number) => (
-                  <TableRow key={sub.id ?? i}>
-                    <TableCell>{sub.tenantName ?? sub.tenantId}</TableCell>
-                    <TableCell>{sub.plan}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={sub.status === "active" ? "default" : "secondary"}
-                      >
-                        {sub.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {sub.date
-                        ? new Date(sub.date).toLocaleDateString()
-                        : "N/A"}
-                    </TableCell>
-                  </TableRow>
+                  <div key={sub.id ?? i} className="flex items-center justify-between rounded-lg border p-3">
+                    <div className="min-w-0 space-y-1">
+                      <p className="truncate text-sm font-medium">{sub.tenantName ?? sub.tenantId}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {sub.plan} &middot; {sub.date ? new Date(sub.date).toLocaleDateString() : "N/A"}
+                      </p>
+                    </div>
+                    <Badge
+                      variant={sub.status === "active" ? "default" : "secondary"}
+                      className="ml-2 shrink-0"
+                    >
+                      {sub.status}
+                    </Badge>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Tenant</TableHead>
+                    <TableHead>Plan</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Date</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {recentSubscriptions.slice(0, 10).map((sub: any, i: number) => (
+                    <TableRow key={sub.id ?? i}>
+                      <TableCell>{sub.tenantName ?? sub.tenantId}</TableCell>
+                      <TableCell>{sub.plan}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={sub.status === "active" ? "default" : "secondary"}
+                        >
+                          {sub.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {sub.date
+                          ? new Date(sub.date).toLocaleDateString()
+                          : "N/A"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       )}

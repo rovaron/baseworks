@@ -80,7 +80,7 @@ export function Component() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
         <Button variant="ghost" size="sm" onClick={() => navigate("/tenants")}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
@@ -105,7 +105,7 @@ export function Component() {
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Slug</p>
-              <p>{tenant.slug}</p>
+              <p className="break-all">{tenant.slug}</p>
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Created</p>

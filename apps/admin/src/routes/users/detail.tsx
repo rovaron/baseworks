@@ -108,12 +108,12 @@ export function Component() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
         <Button variant="ghost" size="sm" onClick={() => navigate("/users")}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
-        <h1 className="text-2xl font-semibold">{user.name || user.email}</h1>
+        <h1 className="min-w-0 truncate text-2xl font-semibold">{user.name || user.email}</h1>
         {isBanned ? (
           <Badge variant="destructive">banned</Badge>
         ) : (
@@ -159,9 +159,9 @@ export function Component() {
               <CardContent>
                 <div className="space-y-3">
                   {user.memberships.map((m: any) => (
-                    <div key={m.id} className="flex items-center justify-between">
-                      <span>{m.organizationName || m.organizationId}</span>
-                      <Badge variant="secondary">{m.role}</Badge>
+                    <div key={m.id} className="flex items-center justify-between gap-2">
+                      <span className="min-w-0 truncate">{m.organizationName || m.organizationId}</span>
+                      <Badge variant="secondary" className="shrink-0">{m.role}</Badge>
                     </div>
                   ))}
                 </div>
