@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 1: Foundation & Core Infrastructure** - Module registry, CQRS layer, database setup, monorepo structure, and environment config
 - [ ] **Phase 2: Auth & Multitenancy** - First real modules proving the architecture: user authentication and tenant-scoped data isolation
 - [ ] **Phase 3: Billing & Background Jobs** - Stripe integration, BullMQ worker infrastructure, and transactional email
-- [ ] **Phase 4: Frontend Applications** - Next.js customer app, Vite admin dashboard, shared UI package, and Eden Treaty client
+- [x] **Phase 4: Frontend Applications** - Next.js customer app, Vite admin dashboard, shared UI package, and Eden Treaty client
 - [ ] **Phase 5: Production Hardening** - Docker deployment, structured logging, health checks, and Vercel configuration
 
 ## Phase Details
@@ -87,8 +87,8 @@ Plans:
 
 Plans:
 - [x] 04-01-PLAN.md -- Shared foundations: @baseworks/ui (shadcn + Tailwind 4), @baseworks/api-client (Eden Treaty + better-auth), fix App type export, billing HTTP routes, admin API routes
-- [ ] 04-02-PLAN.md -- Next.js customer app: scaffolding, auth pages, dashboard layout, billing pages, tenant context/switcher
-- [ ] 04-03-PLAN.md -- Vite admin dashboard: scaffolding, admin auth, tenant management, user management, billing overview, system health
+- [x] 04-02-PLAN.md -- Next.js customer app: scaffolding, auth pages, dashboard layout, billing pages, tenant context/switcher
+- [x] 04-03-PLAN.md -- Vite admin dashboard: scaffolding, admin auth, tenant management, user management, billing overview, system health
 
 ### Phase 5: Production Hardening
 **Goal**: The entire stack is deployable via Docker (backend, workers, admin) and Vercel (customer app), with structured logging, health monitoring, and validated configuration
@@ -99,11 +99,11 @@ Plans:
   2. Health check endpoints report dependency status (database connected, Redis connected, queues healthy) for both API and worker
   3. All backend services emit structured JSON logs via pino with request tracing
   4. The Next.js customer app deploys to Vercel with zero configuration beyond environment variables
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 05-01: TBD
-- [ ] 05-02: TBD
+- [ ] 05-01-PLAN.md -- Docker infrastructure: Dockerfiles for API, worker, admin; Docker Compose orchestration; Vercel config for Next.js
+- [ ] 05-02-PLAN.md -- Health check endpoints with dependency status; structured request-tracing logging; request ID propagation
 
 ## Progress
 
@@ -115,5 +115,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 1. Foundation & Core Infrastructure | 3/3 | Complete | - |
 | 2. Auth & Multitenancy | 3/3 | Complete | - |
 | 3. Billing & Background Jobs | 4/4 | Complete | - |
-| 4. Frontend Applications | 0/3 | Planned | - |
+| 4. Frontend Applications | 3/3 | Complete | - |
 | 5. Production Hardening | 0/2 | Not started | - |
