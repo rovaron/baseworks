@@ -52,7 +52,22 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 
 ### Active
 
-(No active requirements — define next milestone with `/gsd-new-milestone`)
+- [ ] Fully responsive layouts (mobile/tablet/desktop) for both frontends; fix sidebar overlay
+- [ ] Accessibility (a11y) — keyboard nav, screen reader support, semantic HTML, ARIA
+- [ ] i18n infrastructure + pt-BR and en translations for both frontends
+- [ ] Team/org invites — invite-by-email, role assignment, invite links, accept/decline, expiration
+- [ ] Payment provider abstraction — port interface, Stripe adapter, one Brazilian provider adapter
+
+## Current Milestone: v1.1 Polish & Extensibility
+
+**Goal:** Make the starter kit production-ready for real users — responsive frontends, internationalized, accessible, with team collaboration and vendor-agnostic payments.
+
+**Target features:**
+- Fully responsive layouts for both frontends + sidebar fix
+- Accessibility (a11y) across both frontends
+- i18n infrastructure with pt-BR and en
+- Team/org invites with role assignment and invite links
+- Payment provider abstraction with Stripe + Brazilian provider adapters
 
 ### Out of Scope
 
@@ -62,8 +77,8 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 - Turborepo/Nx — keeping it simple with native Bun workspaces
 - Schema-per-tenant or DB-per-tenant — starting with shared DB, can migrate later
 - Landing page / marketing site — this is a starter kit, not a finished product
-- Team/org invites — defer to v2
-- i18n / internationalization — most SaaS starts English-only
+- ~~Team/org invites~~ — moved to v1.1 Active
+- ~~i18n / internationalization~~ — moved to v1.1 Active
 - Real-time / WebSockets — Elysia supports it when needed later
 
 ## Context
@@ -122,4 +137,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-08 after v1.0 milestone*
+*Last updated: 2026-04-08 after v1.1 milestone start*
