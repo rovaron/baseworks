@@ -15,5 +15,63 @@ services:
     ports:
       - "6379:6379"
 
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgres://baseworks:baseworks@postgres:5432/baseworks
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+      PORT: "3000"
+      INSTANCE_ROLE: api
+      # IMPORTANT: Override BETTER_AUTH_SECRET in production via .env file.
+      # The default below is for local development only (T-05-01).
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-development-secret-at-least-32-chars-long}
+      BETTER_AUTH_URL: http://localhost:3000
+      WEB_URL: http://localhost:3001
+      ADMIN_URL: http://localhost:8080
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    environment:
+      DATABASE_URL: postgres://baseworks:baseworks@postgres:5432/baseworks
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+      INSTANCE_ROLE: worker
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-development-secret-at-least-32-chars-long}
+      BETTER_AUTH_URL: http://api:3000
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  admin:
+    build:
+      context: .
+      dockerfile: Dockerfile.admin
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
 volumes:
   pgdata:

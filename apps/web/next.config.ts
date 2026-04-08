@@ -1,5 +1,10 @@
 import type { NextConfig } from "next";
 
+// Vercel deployment requires these environment variables:
+//   NEXT_PUBLIC_API_URL  — Backend API URL (e.g., https://api.example.com)
+//   NEXT_PUBLIC_APP_URL  — This app's public URL (e.g., https://app.example.com)
+// No vercel.json needed — Vercel auto-detects Next.js (D-11 zero-config).
+
 const nextConfig: NextConfig = {
   transpilePackages: ["@baseworks/ui", "@baseworks/api-client"],
   // Type checking runs separately via `bun run typecheck` at root.

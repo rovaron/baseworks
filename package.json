@@ -14,7 +14,11 @@
     "dev:web": "cd apps/web && bun run dev",
     "dev:admin": "cd apps/admin && bun run dev",
     "build:web": "cd apps/web && bun run build",
-    "build:admin": "cd apps/admin && bun run build"
+    "build:admin": "cd apps/admin && bun run build",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:build": "docker compose build",
+    "docker:logs": "docker compose logs -f"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.0.0",
