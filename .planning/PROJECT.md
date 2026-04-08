@@ -12,23 +12,23 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 
 ### Validated
 
-(None yet — ship to validate)
+- [x] Modular backend architecture (Medusa-style module registry with configurable loading) — Validated in Phase 1
+- [x] Multitenant data isolation (shared PostgreSQL DB with tenant_id column) — Validated in Phase 2
+- [x] Authentication via better-auth (email/password, OAuth providers, magic links) — Validated in Phase 2
+- [x] Stripe integration (subscriptions, one-time payments, usage-based billing, customer portal) — Validated in Phase 3
+- [x] CQRS command/query split with separate handlers — Validated in Phase 1
+- [x] BullMQ job workers with Redis — Validated in Phase 3
+- [x] Admin dashboard (Vite + React + shadcn) — tenant/user/billing management + system health — Validated in Phase 4
+- [x] Customer-facing app base (Next.js + shadcn + Tailwind 4) — Validated in Phase 4
+- [x] Eden Treaty for type-safe frontend-backend communication — Validated in Phase 4
+- [x] Drizzle ORM with PostgreSQL — Validated in Phase 1
+- [x] Bun workspaces monorepo structure — Validated in Phase 1
+- [x] Configurable instance roles (API, workers, specific modules) via entrypoints + env config — Validated in Phase 1
+- [x] Docker setup for backend/workers, Vercel-ready Next.js — Validated in Phase 5: Production Hardening
 
 ### Active
 
-- [ ] Modular backend architecture (Medusa-style module registry with configurable loading)
-- [ ] Multitenant data isolation (shared PostgreSQL DB with tenant_id column)
-- [ ] Authentication via better-auth (email/password, OAuth providers, magic links)
-- [ ] Stripe integration (subscriptions, one-time payments, usage-based billing, customer portal)
-- [ ] CQRS command/query split with separate handlers
-- [ ] BullMQ job workers with Redis
-- [ ] Admin dashboard (Vite + React + shadcn) — tenant/user/billing management + system health
-- [ ] Customer-facing app base (Next.js + shadcn + Tailwind 4)
-- [ ] Eden Treaty for type-safe frontend-backend communication
-- [ ] Drizzle ORM with PostgreSQL
-- [ ] Bun workspaces monorepo structure
-- [ ] Configurable instance roles (API, workers, specific modules) via entrypoints + env config
-- [ ] Docker setup for backend/workers, Vercel-ready Next.js
+(All v1.0 requirements validated)
 
 ### Out of Scope
 
@@ -89,4 +89,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-05 after initialization*
+*Last updated: 2026-04-08 after Phase 5 (Production Hardening) completion — all v1.0 milestone phases complete*
