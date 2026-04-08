@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, CreditCard, Settings, LogOut } from "lucide-react";
@@ -17,6 +18,7 @@ import {
   SidebarMenuItem,
   SidebarSeparator,
   SidebarTrigger,
+  useSidebar,
   Avatar,
   AvatarFallback,
   DropdownMenu,
@@ -51,6 +53,12 @@ export function SidebarNav() {
   const router = useRouter();
   const { activeTenant } = useTenant();
   const session = auth.useSession();
+  const { setOpenMobile } = useSidebar();
+
+  // Auto-dismiss mobile Sheet on navigation.
+  React.useEffect(() => {
+    setOpenMobile(false);
+  }, [pathname, setOpenMobile]);
 
   const user = session.data?.user;
 

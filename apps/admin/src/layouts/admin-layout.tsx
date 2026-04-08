@@ -1,3 +1,4 @@
+import * as React from "react";
 import { Outlet, useNavigate, useLocation } from "react-router";
 import {
   SidebarProvider,
@@ -23,6 +24,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
+  useSidebar,
 } from "@baseworks/ui";
 import { Building2, Users, CreditCard, Activity, LogOut, ChevronUp } from "lucide-react";
 import { AuthGuard } from "./auth-guard";
@@ -34,6 +36,17 @@ const navItems = [
   { title: "Billing", icon: CreditCard, href: "/billing" },
   { title: "System", icon: Activity, href: "/system" },
 ];
+
+function NavigationAutoClose() {
+  const location = useLocation();
+  const { setOpenMobile } = useSidebar();
+
+  React.useEffect(() => {
+    setOpenMobile(false);
+  }, [location.pathname, setOpenMobile]);
+
+  return null;
+}
 
 function AdminLayoutContent() {
   const navigate = useNavigate();
@@ -51,8 +64,9 @@ function AdminLayoutContent() {
 
   return (
     <SidebarProvider>
+      <NavigationAutoClose />
       <TooltipProvider>
-        <Sidebar>
+        <Sidebar collapsible="icon">
           <SidebarHeader className="p-4">
             <span className="text-lg font-semibold">Admin</span>
           </SidebarHeader>
