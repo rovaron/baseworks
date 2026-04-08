@@ -1,271 +1,358 @@
-# Feature Landscape
+# Feature Research: v1.1 Polish & Extensibility
 
-**Domain:** SaaS Starter Kit / Monorepo Boilerplate
-**Researched:** 2026-04-05
-**Overall Confidence:** MEDIUM (based on training data knowledge of competitors up to May 2025; could not verify against live sources)
+**Domain:** SaaS Starter Kit -- v1.1 new capabilities (i18n, a11y, responsive, team invites, payment abstraction)
+**Researched:** 2026-04-08
+**Confidence:** MEDIUM-HIGH (verified against official docs and current ecosystem state)
 
-## Competitor Feature Matrix
+## Feature Landscape
 
-Before defining table stakes, here is what the major SaaS starter kits offer. This establishes what the market considers baseline.
+### Table Stakes (Users Expect These)
 
-| Feature | ShipFast | Makerkit | Saas UI | Supastarter | Bedrock | Baseworks (planned) |
-|---------|----------|----------|---------|-------------|---------|---------------------|
-| **Auth (email/pass)** | Yes | Yes | Yes | Yes | Yes | Yes |
-| **OAuth providers** | Yes | Yes | Yes | Yes | Yes | Yes |
-| **Magic links** | No | Yes | No | Yes | No | Yes |
-| **Stripe subscriptions** | Yes | Yes | Partial | Yes | Yes | Yes |
-| **Usage-based billing** | No | No | No | Partial | No | Yes |
-| **Customer portal** | Yes | Yes | No | Yes | No | Yes |
-| **Multitenancy** | No | Yes (org) | No | Yes (org) | Yes | Yes (tenant_id) |
-| **Admin dashboard** | No | Yes | No | Yes | Yes | Yes |
-| **RBAC / permissions** | Basic | Yes | Yes | Yes | Yes | Planned |
-| **Email sending** | Yes | Yes | No | Yes | Yes | Planned |
-| **Webhooks (Stripe)** | Yes | Yes | No | Yes | Yes | Yes |
-| **Landing page** | Yes | Yes | No | Yes | No | No (out of scope) |
-| **SEO setup** | Yes | Yes | No | Yes | No | No (out of scope) |
-| **Blog / CMS** | Yes | Yes | No | Yes | No | No (out of scope) |
-| **Background jobs** | No | No | No | No | No | Yes (BullMQ) |
-| **Modular architecture** | No | No | No | No | No | Yes (module registry) |
-| **CQRS** | No | No | No | No | No | Yes |
-| **Configurable instances** | No | No | No | No | No | Yes |
-| **Type-safe API client** | No | Partial | No | Yes (tRPC) | No | Yes (Eden Treaty) |
-| **Docker setup** | No | Partial | No | Partial | Yes | Yes |
-| **Monorepo** | No | Yes (Turbo) | N/A | Yes (Turbo) | Yes | Yes (Bun) |
-| **i18n** | No | Yes | No | Yes | No | No |
-| **Analytics** | Yes | Yes | No | Yes | No | No |
-| **Rate limiting** | No | No | No | No | Yes | Planned |
-| **Onboarding flow** | Yes | Yes | No | Yes | No | Planned |
-
-**Key takeaway:** Most competitors target indie hackers shipping fast (ShipFast) or small teams wanting org-based tenancy (Makerkit). None offer backend architectural patterns like CQRS, module registries, or configurable instance roles. Baseworks targets a fundamentally different user: someone building production-grade SaaS infrastructure that scales, not just a quick launch.
-
-## Table Stakes
-
-Features users expect from any SaaS starter kit. Missing any of these and the product feels incomplete for its target audience.
+For a "production-ready" SaaS starter kit in 2026, these are no longer optional -- competitors like Makerkit and Supastarter already ship them.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| **Email/password auth** | Every SaaS needs basic auth | Low | better-auth handles this well |
-| **OAuth providers** | Google/GitHub/Discord login is standard | Low | better-auth plugin system supports this |
-| **Session management** | Secure cookie/token sessions | Low | Built into better-auth |
-| **Stripe subscription billing** | Most SaaS products are subscription-based | Medium | Plans, checkout, webhooks, portal |
-| **Stripe webhook handling** | Required for billing state sync | Medium | Must handle idempotency, retries |
-| **Tenant isolation** | Data must never leak between tenants | Medium | tenant_id on every query, middleware enforcement |
-| **RBAC (basic roles)** | Owner/admin/member at minimum | Low | Per-tenant role assignment |
-| **Database migrations** | Schema evolution without downtime | Low | Drizzle Kit handles this |
-| **Environment configuration** | Dev/staging/prod config management | Low | .env files + validation |
-| **Error handling** | Structured error responses, error boundaries | Low | Global error handler + frontend boundaries |
-| **API request validation** | Input sanitization and type checking | Low | Elysia's built-in validation with TypeBox |
-| **CORS configuration** | Cross-origin request handling | Low | Per-environment CORS setup |
-| **Health check endpoints** | Monitoring and uptime verification | Low | /health endpoint for each service |
-| **Logging** | Structured request/error logging | Low | JSON structured logs for production |
-| **User profile management** | Update name, email, avatar, password | Low | Basic CRUD on user entity |
-| **Password reset flow** | Forgot password email flow | Low | better-auth built-in |
-| **Type-safe API client** | Frontend-backend type safety | Low | Eden Treaty provides this natively |
+| **Responsive layouts (mobile/tablet/desktop)** | Users access SaaS from phones. Broken mobile = amateur. | LOW | shadcn sidebar component already has `useIsMobile` + Sheet (drawer). Mostly CSS/breakpoint work. |
+| **Mobile sidebar drawer** | Dashboard nav must work on small screens | LOW | Sidebar component uses Sheet for mobile already. Need to wire SidebarTrigger properly + fix overlay issue noted in PROJECT.md. |
+| **Collapsible desktop sidebar** | Standard dashboard pattern -- icon-only mode saves screen space | LOW | SidebarProvider already supports `expanded`/`collapsed` state. Wire toggle + persist preference. |
+| **Keyboard navigation** | WCAG 2.1 Level A requirement. Tab through all interactive elements. | MEDIUM | shadcn/Radix provides baseline. Need audit: focus order, focus indicators, skip links, escape-to-close. |
+| **Screen reader support** | WCAG 2.1 Level A. Semantic HTML + ARIA labels on all controls. | MEDIUM | Radix primitives add ARIA automatically. Need: aria-label on custom controls, live regions for toasts, landmark roles. |
+| **Basic i18n (2 languages)** | Brazilian developer building for BR + international market. pt-BR + en is minimum. | HIGH | Touches every string in both apps. Largest single effort in v1.1. |
+| **Team invite by email** | Multi-user tenants need to add members. Every B2B SaaS has this. | MEDIUM | better-auth organization plugin provides `inviteMember`, `acceptInvitation`, `rejectInvitation`, `cancelInvitation` out of the box. |
+| **Role assignment on invite** | Inviter must choose role (owner/admin/member) at invite time | LOW | better-auth org plugin supports role param on `inviteMember()`. Already has owner/admin/member defaults. |
+| **Invite link expiration** | Security requirement. Stale invites must not grant access. | LOW | better-auth org plugin has `invitationExpiresIn` config (default 48h). |
 
-## Differentiators
-
-Features that set Baseworks apart from competitors. Not expected, but create competitive advantage.
+### Differentiators (Competitive Advantage)
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Modular architecture (Medusa-style)** | Load only what you need; swap modules without touching core | High | Central differentiator. No competitor does this. Module declares routes, commands, queries, jobs, events. |
-| **Configurable instance roles** | Same codebase runs as API server, worker, or specific module instance | Medium | `bun run api`, `bun run worker`, env-based config. Enables horizontal scaling patterns. |
-| **CQRS command/query split** | Clean separation of writes and reads; easier testing and scaling | Medium | Practical CQRS without event sourcing overhead. Commands for mutations, queries for reads. |
-| **BullMQ job processing** | First-class background job support with retry, scheduling, priority | Medium | Most starter kits ignore async work entirely. Critical for emails, webhooks, reports. |
-| **Usage-based billing** | Meter and bill by consumption, not just flat subscriptions | High | Very few starters support this. Requires metering infrastructure + Stripe usage records. |
-| **Multi-billing model support** | Subscriptions + one-time + usage in a single system | Medium | Covers freelance projects (one-time) and SaaS (subscription) in one kit |
-| **Admin dashboard (dedicated)** | Full tenant/user/billing/system management panel | Medium | Separate Vite app, not bolted onto the customer app. Clean separation. |
-| **Docker-first backend** | Production-ready containerization for backend + workers | Medium | Most starters assume Vercel-only. Docker enables VPS, Kubernetes, fly.io. |
-| **Monorepo with shared types** | Single repo, shared TypeScript types across frontend/backend/admin | Medium | End-to-end type safety across all packages |
-| **System health monitoring** | Dashboard showing queue depth, error rates, service status | Medium | Built into admin dashboard. Most starters have zero observability. |
+| **Payment provider abstraction (port/adapter)** | Switch between Stripe and local providers without changing business logic. No competitor offers this. | HIGH | Requires extracting current Stripe-specific code behind an interface. Major refactor of billing module. |
+| **Brazilian payment provider adapter** | Serves BR market directly. Pix + boleto support via local gateway. | HIGH | Pagar.me or Mercado Pago SDK. Different API shape, different webhook format, different payment methods (Pix, boleto). |
+| **Shared i18n package across SSR + SPA** | One set of translations for both frontends. No duplication, no drift. | MEDIUM | `packages/i18n` with JSON files consumed by both Next.js and Vite apps. Unique in starter kit space. |
+| **Invite link (shareable URL)** | Copy a link instead of typing emails. Faster team onboarding. | LOW | Generate a signed URL with token, role, org. better-auth may support this or can be built on top of invitation hooks. |
+| **i18n-ready module system** | Modules can declare their own translation namespaces | MEDIUM | Each module ships `locales/{lang}/{namespace}.json`. Module registry loads them. |
+| **a11y testing in CI** | Catch accessibility regressions automatically | LOW | axe-core + Vitest integration. Differentiator vs competitors who ignore a11y entirely. |
 
-## Anti-Features
+### Anti-Features (Commonly Requested, Often Problematic)
 
-Features to explicitly NOT build. These either conflict with Baseworks' philosophy, are out of scope, or create maintenance burden that outweighs value.
-
-| Anti-Feature | Why Avoid | What to Do Instead |
-|--------------|-----------|-------------------|
-| **Landing page / marketing site** | This is a starter kit, not a finished product. Landing pages are product-specific. | Document how to add one. Provide a Next.js route placeholder at most. |
-| **Blog / CMS integration** | Highly product-specific. Adds dependencies (MDX, Contentlayer, headless CMS) that most forks will rip out. | Document recommended CMS options in a guide. |
-| **i18n / internationalization** | Adds complexity to every string in the app. Most SaaS products start English-only. | Structure code so i18n can be added later (no hardcoded strings in shared packages). |
-| **Analytics integration** | Product-specific. Plausible vs PostHog vs Mixpanel vs GA -- every project differs. | Provide event hooks where analytics can plug in. |
-| **SEO optimization** | Product-specific meta tags, sitemaps, structured data vary per product. | Next.js already has good SEO primitives. Don't add boilerplate SEO. |
-| **Full event sourcing** | Massive complexity for marginal benefit in most SaaS. Event stores, projections, replay -- overkill. | Practical CQRS only. Commands/queries, no event log. |
-| **Mobile app / React Native** | Web-first. Mobile adds a massive surface area. | Ensure API is mobile-friendly (REST-like via Elysia). |
-| **Team/org invitations** | Important but deferrable. Complex flows (invite email, accept, assign role, handle expired invites). | Defer to v2. Build RBAC in v1 so invites slot in cleanly. |
-| **AI features** | Trendy but product-specific. AI chat, copilot features are not infrastructure. | Provide a module template showing how to add AI. |
-| **Real-time / WebSockets** | Most SaaS don't need real-time in v1. Adds server complexity (sticky sessions, Redis pub/sub). | Elysia supports WebSockets. Document how to add if needed. |
-| **File uploads / S3** | Product-specific. Some need it, many don't. | Provide a module example. Don't bake it into core. |
-| **Social features** | Comments, feeds, notifications -- too product-specific. | Notification system could be a separate module later. |
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| **next-intl for Next.js + react-i18next for Vite** | "Use the best tool for each framework" | Two different i18n libraries with different APIs, different interpolation syntax, different pluralization rules. Translation keys will subtly diverge. Devs must learn two systems. | Use i18next ecosystem everywhere: `react-i18next` for Vite admin, `next-i18next` (v16, wraps react-i18next) for Next.js. Same JSON files, same API, same mental model. |
+| **Runtime language detection from browser** | "Auto-detect user language" | Causes SSR hydration mismatch in Next.js (server renders one locale, client detects another). Flash of wrong language. | Use URL-based locale (`/en/dashboard`, `/pt-BR/dashboard`). Detect on first visit only, then persist as user preference. |
+| **Full WCAG 2.2 AAA compliance** | "Be maximally accessible" | AAA is aspirational, not legally required. Many AAA criteria (e.g., sign language for video) are irrelevant for a dashboard app. Massive effort for minimal gain. | Target WCAG 2.1 Level AA. Covers keyboard nav, screen readers, color contrast, focus indicators. This is the industry standard for web apps. |
+| **Payment abstraction for 5+ providers** | "Support every gateway" | Each provider has different capabilities (subscriptions vs one-time, metered billing, refund flows, dispute handling). Abstraction becomes lowest-common-denominator. | Abstract the core operations (see below). Support Stripe + one BR provider. Design the interface so adding more is straightforward but don't over-abstract. |
+| **Automatic translation via AI** | "Just run strings through GPT" | Quality issues, inconsistent terminology, no context awareness. Translations need human review for SaaS (billing terms, legal text, error messages). | Provide extraction tooling (`i18next-parser`) to find untranslated keys. Manual translations for v1.1. |
+| **Full RTL (right-to-left) support** | "Support Arabic/Hebrew" | Requires mirroring entire layout, different CSS logical properties throughout, testing every component in RTL mode. Enormous effort. | Use CSS logical properties (`margin-inline-start` vs `margin-left`) from the start so RTL can be added later. Don't implement RTL now. |
+| **Custom role builder UI** | "Let admins define custom roles" | Adds permission management complexity (permission inheritance, conflicts, UI for defining permissions). Custom roles are rarely needed in early SaaS. | Ship with 3 fixed roles (owner/admin/member). better-auth org plugin supports custom roles via `creatorRole` config if needed later. |
 
 ## Feature Dependencies
 
 ```
-Auth (email/pass, OAuth, sessions)
-  |
-  +---> Tenant Creation (every user belongs to a tenant)
-  |       |
-  |       +---> RBAC (roles scoped to tenant)
-  |       |
-  |       +---> Tenant Isolation Middleware (tenant_id enforcement)
-  |               |
-  |               +---> All Data Queries (filtered by tenant_id)
-  |
-  +---> Stripe Customer Creation (user/tenant linked to Stripe)
-          |
-          +---> Subscription Management
-          |       |
-          |       +---> Plan Gating (feature access based on plan)
-          |       |
-          |       +---> Usage Metering (track consumption per tenant)
-          |
-          +---> Webhook Handling (Stripe event sync)
-          |
-          +---> Customer Portal (manage billing)
+Responsive Layouts
+    (no dependencies -- CSS/component work on existing layouts)
 
-Module Registry (core infrastructure)
-  |
-  +---> Module Loading (route/handler/job registration)
-  |       |
-  |       +---> Instance Roles (API vs worker vs specific module)
-  |
-  +---> CQRS Layer (commands + queries per module)
-  |
-  +---> Job Workers (BullMQ queues per module)
+i18n Infrastructure
+    |
+    +---> packages/i18n (shared translations JSON + config)
+    |       |
+    |       +---> Next.js integration (next-i18next / middleware routing)
+    |       |
+    |       +---> Vite admin integration (react-i18next + language detector)
+    |
+    +---> All UI strings externalized (depends on responsive layouts being stable first)
 
-Database Schema + Drizzle
-  |
-  +---> Migrations
-  |
-  +---> Tenant-scoped query helpers
-  |
-  +---> Seed data (dev environment)
+Accessibility (a11y)
+    |
+    +---> Responsive layouts must be done first (a11y audits mobile + desktop)
+    |
+    +---> i18n should be done first (aria-labels need to be translatable)
 
-Admin Dashboard
-  |
-  +---> Requires: Auth (admin role), All backend APIs
-  +---> Tenant management (CRUD tenants)
-  +---> User management (CRUD users across tenants)
-  +---> Billing overview (plan distribution, revenue)
-  +---> System health (queue status, error rates)
+Team/Org Invites
+    |
+    +---> Depends on: existing auth module + better-auth org plugin (already used)
+    |
+    +---> Invite email sending ---> existing BullMQ email job infrastructure
+    |
+    +---> Invite UI pages ---> depends on i18n (invite strings need translation)
+
+Payment Provider Abstraction
+    |
+    +---> Depends on: existing billing module (must refactor, not rewrite)
+    |
+    +---> PaymentProvider port interface (defined first)
+    |       |
+    |       +---> StripeAdapter (extract from current billing commands)
+    |       |
+    |       +---> BrazilianProviderAdapter (Pagar.me or Mercado Pago)
+    |
+    +---> Webhook normalization layer (each provider has different webhook format)
+    |
+    +---> Does NOT depend on i18n or a11y (backend only)
 ```
 
-**Critical path:** Module Registry -> Auth -> Multitenancy -> Billing -> Admin Dashboard
+### Dependency Notes
 
-The module registry must exist first because auth, billing, and admin are all modules. Auth comes before multitenancy because tenants need users. Billing depends on both auth and tenancy. Admin dashboard consumes everything.
+- **Responsive before a11y:** Accessibility audit must cover the final responsive layouts. Doing a11y first means re-auditing after layout changes.
+- **i18n before team invites UI:** Invite screens (send invite, pending invites list, accept page) need translated strings. Build i18n first so invite UI ships localized.
+- **Payment abstraction is independent:** Pure backend refactor. Can run in parallel with frontend work (responsive, i18n, a11y).
+- **i18n is the largest dependency bottleneck:** It touches every string in both apps. Must be done early so other features (invite UI, a11y aria-labels) build on top of it.
 
-## MVP Recommendation
+## v1.1 Launch Scope
 
-### Must Have (Phase 1-2)
+### Must Build (v1.1 Core)
 
-Prioritize in this order:
+- [ ] **Responsive layouts** -- fix sidebar overlay, mobile drawer, tablet breakpoints for both apps
+- [ ] **i18n infrastructure** -- `packages/i18n` with JSON translations, next-i18next for web, react-i18next for admin, pt-BR + en
+- [ ] **Keyboard navigation audit + fixes** -- focus order, focus indicators (`:focus-visible`), skip-to-content link, escape-to-close on modals/sheets
+- [ ] **Screen reader basics** -- ARIA landmarks (`nav`, `main`, `aside`), aria-labels on icon buttons, live regions for toast notifications
+- [ ] **Team invite flow** -- send invite, accept/reject, pending invites list, invite link generation, role selection
+- [ ] **Payment provider port interface** -- define operations, extract Stripe adapter, one BR provider adapter
 
-1. **Module registry + loader** -- foundation everything else builds on
-2. **CQRS command/query layer** -- standardizes how modules handle business logic
-3. **Database setup (Drizzle + PostgreSQL)** -- schema, migrations, tenant-scoped helpers
-4. **Auth module (better-auth)** -- email/password, OAuth, sessions
-5. **Multitenancy middleware** -- tenant_id enforcement on all queries
-6. **Basic RBAC** -- owner/admin/member roles per tenant
-7. **Stripe billing module** -- subscriptions, webhook handling, customer portal
-8. **BullMQ job worker infrastructure** -- queue setup, job registration per module
-9. **Eden Treaty client package** -- type-safe frontend calls
+### Defer to v1.2+
 
-### Should Have (Phase 3)
-
-10. **Customer-facing app shell** (Next.js) -- auth pages, dashboard layout, billing pages
-11. **Admin dashboard shell** (Vite) -- tenant/user/billing management
-12. **Health check + monitoring endpoints**
-13. **Email sending (transactional)** -- password reset, welcome, billing notifications
-14. **Environment configuration validation**
-15. **Docker setup** -- Dockerfile for API, workers, admin
-
-### Could Have (Phase 4+)
-
-16. **Usage-based billing** -- metering infrastructure
-17. **Plan gating / feature flags** -- restrict access by subscription tier
-18. **Onboarding flow** -- guided setup for new tenants
-19. **System health dashboard** -- queue depth, error rates in admin panel
-20. **Seed data / dev tooling** -- one-command dev environment setup
-
-### Defer
-
-- Team invitations (v2 -- after RBAC is solid)
-- Rate limiting (add when needed)
-- File uploads module (product-specific)
-- Notification system (product-specific)
+- [ ] **Color contrast audit** -- automated contrast checking, dark mode a11y (trigger: when dark mode is added)
+- [ ] **Additional languages beyond pt-BR/en** -- (trigger: user/market demand)
+- [ ] **Invite link with custom expiration** -- (trigger: enterprise customers requesting longer/shorter windows)
+- [ ] **Payment provider: additional adapters** -- PayPal, Mercado Pago if Pagar.me chosen, etc. (trigger: market demand)
+- [ ] **a11y CI testing with axe-core** -- (trigger: after manual audit establishes baseline)
+- [ ] **Translation management UI** -- (trigger: non-developer translators joining)
 
 ## Feature Prioritization Matrix
 
-| Feature | User Value | Technical Risk | Dependency Weight | Priority |
-|---------|-----------|---------------|-------------------|----------|
-| Module registry | High | High | Critical (blocks everything) | P0 |
-| CQRS layer | Medium | Medium | High (standardizes all modules) | P0 |
-| Auth (better-auth) | High | Low | High (blocks tenancy, billing) | P0 |
-| Database + Drizzle | High | Low | Critical (blocks all data) | P0 |
-| Multitenancy middleware | High | Medium | High (blocks data isolation) | P0 |
-| Stripe billing | High | Medium | Medium (blocks monetization) | P1 |
-| BullMQ workers | Medium | Medium | Medium (blocks async work) | P1 |
-| Basic RBAC | Medium | Low | Medium (blocks admin) | P1 |
-| Eden Treaty client | Medium | Low | Low | P1 |
-| Customer app shell | High | Low | Low (needs auth, billing APIs) | P2 |
-| Admin dashboard | Medium | Medium | Low (needs all APIs) | P2 |
-| Email sending | Medium | Low | Low | P2 |
-| Docker setup | Medium | Low | Low | P2 |
-| Usage-based billing | Low | High | Low | P3 |
-| Plan gating | Medium | Medium | Low | P3 |
-| Health monitoring | Low | Low | Low | P3 |
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| Responsive layouts (sidebar fix + breakpoints) | HIGH | LOW | P1 |
+| i18n infrastructure + packages/i18n | HIGH | HIGH | P1 |
+| pt-BR + en translations for all existing strings | HIGH | HIGH | P1 |
+| Keyboard navigation + focus indicators | MEDIUM | MEDIUM | P1 |
+| ARIA landmarks + screen reader basics | MEDIUM | LOW | P1 |
+| Team invite flow (email + link) | HIGH | MEDIUM | P1 |
+| Payment provider port interface | HIGH | HIGH | P1 |
+| Stripe adapter (extract from current code) | HIGH | MEDIUM | P1 |
+| Brazilian provider adapter (Pagar.me) | MEDIUM | HIGH | P2 |
+| Skip-to-content link | LOW | LOW | P2 |
+| a11y CI testing (axe-core) | LOW | LOW | P2 |
+| Module-scoped translation namespaces | MEDIUM | MEDIUM | P2 |
 
-## Competitor Deep Analysis
+**Priority key:**
+- P1: Must have for v1.1 launch
+- P2: Should have, add if time permits
+- P3: Future consideration
 
-### ShipFast (shipfa.st)
-**Target:** Solo founders shipping in a weekend. "Don't waste time on boilerplate."
-**Strengths:** Excellent onboarding, landing page templates, SEO setup, Stripe integration. Very polished DX.
-**Weaknesses:** No multitenancy. No admin panel. No background jobs. No modular architecture. Monolithic Next.js. No Docker. Essentially a "pretty MVP template" not a production foundation.
-**Price:** ~$199 one-time.
-**Lesson for Baseworks:** ShipFast proves landing pages and SEO templates drive indie hacker purchases. Baseworks deliberately skips this market -- our user already knows what they're building and needs infrastructure, not templates.
+## Detailed Feature Specifications
 
-### Makerkit (makerkit.dev)
-**Target:** Small teams building multi-org SaaS. More serious than ShipFast.
-**Strengths:** Organization-based multitenancy, RBAC, Stripe + Lemon Squeezy, i18n, good documentation, Turborepo monorepo.
-**Weaknesses:** No background jobs. No CQRS. No configurable instances. Turborepo adds tooling complexity. Frontend-heavy (most logic in Next.js API routes).
-**Price:** $299-$999 depending on kit variant.
-**Lesson for Baseworks:** Makerkit shows org-based tenancy is valued. But their backend is thin -- API routes in Next.js, no dedicated backend service. Baseworks' dedicated Elysia backend with module system is a clear differentiator.
+### 1. i18n Architecture
 
-### Saas UI (saas-ui.dev)
-**Target:** Developers who want pre-built React components for SaaS UIs.
-**Strengths:** Excellent component library (auth forms, data tables, billing UI, onboarding). Built on Chakra UI.
-**Weaknesses:** Not a full starter kit -- it's a component library. No backend. No billing integration. No auth backend. You bring your own everything.
-**Price:** $299-$999 for pro components.
-**Lesson for Baseworks:** Saas UI shows there's demand for polished SaaS-specific UI components. Baseworks uses shadcn instead, which covers most of these patterns. Don't try to compete on component richness -- compete on backend infrastructure.
+**Approach:** i18next core shared across both frontends.
 
-### Supastarter (supastarter.dev)
-**Target:** Supabase-native teams wanting a full-stack starter.
-**Strengths:** Deep Supabase integration (auth, DB, storage, realtime), Turborepo, tRPC, i18n, good admin panel, multiple frontend framework support.
-**Weaknesses:** Locked to Supabase ecosystem. No background jobs (relies on Supabase Edge Functions). No modular architecture. If you outgrow Supabase, you outgrow the starter.
-**Price:** $299-$799.
-**Lesson for Baseworks:** Supastarter shows the appeal of deep ecosystem integration (everything works together). But Supabase lock-in is a real risk. Baseworks' approach (PostgreSQL + BullMQ + Redis directly) gives more control.
+| Component | Library | Role |
+|-----------|---------|------|
+| `packages/i18n` | i18next (core) | Shared config, JSON translation files, type-safe key definitions |
+| `apps/web` | next-i18next v16 | Next.js App Router integration, SSR-safe, middleware for locale routing |
+| `apps/admin` | react-i18next | Client-side SPA integration, language detector, lazy-loaded namespaces |
 
-### Bedrock (bedrock.computer)
-**Target:** Production-focused teams wanting a battle-tested foundation.
-**Strengths:** Docker-first, good multitenancy, admin panel, background jobs (Bull), more production-oriented than most.
-**Weaknesses:** Older patterns, less modern DX, smaller community.
-**Lesson for Baseworks:** Bedrock is the closest competitor philosophically. But it lacks modular architecture, CQRS, and configurable instances. Baseworks is "Bedrock but with Medusa-style modularity."
+**Translation file structure:**
+```
+packages/i18n/
+  locales/
+    en/
+      common.json      (shared: buttons, labels, errors)
+      auth.json         (login, signup, password reset)
+      billing.json      (plans, checkout, invoices)
+      dashboard.json    (navigation, layout)
+      admin.json        (admin-specific strings)
+    pt-BR/
+      common.json
+      auth.json
+      billing.json
+      dashboard.json
+      admin.json
+  index.ts              (i18next config, type exports)
+```
 
-## Where Baseworks Uniquely Wins
+**Key decisions:**
+- URL-based locale routing in Next.js (`/en/dashboard`, `/pt-BR/dashboard`) -- SSR-safe, SEO-friendly
+- User preference stored in session/profile -- persists across devices
+- Namespace-based loading -- admin app only loads `common` + `admin`, web app loads `common` + `auth` + `billing` + `dashboard`
+- Type-safe keys via `i18next` TypeScript integration (declare resource type)
 
-1. **Modular architecture with configurable loading** -- no competitor offers this. You can run just the billing module, or just workers, or the full API. This is how Medusa works and it's proven at scale.
+### 2. Accessibility Scope
 
-2. **CQRS as a first-class pattern** -- command/query split baked into the module system. Every module follows the same pattern. This creates consistency across any product built on Baseworks.
+**Target:** WCAG 2.1 Level AA for both frontends.
 
-3. **Background job infrastructure** -- BullMQ with Redis, job declaration per module, separate worker instances. Most starters pretend async work doesn't exist.
+| Category | What to Do | Effort |
+|----------|-----------|--------|
+| **Keyboard** | Tab through all interactive elements in correct order. Visible focus ring (`:focus-visible`). Escape closes modals/sheets/dropdowns. Arrow keys in menus. | MEDIUM |
+| **Screen reader** | `<nav>`, `<main>`, `<aside>` landmarks. `aria-label` on icon-only buttons. `aria-live="polite"` on toast container. `aria-current="page"` on active nav item. | LOW |
+| **Forms** | All inputs have associated `<label>`. Error messages linked via `aria-describedby`. Required fields marked with `aria-required`. | LOW |
+| **Focus management** | Focus moves to dialog content when opened. Focus returns to trigger when closed. Skip-to-content link as first focusable element. | MEDIUM |
+| **Color** | Ensure 4.5:1 contrast ratio for text (AA standard). Don't convey info with color alone (add icons/text). | LOW (shadcn defaults are good) |
 
-4. **Multi-deployment topology** -- Vercel for Next.js frontend, Docker for backend/workers/admin. This is how production SaaS actually deploys. Most starters assume everything runs on one platform.
+**What shadcn/Radix provides for free:** Correct `role` attributes, `aria-expanded`, `aria-haspopup`, keyboard interactions for dropdowns/dialogs/tabs/tooltips. The main work is auditing custom code, adding landmarks, and fixing focus management in layouts.
 
-5. **Backend-first architecture** -- dedicated Elysia API server, not "Next.js API routes pretending to be a backend." This scales, this deploys independently, this can serve mobile clients too.
+### 3. Responsive Layout Patterns
+
+**Current state:** Both apps use shadcn's Sidebar component which already has:
+- `useIsMobile()` hook for breakpoint detection
+- Sheet (drawer) for mobile sidebar
+- Collapsible mode with icon-only state
+- Cookie-based state persistence
+
+**What needs fixing (per PROJECT.md: "fix sidebar overlay"):**
+- Mobile drawer likely has z-index or overlay backdrop issues
+- Tablet breakpoint may not exist (need md: breakpoint between mobile drawer and desktop sidebar)
+- Content area may not reflow properly when sidebar collapses
+
+**Responsive breakpoint strategy:**
+| Breakpoint | Sidebar Behavior | Content |
+|------------|-----------------|---------|
+| < 768px (mobile) | Hidden, triggered by hamburger, renders as Sheet/drawer overlay | Full width |
+| 768-1024px (tablet) | Collapsed (icon-only), expandable on hover or click | Fills remaining space |
+| > 1024px (desktop) | Expanded by default, collapsible via toggle | Fills remaining space |
+
+### 4. Team Invite Flow
+
+**better-auth organization plugin provides:**
+- `inviteMember({ email, role, organizationId })` -- sends invite
+- `acceptInvitation({ invitationId })` -- accept
+- `rejectInvitation({ invitationId })` -- reject
+- `cancelInvitation({ invitationId })` -- cancel pending
+- Hooks: `beforeCreateInvitation`, `afterCreateInvitation`, `beforeAcceptInvitation`, `afterAcceptInvitation`
+- Config: `invitationExpiresIn` (default 48h), `invitationLimit` (default 100)
+- DB tables: `invitation` (status, email, role, expiration, inviter)
+- `sendInvitationEmail` callback -- we wire this to existing BullMQ email job
+
+**What we need to build on top:**
+| Component | What | Effort |
+|-----------|------|--------|
+| Invite sending UI | Form with email input + role selector. In web app tenant settings. | LOW |
+| Pending invites list | Table showing pending/accepted/rejected invites with cancel button | LOW |
+| Accept/reject page | Public page at `/invite/[token]` -- shows org name, role, accept/reject buttons | LOW |
+| Invite link generation | Generate shareable URL (not email-based). May need custom endpoint on top of better-auth. | MEDIUM |
+| Email template | React Email template for invite notification. Uses existing BullMQ email job. | LOW |
+| Admin view | Admin dashboard: see all invitations across tenants | LOW |
+
+**Flow:**
+1. Owner/admin opens tenant settings -> "Invite Member"
+2. Enters email + selects role -> `inviteMember()` called
+3. `sendInvitationEmail` hook fires -> enqueues BullMQ email job
+4. Recipient gets email with link to `/invite/[token]`
+5. If logged in: accept/reject. If new user: signup then accept.
+6. On accept: added as member with assigned role
+
+### 5. Payment Provider Abstraction
+
+**Port interface operations (what the abstraction must cover):**
+
+```typescript
+interface PaymentProvider {
+  // Identity
+  readonly name: string;  // "stripe" | "pagarme" | etc.
+
+  // Customer management
+  createCustomer(params: CreateCustomerParams): Promise<ProviderCustomer>;
+  getCustomer(customerId: string): Promise<ProviderCustomer | null>;
+  deleteCustomer(customerId: string): Promise<void>;
+
+  // Checkout / payment initiation
+  createCheckoutSession(params: CheckoutParams): Promise<CheckoutResult>;
+  createOneTimePayment(params: OneTimePaymentParams): Promise<PaymentResult>;
+
+  // Subscriptions
+  createSubscription(params: SubscriptionParams): Promise<SubscriptionResult>;
+  cancelSubscription(subscriptionId: string): Promise<void>;
+  changeSubscription(params: ChangeSubscriptionParams): Promise<SubscriptionResult>;
+  getSubscription(subscriptionId: string): Promise<SubscriptionResult | null>;
+
+  // Usage-based billing
+  recordUsage(params: UsageParams): Promise<void>;
+
+  // Portal / self-service
+  createPortalSession(params: PortalParams): Promise<PortalResult>;
+
+  // Webhooks
+  verifyWebhookSignature(payload: string | Buffer, signature: string): Promise<boolean>;
+  normalizeWebhookEvent(rawEvent: unknown): Promise<NormalizedWebhookEvent>;
+}
+```
+
+**Normalized webhook event types:**
+```typescript
+type NormalizedWebhookEvent =
+  | { type: "checkout.completed"; data: CheckoutCompletedData }
+  | { type: "subscription.created"; data: SubscriptionData }
+  | { type: "subscription.updated"; data: SubscriptionData }
+  | { type: "subscription.deleted"; data: SubscriptionData }
+  | { type: "payment.succeeded"; data: PaymentData }
+  | { type: "payment.failed"; data: PaymentData };
+```
+
+**Key design decisions:**
+- Each adapter maps provider-specific events to normalized events
+- Webhook handler calls `provider.normalizeWebhookEvent()` then processes normalized events (existing switch/case logic stays)
+- Provider selection via config: `PAYMENT_PROVIDER=stripe` or `PAYMENT_PROVIDER=pagarme`
+- Multiple providers can coexist (different tenants can use different providers if needed later)
+- The Stripe adapter is extracted from existing code (not rewritten) -- `getStripe()` calls become `stripeAdapter.method()` calls
+
+**Brazilian provider recommendation: Pagar.me**
+- Best developer experience among BR gateways
+- REST API with good TypeScript support
+- Supports: credit card, boleto, Pix
+- Subscription management built in
+- Better suited for SaaS than Mercado Pago (which is more marketplace-oriented)
+
+## Feature Dependencies (Ordered for Implementation)
+
+```
+Phase 1: Responsive + Payment Abstraction (parallel tracks)
+    |
+    +---> [Frontend] Fix sidebar overlay, add breakpoints, test mobile/tablet
+    |
+    +---> [Backend] Define PaymentProvider interface, extract StripeAdapter
+    |
+Phase 2: i18n Infrastructure
+    |
+    +---> packages/i18n setup, JSON files, type-safe keys
+    +---> Next.js middleware for locale routing
+    +---> Vite admin language switcher
+    +---> Externalize ALL existing UI strings to translation files
+    |
+Phase 3: a11y + Team Invites (parallel tracks)
+    |
+    +---> [a11y] Audit with translated strings, fix focus, landmarks, ARIA
+    |
+    +---> [Invites] Wire better-auth org plugin invite methods, build UI pages, email template
+    |
+Phase 4: Brazilian Provider Adapter + Polish
+    |
+    +---> Pagar.me adapter implementing PaymentProvider interface
+    +---> Final a11y audit pass
+    +---> Translation review for pt-BR quality
+```
+
+## Competitor Feature Analysis (v1.1 specific features)
+
+| Feature | Makerkit | Supastarter | Baseworks v1.1 Plan |
+|---------|----------|-------------|---------------------|
+| **i18n** | Yes (next-intl, Next.js only) | Yes (next-intl, Next.js only) | Yes (i18next ecosystem, shared across Next.js + Vite admin -- unique) |
+| **Responsive** | Yes | Yes | Yes (fixing existing shadcn sidebar) |
+| **a11y** | Basic | Basic | WCAG 2.1 AA target (more thorough than competitors) |
+| **Team invites** | Yes (custom) | Yes (Supabase-based) | Yes (better-auth org plugin -- less custom code) |
+| **Payment abstraction** | No (Stripe + Lemon Squeezy, separate code paths) | No (Stripe only) | Yes (port/adapter pattern -- unique differentiator) |
+| **Brazilian provider** | No | No | Yes (Pagar.me adapter -- unique for BR market) |
 
 ## Sources
 
-- Training data knowledge of ShipFast, Makerkit, Saas UI, Supastarter, Bedrock (up to May 2025)
-- Medusa.js architecture patterns (Context7 knowledge)
-- SaaS industry patterns from building and evaluating multiple production SaaS products
-- **Confidence note:** All competitor feature data is from training data and could not be verified against live sources. Feature sets may have changed since May 2025. Mark as MEDIUM confidence overall.
+- [better-auth Organization Plugin](https://better-auth.com/docs/plugins/organization) -- invitation API, roles, hooks, config (HIGH confidence)
+- [next-intl vs next-i18next comparison](https://i18nexus.com/posts/i18next-vs-next-intl) -- ecosystem comparison (HIGH confidence)
+- [next-intl App Router docs](https://next-intl.dev/docs/getting-started/app-router) -- Next.js i18n patterns (HIGH confidence)
+- [WCAG 2.1 Guidelines](https://www.w3.org/TR/WCAG21/) -- accessibility standards (HIGH confidence)
+- [shadcn/ui and Radix accessibility](https://eastondev.com/blog/en/posts/dev/20260330-shadcn-radix-accessibility/) -- component a11y baseline (MEDIUM confidence)
+- [Adapter Pattern for Payment Gateways](https://endgrate.com/blog/adapter-pattern-use-cases-payment-gateway-integration) -- port/adapter pattern (HIGH confidence)
+- [Brazilian Payment Gateways comparison](https://www.rebill.com/en/blog/pasarelas-pago-brasil) -- BR provider landscape (MEDIUM confidence)
+- [i18next monorepo shared translations](https://github.com/i18next/i18next/discussions/1604) -- monorepo i18n patterns (MEDIUM confidence)
+- Existing codebase: sidebar component, billing module, auth module, admin layout (HIGH confidence -- verified by reading source)
+
+---
+*Feature research for: Baseworks v1.1 Polish & Extensibility*
+*Researched: 2026-04-08*
