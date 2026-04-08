@@ -35,7 +35,7 @@ Declared values (must be multiples of 4):
 |-------|-------|-------|
 | xs | 4px | Icon gaps, inline padding, badge internal padding |
 | sm | 8px | Compact element spacing, card internal gaps |
-| md | 16px | Default element spacing, card padding, sidebar item padding |
+| md | 16px | Default element spacing, card padding, sidebar item padding, gap between mobile cards |
 | lg | 24px | Section padding, content area gutters |
 | xl | 32px | Layout gaps between major sections |
 | 2xl | 48px | Page-level vertical spacing |
@@ -54,12 +54,12 @@ Source: Pre-existing codebase conventions (sidebar.tsx line 30-32)
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
 | Body | 14px (text-sm) | 400 (normal) | 1.5 (leading-normal) |
-| Label | 12px (text-xs) | 500 (medium) | 1.5 |
+| Label | 12px (text-xs) | 400 (normal) | 1.5 |
 | Heading | 20px (text-xl) | 600 (semibold) | 1.2 |
 | Card title | 14px (text-sm) | 600 (semibold) | 1.4 |
 
 Phase-specific notes:
-- Mobile data table cards use Label (12px, weight 500) for column headers and Body (14px, weight 400) for values
+- Mobile data table cards use Label (12px, weight 400) for column headers and Body (14px, weight 400) for values — the size difference (12px vs 14px) provides sufficient visual hierarchy without needing a separate weight
 - Sort dropdown and filter chips use Label size (12px)
 - No Display size needed — this phase adds no new page-level headers
 
@@ -177,8 +177,8 @@ Source: CONTEXT.md decisions D-01 through D-06, RESEARCH.md breakpoint analysis
 | Element | Copy |
 |---------|------|
 | Primary CTA | Not applicable — this phase modifies existing layouts, no new primary actions |
-| Empty state heading | "No results" (reuse existing data table empty state) |
-| Empty state body | "No items match your current filters." (reuse existing) |
+| Empty state heading | "{ContentType} not found" — parameterized per table context (e.g., "Tenants not found", "Users not found", "Subscriptions not found") |
+| Empty state body | "No items match your current filters. Try adjusting or clearing your filters." |
 | Error state | Not applicable — no new error states introduced |
 | Destructive confirmation | Not applicable — no destructive actions in this phase |
 | Sidebar toggle tooltip (collapse) | "Collapse sidebar" |
@@ -212,7 +212,7 @@ Expanded:
 ```
 
 - Card padding: 16px (md)
-- Gap between cards: 12px (3 * 4px)
+- Gap between cards: 16px (md)
 - Priority 1 field: 14px semibold (card title role)
 - Priority 2+ fields: 12px label + 14px value
 - Expanded detail fields: 12px label (muted-foreground) + 14px value
