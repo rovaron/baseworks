@@ -1,7 +1,7 @@
 # Requirements: Baseworks
 
 **Defined:** 2026-04-08
-**Core Value:** Clone, configure, and start building a multitenant SaaS in minutes — not weeks.
+**Core Value:** Clone, configure, and start building a multitenant SaaS in minutes -- not weeks.
 
 ## v1.1 Requirements
 
@@ -56,7 +56,7 @@ Deferred to future release. Tracked but not in current roadmap.
 
 - **I18N-05**: Locale-based URL routing (/en/dashboard, /pt-BR/dashboard) on customer app
 - **I18N-06**: Language switcher UI component in both apps
-- **I18N-07**: Backend i18n — transactional emails and API errors in user's language
+- **I18N-07**: Backend i18n -- transactional emails and API errors in user's language
 
 ### Team Invites
 
@@ -68,8 +68,8 @@ Explicitly excluded. Documented to prevent scope creep.
 
 | Feature | Reason |
 |---------|--------|
-| Provider selection per tenant | Over-engineering — one provider per deployment is sufficient for starter kit |
-| Usage-based billing in payment interface | Provider-specific feature — access via SDK directly |
+| Provider selection per tenant | Over-engineering -- one provider per deployment is sufficient for starter kit |
+| Usage-based billing in payment interface | Provider-specific feature -- access via SDK directly |
 | Customer portal in payment interface | Stripe-specific, no equivalent in most Brazilian providers |
 | Real-time / WebSockets | Deferred from v1.0, still not needed |
 | Mobile app | Web-first, responsive web covers mobile needs |
@@ -82,38 +82,38 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| RESP-01 | — | Pending |
-| RESP-02 | — | Pending |
-| RESP-03 | — | Pending |
-| RESP-04 | — | Pending |
-| RESP-05 | — | Pending |
-| RESP-06 | — | Pending |
-| A11Y-01 | — | Pending |
-| A11Y-02 | — | Pending |
-| A11Y-03 | — | Pending |
-| A11Y-04 | — | Pending |
-| A11Y-05 | — | Pending |
-| A11Y-06 | — | Pending |
-| I18N-01 | — | Pending |
-| I18N-02 | — | Pending |
-| I18N-03 | — | Pending |
-| I18N-04 | — | Pending |
-| INVT-01 | — | Pending |
-| INVT-02 | — | Pending |
-| INVT-03 | — | Pending |
-| INVT-04 | — | Pending |
-| INVT-05 | — | Pending |
-| PAY-01 | — | Pending |
-| PAY-02 | — | Pending |
-| PAY-03 | — | Pending |
-| PAY-04 | — | Pending |
-| PAY-05 | — | Pending |
+| RESP-01 | Phase 6 | Pending |
+| RESP-02 | Phase 6 | Pending |
+| RESP-03 | Phase 6 | Pending |
+| RESP-04 | Phase 6 | Pending |
+| RESP-05 | Phase 6 | Pending |
+| RESP-06 | Phase 6 | Pending |
+| A11Y-01 | Phase 7 | Pending |
+| A11Y-02 | Phase 7 | Pending |
+| A11Y-03 | Phase 7 | Pending |
+| A11Y-04 | Phase 7 | Pending |
+| A11Y-05 | Phase 7 | Pending |
+| A11Y-06 | Phase 7 | Pending |
+| I18N-01 | Phase 8 | Pending |
+| I18N-02 | Phase 8 | Pending |
+| I18N-03 | Phase 8 | Pending |
+| I18N-04 | Phase 8 | Pending |
+| INVT-01 | Phase 9 | Pending |
+| INVT-02 | Phase 9 | Pending |
+| INVT-03 | Phase 9 | Pending |
+| INVT-04 | Phase 9 | Pending |
+| INVT-05 | Phase 9 | Pending |
+| PAY-01 | Phase 10 | Pending |
+| PAY-02 | Phase 10 | Pending |
+| PAY-03 | Phase 10 | Pending |
+| PAY-04 | Phase 10 | Pending |
+| PAY-05 | Phase 10 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 26 total
-- Mapped to phases: 0
-- Unmapped: 26 (pending roadmap creation)
+- Mapped to phases: 26
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-08*
-*Last updated: 2026-04-08 after initial definition*
+*Last updated: 2026-04-08 after roadmap creation*
