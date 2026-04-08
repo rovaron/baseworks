@@ -102,8 +102,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 05-01-PLAN.md -- Docker infrastructure: Dockerfiles for API, worker, admin; Docker Compose orchestration; Vercel config for Next.js
-- [ ] 05-02-PLAN.md -- Health check endpoints with dependency status; structured request-tracing logging; request ID propagation
+- [x] 05-01-PLAN.md -- Docker infrastructure: Dockerfiles for API, worker, admin; Docker Compose orchestration; Vercel config for Next.js
+- [x] 05-02-PLAN.md -- Health check endpoints with dependency status; structured request-tracing logging; request ID propagation
 
 ## Progress
 
