@@ -1,0 +1,42 @@
+# Dockerfile.worker — Multi-stage build for BullMQ worker
+# Uses oven/bun as base image for native TypeScript execution
+
+# Stage 1: Install dependencies
+FROM oven/bun:1 AS install
+WORKDIR /app
+
+# Copy all workspace package.json files for dependency resolution
+COPY package.json bun.lock ./
+COPY packages/config/package.json packages/config/package.json
+COPY packages/db/package.json packages/db/package.json
+COPY packages/shared/package.json packages/shared/package.json
+COPY packages/queue/package.json packages/queue/package.json
+COPY packages/api-client/package.json packages/api-client/package.json
+COPY packages/ui/package.json packages/ui/package.json
+COPY packages/modules/auth/package.json packages/modules/auth/package.json
+COPY packages/modules/billing/package.json packages/modules/billing/package.json
+COPY packages/modules/example/package.json packages/modules/example/package.json
+COPY apps/api/package.json apps/api/package.json
+COPY apps/admin/package.json apps/admin/package.json
+COPY apps/web/package.json apps/web/package.json
+
+RUN bun install --frozen-lockfile
+
+# Stage 2: Application
+FROM oven/bun:1 AS app
+WORKDIR /app
+
+# Copy installed dependencies from install stage
+COPY --from=install /app/node_modules ./node_modules
+COPY --from=install /app/packages/*/node_modules ./packages/
+
+# Copy entire monorepo source
+COPY . .
+
+ENV NODE_ENV=production
+ENV INSTANCE_ROLE=worker
+
+# No HEALTHCHECK — worker health server will be added in Plan 02
+# HEALTHCHECK will be added to docker-compose.yml after Plan 02
+
+CMD ["bun", "run", "apps/api/src/worker.ts"]

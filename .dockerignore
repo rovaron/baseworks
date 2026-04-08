@@ -1,0 +1,27 @@
+# Development and planning artifacts
+.planning/
+.claude/
+.agents/
+.git/
+
+# Environment files (secrets must not leak into Docker context)
+.env
+.env.local
+.env.*.local
+
+# Dependencies (reinstalled inside container)
+node_modules/
+
+# Build outputs (rebuilt inside container)
+apps/web/.next/
+apps/admin/dist/
+
+# Documentation (not needed in containers)
+*.md
+!package.json
+
+# IDE and OS artifacts
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

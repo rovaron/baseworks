@@ -1,0 +1,43 @@
+# Dockerfile.api — Multi-stage build for Elysia API server
+# Uses oven/bun as base image for native TypeScript execution
+
+# Stage 1: Install dependencies
+FROM oven/bun:1 AS install
+WORKDIR /app
+
+# Copy all workspace package.json files for dependency resolution
+COPY package.json bun.lock ./
+COPY packages/config/package.json packages/config/package.json
+COPY packages/db/package.json packages/db/package.json
+COPY packages/shared/package.json packages/shared/package.json
+COPY packages/queue/package.json packages/queue/package.json
+COPY packages/api-client/package.json packages/api-client/package.json
+COPY packages/ui/package.json packages/ui/package.json
+COPY packages/modules/auth/package.json packages/modules/auth/package.json
+COPY packages/modules/billing/package.json packages/modules/billing/package.json
+COPY packages/modules/example/package.json packages/modules/example/package.json
+COPY apps/api/package.json apps/api/package.json
+COPY apps/admin/package.json apps/admin/package.json
+COPY apps/web/package.json apps/web/package.json
+
+RUN bun install --frozen-lockfile
+
+# Stage 2: Application
+FROM oven/bun:1 AS app
+WORKDIR /app
+
+# Copy installed dependencies from install stage
+COPY --from=install /app/node_modules ./node_modules
+COPY --from=install /app/packages/*/node_modules ./packages/
+
+# Copy entire monorepo source
+COPY . .
+
+ENV NODE_ENV=production
+EXPOSE 3000
+
+# Health check: verify API responds on /health endpoint
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD ["bun", "-e", "fetch('http://localhost:3000/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
+
+CMD ["bun", "run", "apps/api/src/index.ts"]
