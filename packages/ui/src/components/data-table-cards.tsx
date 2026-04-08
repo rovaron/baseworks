@@ -101,6 +101,7 @@ export function DataTableCards<TData>({
       {/* Sort dropdown */}
       {sortableColumns.length > 0 && (
         <Select
+          value={table.getState().sorting[0]?.id ?? ""}
           onValueChange={(value) => {
             const col = allColumns.find((c) => c.id === value);
             if (col) {
