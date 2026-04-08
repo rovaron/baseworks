@@ -199,7 +199,7 @@ const Sidebar = React.forwardRef<
 
     // Transient hover-expand state for tablet (does NOT persist to localStorage).
     const [isHoverExpanded, setIsHoverExpanded] = React.useState(false)
-    const hoverTimeoutRef = React.useRef<ReturnType<typeof setTimeout>>(undefined)
+    const hoverTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
     // Clean up hover timeout on unmount.
     React.useEffect(() => () => clearTimeout(hoverTimeoutRef.current), [])
