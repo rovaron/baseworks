@@ -11,6 +11,14 @@ import { NextRequest, NextResponse } from "next/server";
  */
 export function middleware(request: NextRequest) {
   const sessionCookie = request.cookies.get("better-auth.session_token");
+
+  // Root redirect: authenticated → dashboard, unauthenticated → login
+  if (request.nextUrl.pathname === "/") {
+    const target = sessionCookie ? "/dashboard" : "/login";
+    return NextResponse.redirect(new URL(target, request.url));
+  }
+
+  // Dashboard protection: require session cookie
   if (!sessionCookie) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
@@ -18,5 +26,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: ["/", "/dashboard/:path*"],
 };
