@@ -5,7 +5,7 @@ import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
 import { PanelLeft } from "lucide-react"
 
-import { useIsMobile } from "../hooks/use-mobile"
+import { useBreakpoint } from "../hooks/use-mobile"
 import { cn } from "../lib/utils"
 import { Button } from "./button"
 import { Input } from "./input"
@@ -25,8 +25,7 @@ import {
   TooltipTrigger,
 } from "./tooltip"
 
-const SIDEBAR_COOKIE_NAME = "sidebar_state"
-const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
+const SIDEBAR_STORAGE_KEY = "sidebar_state"
 const SIDEBAR_WIDTH = "16rem"
 const SIDEBAR_WIDTH_MOBILE = "18rem"
 const SIDEBAR_WIDTH_ICON = "3rem"
@@ -39,6 +38,7 @@ type SidebarContextProps = {
   openMobile: boolean
   setOpenMobile: (open: boolean) => void
   isMobile: boolean
+  isTablet: boolean
   toggleSidebar: () => void
 }
 
@@ -73,12 +73,18 @@ const SidebarProvider = React.forwardRef<
     },
     ref
   ) => {
-    const isMobile = useIsMobile()
+    const breakpoint = useBreakpoint()
+    const isMobile = breakpoint === "mobile"
+    const isTablet = breakpoint === "tablet"
     const [openMobile, setOpenMobile] = React.useState(false)
 
     // This is the internal state of the sidebar.
     // We use openProp and setOpenProp for control from outside the component.
-    const [_open, _setOpen] = React.useState(defaultOpen)
+    const [_open, _setOpen] = React.useState(() => {
+      if (typeof window === "undefined") return defaultOpen
+      const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY)
+      return stored !== null ? stored === "true" : defaultOpen
+    })
     const open = openProp ?? _open
     const setOpen = React.useCallback(
       (value: boolean | ((value: boolean) => boolean)) => {
@@ -89,8 +95,8 @@ const SidebarProvider = React.forwardRef<
           _setOpen(openState)
         }
 
-        // This sets the cookie to keep the sidebar state.
-        document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+        // Persist sidebar state in localStorage.
+        localStorage.setItem(SIDEBAR_STORAGE_KEY, String(openState))
       },
       [setOpenProp, open]
     )
@@ -118,6 +124,13 @@ const SidebarProvider = React.forwardRef<
       return () => window.removeEventListener("keydown", handleKeyDown)
     }, [toggleSidebar])
 
+    // Collapse sidebar on tablet by default (unless externally controlled).
+    React.useEffect(() => {
+      if (isTablet && openProp === undefined) {
+        _setOpen(false)
+      }
+    }, [isTablet, openProp])
+
     // We add a state so that we can do data-state="expanded" or "collapsed".
     // This makes it easier to style the sidebar with Tailwind classes.
     const state = open ? "expanded" : "collapsed"
@@ -128,11 +141,12 @@ const SidebarProvider = React.forwardRef<
         open,
         setOpen,
         isMobile,
+        isTablet,
         openMobile,
         setOpenMobile,
         toggleSidebar,
       }),
-      [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
+      [state, open, setOpen, isMobile, isTablet, openMobile, setOpenMobile, toggleSidebar]
     )
 
     return (
@@ -181,7 +195,18 @@ const Sidebar = React.forwardRef<
     },
     ref
   ) => {
-    const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+    const { isMobile, isTablet, state, open, openMobile, setOpenMobile } = useSidebar()
+
+    // Transient hover-expand state for tablet (does NOT persist to localStorage).
+    const [isHoverExpanded, setIsHoverExpanded] = React.useState(false)
+    const hoverTimeoutRef = React.useRef<ReturnType<typeof setTimeout>>(undefined)
+
+    // Clean up hover timeout on unmount.
+    React.useEffect(() => () => clearTimeout(hoverTimeoutRef.current), [])
+
+    // Compute effective visual state: persisted open OR transient tablet hover.
+    const effectiveOpen = open || (isTablet && isHoverExpanded)
+    const effectiveState = effectiveOpen ? "expanded" : "collapsed"
 
     if (collapsible === "none") {
       return (
@@ -226,8 +251,8 @@ const Sidebar = React.forwardRef<
       <div
         ref={ref}
         className="group peer hidden text-sidebar-foreground md:block"
-        data-state={state}
-        data-collapsible={state === "collapsed" ? collapsible : ""}
+        data-state={effectiveState}
+        data-collapsible={effectiveState === "collapsed" ? collapsible : ""}
         data-variant={variant}
         data-side={side}
       >
@@ -254,6 +279,18 @@ const Sidebar = React.forwardRef<
               : "group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l",
             className
           )}
+          onMouseEnter={() => {
+            if (isTablet) {
+              clearTimeout(hoverTimeoutRef.current)
+              hoverTimeoutRef.current = setTimeout(() => setIsHoverExpanded(true), 200)
+            }
+          }}
+          onMouseLeave={() => {
+            if (isTablet) {
+              clearTimeout(hoverTimeoutRef.current)
+              hoverTimeoutRef.current = setTimeout(() => setIsHoverExpanded(false), 200)
+            }
+          }}
           {...props}
         >
           <div
