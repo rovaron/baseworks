@@ -7,6 +7,7 @@ import { z } from "zod";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import {
   Button,
@@ -27,14 +28,15 @@ import {
 import { auth } from "@/lib/api";
 import { env } from "@/lib/env";
 
-const forgotPasswordSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-});
-
-type ForgotPasswordValues = z.infer<typeof forgotPasswordSchema>;
-
 export default function ForgotPasswordPage() {
   const [sent, setSent] = useState(false);
+  const t = useTranslations("auth");
+
+  const forgotPasswordSchema = z.object({
+    email: z.string().email(t("validation.emailRequired")),
+  });
+
+  type ForgotPasswordValues = z.infer<typeof forgotPasswordSchema>;
 
   const form = useForm<ForgotPasswordValues>({
     resolver: zodResolver(forgotPasswordSchema),
@@ -52,7 +54,7 @@ export default function ForgotPasswordPage() {
     });
 
     if (error) {
-      toast.error("Something went wrong. Please try again.");
+      toast.error(t("toast.somethingWentWrong"));
       return;
     }
 
@@ -63,14 +65,14 @@ export default function ForgotPasswordPage() {
     return (
       <Card className="w-full max-w-[400px]">
         <CardHeader className="text-center">
-          <h1 className="text-2xl font-semibold leading-none tracking-tight">Check your email</h1>
+          <h1 className="text-2xl font-semibold leading-none tracking-tight">{t("checkYourEmail")}</h1>
           <CardDescription>
-            Check your email for a reset link. If you don&apos;t see it, check your spam folder.
+            {t("checkEmailResetDescription")}
           </CardDescription>
         </CardHeader>
         <CardFooter className="justify-center">
           <Link href="/login">
-            <Button variant="outline">Back to sign in</Button>
+            <Button variant="outline">{t("backToSignIn")}</Button>
           </Link>
         </CardFooter>
       </Card>
@@ -80,9 +82,9 @@ export default function ForgotPasswordPage() {
   return (
     <Card className="w-full max-w-[400px]">
       <CardHeader className="text-center">
-        <h1 className="text-2xl font-semibold leading-none tracking-tight">Forgot password</h1>
+        <h1 className="text-2xl font-semibold leading-none tracking-tight">{t("forgotPasswordTitle")}</h1>
         <CardDescription>
-          Enter your email and we&apos;ll send you a link to reset your password.
+          {t("forgotPasswordDescription")}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -93,11 +95,11 @@ export default function ForgotPasswordPage() {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>{t("email")}</FormLabel>
                   <FormControl>
                     <Input
                       type="email"
-                      placeholder="you@example.com"
+                      placeholder={t("emailPlaceholder")}
                       autoComplete="email"
                       {...field}
                     />
@@ -108,7 +110,7 @@ export default function ForgotPasswordPage() {
             />
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="animate-spin" />}
-              Send reset link
+              {t("sendResetLink")}
             </Button>
           </form>
         </Form>
@@ -118,7 +120,7 @@ export default function ForgotPasswordPage() {
           href="/login"
           className="text-muted-foreground hover:text-foreground transition-colors"
         >
-          Back to sign in
+          {t("backToSignIn")}
         </Link>
       </CardFooter>
     </Card>

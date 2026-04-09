@@ -7,6 +7,7 @@ import { z } from "zod";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import {
   Button,
@@ -26,15 +27,16 @@ import {
 } from "@baseworks/ui";
 import { auth } from "@/lib/api";
 
-const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(1, "Password is required"),
-});
-
-type LoginValues = z.infer<typeof loginSchema>;
-
 export default function LoginPage() {
   const router = useRouter();
+  const t = useTranslations("auth");
+
+  const loginSchema = z.object({
+    email: z.string().email(t("validation.emailRequired")),
+    password: z.string().min(1, t("validation.passwordRequired")),
+  });
+
+  type LoginValues = z.infer<typeof loginSchema>;
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -53,7 +55,7 @@ export default function LoginPage() {
     });
 
     if (error) {
-      toast.error("Invalid credentials. Please check your email and password.");
+      toast.error(t("toast.invalidCredentials"));
       return;
     }
 
@@ -70,8 +72,8 @@ export default function LoginPage() {
   return (
     <Card className="w-full max-w-[400px]">
       <CardHeader className="text-center">
-        <h1 className="text-2xl font-semibold leading-none tracking-tight">Sign in</h1>
-        <CardDescription>Enter your credentials to continue</CardDescription>
+        <h1 className="text-2xl font-semibold leading-none tracking-tight">{t("signIn")}</h1>
+        <CardDescription>{t("signInDescription")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
@@ -80,14 +82,14 @@ export default function LoginPage() {
             type="button"
             onClick={() => handleOAuth("google")}
           >
-            Continue with Google
+            {t("continueWithGoogle")}
           </Button>
           <Button
             variant="outline"
             type="button"
             onClick={() => handleOAuth("github")}
           >
-            Continue with GitHub
+            {t("continueWithGithub")}
           </Button>
         </div>
 
@@ -96,7 +98,7 @@ export default function LoginPage() {
             <span className="w-full border-t" />
           </div>
           <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card px-2 text-muted-foreground">or</span>
+            <span className="bg-card px-2 text-muted-foreground">{t("or")}</span>
           </div>
         </div>
 
@@ -107,11 +109,11 @@ export default function LoginPage() {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>{t("email")}</FormLabel>
                   <FormControl>
                     <Input
                       type="email"
-                      placeholder="you@example.com"
+                      placeholder={t("emailPlaceholder")}
                       autoComplete="email"
                       {...field}
                     />
@@ -125,11 +127,11 @@ export default function LoginPage() {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Password</FormLabel>
+                  <FormLabel>{t("password")}</FormLabel>
                   <FormControl>
                     <Input
                       type="password"
-                      placeholder="Enter your password"
+                      placeholder={t("passwordPlaceholder")}
                       autoComplete="current-password"
                       {...field}
                     />
@@ -140,7 +142,7 @@ export default function LoginPage() {
             />
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="animate-spin" />}
-              Sign in
+              {t("signIn")}
             </Button>
           </form>
         </Form>
@@ -150,18 +152,18 @@ export default function LoginPage() {
           href="/forgot-password"
           className="text-muted-foreground hover:text-foreground transition-colors"
         >
-          Forgot your password?
+          {t("forgotPassword")}
         </Link>
         <Link
           href="/magic-link"
           className="text-muted-foreground hover:text-foreground transition-colors"
         >
-          Sign in with magic link
+          {t("signInWithMagicLink")}
         </Link>
         <div className="text-muted-foreground">
-          Don&apos;t have an account?{" "}
+          {t("noAccount")}{" "}
           <Link href="/signup" className="text-foreground font-medium hover:underline">
-            Create account
+            {t("createAccount")}
           </Link>
         </div>
       </CardFooter>

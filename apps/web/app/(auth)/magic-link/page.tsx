@@ -7,6 +7,7 @@ import { z } from "zod";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import {
   Button,
@@ -26,14 +27,15 @@ import {
 } from "@baseworks/ui";
 import { auth } from "@/lib/api";
 
-const magicLinkSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-});
-
-type MagicLinkValues = z.infer<typeof magicLinkSchema>;
-
 export default function MagicLinkPage() {
   const [sent, setSent] = useState(false);
+  const t = useTranslations("auth");
+
+  const magicLinkSchema = z.object({
+    email: z.string().email(t("validation.emailRequired")),
+  });
+
+  type MagicLinkValues = z.infer<typeof magicLinkSchema>;
 
   const form = useForm<MagicLinkValues>({
     resolver: zodResolver(magicLinkSchema),
@@ -51,7 +53,7 @@ export default function MagicLinkPage() {
     });
 
     if (error) {
-      toast.error("Something went wrong. Please try again.");
+      toast.error(t("toast.somethingWentWrong"));
       return;
     }
 
@@ -62,14 +64,14 @@ export default function MagicLinkPage() {
     return (
       <Card className="w-full max-w-[400px]">
         <CardHeader className="text-center">
-          <h1 className="text-2xl font-semibold leading-none tracking-tight">Check your email</h1>
+          <h1 className="text-2xl font-semibold leading-none tracking-tight">{t("checkYourEmail")}</h1>
           <CardDescription>
-            Check your email for a magic link. Click the link to sign in instantly.
+            {t("checkEmailMagicDescription")}
           </CardDescription>
         </CardHeader>
         <CardFooter className="justify-center">
           <Link href="/login">
-            <Button variant="outline">Back to sign in</Button>
+            <Button variant="outline">{t("backToSignIn")}</Button>
           </Link>
         </CardFooter>
       </Card>
@@ -79,9 +81,9 @@ export default function MagicLinkPage() {
   return (
     <Card className="w-full max-w-[400px]">
       <CardHeader className="text-center">
-        <h1 className="text-2xl font-semibold leading-none tracking-tight">Magic link</h1>
+        <h1 className="text-2xl font-semibold leading-none tracking-tight">{t("magicLink")}</h1>
         <CardDescription>
-          Enter your email and we&apos;ll send you a link to sign in instantly.
+          {t("magicLinkDescription")}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -92,11 +94,11 @@ export default function MagicLinkPage() {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>{t("email")}</FormLabel>
                   <FormControl>
                     <Input
                       type="email"
-                      placeholder="you@example.com"
+                      placeholder={t("emailPlaceholder")}
                       autoComplete="email"
                       {...field}
                     />
@@ -107,7 +109,7 @@ export default function MagicLinkPage() {
             />
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="animate-spin" />}
-              Send magic link
+              {t("sendMagicLink")}
             </Button>
           </form>
         </Form>
@@ -117,7 +119,7 @@ export default function MagicLinkPage() {
           href="/login"
           className="text-muted-foreground hover:text-foreground transition-colors"
         >
-          Back to sign in
+          {t("backToSignIn")}
         </Link>
       </CardFooter>
     </Card>

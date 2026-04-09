@@ -6,6 +6,7 @@ import { useQueryState } from "nuqs";
 import { format } from "date-fns";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import {
   Badge,
@@ -31,50 +32,6 @@ import {
 import { api } from "@/lib/api";
 import { env } from "@/lib/env";
 
-// Template plan data -- users replace these with their actual Stripe price IDs
-const PLANS = [
-  {
-    name: "Free",
-    priceId: "price_free_placeholder",
-    price: "$0",
-    period: "forever",
-    features: [
-      "1 workspace",
-      "Up to 3 members",
-      "Basic features",
-      "Community support",
-    ],
-  },
-  {
-    name: "Pro",
-    priceId: "price_pro_placeholder",
-    price: "$29",
-    period: "/month",
-    features: [
-      "Unlimited workspaces",
-      "Up to 25 members",
-      "All features",
-      "Priority support",
-      "Advanced analytics",
-    ],
-    popular: true,
-  },
-  {
-    name: "Enterprise",
-    priceId: "price_enterprise_placeholder",
-    price: "$99",
-    period: "/month",
-    features: [
-      "Unlimited everything",
-      "Unlimited members",
-      "All features",
-      "Dedicated support",
-      "Custom integrations",
-      "SLA guarantee",
-    ],
-  },
-];
-
 function statusVariant(status: string) {
   switch (status) {
     case "active":
@@ -92,6 +49,8 @@ function statusVariant(status: string) {
 function SubscriptionCard() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const queryClient = useQueryClient();
+  const t = useTranslations("billing");
+  const tc = useTranslations("common");
 
   const subscriptionQuery = useQuery({
     queryKey: ["billing", "subscription"],
@@ -109,12 +68,12 @@ function SubscriptionCard() {
       return data;
     },
     onSuccess: () => {
-      toast.success("Subscription cancelled");
+      toast.success(t("toast.cancelled"));
       queryClient.invalidateQueries({ queryKey: ["billing", "subscription"] });
       setCancelOpen(false);
     },
     onError: () => {
-      toast.error("Failed to cancel subscription. Please try again.");
+      toast.error(t("toast.cancelFailed"));
     },
   });
 
@@ -132,7 +91,7 @@ function SubscriptionCard() {
       }
     },
     onError: () => {
-      toast.error("Failed to open billing portal. Please try again.");
+      toast.error(t("toast.portalFailed"));
     },
   });
 
@@ -149,7 +108,7 @@ function SubscriptionCard() {
             <Skeleton className="h-4 w-40" />
           </CardContent>
         </Card>
-        <span className="sr-only">Loading...</span>
+        <span className="sr-only">{tc("loading")}</span>
       </div>
     );
   }
@@ -160,9 +119,9 @@ function SubscriptionCard() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>No active subscription</CardTitle>
+          <CardTitle>{t("subscription.noActive")}</CardTitle>
           <CardDescription>
-            Choose a plan to unlock all features.
+            {t("subscription.noActiveDescription")}
           </CardDescription>
         </CardHeader>
         <CardFooter>
@@ -174,7 +133,7 @@ function SubscriptionCard() {
                 ?.scrollIntoView({ behavior: "smooth" });
             }}
           >
-            View plans
+            {t("subscription.viewPlans")}
           </Button>
         </CardFooter>
       </Card>
@@ -186,15 +145,16 @@ function SubscriptionCard() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>{subscription.planName ?? "Current Plan"}</CardTitle>
+            <CardTitle>{subscription.planName ?? t("subscription.currentPlan")}</CardTitle>
             <Badge variant={statusVariant(subscription.status)}>
               {subscription.status}
             </Badge>
           </div>
           {subscription.currentPeriodEnd && (
             <CardDescription>
-              Current period ends{" "}
-              {format(new Date(subscription.currentPeriodEnd), "MMMM d, yyyy")}
+              {t("subscription.periodEnds", {
+                date: format(new Date(subscription.currentPeriodEnd), "MMMM d, yyyy"),
+              })}
             </CardDescription>
           )}
         </CardHeader>
@@ -205,14 +165,14 @@ function SubscriptionCard() {
             disabled={portalMutation.isPending}
           >
             {portalMutation.isPending && <Loader2 className="animate-spin" />}
-            Manage billing
+            {t("subscription.manageBilling")}
           </Button>
           {subscription.status === "active" && (
             <Button
               variant="destructive"
               onClick={() => setCancelOpen(true)}
             >
-              Cancel subscription
+              {t("subscription.cancelSubscription")}
             </Button>
           )}
         </CardFooter>
@@ -221,16 +181,14 @@ function SubscriptionCard() {
       <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Cancel subscription</DialogTitle>
+            <DialogTitle>{t("subscription.cancelTitle")}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to cancel your subscription? You will lose
-              access to premium features at the end of your current billing
-              period.
+              {t("subscription.cancelDescription")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setCancelOpen(false)}>
-              Keep subscription
+              {t("subscription.keepSubscription")}
             </Button>
             <Button
               variant="destructive"
@@ -240,7 +198,7 @@ function SubscriptionCard() {
               {cancelMutation.isPending && (
                 <Loader2 className="animate-spin" />
               )}
-              Yes, cancel subscription
+              {t("subscription.confirmCancel")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -250,6 +208,57 @@ function SubscriptionCard() {
 }
 
 function PlanSelection() {
+  const t = useTranslations("billing");
+
+  // Template plan data -- users replace these with their actual Stripe price IDs
+  const PLANS = [
+    {
+      key: "free",
+      name: t("plans.free.name"),
+      priceId: "price_free_placeholder",
+      price: "$0",
+      period: "forever",
+      features: [
+        t("plans.free.features.members"),
+        t("plans.free.features.projects"),
+        t("plans.free.features.storage"),
+        t("plans.free.features.support"),
+        t("plans.free.features.api"),
+      ],
+    },
+    {
+      key: "pro",
+      name: t("plans.pro.name"),
+      priceId: "price_pro_placeholder",
+      price: "$29",
+      period: "/month",
+      features: [
+        t("plans.pro.features.members"),
+        t("plans.pro.features.projects"),
+        t("plans.pro.features.storage"),
+        t("plans.pro.features.support"),
+        t("plans.pro.features.api"),
+        t("plans.pro.features.analytics"),
+        t("plans.pro.features.integrations"),
+      ],
+      popular: true,
+    },
+    {
+      key: "enterprise",
+      name: t("plans.enterprise.name"),
+      priceId: "price_enterprise_placeholder",
+      price: "$99",
+      period: "/month",
+      features: [
+        t("plans.enterprise.features.everything"),
+        t("plans.enterprise.features.storage"),
+        t("plans.enterprise.features.support"),
+        t("plans.enterprise.features.sla"),
+        t("plans.enterprise.features.sso"),
+      ],
+    },
+  ];
+
   const checkoutMutation = useMutation({
     mutationFn: async (priceId: string) => {
       const { data, error } = await api.api.billing.checkout.post({
@@ -267,17 +276,17 @@ function PlanSelection() {
       }
     },
     onError: () => {
-      toast.error("Failed to start checkout. Please try again.");
+      toast.error(t("toast.checkoutFailed"));
     },
   });
 
   return (
     <div id="plan-selection" className="space-y-4">
-      <h2 className="text-xl font-semibold">Plans</h2>
+      <h2 className="text-xl font-semibold">{t("plans.title")}</h2>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {PLANS.map((plan) => (
           <Card
-            key={plan.name}
+            key={plan.key}
             className={
               plan.popular
                 ? "border-primary shadow-md"
@@ -288,7 +297,7 @@ function PlanSelection() {
               <CardTitle className="flex items-center justify-between">
                 {plan.name}
                 {plan.popular && (
-                  <Badge variant="secondary">Popular</Badge>
+                  <Badge variant="secondary">{t("plans.popular")}</Badge>
                 )}
               </CardTitle>
               <CardDescription>
@@ -300,8 +309,8 @@ function PlanSelection() {
             </CardHeader>
             <CardContent>
               <ul className="space-y-2 text-sm">
-                {plan.features.map((feature) => (
-                  <li key={feature} className="flex items-center gap-2">
+                {plan.features.map((feature, index) => (
+                  <li key={index} className="flex items-center gap-2">
                     <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                     {feature}
                   </li>
@@ -318,7 +327,7 @@ function PlanSelection() {
                 {checkoutMutation.isPending && (
                   <Loader2 className="animate-spin" />
                 )}
-                Subscribe to {plan.name}
+                {t("plans.subscribeTo", { planName: plan.name })}
               </Button>
             </CardFooter>
           </Card>
@@ -329,6 +338,9 @@ function PlanSelection() {
 }
 
 function BillingHistory() {
+  const t = useTranslations("billing");
+  const tc = useTranslations("common");
+
   const historyQuery = useQuery({
     queryKey: ["billing", "history"],
     queryFn: async () => {
@@ -346,7 +358,7 @@ function BillingHistory() {
         {Array.from({ length: 3 }).map((_, i) => (
           <Skeleton key={i} className="h-16 w-full" />
         ))}
-        <span className="sr-only">Loading...</span>
+        <span className="sr-only">{tc("loading")}</span>
       </div>
     );
   }
@@ -359,8 +371,7 @@ function BillingHistory() {
       <Card>
         <CardContent className="py-8 text-center">
           <p className="text-muted-foreground">
-            No billing history yet. Your invoices will appear here after your
-            first payment.
+            {t("history.empty")}
           </p>
         </CardContent>
       </Card>
@@ -374,18 +385,18 @@ function BillingHistory() {
           <CardContent className="flex flex-wrap items-center justify-between gap-2 py-4">
             <div>
               <p className="text-sm font-medium">
-                {item.description ?? "Invoice"}
+                {item.description ?? t("history.invoice")}
               </p>
               <p className="text-xs text-muted-foreground">
                 {item.date
                   ? format(new Date(item.date), "MMMM d, yyyy")
-                  : "—"}
+                  : "\u2014"}
               </p>
             </div>
             <span className="text-sm font-medium">
               {item.amount != null
                 ? `$${(item.amount / 100).toFixed(2)}`
-                : "—"}
+                : "\u2014"}
             </span>
           </CardContent>
         </Card>
@@ -396,16 +407,17 @@ function BillingHistory() {
 
 function BillingContent() {
   const [tab, setTab] = useQueryState("tab", { defaultValue: "subscription" });
+  const t = useTranslations("billing");
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-semibold">Billing</h1>
+      <h1 className="text-2xl font-semibold">{t("title")}</h1>
 
       <Tabs value={tab ?? "subscription"} onValueChange={setTab}>
         <TabsList className="w-full">
-          <TabsTrigger value="subscription" className="flex-1">Subscription</TabsTrigger>
-          <TabsTrigger value="history" className="flex-1">History</TabsTrigger>
-          <TabsTrigger value="usage" className="flex-1">Usage</TabsTrigger>
+          <TabsTrigger value="subscription" className="flex-1">{t("tabs.subscription")}</TabsTrigger>
+          <TabsTrigger value="history" className="flex-1">{t("tabs.history")}</TabsTrigger>
+          <TabsTrigger value="usage" className="flex-1">{t("tabs.usage")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="subscription" className="space-y-8">
@@ -421,8 +433,7 @@ function BillingContent() {
           <Card>
             <CardContent className="py-8 text-center">
               <p className="text-muted-foreground">
-                Usage tracking is not yet configured. This section will display
-                usage-based billing metrics when enabled.
+                {t("usage.empty")}
               </p>
             </CardContent>
           </Card>

@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, CreditCard, Settings, LogOut } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import {
   Sidebar,
@@ -30,22 +31,16 @@ import { auth } from "@/lib/api";
 import { useTenant } from "./tenant-provider";
 import { TenantSwitcher } from "./tenant-switcher";
 
-const navItems = [
-  {
-    label: "Dashboard",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    label: "Billing",
-    href: "/dashboard/billing",
-    icon: CreditCard,
-  },
-  {
-    label: "Settings",
-    href: "/dashboard/settings",
-    icon: Settings,
-  },
+const navIcons = {
+  dashboard: LayoutDashboard,
+  billing: CreditCard,
+  settings: Settings,
+};
+
+const navHrefs = [
+  { key: "dashboard", href: "/dashboard", icon: navIcons.dashboard },
+  { key: "billing", href: "/dashboard/billing", icon: navIcons.billing },
+  { key: "settings", href: "/dashboard/settings", icon: navIcons.settings },
 ];
 
 export function SidebarNav() {
@@ -54,6 +49,8 @@ export function SidebarNav() {
   const { activeTenant } = useTenant();
   const session = auth.useSession();
   const { setOpenMobile } = useSidebar();
+  const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
 
   // Auto-dismiss mobile Sheet on navigation.
   React.useEffect(() => {
@@ -61,6 +58,11 @@ export function SidebarNav() {
   }, [pathname, setOpenMobile]);
 
   const user = session.data?.user;
+
+  const navItems = navHrefs.map((item) => ({
+    ...item,
+    label: t(`nav.${item.key}` as any),
+  }));
 
   async function handleSignOut() {
     await auth.signOut();
@@ -81,7 +83,7 @@ export function SidebarNav() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("nav.navigation")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map((item) => {
@@ -113,7 +115,7 @@ export function SidebarNav() {
         <SidebarSeparator className="group-data-[collapsible=icon]:hidden" />
 
         <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-          <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("nav.workspace")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <TenantSwitcher />
           </SidebarGroupContent>
@@ -125,7 +127,7 @@ export function SidebarNav() {
           <DropdownMenuTrigger asChild>
             <button
               className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring"
-              aria-label="User menu"
+              aria-label={t("nav.user")}
             >
               <Avatar className="h-7 w-7">
                 <AvatarFallback className="text-xs">
@@ -141,7 +143,7 @@ export function SidebarNav() {
               </Avatar>
               <div className="flex flex-col truncate group-data-[collapsible=icon]:hidden">
                 <span className="truncate text-sm font-medium">
-                  {user?.name ?? "User"}
+                  {user?.name ?? t("nav.user")}
                 </span>
                 <span className="truncate text-xs text-muted-foreground">
                   {user?.email ?? ""}
@@ -152,7 +154,7 @@ export function SidebarNav() {
           <DropdownMenuContent align="start" className="w-56">
             <DropdownMenuItem onClick={handleSignOut}>
               <LogOut className="mr-2 h-4 w-4" />
-              Sign out
+              {tc("signOut")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

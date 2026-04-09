@@ -7,6 +7,7 @@ import { z } from "zod";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import {
   Button,
@@ -26,16 +27,17 @@ import {
 } from "@baseworks/ui";
 import { auth } from "@/lib/api";
 
-const signupSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-});
-
-type SignupValues = z.infer<typeof signupSchema>;
-
 export default function SignupPage() {
   const router = useRouter();
+  const t = useTranslations("auth");
+
+  const signupSchema = z.object({
+    name: z.string().min(1, t("validation.nameRequired")),
+    email: z.string().email(t("validation.emailRequired")),
+    password: z.string().min(8, t("validation.passwordMin")),
+  });
+
+  type SignupValues = z.infer<typeof signupSchema>;
 
   const form = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
@@ -56,7 +58,7 @@ export default function SignupPage() {
     });
 
     if (error) {
-      toast.error(error.message ?? "Something went wrong. Please try again.");
+      toast.error(error.message ?? t("toast.somethingWentWrong"));
       return;
     }
 
@@ -66,8 +68,8 @@ export default function SignupPage() {
   return (
     <Card className="w-full max-w-[400px]">
       <CardHeader className="text-center">
-        <h1 className="text-2xl font-semibold leading-none tracking-tight">Create account</h1>
-        <CardDescription>Get started with Baseworks</CardDescription>
+        <h1 className="text-2xl font-semibold leading-none tracking-tight">{t("createAccount")}</h1>
+        <CardDescription>{t("createAccountDescription")}</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -77,10 +79,10 @@ export default function SignupPage() {
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel>{t("name")}</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="Your name"
+                      placeholder={t("namePlaceholder")}
                       autoComplete="name"
                       {...field}
                     />
@@ -94,11 +96,11 @@ export default function SignupPage() {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>{t("email")}</FormLabel>
                   <FormControl>
                     <Input
                       type="email"
-                      placeholder="you@example.com"
+                      placeholder={t("emailPlaceholder")}
                       autoComplete="email"
                       {...field}
                     />
@@ -112,11 +114,11 @@ export default function SignupPage() {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Password</FormLabel>
+                  <FormLabel>{t("password")}</FormLabel>
                   <FormControl>
                     <Input
                       type="password"
-                      placeholder="At least 8 characters"
+                      placeholder={t("passwordMinPlaceholder")}
                       autoComplete="new-password"
                       {...field}
                     />
@@ -127,15 +129,15 @@ export default function SignupPage() {
             />
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="animate-spin" />}
-              Create account
+              {t("createAccount")}
             </Button>
           </form>
         </Form>
       </CardContent>
       <CardFooter className="justify-center text-sm text-muted-foreground">
-        Already have an account?{" "}
+        {t("alreadyHaveAccount")}{" "}
         <Link href="/login" className="text-foreground font-medium hover:underline ml-1">
-          Sign in
+          {t("signIn")}
         </Link>
       </CardFooter>
     </Card>

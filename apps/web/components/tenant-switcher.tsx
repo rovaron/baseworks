@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronsUpDown, Check } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +24,7 @@ function getInitials(name: string) {
 
 export function TenantSwitcher() {
   const { activeTenant, tenants, setActiveTenant } = useTenant();
+  const t = useTranslations("dashboard");
 
   // Single tenant or no tenants -- nothing to switch
   if (tenants.length <= 1) {
@@ -45,7 +47,7 @@ export function TenantSwitcher() {
             </AvatarFallback>
           </Avatar>
           <span className="flex-1 truncate font-medium">
-            {activeTenant?.name ?? "Select tenant"}
+            {activeTenant?.name ?? t("tenantSwitcher.selectTenant")}
           </span>
           <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
         </button>

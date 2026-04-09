@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import {
   Button,
@@ -25,22 +26,23 @@ import {
 } from "@baseworks/ui";
 import { auth } from "@/lib/api";
 
-const resetPasswordSchema = z
-  .object({
-    password: z.string().min(8, "Password must be at least 8 characters"),
-    confirmPassword: z.string().min(8, "Password must be at least 8 characters"),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-  });
-
-type ResetPasswordValues = z.infer<typeof resetPasswordSchema>;
-
 function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
+  const t = useTranslations("auth");
+
+  const resetPasswordSchema = z
+    .object({
+      password: z.string().min(8, t("validation.passwordMin")),
+      confirmPassword: z.string().min(8, t("validation.passwordMin")),
+    })
+    .refine((data) => data.password === data.confirmPassword, {
+      message: t("validation.passwordsDoNotMatch"),
+      path: ["confirmPassword"],
+    });
+
+  type ResetPasswordValues = z.infer<typeof resetPasswordSchema>;
 
   const form = useForm<ResetPasswordValues>({
     resolver: zodResolver(resetPasswordSchema),
@@ -54,7 +56,7 @@ function ResetPasswordForm() {
 
   async function onSubmit(values: ResetPasswordValues) {
     if (!token) {
-      toast.error("Invalid or missing reset token.");
+      toast.error(t("toast.invalidToken"));
       return;
     }
 
@@ -64,11 +66,11 @@ function ResetPasswordForm() {
     });
 
     if (error) {
-      toast.error("Failed to reset password. The link may have expired.");
+      toast.error(t("toast.resetFailed"));
       return;
     }
 
-    toast.success("Password reset successfully");
+    toast.success(t("toast.resetSuccess"));
     router.push("/login");
   }
 
@@ -76,9 +78,9 @@ function ResetPasswordForm() {
     return (
       <Card className="w-full max-w-[400px]">
         <CardHeader className="text-center">
-          <h1 className="text-2xl font-semibold leading-none tracking-tight">Invalid link</h1>
+          <h1 className="text-2xl font-semibold leading-none tracking-tight">{t("invalidLink")}</h1>
           <CardDescription>
-            This password reset link is invalid or has expired.
+            {t("invalidLinkDescription")}
           </CardDescription>
         </CardHeader>
       </Card>
@@ -88,8 +90,8 @@ function ResetPasswordForm() {
   return (
     <Card className="w-full max-w-[400px]">
       <CardHeader className="text-center">
-        <h1 className="text-2xl font-semibold leading-none tracking-tight">Reset password</h1>
-        <CardDescription>Enter your new password below.</CardDescription>
+        <h1 className="text-2xl font-semibold leading-none tracking-tight">{t("resetPassword")}</h1>
+        <CardDescription>{t("resetPasswordDescription")}</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -99,11 +101,11 @@ function ResetPasswordForm() {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>New password</FormLabel>
+                  <FormLabel>{t("newPassword")}</FormLabel>
                   <FormControl>
                     <Input
                       type="password"
-                      placeholder="At least 8 characters"
+                      placeholder={t("passwordMinPlaceholder")}
                       autoComplete="new-password"
                       {...field}
                     />
@@ -117,11 +119,11 @@ function ResetPasswordForm() {
               name="confirmPassword"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Confirm password</FormLabel>
+                  <FormLabel>{t("confirmPassword")}</FormLabel>
                   <FormControl>
                     <Input
                       type="password"
-                      placeholder="Repeat your password"
+                      placeholder={t("confirmPasswordPlaceholder")}
                       autoComplete="new-password"
                       {...field}
                     />
@@ -132,7 +134,7 @@ function ResetPasswordForm() {
             />
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="animate-spin" />}
-              Reset password
+              {t("resetPassword")}
             </Button>
           </form>
         </Form>
