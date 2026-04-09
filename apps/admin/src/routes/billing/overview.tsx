@@ -55,7 +55,7 @@ export function Component() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6" aria-busy="true" aria-live="polite">
         <h1 className="text-2xl font-semibold">Billing Overview</h1>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Skeleton className="h-32" />
@@ -63,6 +63,7 @@ export function Component() {
           <Skeleton className="h-32" />
         </div>
         <Skeleton className="h-64" />
+        <span className="sr-only">Loading...</span>
       </div>
     );
   }

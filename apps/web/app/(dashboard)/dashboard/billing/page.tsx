@@ -138,16 +138,19 @@ function SubscriptionCard() {
 
   if (subscriptionQuery.isPending) {
     return (
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-4 w-32" />
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <Skeleton className="h-4 w-64" />
-          <Skeleton className="h-4 w-40" />
-        </CardContent>
-      </Card>
+      <div aria-busy="true" aria-live="polite">
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-32" />
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Skeleton className="h-4 w-64" />
+            <Skeleton className="h-4 w-40" />
+          </CardContent>
+        </Card>
+        <span className="sr-only">Loading...</span>
+      </div>
     );
   }
 
@@ -339,10 +342,11 @@ function BillingHistory() {
 
   if (historyQuery.isPending) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-3" aria-busy="true" aria-live="polite">
         {Array.from({ length: 3 }).map((_, i) => (
           <Skeleton key={i} className="h-16 w-full" />
         ))}
+        <span className="sr-only">Loading...</span>
       </div>
     );
   }
