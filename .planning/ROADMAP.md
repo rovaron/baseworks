@@ -57,11 +57,12 @@ Plans:
   3. User pressing Tab on page load can activate a skip-to-content link that jumps focus to the main content area
   4. Screen reader user hears meaningful announcements for toasts, loading spinners, and dynamic content changes via aria-live regions
   5. All shared UI components pass vitest-axe automated accessibility checks with zero violations
-**Plans:** 3 plans
+**Plans:** 4 plans
 Plans:
 - [x] 07-01-PLAN.md — Semantic landmarks, skip-to-content links, and route change focus management
 - [x] 07-02-PLAN.md — aria-live regions, FormMessage role="alert", and keyboard focus audit
-- [ ] 07-03-PLAN.md — vitest-axe automated accessibility tests for shared UI components
+- [x] 07-03-PLAN.md — vitest-axe automated accessibility tests for shared UI components
+- [ ] 07-04-PLAN.md — Gap closure: h1 heading hierarchy on auth pages
 **UI hint**: yes
 
 ### Phase 8: Internationalization
@@ -114,7 +115,7 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10
 | 4. Frontend Applications | v1.0 | 3/3 | Complete | 2026-04-07 |
 | 5. Production Hardening | v1.0 | 2/2 | Complete | 2026-04-08 |
 | 6. Responsive Layouts | v1.1 | 0/3 | Planned | - |
-| 7. Accessibility | v1.1 | 0/3 | Planned | - |
+| 7. Accessibility | v1.1 | 3/4 | Executing | - |
 | 8. Internationalization | v1.1 | 0/0 | Not started | - |
 | 9. Team Invites | v1.1 | 0/0 | Not started | - |
 | 10. Payment Abstraction | v1.1 | 0/0 | Not started | - |
