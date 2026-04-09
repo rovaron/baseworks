@@ -74,7 +74,11 @@ Plans:
   2. Customer app (Next.js) renders all user-facing strings from translation files via next-intl, with no hardcoded English in JSX
   3. Admin dashboard (Vite) renders all user-facing strings from translation files via react-i18next, with no hardcoded English in JSX
   4. Developer can add a new language by creating JSON files in packages/i18n without modifying application code
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 08-01-PLAN.md — i18n infrastructure: packages/i18n with en/pt-BR translations, next-intl + react-i18next providers
+- [ ] 08-02-PLAN.md — Customer app string replacement with next-intl
+- [ ] 08-03-PLAN.md — Admin dashboard string replacement with react-i18next
 **UI hint**: yes
 
 ### Phase 9: Team Invites
