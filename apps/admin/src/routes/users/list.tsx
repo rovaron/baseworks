@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { formatDistanceToNow } from "date-fns";
 import { MoreHorizontal } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   Badge,
   Button,
@@ -41,6 +42,8 @@ export function Component() {
   const [search, setSearch] = useState("");
   const [banTarget, setBanTarget] = useState<User | null>(null);
   const [impersonateTarget, setImpersonateTarget] = useState<User | null>(null);
+  const { t } = useTranslation("admin");
+  const { t: tc } = useTranslation("common");
 
   const { data: result, isLoading } = useQuery({
     queryKey: ["admin", "users", page, search],
@@ -61,12 +64,12 @@ export function Component() {
       });
     },
     onSuccess: (_, user) => {
-      toast.success(user.banned ? "User unbanned" : "User banned");
+      toast.success(user.banned ? t("users.toast.unbanned") : t("users.toast.banned"));
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       setBanTarget(null);
     },
     onError: () => {
-      toast.error("Failed to update user");
+      toast.error(t("users.toast.updateFailed"));
     },
   });
 
@@ -76,11 +79,11 @@ export function Component() {
       return res.data;
     },
     onSuccess: () => {
-      toast.success("Impersonation started. Check the new session.");
+      toast.success(t("users.toast.impersonationStarted"));
       setImpersonateTarget(null);
     },
     onError: () => {
-      toast.error("Failed to start impersonation");
+      toast.error(t("users.toast.impersonationFailed"));
     },
   });
 
@@ -91,19 +94,19 @@ export function Component() {
   const columns: ColumnDef<User, any>[] = [
     {
       accessorKey: "name",
-      header: "Name",
+      header: t("users.columns.name"),
       enableSorting: true,
       meta: { priority: 1 },
     },
     {
       accessorKey: "email",
-      header: "Email",
+      header: t("users.columns.email"),
       enableSorting: false,
       meta: { priority: 2 },
     },
     {
       accessorKey: "createdAt",
-      header: "Created",
+      header: t("users.columns.created"),
       enableSorting: true,
       cell: ({ row }) => {
         const d = row.original.createdAt ? new Date(row.original.createdAt) : null;
@@ -115,12 +118,12 @@ export function Component() {
     },
     {
       id: "status",
-      header: "Status",
+      header: t("users.columns.status"),
       cell: ({ row }) =>
         row.original.banned ? (
-          <Badge variant="destructive">banned</Badge>
+          <Badge variant="destructive">{t("users.status.banned")}</Badge>
         ) : (
-          <Badge variant="default">active</Badge>
+          <Badge variant="default">{t("users.status.active")}</Badge>
         ),
       meta: { priority: 1 },
     },
@@ -133,21 +136,21 @@ export function Component() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
               <MoreHorizontal className="h-4 w-4" />
-              <span className="sr-only">Open menu</span>
+              <span className="sr-only">{tc("openMenu")}</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => navigate(`/users/${row.original.id}`)}>
-              View details
+              {t("users.actions.viewDetails")}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setImpersonateTarget(row.original)}>
-              Impersonate
+              {t("users.actions.impersonate")}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => setBanTarget(row.original)}
               className={row.original.banned ? "" : "text-destructive"}
             >
-              {row.original.banned ? "Unban user" : "Ban user"}
+              {row.original.banned ? t("users.actions.unbanUser") : t("users.actions.banUser")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -157,18 +160,18 @@ export function Component() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Users</h1>
+      <h1 className="text-2xl font-semibold">{t("users.title")}</h1>
 
       {!isLoading && users.length === 0 && !search ? (
         <p className="text-sm text-muted-foreground py-12 text-center">
-          No accounts registered yet. Users will appear here once they sign up.
+          {t("users.empty")}
         </p>
       ) : (
         <DataTable
           columns={columns}
           data={users}
           isLoading={isLoading}
-          searchPlaceholder="Search users..."
+          searchPlaceholder={t("users.searchPlaceholder")}
           searchValue={search}
           onSearchChange={setSearch}
           pageCount={pageCount}
@@ -181,16 +184,16 @@ export function Component() {
       <Dialog open={!!banTarget} onOpenChange={() => setBanTarget(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{banTarget?.banned ? "Unban user" : "Ban user"}</DialogTitle>
+            <DialogTitle>{banTarget?.banned ? t("users.banDialog.unbanTitle") : t("users.banDialog.banTitle")}</DialogTitle>
             <DialogDescription>
               {banTarget?.banned
-                ? `Unbanning ${banTarget?.email} will restore their access to the platform.`
-                : `Banning ${banTarget?.email} will immediately end their session and prevent login. This can be reversed.`}
+                ? t("users.banDialog.unbanDescription", { email: banTarget?.email })
+                : t("users.banDialog.banDescription", { email: banTarget?.email })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setBanTarget(null)}>
-              {banTarget?.banned ? "Cancel" : "Keep user active"}
+              {banTarget?.banned ? tc("cancel") : t("users.banDialog.keepActive")}
             </Button>
             <Button
               variant={banTarget?.banned ? "default" : "destructive"}
@@ -198,10 +201,10 @@ export function Component() {
               disabled={banMutation.isPending}
             >
               {banMutation.isPending
-                ? "Updating..."
+                ? t("users.banDialog.updating")
                 : banTarget?.banned
-                  ? "Unban user"
-                  : "Ban user"}
+                  ? t("users.actions.unbanUser")
+                  : t("users.actions.banUser")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -211,20 +214,20 @@ export function Component() {
       <Dialog open={!!impersonateTarget} onOpenChange={() => setImpersonateTarget(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Impersonate user</DialogTitle>
+            <DialogTitle>{t("users.impersonateDialog.title")}</DialogTitle>
             <DialogDescription>
-              You are about to impersonate {impersonateTarget?.email}. All actions will be logged.
+              {t("users.impersonateDialog.description", { email: impersonateTarget?.email })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setImpersonateTarget(null)}>
-              Return to admin
+              {t("users.impersonateDialog.returnToAdmin")}
             </Button>
             <Button
               onClick={() => impersonateTarget && impersonateMutation.mutate(impersonateTarget)}
               disabled={impersonateMutation.isPending}
             >
-              {impersonateMutation.isPending ? "Starting..." : "Start impersonation"}
+              {impersonateMutation.isPending ? t("users.impersonateDialog.starting") : t("users.impersonateDialog.startImpersonation")}
             </Button>
           </DialogFooter>
         </DialogContent>

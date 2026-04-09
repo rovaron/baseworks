@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Outlet, useNavigate, useLocation } from "react-router";
+import { useTranslation } from "react-i18next";
 import {
   SidebarProvider,
   Sidebar,
@@ -33,10 +34,10 @@ import { auth } from "@/lib/api";
 import { useFocusOnNavigate } from "@/hooks/use-focus-on-navigate";
 
 const navItems = [
-  { title: "Tenants", icon: Building2, href: "/tenants" },
-  { title: "Users", icon: Users, href: "/users" },
-  { title: "Billing", icon: CreditCard, href: "/billing" },
-  { title: "System", icon: Activity, href: "/system" },
+  { titleKey: "nav.tenants", icon: Building2, href: "/tenants" },
+  { titleKey: "nav.users", icon: Users, href: "/users" },
+  { titleKey: "nav.billing", icon: CreditCard, href: "/billing" },
+  { titleKey: "nav.system", icon: Activity, href: "/system" },
 ];
 
 function NavigationAutoClose() {
@@ -54,9 +55,11 @@ function AdminLayoutContent() {
   const navigate = useNavigate();
   const location = useLocation();
   const session = auth.useSession();
+  const { t } = useTranslation("admin");
+  const { t: tc } = useTranslation("common");
   useFocusOnNavigate();
 
-  const userName = session.data?.user?.name || "Admin";
+  const userName = session.data?.user?.name || t("title");
   const userEmail = session.data?.user?.email || "";
   const initials = userName
     .split(" ")
@@ -73,7 +76,7 @@ function AdminLayoutContent() {
         <nav aria-label="Main navigation">
         <Sidebar collapsible="icon">
           <SidebarHeader className="p-4">
-            <span className="text-lg font-semibold">Admin</span>
+            <span className="text-lg font-semibold">{t("title")}</span>
           </SidebarHeader>
           <SidebarContent>
             <SidebarGroup>
@@ -83,6 +86,7 @@ function AdminLayoutContent() {
                     const isActive =
                       location.pathname === item.href ||
                       location.pathname.startsWith(item.href + "/");
+                    const title = t(item.titleKey);
 
                     return (
                       <SidebarMenuItem key={item.href}>
@@ -95,18 +99,18 @@ function AdminLayoutContent() {
                             >
                               <a
                                 href={item.href}
-                                aria-label={item.title}
+                                aria-label={title}
                                 onClick={(e) => {
                                   e.preventDefault();
                                   navigate(item.href);
                                 }}
                               >
                                 <item.icon className="h-4 w-4" />
-                                <span>{item.title}</span>
+                                <span>{title}</span>
                               </a>
                             </SidebarMenuButton>
                           </TooltipTrigger>
-                          <TooltipContent side="right">{item.title}</TooltipContent>
+                          <TooltipContent side="right">{title}</TooltipContent>
                         </Tooltip>
                       </SidebarMenuItem>
                     );
@@ -140,7 +144,7 @@ function AdminLayoutContent() {
                       }}
                     >
                       <LogOut className="mr-2 h-4 w-4" />
-                      Sign out
+                      {tc("signOut")}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

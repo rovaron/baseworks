@@ -42,6 +42,8 @@ i18n.use(initReactI18next).init({
   defaultNS: "common",
   interpolation: {
     escapeValue: false, // React already escapes
+    prefix: "{",
+    suffix: "}",
   },
 });
 

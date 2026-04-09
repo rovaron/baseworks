@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { formatDuration, intervalToDuration } from "date-fns";
+import { useTranslation } from "react-i18next";
 import {
   Badge,
   Button,
@@ -57,6 +58,9 @@ function formatUptime(seconds: number): string {
 }
 
 export function Component() {
+  const { t } = useTranslation("admin");
+  const { t: tc } = useTranslation("common");
+
   const {
     data: result,
     isLoading,
@@ -74,14 +78,14 @@ export function Component() {
   if (error) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold">System Health</h1>
+        <h1 className="text-2xl font-semibold">{t("systemHealth.title")}</h1>
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-sm text-muted-foreground mb-4">
-              Failed to load data. Check the API server status and try again.
+              {t("systemHealth.loadError")}
             </p>
             <Button variant="outline" onClick={() => refetch()}>
-              Retry
+              {tc("retry")}
             </Button>
           </CardContent>
         </Card>
@@ -92,14 +96,14 @@ export function Component() {
   if (isLoading) {
     return (
       <div className="space-y-6" aria-busy="true" aria-live="polite">
-        <h1 className="text-2xl font-semibold">System Health</h1>
+        <h1 className="text-2xl font-semibold">{t("systemHealth.title")}</h1>
         <Skeleton className="h-24" />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <Skeleton className="h-40" />
           <Skeleton className="h-40" />
           <Skeleton className="h-40" />
         </div>
-        <span className="sr-only">Loading...</span>
+        <span className="sr-only">{tc("loading")}</span>
       </div>
     );
   }
@@ -113,7 +117,7 @@ export function Component() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">System Health</h1>
+      <h1 className="text-2xl font-semibold">{t("systemHealth.title")}</h1>
 
       {/* Overall Status */}
       <Card>
@@ -123,17 +127,17 @@ export function Component() {
             className="text-base px-4 py-1"
           >
             {overallStatus === "healthy"
-              ? "Healthy"
+              ? t("systemHealth.status.healthy")
               : overallStatus === "degraded"
-                ? "Degraded"
-                : "Unhealthy"}
+                ? t("systemHealth.status.degraded")
+                : t("systemHealth.status.unhealthy")}
           </Badge>
           <p className="text-sm text-muted-foreground">
             {overallStatus === "healthy"
-              ? "All systems are operating normally."
+              ? t("systemHealth.statusMessages.healthy")
               : overallStatus === "degraded"
-                ? "Some systems are experiencing elevated load."
-                : "One or more systems require attention."}
+                ? t("systemHealth.statusMessages.degraded")
+                : t("systemHealth.statusMessages.unhealthy")}
           </p>
         </CardContent>
       </Card>
@@ -141,7 +145,7 @@ export function Component() {
       {/* Queue Status */}
       {queues.length > 0 && (
         <>
-          <h2 className="text-lg font-medium">Queues</h2>
+          <h2 className="text-lg font-medium">{t("systemHealth.queues")}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {queues.map((queue: any) => {
               const status = getQueueStatus(queue.waiting ?? 0);
@@ -158,19 +162,19 @@ export function Component() {
                   <CardContent>
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div>
-                        <p className="text-muted-foreground">Waiting</p>
+                        <p className="text-muted-foreground">{t("systemHealth.queueMetrics.waiting")}</p>
                         <p className="font-medium">{queue.waiting ?? 0}</p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground">Active</p>
+                        <p className="text-muted-foreground">{t("systemHealth.queueMetrics.active")}</p>
                         <p className="font-medium">{queue.active ?? 0}</p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground">Completed</p>
+                        <p className="text-muted-foreground">{t("systemHealth.queueMetrics.completed")}</p>
                         <p className="font-medium">{queue.completed ?? 0}</p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground">Failed</p>
+                        <p className="text-muted-foreground">{t("systemHealth.queueMetrics.failed")}</p>
                         <p className="font-medium">{queue.failed ?? 0}</p>
                       </div>
                     </div>
@@ -187,10 +191,10 @@ export function Component() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Redis</CardTitle>
+              <CardTitle>{t("systemHealth.redis.title")}</CardTitle>
               {redis && (
                 <Badge variant={redis.connected ? "default" : "destructive"}>
-                  {redis.connected ? "connected" : "disconnected"}
+                  {redis.connected ? t("systemHealth.redis.connected") : t("systemHealth.redis.disconnected")}
                 </Badge>
               )}
             </div>
@@ -199,22 +203,22 @@ export function Component() {
             {redis ? (
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Memory usage</span>
+                  <span className="text-muted-foreground">{t("systemHealth.redis.memoryUsage")}</span>
                   <span className="font-medium">{redis.memoryUsage ?? "N/A"}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Connected clients</span>
+                  <span className="text-muted-foreground">{t("systemHealth.redis.connectedClients")}</span>
                   <span className="font-medium">{redis.connectedClients ?? "N/A"}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Uptime</span>
+                  <span className="text-muted-foreground">{t("systemHealth.redis.uptime")}</span>
                   <span className="font-medium">
                     {redis.uptime ? formatUptime(redis.uptime) : "N/A"}
                   </span>
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No Redis data available.</p>
+              <p className="text-sm text-muted-foreground">{t("systemHealth.redis.noData")}</p>
             )}
           </CardContent>
         </Card>
@@ -222,17 +226,17 @@ export function Component() {
         {/* API Server Status */}
         <Card>
           <CardHeader>
-            <CardTitle>API Server</CardTitle>
+            <CardTitle>{t("systemHealth.apiServer.title")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Uptime</span>
+                <span className="text-muted-foreground">{t("systemHealth.redis.uptime")}</span>
                 <span className="font-medium">{formatUptime(uptime)}</span>
               </div>
               {modules.length > 0 && (
                 <div>
-                  <p className="text-muted-foreground mb-1">Loaded modules</p>
+                  <p className="text-muted-foreground mb-1">{t("systemHealth.apiServer.loadedModules")}</p>
                   <div className="flex flex-wrap gap-1">
                     {modules.map((mod: string) => (
                       <Badge key={mod} variant="outline" className="text-xs">

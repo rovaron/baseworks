@@ -16,5 +16,5 @@
   "showDetails": "Show details",
   "hideDetails": "Hide details",
   "sortBy": "Sort by",
-  "clearFilter": "Clear {{label}} filter"
+  "clearFilter": "Clear {label} filter"
 }

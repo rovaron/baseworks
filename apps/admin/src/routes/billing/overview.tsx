@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   Badge,
   Button,
@@ -18,6 +19,9 @@ import { useIsMobile } from "@baseworks/ui/hooks/use-mobile";
 import { api } from "@/lib/api";
 
 export function Component() {
+  const { t } = useTranslation("admin");
+  const { t: tc } = useTranslation("common");
+
   const {
     data: result,
     isLoading,
@@ -36,14 +40,14 @@ export function Component() {
   if (error) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold">Billing Overview</h1>
+        <h1 className="text-2xl font-semibold">{t("billingOverview.title")}</h1>
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-sm text-muted-foreground mb-4">
-              Failed to load data. Check the API server status and try again.
+              {t("billingOverview.loadError")}
             </p>
             <Button variant="outline" onClick={() => refetch()}>
-              Retry
+              {tc("retry")}
             </Button>
           </CardContent>
         </Card>
@@ -56,14 +60,14 @@ export function Component() {
   if (isLoading) {
     return (
       <div className="space-y-6" aria-busy="true" aria-live="polite">
-        <h1 className="text-2xl font-semibold">Billing Overview</h1>
+        <h1 className="text-2xl font-semibold">{t("billingOverview.title")}</h1>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Skeleton className="h-32" />
           <Skeleton className="h-32" />
           <Skeleton className="h-32" />
         </div>
         <Skeleton className="h-64" />
-        <span className="sr-only">Loading...</span>
+        <span className="sr-only">{tc("loading")}</span>
       </div>
     );
   }
@@ -83,13 +87,13 @@ export function Component() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Billing Overview</h1>
+      <h1 className="text-2xl font-semibold">{t("billingOverview.title")}</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Subscribers
+              {t("billingOverview.totalSubscribers")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -100,7 +104,7 @@ export function Component() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Monthly Recurring Revenue
+              {t("billingOverview.mrr")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -111,7 +115,7 @@ export function Component() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Active Subscriptions
+              {t("billingOverview.activeSubscriptions")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -122,13 +126,12 @@ export function Component() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Subscription Distribution</CardTitle>
+          <CardTitle>{t("billingOverview.subscriptionDistribution")}</CardTitle>
         </CardHeader>
         <CardContent>
           {!hasData ? (
             <p className="text-sm text-muted-foreground py-8 text-center">
-              No billing activity yet. Billing metrics will appear once tenants subscribe to
-              plans.
+              {t("billingOverview.emptyBilling")}
             </p>
           ) : distribution.length > 0 ? (
             <div className="space-y-3">
@@ -141,7 +144,7 @@ export function Component() {
                   <div key={plan.name} className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <span className="font-medium">{plan.name}</span>
-                      <Badge variant="secondary">{plan.count} subscribers</Badge>
+                      <Badge variant="secondary">{t("billingOverview.subscribers", { count: plan.count })}</Badge>
                     </div>
                     <Badge variant="outline">{percentage}%</Badge>
                   </div>
@@ -150,7 +153,7 @@ export function Component() {
             </div>
           ) : (
             <p className="text-sm text-muted-foreground py-8 text-center">
-              No subscription plans found.
+              {t("billingOverview.noPlans")}
             </p>
           )}
         </CardContent>
@@ -159,7 +162,7 @@ export function Component() {
       {recentSubscriptions.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Recent Subscriptions</CardTitle>
+            <CardTitle>{t("billingOverview.recentSubscriptions")}</CardTitle>
           </CardHeader>
           <CardContent>
             {isMobile ? (
@@ -185,10 +188,10 @@ export function Component() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Tenant</TableHead>
-                    <TableHead>Plan</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Date</TableHead>
+                    <TableHead>{t("billingOverview.columns.tenant")}</TableHead>
+                    <TableHead>{t("billingOverview.columns.plan")}</TableHead>
+                    <TableHead>{t("billingOverview.columns.status")}</TableHead>
+                    <TableHead>{t("billingOverview.columns.date")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

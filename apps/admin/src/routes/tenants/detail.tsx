@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { ArrowLeft } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   Badge,
   Button,
@@ -26,6 +27,8 @@ export function Component() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
+  const { t } = useTranslation("admin");
+  const { t: tc } = useTranslation("common");
 
   const { data: result, isLoading } = useQuery({
     queryKey: ["admin", "tenants", id],
@@ -48,12 +51,12 @@ export function Component() {
       });
     },
     onSuccess: () => {
-      toast.success(isDeactivated ? "Tenant reactivated" : "Tenant deactivated");
+      toast.success(isDeactivated ? t("tenants.toast.reactivated") : t("tenants.toast.deactivated"));
       queryClient.invalidateQueries({ queryKey: ["admin", "tenants"] });
       setShowDeactivateDialog(false);
     },
     onError: () => {
-      toast.error("Failed to update tenant");
+      toast.error(t("tenants.toast.updateFailed"));
     },
   });
 
@@ -71,9 +74,9 @@ export function Component() {
       <div className="space-y-6">
         <Button variant="ghost" onClick={() => navigate("/tenants")}>
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to tenants
+          {t("tenants.detail.backToTenants")}
         </Button>
-        <p className="text-sm text-muted-foreground">Tenant not found.</p>
+        <p className="text-sm text-muted-foreground">{t("tenants.detail.notFound")}</p>
       </div>
     );
   }
@@ -83,32 +86,32 @@ export function Component() {
       <div className="flex flex-wrap items-center gap-4">
         <Button variant="ghost" size="sm" onClick={() => navigate("/tenants")}>
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back
+          {tc("back")}
         </Button>
         <h1 className="text-2xl font-semibold">{tenant.name}</h1>
         {isDeactivated ? (
-          <Badge variant="destructive">deactivated</Badge>
+          <Badge variant="destructive">{t("tenants.status.deactivated")}</Badge>
         ) : (
-          <Badge variant="default">active</Badge>
+          <Badge variant="default">{t("tenants.status.active")}</Badge>
         )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Tenant Information</CardTitle>
+            <CardTitle>{t("tenants.detail.tenantInfo")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Name</p>
+              <p className="text-sm font-medium text-muted-foreground">{t("tenants.detail.name")}</p>
               <p>{tenant.name}</p>
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Slug</p>
+              <p className="text-sm font-medium text-muted-foreground">{t("tenants.detail.slug")}</p>
               <p className="break-all">{tenant.slug}</p>
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Created</p>
+              <p className="text-sm font-medium text-muted-foreground">{t("tenants.detail.created")}</p>
               <p>{(() => {
                 const d = tenant.createdAt ? new Date(tenant.createdAt) : null;
                 return d && !isNaN(d.getTime())
@@ -118,7 +121,7 @@ export function Component() {
             </div>
             {tenant.memberCount !== undefined && (
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Members</p>
+                <p className="text-sm font-medium text-muted-foreground">{t("tenants.detail.members")}</p>
                 <p>{tenant.memberCount}</p>
               </div>
             )}
@@ -127,7 +130,7 @@ export function Component() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Actions</CardTitle>
+            <CardTitle>{t("tenants.detail.actions")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <Button
@@ -135,7 +138,7 @@ export function Component() {
               className="w-full"
               onClick={() => setShowDeactivateDialog(true)}
             >
-              {isDeactivated ? "Reactivate tenant" : "Deactivate tenant"}
+              {isDeactivated ? t("tenants.detail.reactivate") : t("tenants.detail.deactivate")}
             </Button>
           </CardContent>
         </Card>
@@ -145,17 +148,17 @@ export function Component() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {isDeactivated ? "Reactivate tenant" : "Deactivate tenant"}
+              {isDeactivated ? t("tenants.detail.reactivateDialog.title") : t("tenants.detail.deactivateDialog.title")}
             </DialogTitle>
             <DialogDescription>
               {isDeactivated
-                ? `Reactivating ${tenant.name} will restore access for all members.`
-                : `Deactivating ${tenant.name} will prevent all members from accessing the platform. This can be reversed.`}
+                ? t("tenants.detail.reactivateDialog.description", { name: tenant.name })
+                : t("tenants.detail.deactivateDialog.description", { name: tenant.name })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setShowDeactivateDialog(false)}>
-              {isDeactivated ? "Cancel" : "Keep tenant active"}
+              {isDeactivated ? tc("cancel") : t("tenants.deactivateDialog.keepActive")}
             </Button>
             <Button
               variant={isDeactivated ? "default" : "destructive"}
@@ -163,10 +166,10 @@ export function Component() {
               disabled={toggleMutation.isPending}
             >
               {toggleMutation.isPending
-                ? "Updating..."
+                ? t("tenants.deactivateDialog.deactivating")
                 : isDeactivated
-                  ? "Reactivate tenant"
-                  : "Deactivate tenant"}
+                  ? t("tenants.detail.reactivate")
+                  : t("tenants.detail.deactivate")}
             </Button>
           </DialogFooter>
         </DialogContent>

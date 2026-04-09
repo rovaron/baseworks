@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslation } from "react-i18next";
 import {
   Card,
   CardContent,
@@ -16,16 +17,22 @@ import {
 import { auth } from "@/lib/api";
 import { toast } from "sonner";
 
-const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(1, "Password is required"),
-});
+type LoginValues = z.infer<ReturnType<typeof createLoginSchema>>;
 
-type LoginValues = z.infer<typeof loginSchema>;
+function createLoginSchema(tAuth: (key: string) => string) {
+  return z.object({
+    email: z.string().email(tAuth("validation.emailRequired")),
+    password: z.string().min(1, tAuth("validation.passwordRequired")),
+  });
+}
 
 function LoginPage() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const { t } = useTranslation("admin");
+  const { t: tAuth } = useTranslation("auth");
+
+  const loginSchema = createLoginSchema(tAuth);
 
   const {
     register,
@@ -44,7 +51,7 @@ function LoginPage() {
       });
 
       if (result.error) {
-        toast.error(result.error.message || "Invalid email or password");
+        toast.error(result.error.message || t("toast.invalidCredentials"));
         return;
       }
 
@@ -52,7 +59,7 @@ function LoginPage() {
       const orgsResult = await auth.organization.list();
 
       if (orgsResult.error || !orgsResult.data) {
-        toast.error("You do not have admin privileges. Contact your system administrator.");
+        toast.error(t("toast.noAdminPrivileges"));
         await auth.signOut();
         return;
       }
@@ -62,14 +69,14 @@ function LoginPage() {
       );
 
       if (!hasOwnerRole) {
-        toast.error("You do not have admin privileges. Contact your system administrator.");
+        toast.error(t("toast.noAdminPrivileges"));
         await auth.signOut();
         return;
       }
 
       navigate("/");
     } catch {
-      toast.error("An unexpected error occurred. Please try again.");
+      toast.error(t("toast.unexpectedError"));
     } finally {
       setIsLoading(false);
     }
@@ -79,17 +86,17 @@ function LoginPage() {
     <div className="flex min-h-screen items-center justify-center px-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <h1 className="text-2xl font-semibold leading-none tracking-tight">Admin</h1>
-          <CardDescription>Sign in to Admin</CardDescription>
+          <h1 className="text-2xl font-semibold leading-none tracking-tight">{t("title")}</h1>
+          <CardDescription>{t("signInToAdmin")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{tAuth("email")}</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@example.com"
+                placeholder={t("adminEmailPlaceholder")}
                 autoComplete="email"
                 {...register("email")}
               />
@@ -98,7 +105,7 @@ function LoginPage() {
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{tAuth("password")}</Label>
               <Input
                 id="password"
                 type="password"
@@ -110,7 +117,7 @@ function LoginPage() {
               )}
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Signing in..." : "Sign in to Admin"}
+              {isLoading ? t("signingIn") : t("signInToAdmin")}
             </Button>
           </form>
         </CardContent>

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { formatDistanceToNow } from "date-fns";
 import { MoreHorizontal } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   Badge,
   Button,
@@ -38,6 +39,8 @@ export function Component() {
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
   const [deactivateTarget, setDeactivateTarget] = useState<Tenant | null>(null);
+  const { t } = useTranslation("admin");
+  const { t: tc } = useTranslation("common");
 
   const { data: result, isLoading } = useQuery({
     queryKey: ["admin", "tenants", page, search],
@@ -56,12 +59,12 @@ export function Component() {
       });
     },
     onSuccess: () => {
-      toast.success("Tenant deactivated");
+      toast.success(t("tenants.toast.deactivated"));
       queryClient.invalidateQueries({ queryKey: ["admin", "tenants"] });
       setDeactivateTarget(null);
     },
     onError: () => {
-      toast.error("Failed to deactivate tenant");
+      toast.error(t("tenants.toast.deactivateFailed"));
     },
   });
 
@@ -72,19 +75,19 @@ export function Component() {
   const columns: ColumnDef<Tenant, any>[] = [
     {
       accessorKey: "name",
-      header: "Name",
+      header: t("tenants.columns.name"),
       enableSorting: true,
       meta: { priority: 1 },
     },
     {
       accessorKey: "slug",
-      header: "Slug",
+      header: t("tenants.columns.slug"),
       enableSorting: false,
       meta: { priority: 3 },
     },
     {
       accessorKey: "createdAt",
-      header: "Created",
+      header: t("tenants.columns.created"),
       enableSorting: true,
       cell: ({ row }) => {
         const d = row.original.createdAt ? new Date(row.original.createdAt) : null;
@@ -96,13 +99,13 @@ export function Component() {
     },
     {
       id: "status",
-      header: "Status",
+      header: t("tenants.columns.status"),
       cell: ({ row }) => {
         const deactivated = row.original.metadata?.deactivated;
         return deactivated ? (
-          <Badge variant="destructive">deactivated</Badge>
+          <Badge variant="destructive">{t("tenants.status.deactivated")}</Badge>
         ) : (
-          <Badge variant="default">active</Badge>
+          <Badge variant="default">{t("tenants.status.active")}</Badge>
         );
       },
       meta: { priority: 1 },
@@ -116,18 +119,18 @@ export function Component() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
               <MoreHorizontal className="h-4 w-4" />
-              <span className="sr-only">Open menu</span>
+              <span className="sr-only">{tc("openMenu")}</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => navigate(`/tenants/${row.original.id}`)}>
-              View details
+              {t("tenants.actions.viewDetails")}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => setDeactivateTarget(row.original)}
               className="text-destructive"
             >
-              Deactivate
+              {t("tenants.actions.deactivate")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -137,18 +140,18 @@ export function Component() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Tenants</h1>
+      <h1 className="text-2xl font-semibold">{t("tenants.title")}</h1>
 
       {!isLoading && tenants.length === 0 && !search ? (
         <p className="text-sm text-muted-foreground py-12 text-center">
-          Your platform has no tenants yet. When users create accounts, their tenants will appear here.
+          {t("tenants.empty")}
         </p>
       ) : (
         <DataTable
           columns={columns}
           data={tenants}
           isLoading={isLoading}
-          searchPlaceholder="Search tenants..."
+          searchPlaceholder={t("tenants.searchPlaceholder")}
           searchValue={search}
           onSearchChange={setSearch}
           pageCount={pageCount}
@@ -160,22 +163,21 @@ export function Component() {
       <Dialog open={!!deactivateTarget} onOpenChange={() => setDeactivateTarget(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Deactivate tenant</DialogTitle>
+            <DialogTitle>{t("tenants.deactivateDialog.title")}</DialogTitle>
             <DialogDescription>
-              Deactivating {deactivateTarget?.name} will prevent all members from accessing
-              the platform. This can be reversed.
+              {t("tenants.deactivateDialog.description", { name: deactivateTarget?.name })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setDeactivateTarget(null)}>
-              Keep tenant active
+              {t("tenants.deactivateDialog.keepActive")}
             </Button>
             <Button
               variant="destructive"
               onClick={() => deactivateTarget && deactivateMutation.mutate(deactivateTarget)}
               disabled={deactivateMutation.isPending}
             >
-              {deactivateMutation.isPending ? "Deactivating..." : "Deactivate tenant"}
+              {deactivateMutation.isPending ? t("tenants.deactivateDialog.deactivating") : t("tenants.deactivateDialog.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>

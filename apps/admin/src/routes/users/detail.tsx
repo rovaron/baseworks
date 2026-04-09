@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { ArrowLeft } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   Avatar,
   AvatarFallback,
@@ -30,6 +31,8 @@ export function Component() {
   const queryClient = useQueryClient();
   const [showBanDialog, setShowBanDialog] = useState(false);
   const [showImpersonateDialog, setShowImpersonateDialog] = useState(false);
+  const { t } = useTranslation("admin");
+  const { t: tc } = useTranslation("common");
 
   const { data: result, isLoading } = useQuery({
     queryKey: ["admin", "users", id],
@@ -52,12 +55,12 @@ export function Component() {
       });
     },
     onSuccess: () => {
-      toast.success(isBanned ? "User unbanned" : "User banned");
+      toast.success(isBanned ? t("users.toast.unbanned") : t("users.toast.banned"));
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       setShowBanDialog(false);
     },
     onError: () => {
-      toast.error("Failed to update user");
+      toast.error(t("users.toast.updateFailed"));
     },
   });
 
@@ -67,11 +70,11 @@ export function Component() {
       return res.data;
     },
     onSuccess: () => {
-      toast.success("Impersonation started. Check the new session.");
+      toast.success(t("users.toast.impersonationStarted"));
       setShowImpersonateDialog(false);
     },
     onError: () => {
-      toast.error("Failed to start impersonation");
+      toast.error(t("users.toast.impersonationFailed"));
     },
   });
 
@@ -92,9 +95,9 @@ export function Component() {
       <div className="space-y-6">
         <Button variant="ghost" onClick={() => navigate("/users")}>
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to users
+          {t("users.detail.backToUsers")}
         </Button>
-        <p className="text-sm text-muted-foreground">User not found.</p>
+        <p className="text-sm text-muted-foreground">{t("users.detail.notFound")}</p>
       </div>
     );
   }
@@ -111,20 +114,20 @@ export function Component() {
       <div className="flex flex-wrap items-center gap-4">
         <Button variant="ghost" size="sm" onClick={() => navigate("/users")}>
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back
+          {tc("back")}
         </Button>
         <h1 className="min-w-0 truncate text-2xl font-semibold">{user.name || user.email}</h1>
         {isBanned ? (
-          <Badge variant="destructive">banned</Badge>
+          <Badge variant="destructive">{t("users.status.banned")}</Badge>
         ) : (
-          <Badge variant="default">active</Badge>
+          <Badge variant="default">{t("users.status.active")}</Badge>
         )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>User Information</CardTitle>
+            <CardTitle>{t("users.detail.userInfo")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-4">
@@ -138,7 +141,7 @@ export function Component() {
               </div>
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Created</p>
+              <p className="text-sm font-medium text-muted-foreground">{t("users.detail.created")}</p>
               <p>{(() => {
                 const d = user.createdAt ? new Date(user.createdAt) : null;
                 return d && !isNaN(d.getTime())
@@ -148,7 +151,7 @@ export function Component() {
             </div>
             {isBanned && user.banReason && (
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Ban reason</p>
+                <p className="text-sm font-medium text-muted-foreground">{t("users.detail.banReason")}</p>
                 <p>{user.banReason}</p>
               </div>
             )}
@@ -159,7 +162,7 @@ export function Component() {
           {user.memberships && user.memberships.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>Organization Memberships</CardTitle>
+                <CardTitle>{t("users.detail.memberships")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -176,7 +179,7 @@ export function Component() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Actions</CardTitle>
+              <CardTitle>{t("users.detail.actions")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <Button
@@ -184,14 +187,14 @@ export function Component() {
                 className="w-full"
                 onClick={() => setShowBanDialog(true)}
               >
-                {isBanned ? "Unban user" : "Ban user"}
+                {isBanned ? t("users.actions.unbanUser") : t("users.actions.banUser")}
               </Button>
               <Button
                 variant="outline"
                 className="w-full"
                 onClick={() => setShowImpersonateDialog(true)}
               >
-                Impersonate
+                {t("users.actions.impersonate")}
               </Button>
             </CardContent>
           </Card>
@@ -202,16 +205,16 @@ export function Component() {
       <Dialog open={showBanDialog} onOpenChange={setShowBanDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{isBanned ? "Unban user" : "Ban user"}</DialogTitle>
+            <DialogTitle>{isBanned ? t("users.banDialog.unbanTitle") : t("users.banDialog.banTitle")}</DialogTitle>
             <DialogDescription>
               {isBanned
-                ? `Unbanning ${user.email} will restore their access to the platform.`
-                : `Banning ${user.email} will immediately end their session and prevent login. This can be reversed.`}
+                ? t("users.banDialog.unbanDescription", { email: user.email })
+                : t("users.banDialog.banDescription", { email: user.email })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setShowBanDialog(false)}>
-              {isBanned ? "Cancel" : "Keep user active"}
+              {isBanned ? tc("cancel") : t("users.banDialog.keepActive")}
             </Button>
             <Button
               variant={isBanned ? "default" : "destructive"}
@@ -219,10 +222,10 @@ export function Component() {
               disabled={banMutation.isPending}
             >
               {banMutation.isPending
-                ? "Updating..."
+                ? t("users.banDialog.updating")
                 : isBanned
-                  ? "Unban user"
-                  : "Ban user"}
+                  ? t("users.actions.unbanUser")
+                  : t("users.actions.banUser")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -232,20 +235,20 @@ export function Component() {
       <Dialog open={showImpersonateDialog} onOpenChange={setShowImpersonateDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Impersonate user</DialogTitle>
+            <DialogTitle>{t("users.impersonateDialog.title")}</DialogTitle>
             <DialogDescription>
-              You are about to impersonate {user.email}. All actions will be logged.
+              {t("users.impersonateDialog.description", { email: user.email })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setShowImpersonateDialog(false)}>
-              Return to admin
+              {t("users.impersonateDialog.returnToAdmin")}
             </Button>
             <Button
               onClick={() => impersonateMutation.mutate()}
               disabled={impersonateMutation.isPending}
             >
-              {impersonateMutation.isPending ? "Starting..." : "Start impersonation"}
+              {impersonateMutation.isPending ? t("users.impersonateDialog.starting") : t("users.impersonateDialog.startImpersonation")}
             </Button>
           </DialogFooter>
         </DialogContent>
