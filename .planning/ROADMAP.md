@@ -59,8 +59,8 @@ Plans:
   5. All shared UI components pass vitest-axe automated accessibility checks with zero violations
 **Plans:** 3 plans
 Plans:
-- [ ] 07-01-PLAN.md — Semantic landmarks, skip-to-content links, and route change focus management
-- [ ] 07-02-PLAN.md — aria-live regions, FormMessage role="alert", and keyboard focus audit
+- [x] 07-01-PLAN.md — Semantic landmarks, skip-to-content links, and route change focus management
+- [x] 07-02-PLAN.md — aria-live regions, FormMessage role="alert", and keyboard focus audit
 - [ ] 07-03-PLAN.md — vitest-axe automated accessibility tests for shared UI components
 **UI hint**: yes
 

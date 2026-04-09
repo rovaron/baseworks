@@ -14,6 +14,7 @@ import {
   SidebarInset,
   SidebarTrigger,
   Separator,
+  SkipToContent,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -29,6 +30,7 @@ import {
 import { Building2, Users, CreditCard, Activity, LogOut, ChevronUp } from "lucide-react";
 import { AuthGuard } from "./auth-guard";
 import { auth } from "@/lib/api";
+import { useFocusOnNavigate } from "@/hooks/use-focus-on-navigate";
 
 const navItems = [
   { title: "Tenants", icon: Building2, href: "/tenants" },
@@ -52,6 +54,7 @@ function AdminLayoutContent() {
   const navigate = useNavigate();
   const location = useLocation();
   const session = auth.useSession();
+  useFocusOnNavigate();
 
   const userName = session.data?.user?.name || "Admin";
   const userEmail = session.data?.user?.email || "";
@@ -64,8 +67,10 @@ function AdminLayoutContent() {
 
   return (
     <SidebarProvider>
+      <SkipToContent />
       <NavigationAutoClose />
       <TooltipProvider>
+        <nav aria-label="Main navigation">
         <Sidebar collapsible="icon">
           <SidebarHeader className="p-4">
             <span className="text-lg font-semibold">Admin</span>
@@ -143,12 +148,13 @@ function AdminLayoutContent() {
             </SidebarMenu>
           </SidebarFooter>
         </Sidebar>
+        </nav>
         <SidebarInset>
           <header className="flex h-14 items-center gap-2 border-b px-4">
             <SidebarTrigger />
             <Separator orientation="vertical" className="h-6" />
           </header>
-          <main className="flex-1 p-6">
+          <main id="main-content" tabIndex={-1} className="flex-1 p-6 focus:outline-none">
             <Outlet />
           </main>
         </SidebarInset>

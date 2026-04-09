@@ -75,13 +75,14 @@ export function DataTable<TData>({
 
       {isLoading ? (
         isMobile ? (
-          <div className="space-y-4">
+          <div className="space-y-4" aria-busy="true" aria-live="polite">
             {Array.from({ length: 3 }).map((_, i) => (
               <Skeleton key={`skeleton-${i}`} className="h-24 w-full rounded-lg" />
             ))}
+            <span className="sr-only">Loading...</span>
           </div>
         ) : (
-          <div className="rounded-md border">
+          <div className="rounded-md border" aria-busy="true" aria-live="polite">
             <Table>
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
@@ -108,6 +109,7 @@ export function DataTable<TData>({
                 ))}
               </TableBody>
             </Table>
+            <span className="sr-only">Loading...</span>
           </div>
         )
       ) : isMobile ? (

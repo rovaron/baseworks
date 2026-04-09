@@ -135,7 +135,7 @@ export function DataTableCards<TData>({
                 {headerLabel}: {String(filter.value)}
                 <button
                   type="button"
-                  className="ml-1 inline-flex items-center"
+                  className="ml-1 inline-flex items-center rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   onClick={() => col?.setFilterValue(undefined)}
                   aria-label={`Clear ${headerLabel} filter`}
                 >
