@@ -1,0 +1,174 @@
+{
+  "title": "Admin",
+  "signInToAdmin": "Entrar no Admin",
+  "signingIn": "Entrando...",
+  "adminEmailPlaceholder": "admin@exemplo.com",
+  "nav": {
+    "tenants": "Tenants",
+    "users": "Usuários",
+    "billing": "Faturamento",
+    "system": "Sistema"
+  },
+  "toast": {
+    "invalidCredentials": "E-mail ou senha inválidos",
+    "noAdminPrivileges": "Você não tem privilégios de administrador. Entre em contato com o administrador do sistema.",
+    "unexpectedError": "Ocorreu um erro inesperado. Por favor, tente novamente."
+  },
+  "users": {
+    "title": "Usuários",
+    "searchPlaceholder": "Buscar usuários...",
+    "columns": {
+      "name": "Nome",
+      "email": "E-mail",
+      "created": "Criado em",
+      "status": "Status"
+    },
+    "status": {
+      "banned": "banido",
+      "active": "ativo"
+    },
+    "actions": {
+      "viewDetails": "Ver detalhes",
+      "impersonate": "Personificar",
+      "banUser": "Banir usuário",
+      "unbanUser": "Desbanir usuário"
+    },
+    "empty": "Nenhuma conta registrada ainda. Os usuários aparecerão aqui quando se cadastrarem.",
+    "banDialog": {
+      "banTitle": "Banir usuário",
+      "unbanTitle": "Desbanir usuário",
+      "banDescription": "Banir {email} encerrará imediatamente a sessão e impedirá o login. Isso pode ser revertido.",
+      "unbanDescription": "Desbanir {email} restaurará o acesso à plataforma.",
+      "keepActive": "Manter usuário ativo",
+      "updating": "Atualizando..."
+    },
+    "impersonateDialog": {
+      "title": "Personificar usuário",
+      "description": "Você está prestes a personificar {email}. Todas as ações serão registradas.",
+      "returnToAdmin": "Voltar ao admin",
+      "startImpersonation": "Iniciar personificação",
+      "starting": "Iniciando..."
+    },
+    "detail": {
+      "backToUsers": "Voltar para usuários",
+      "notFound": "Usuário não encontrado.",
+      "userInfo": "Informações do Usuário",
+      "created": "Criado em",
+      "banReason": "Motivo do banimento",
+      "memberships": "Membros da Organização",
+      "actions": "Ações"
+    },
+    "toast": {
+      "banned": "Usuário banido",
+      "unbanned": "Usuário desbanido",
+      "updateFailed": "Falha ao atualizar usuário",
+      "impersonationStarted": "Personificação iniciada. Verifique a nova sessão.",
+      "impersonationFailed": "Falha ao iniciar personificação"
+    }
+  },
+  "tenants": {
+    "title": "Tenants",
+    "searchPlaceholder": "Buscar tenants...",
+    "columns": {
+      "name": "Nome",
+      "slug": "Slug",
+      "created": "Criado em",
+      "status": "Status"
+    },
+    "status": {
+      "deactivated": "desativado",
+      "active": "ativo"
+    },
+    "actions": {
+      "viewDetails": "Ver detalhes",
+      "deactivate": "Desativar"
+    },
+    "empty": "Sua plataforma ainda não tem tenants. Quando os usuários criarem contas, seus tenants aparecerão aqui.",
+    "deactivateDialog": {
+      "title": "Desativar tenant",
+      "description": "Desativar {name} impedirá todos os membros de acessar a plataforma. Isso pode ser revertido.",
+      "keepActive": "Manter tenant ativo",
+      "confirm": "Desativar tenant",
+      "deactivating": "Desativando..."
+    },
+    "detail": {
+      "backToTenants": "Voltar para tenants",
+      "notFound": "Tenant não encontrado.",
+      "tenantInfo": "Informações do Tenant",
+      "name": "Nome",
+      "slug": "Slug",
+      "created": "Criado em",
+      "members": "Membros",
+      "actions": "Ações",
+      "reactivate": "Reativar tenant",
+      "deactivate": "Desativar tenant",
+      "reactivateDialog": {
+        "title": "Reativar tenant",
+        "description": "Reativar {name} restaurará o acesso para todos os membros."
+      },
+      "deactivateDialog": {
+        "title": "Desativar tenant",
+        "description": "Desativar {name} impedirá todos os membros de acessar a plataforma. Isso pode ser revertido."
+      }
+    },
+    "toast": {
+      "deactivated": "Tenant desativado",
+      "reactivated": "Tenant reativado",
+      "deactivateFailed": "Falha ao desativar tenant",
+      "updateFailed": "Falha ao atualizar tenant"
+    }
+  },
+  "billingOverview": {
+    "title": "Visão Geral de Faturamento",
+    "loadError": "Falha ao carregar dados. Verifique o status do servidor da API e tente novamente.",
+    "totalSubscribers": "Total de Assinantes",
+    "mrr": "Receita Mensal Recorrente",
+    "activeSubscriptions": "Assinaturas Ativas",
+    "subscriptionDistribution": "Distribuição de Assinaturas",
+    "emptyBilling": "Nenhuma atividade de faturamento ainda. As métricas de faturamento aparecerão quando os tenants assinarem planos.",
+    "noPlans": "Nenhum plano de assinatura encontrado.",
+    "subscribers": "{count} assinantes",
+    "recentSubscriptions": "Assinaturas Recentes",
+    "invoice": "Fatura",
+    "columns": {
+      "tenant": "Tenant",
+      "plan": "Plano",
+      "status": "Status",
+      "date": "Data"
+    }
+  },
+  "systemHealth": {
+    "title": "Saúde do Sistema",
+    "loadError": "Falha ao carregar dados. Verifique o status do servidor da API e tente novamente.",
+    "status": {
+      "healthy": "Saudável",
+      "degraded": "Degradado",
+      "unhealthy": "Instável"
+    },
+    "statusMessages": {
+      "healthy": "Todos os sistemas estão operando normalmente.",
+      "degraded": "Alguns sistemas estão com carga elevada.",
+      "unhealthy": "Um ou mais sistemas precisam de atenção."
+    },
+    "queues": "Filas",
+    "queueMetrics": {
+      "waiting": "Aguardando",
+      "active": "Ativo",
+      "completed": "Concluído",
+      "failed": "Falhou"
+    },
+    "redis": {
+      "title": "Redis",
+      "memoryUsage": "Uso de memória",
+      "connectedClients": "Clientes conectados",
+      "uptime": "Tempo ativo",
+      "connected": "conectado",
+      "disconnected": "desconectado",
+      "noData": "Nenhum dado do Redis disponível."
+    },
+    "apiServer": {
+      "title": "Servidor API",
+      "loadedModules": "Módulos carregados"
+    }
+  }
+}

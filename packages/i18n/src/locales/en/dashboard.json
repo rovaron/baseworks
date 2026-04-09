@@ -1,0 +1,17 @@
+{
+  "title": "Dashboard",
+  "welcome": "Welcome to {tenantName}",
+  "welcomeDescription": "Get started by exploring your dashboard. Use the sidebar to navigate between sections.",
+  "defaultTenantName": "your workspace",
+  "nav": {
+    "dashboard": "Dashboard",
+    "billing": "Billing",
+    "settings": "Settings",
+    "navigation": "Navigation",
+    "workspace": "Workspace",
+    "user": "User"
+  },
+  "tenantSwitcher": {
+    "selectTenant": "Select tenant"
+  }
+}

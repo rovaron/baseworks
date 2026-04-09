@@ -1,0 +1,20 @@
+{
+  "loading": "Loading...",
+  "error": "Something went wrong. Please try again.",
+  "retry": "Retry",
+  "cancel": "Cancel",
+  "save": "Save",
+  "delete": "Delete",
+  "back": "Back",
+  "close": "Close",
+  "search": "Search...",
+  "noResults": "No results found.",
+  "skipToContent": "Skip to content",
+  "toggleSidebar": "Toggle Sidebar",
+  "signOut": "Sign out",
+  "openMenu": "Open menu",
+  "showDetails": "Show details",
+  "hideDetails": "Hide details",
+  "sortBy": "Sort by",
+  "clearFilter": "Clear {{label}} filter"
+}

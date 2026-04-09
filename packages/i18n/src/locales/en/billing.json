@@ -1,0 +1,71 @@
+{
+  "title": "Billing",
+  "tabs": {
+    "subscription": "Subscription",
+    "history": "History",
+    "usage": "Usage"
+  },
+  "subscription": {
+    "noActive": "No active subscription",
+    "noActiveDescription": "Choose a plan to unlock all features.",
+    "viewPlans": "View plans",
+    "currentPlan": "Current Plan",
+    "periodEnds": "Current period ends {date}",
+    "manageBilling": "Manage billing",
+    "cancelSubscription": "Cancel subscription",
+    "cancelTitle": "Cancel subscription",
+    "cancelDescription": "Are you sure you want to cancel your subscription? You will lose access to premium features at the end of your current billing period.",
+    "keepSubscription": "Keep subscription",
+    "confirmCancel": "Yes, cancel subscription"
+  },
+  "plans": {
+    "title": "Plans",
+    "popular": "Popular",
+    "subscribeTo": "Subscribe to {planName}",
+    "free": {
+      "name": "Free",
+      "features": {
+        "members": "Up to 3 team members",
+        "projects": "5 projects",
+        "storage": "1 GB storage",
+        "support": "Community support",
+        "api": "Basic API access"
+      }
+    },
+    "pro": {
+      "name": "Pro",
+      "features": {
+        "members": "Unlimited team members",
+        "projects": "Unlimited projects",
+        "storage": "100 GB storage",
+        "support": "Priority support",
+        "api": "Full API access",
+        "analytics": "Advanced analytics",
+        "integrations": "Custom integrations"
+      }
+    },
+    "enterprise": {
+      "name": "Enterprise",
+      "features": {
+        "everything": "Everything in Pro",
+        "storage": "Unlimited storage",
+        "support": "Dedicated support",
+        "sla": "99.9% SLA",
+        "sso": "SSO & SAML"
+      }
+    }
+  },
+  "history": {
+    "empty": "No billing history yet. Your invoices will appear here after your first payment.",
+    "invoice": "Invoice"
+  },
+  "usage": {
+    "empty": "Usage tracking is not yet configured. This section will display usage-based billing metrics when enabled."
+  },
+  "toast": {
+    "cancelled": "Subscription cancelled",
+    "cancelFailed": "Failed to cancel subscription. Please try again.",
+    "portalFailed": "Failed to open billing portal. Please try again.",
+    "checkoutFailed": "Failed to start checkout. Please try again."
+  }
+}

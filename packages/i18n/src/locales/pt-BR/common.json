@@ -1,0 +1,20 @@
+{
+  "loading": "Carregando...",
+  "error": "Algo deu errado. Por favor, tente novamente.",
+  "retry": "Tentar novamente",
+  "cancel": "Cancelar",
+  "save": "Salvar",
+  "delete": "Excluir",
+  "back": "Voltar",
+  "close": "Fechar",
+  "search": "Buscar...",
+  "noResults": "Nenhum resultado encontrado.",
+  "skipToContent": "Pular para o conteúdo",
+  "toggleSidebar": "Alternar barra lateral",
+  "signOut": "Sair",
+  "openMenu": "Abrir menu",
+  "showDetails": "Mostrar detalhes",
+  "hideDetails": "Ocultar detalhes",
+  "sortBy": "Ordenar por",
+  "clearFilter": "Limpar filtro {label}"
+}

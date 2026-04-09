@@ -1,0 +1,174 @@
+{
+  "title": "Admin",
+  "signInToAdmin": "Sign in to Admin",
+  "signingIn": "Signing in...",
+  "adminEmailPlaceholder": "admin@example.com",
+  "nav": {
+    "tenants": "Tenants",
+    "users": "Users",
+    "billing": "Billing",
+    "system": "System"
+  },
+  "toast": {
+    "invalidCredentials": "Invalid email or password",
+    "noAdminPrivileges": "You do not have admin privileges. Contact your system administrator.",
+    "unexpectedError": "An unexpected error occurred. Please try again."
+  },
+  "users": {
+    "title": "Users",
+    "searchPlaceholder": "Search users...",
+    "columns": {
+      "name": "Name",
+      "email": "Email",
+      "created": "Created",
+      "status": "Status"
+    },
+    "status": {
+      "banned": "banned",
+      "active": "active"
+    },
+    "actions": {
+      "viewDetails": "View details",
+      "impersonate": "Impersonate",
+      "banUser": "Ban user",
+      "unbanUser": "Unban user"
+    },
+    "empty": "No accounts registered yet. Users will appear here once they sign up.",
+    "banDialog": {
+      "banTitle": "Ban user",
+      "unbanTitle": "Unban user",
+      "banDescription": "Banning {email} will immediately end their session and prevent login. This can be reversed.",
+      "unbanDescription": "Unbanning {email} will restore their access to the platform.",
+      "keepActive": "Keep user active",
+      "updating": "Updating..."
+    },
+    "impersonateDialog": {
+      "title": "Impersonate user",
+      "description": "You are about to impersonate {email}. All actions will be logged.",
+      "returnToAdmin": "Return to admin",
+      "startImpersonation": "Start impersonation",
+      "starting": "Starting..."
+    },
+    "detail": {
+      "backToUsers": "Back to users",
+      "notFound": "User not found.",
+      "userInfo": "User Information",
+      "created": "Created",
+      "banReason": "Ban reason",
+      "memberships": "Organization Memberships",
+      "actions": "Actions"
+    },
+    "toast": {
+      "banned": "User banned",
+      "unbanned": "User unbanned",
+      "updateFailed": "Failed to update user",
+      "impersonationStarted": "Impersonation started. Check the new session.",
+      "impersonationFailed": "Failed to start impersonation"
+    }
+  },
+  "tenants": {
+    "title": "Tenants",
+    "searchPlaceholder": "Search tenants...",
+    "columns": {
+      "name": "Name",
+      "slug": "Slug",
+      "created": "Created",
+      "status": "Status"
+    },
+    "status": {
+      "deactivated": "deactivated",
+      "active": "active"
+    },
+    "actions": {
+      "viewDetails": "View details",
+      "deactivate": "Deactivate"
+    },
+    "empty": "Your platform has no tenants yet. When users create accounts, their tenants will appear here.",
+    "deactivateDialog": {
+      "title": "Deactivate tenant",
+      "description": "Deactivating {name} will prevent all members from accessing the platform. This can be reversed.",
+      "keepActive": "Keep tenant active",
+      "confirm": "Deactivate tenant",
+      "deactivating": "Deactivating..."
+    },
+    "detail": {
+      "backToTenants": "Back to tenants",
+      "notFound": "Tenant not found.",
+      "tenantInfo": "Tenant Information",
+      "name": "Name",
+      "slug": "Slug",
+      "created": "Created",
+      "members": "Members",
+      "actions": "Actions",
+      "reactivate": "Reactivate tenant",
+      "deactivate": "Deactivate tenant",
+      "reactivateDialog": {
+        "title": "Reactivate tenant",
+        "description": "Reactivating {name} will restore access for all members."
+      },
+      "deactivateDialog": {
+        "title": "Deactivate tenant",
+        "description": "Deactivating {name} will prevent all members from accessing the platform. This can be reversed."
+      }
+    },
+    "toast": {
+      "deactivated": "Tenant deactivated",
+      "reactivated": "Tenant reactivated",
+      "deactivateFailed": "Failed to deactivate tenant",
+      "updateFailed": "Failed to update tenant"
+    }
+  },
+  "billingOverview": {
+    "title": "Billing Overview",
+    "loadError": "Failed to load data. Check the API server status and try again.",
+    "totalSubscribers": "Total Subscribers",
+    "mrr": "Monthly Recurring Revenue",
+    "activeSubscriptions": "Active Subscriptions",
+    "subscriptionDistribution": "Subscription Distribution",
+    "emptyBilling": "No billing activity yet. Billing metrics will appear once tenants subscribe to plans.",
+    "noPlans": "No subscription plans found.",
+    "subscribers": "{count} subscribers",
+    "recentSubscriptions": "Recent Subscriptions",
+    "invoice": "Invoice",
+    "columns": {
+      "tenant": "Tenant",
+      "plan": "Plan",
+      "status": "Status",
+      "date": "Date"
+    }
+  },
+  "systemHealth": {
+    "title": "System Health",
+    "loadError": "Failed to load data. Check the API server status and try again.",
+    "status": {
+      "healthy": "Healthy",
+      "degraded": "Degraded",
+      "unhealthy": "Unhealthy"
+    },
+    "statusMessages": {
+      "healthy": "All systems are operating normally.",
+      "degraded": "Some systems are experiencing elevated load.",
+      "unhealthy": "One or more systems require attention."
+    },
+    "queues": "Queues",
+    "queueMetrics": {
+      "waiting": "Waiting",
+      "active": "Active",
+      "completed": "Completed",
+      "failed": "Failed"
+    },
+    "redis": {
+      "title": "Redis",
+      "memoryUsage": "Memory usage",
+      "connectedClients": "Connected clients",
+      "uptime": "Uptime",
+      "connected": "connected",
+      "disconnected": "disconnected",
+      "noData": "No Redis data available."
+    },
+    "apiServer": {
+      "title": "API Server",
+      "loadedModules": "Loaded modules"
+    }
+  }
+}

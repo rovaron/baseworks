@@ -9,21 +9,23 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "^15.0.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "@baseworks/ui": "workspace:*",
     "@baseworks/api-client": "workspace:*",
-    "@tanstack/react-query": "^5.50.0",
-    "react-hook-form": "^7.53.0",
+    "@baseworks/i18n": "workspace:*",
+    "@baseworks/ui": "workspace:*",
     "@hookform/resolvers": "^5.0.0",
-    "zod": "^3.23.0",
-    "nuqs": "^2.0.0",
     "@t3-oss/env-nextjs": "^0.11.0",
+    "@tanstack/react-query": "^5.50.0",
     "date-fns": "^4.0.0",
     "lucide-react": "^0.400.0",
+    "next": "^15.0.0",
+    "next-intl": "4.9.0",
     "next-themes": "^0.4.0",
-    "sonner": "^2.0.0"
+    "nuqs": "^2.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-hook-form": "^7.53.0",
+    "sonner": "^2.0.0",
+    "zod": "^3.23.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.0.0",

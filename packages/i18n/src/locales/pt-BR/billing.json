@@ -1,0 +1,71 @@
+{
+  "title": "Faturamento",
+  "tabs": {
+    "subscription": "Assinatura",
+    "history": "Histórico",
+    "usage": "Uso"
+  },
+  "subscription": {
+    "noActive": "Nenhuma assinatura ativa",
+    "noActiveDescription": "Escolha um plano para desbloquear todos os recursos.",
+    "viewPlans": "Ver planos",
+    "currentPlan": "Plano Atual",
+    "periodEnds": "Período atual termina em {date}",
+    "manageBilling": "Gerenciar faturamento",
+    "cancelSubscription": "Cancelar assinatura",
+    "cancelTitle": "Cancelar assinatura",
+    "cancelDescription": "Tem certeza de que deseja cancelar sua assinatura? Você perderá o acesso aos recursos premium ao final do período de cobrança atual.",
+    "keepSubscription": "Manter assinatura",
+    "confirmCancel": "Sim, cancelar assinatura"
+  },
+  "plans": {
+    "title": "Planos",
+    "popular": "Popular",
+    "subscribeTo": "Assinar {planName}",
+    "free": {
+      "name": "Grátis",
+      "features": {
+        "members": "Até 3 membros da equipe",
+        "projects": "5 projetos",
+        "storage": "1 GB de armazenamento",
+        "support": "Suporte da comunidade",
+        "api": "Acesso básico à API"
+      }
+    },
+    "pro": {
+      "name": "Pro",
+      "features": {
+        "members": "Membros ilimitados",
+        "projects": "Projetos ilimitados",
+        "storage": "100 GB de armazenamento",
+        "support": "Suporte prioritário",
+        "api": "Acesso completo à API",
+        "analytics": "Analytics avançado",
+        "integrations": "Integrações personalizadas"
+      }
+    },
+    "enterprise": {
+      "name": "Enterprise",
+      "features": {
+        "everything": "Tudo do Pro",
+        "storage": "Armazenamento ilimitado",
+        "support": "Suporte dedicado",
+        "sla": "SLA 99,9%",
+        "sso": "SSO e SAML"
+      }
+    }
+  },
+  "history": {
+    "empty": "Nenhum histórico de faturamento ainda. Suas faturas aparecerão aqui após o primeiro pagamento.",
+    "invoice": "Fatura"
+  },
+  "usage": {
+    "empty": "O rastreamento de uso ainda não está configurado. Esta seção exibirá métricas de cobrança baseadas em uso quando habilitada."
+  },
+  "toast": {
+    "cancelled": "Assinatura cancelada",
+    "cancelFailed": "Falha ao cancelar assinatura. Por favor, tente novamente.",
+    "portalFailed": "Falha ao abrir portal de faturamento. Por favor, tente novamente.",
+    "checkoutFailed": "Falha ao iniciar checkout. Por favor, tente novamente."
+  }
+}

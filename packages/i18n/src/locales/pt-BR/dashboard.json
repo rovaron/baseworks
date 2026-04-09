@@ -1,0 +1,17 @@
+{
+  "title": "Painel",
+  "welcome": "Bem-vindo ao {tenantName}",
+  "welcomeDescription": "Comece explorando seu painel. Use a barra lateral para navegar entre as seções.",
+  "defaultTenantName": "seu espaço de trabalho",
+  "nav": {
+    "dashboard": "Painel",
+    "billing": "Faturamento",
+    "settings": "Configurações",
+    "navigation": "Navegação",
+    "workspace": "Espaço de trabalho",
+    "user": "Usuário"
+  },
+  "tenantSwitcher": {
+    "selectTenant": "Selecionar tenant"
+  }
+}
