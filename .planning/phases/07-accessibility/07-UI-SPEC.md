@@ -50,9 +50,9 @@ Exceptions: Skip link positioning uses `left-4 top-4` (16px from viewport edges)
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
 | Body | 14px (text-sm) | 400 (normal) | 1.43 (Tailwind default for text-sm) |
-| Label | 14px (text-sm) | 500 (medium) | 1.43 |
+| Label | 14px (text-sm) | 400 (normal) | 1.43 |
 | Heading | 20px (text-xl) | 600 (semibold) | 1.4 |
-| Display | 28px (text-2xl) | 700 (bold) | 1.33 |
+| Display | 28px (text-2xl) | 600 (semibold) | 1.33 |
 
 **Phase-specific typography rules:**
 - Skip link text: 14px (text-sm), weight 400, color `foreground` on `background` surface
