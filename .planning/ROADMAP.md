@@ -42,9 +42,9 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   5. All pages in both the customer app and admin dashboard render without horizontal overflow at 375px, 768px, and 1440px viewports
 **Plans:** 3 plans
 Plans:
-- [ ] 06-01-PLAN.md — Three-tier responsive sidebar (desktop/tablet/mobile) with localStorage persistence
-- [ ] 06-02-PLAN.md — Mobile card-based DataTable view with column priority metadata
-- [ ] 06-03-PLAN.md — Page-level responsive audit and fixes across both apps
+- [x] 06-01-PLAN.md — Three-tier responsive sidebar (desktop/tablet/mobile) with localStorage persistence
+- [x] 06-02-PLAN.md — Mobile card-based DataTable view with column priority metadata
+- [x] 06-03-PLAN.md — Page-level responsive audit and fixes across both apps
 **UI hint**: yes
 
 ### Phase 7: Accessibility
@@ -57,7 +57,11 @@ Plans:
   3. User pressing Tab on page load can activate a skip-to-content link that jumps focus to the main content area
   4. Screen reader user hears meaningful announcements for toasts, loading spinners, and dynamic content changes via aria-live regions
   5. All shared UI components pass vitest-axe automated accessibility checks with zero violations
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 07-01-PLAN.md — Semantic landmarks, skip-to-content links, and route change focus management
+- [ ] 07-02-PLAN.md — aria-live regions, FormMessage role="alert", and keyboard focus audit
+- [ ] 07-03-PLAN.md — vitest-axe automated accessibility tests for shared UI components
 **UI hint**: yes
 
 ### Phase 8: Internationalization
@@ -110,7 +114,7 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10
 | 4. Frontend Applications | v1.0 | 3/3 | Complete | 2026-04-07 |
 | 5. Production Hardening | v1.0 | 2/2 | Complete | 2026-04-08 |
 | 6. Responsive Layouts | v1.1 | 0/3 | Planned | - |
-| 7. Accessibility | v1.1 | 0/0 | Not started | - |
+| 7. Accessibility | v1.1 | 0/3 | Planned | - |
 | 8. Internationalization | v1.1 | 0/0 | Not started | - |
 | 9. Team Invites | v1.1 | 0/0 | Not started | - |
 | 10. Payment Abstraction | v1.1 | 0/0 | Not started | - |
