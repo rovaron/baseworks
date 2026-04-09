@@ -15,7 +15,7 @@ import {
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle,
+
   Form,
   FormControl,
   FormField,
@@ -62,7 +62,7 @@ export default function MagicLinkPage() {
     return (
       <Card className="w-full max-w-[400px]">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-semibold">Check your email</CardTitle>
+          <h1 className="text-2xl font-semibold leading-none tracking-tight">Check your email</h1>
           <CardDescription>
             Check your email for a magic link. Click the link to sign in instantly.
           </CardDescription>
@@ -79,7 +79,7 @@ export default function MagicLinkPage() {
   return (
     <Card className="w-full max-w-[400px]">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-semibold">Magic link</CardTitle>
+        <h1 className="text-2xl font-semibold leading-none tracking-tight">Magic link</h1>
         <CardDescription>
           Enter your email and we&apos;ll send you a link to sign in instantly.
         </CardDescription>

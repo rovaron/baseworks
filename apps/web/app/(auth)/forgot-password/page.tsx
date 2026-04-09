@@ -15,7 +15,7 @@ import {
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle,
+
   Form,
   FormControl,
   FormField,
@@ -63,7 +63,7 @@ export default function ForgotPasswordPage() {
     return (
       <Card className="w-full max-w-[400px]">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-semibold">Check your email</CardTitle>
+          <h1 className="text-2xl font-semibold leading-none tracking-tight">Check your email</h1>
           <CardDescription>
             Check your email for a reset link. If you don&apos;t see it, check your spam folder.
           </CardDescription>
@@ -80,7 +80,7 @@ export default function ForgotPasswordPage() {
   return (
     <Card className="w-full max-w-[400px]">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-semibold">Forgot password</CardTitle>
+        <h1 className="text-2xl font-semibold leading-none tracking-tight">Forgot password</h1>
         <CardDescription>
           Enter your email and we&apos;ll send you a link to reset your password.
         </CardDescription>

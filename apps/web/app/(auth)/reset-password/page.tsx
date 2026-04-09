@@ -14,7 +14,7 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
+
   Form,
   FormControl,
   FormField,
@@ -76,7 +76,7 @@ function ResetPasswordForm() {
     return (
       <Card className="w-full max-w-[400px]">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-semibold">Invalid link</CardTitle>
+          <h1 className="text-2xl font-semibold leading-none tracking-tight">Invalid link</h1>
           <CardDescription>
             This password reset link is invalid or has expired.
           </CardDescription>
@@ -88,7 +88,7 @@ function ResetPasswordForm() {
   return (
     <Card className="w-full max-w-[400px]">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-semibold">Reset password</CardTitle>
+        <h1 className="text-2xl font-semibold leading-none tracking-tight">Reset password</h1>
         <CardDescription>Enter your new password below.</CardDescription>
       </CardHeader>
       <CardContent>

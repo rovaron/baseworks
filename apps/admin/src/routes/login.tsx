@@ -8,7 +8,7 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
+
   Button,
   Input,
   Label,
@@ -79,7 +79,7 @@ function LoginPage() {
     <div className="flex min-h-screen items-center justify-center px-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-semibold">Admin</CardTitle>
+          <h1 className="text-2xl font-semibold leading-none tracking-tight">Admin</h1>
           <CardDescription>Sign in to Admin</CardDescription>
         </CardHeader>
         <CardContent>

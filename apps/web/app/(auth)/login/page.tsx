@@ -15,7 +15,7 @@ import {
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle,
+
   Form,
   FormControl,
   FormField,
@@ -70,7 +70,7 @@ export default function LoginPage() {
   return (
     <Card className="w-full max-w-[400px]">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-semibold">Sign in</CardTitle>
+        <h1 className="text-2xl font-semibold leading-none tracking-tight">Sign in</h1>
         <CardDescription>Enter your credentials to continue</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

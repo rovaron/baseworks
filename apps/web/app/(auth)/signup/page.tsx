@@ -15,7 +15,7 @@ import {
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle,
+
   Form,
   FormControl,
   FormField,
@@ -66,7 +66,7 @@ export default function SignupPage() {
   return (
     <Card className="w-full max-w-[400px]">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-semibold">Create account</CardTitle>
+        <h1 className="text-2xl font-semibold leading-none tracking-tight">Create account</h1>
         <CardDescription>Get started with Baseworks</CardDescription>
       </CardHeader>
       <CardContent>
