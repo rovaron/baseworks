@@ -398,14 +398,14 @@ describe("Button a11y", () => {
 | A2 | configureAxe `impactLevels` option works the same in vitest-axe as jest-axe | Code Examples | Medium -- if API differs, test filtering approach needs adjustment |
 | A3 | Next.js App Router does not auto-manage focus on client navigation in v15 | Architecture Patterns | Low -- if Next.js added this, the custom hook is just redundant, not harmful |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Which components have focus style gaps?**
+1. **Which components have focus style gaps?** — RESOLVED: Discovery audit during implementation (Plan 02 Task 2). Button, input, tabs, select, sidebar all have focus-visible rings. Remaining components audited and fixed during execution.
    - What we know: Button, input, tabs, select, sidebar all have focus-visible rings. Dialog close button has focus ring.
    - What's unclear: Whether data-table-cards, avatar buttons, or custom interactive elements in page content are missing focus styles
    - Recommendation: Perform manual keyboard audit during implementation -- this is a discovery task
 
-2. **Does Radix handle Escape key for all overlays?**
+2. **Does Radix handle Escape key for all overlays?** — RESOLVED: Radix Dialog, DropdownMenu, Sheet all handle Escape. Sidebar mobile Sheet uses Radix Dialog primitive, so Escape is handled. Verified in research body.
    - What we know: Radix Dialog, DropdownMenu, and Sheet (built on Dialog) all handle Escape. Select also handles Escape.
    - What's unclear: Whether the Sidebar mobile Sheet overlay responds to Escape (it uses the Sheet component from Radix Dialog, so it likely does)
    - Recommendation: Verify during implementation with a quick keyboard test -- likely already working
