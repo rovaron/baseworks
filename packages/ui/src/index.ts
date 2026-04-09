@@ -18,6 +18,7 @@ export * from "./components/table";
 export * from "./components/data-table-cards";
 export * from "./components/tabs";
 export * from "./components/tooltip";
+export * from "./components/skip-link";
 
 // Utilities
 export { cn } from "./lib/utils";
