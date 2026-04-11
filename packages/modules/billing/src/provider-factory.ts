@@ -1,25 +1,43 @@
 import { env } from "@baseworks/config";
 import type { PaymentProvider } from "./ports/payment-provider";
 import { StripeAdapter } from "./adapters/stripe/stripe-adapter";
+import { PagarmeAdapter } from "./adapters/pagarme/pagarme-adapter";
 
 /**
- * Payment provider singleton factory.
+ * Payment provider singleton factory (PAY-05).
  *
- * Returns a lazily-initialized PaymentProvider instance.
- * Currently only supports Stripe (Plan 03 adds Pagar.me + env switch).
+ * Returns a lazily-initialized PaymentProvider instance based on the
+ * PAYMENT_PROVIDER environment variable. Defaults to Stripe if unset.
  *
  * Uses lazy initialization so the billing module can load in test
  * environments without payment provider keys configured.
+ *
+ * Supported providers:
+ * - "stripe" (default): Uses StripeAdapter with STRIPE_SECRET_KEY
+ * - "pagarme": Uses PagarmeAdapter with PAGARME_SECRET_KEY
  */
 let providerInstance: PaymentProvider | null = null;
 
 export function getPaymentProvider(): PaymentProvider {
   if (!providerInstance) {
-    // For now, only Stripe is implemented. Plan 03 adds Pagar.me + env switch.
-    providerInstance = new StripeAdapter({
-      secretKey: env.STRIPE_SECRET_KEY!,
-      webhookSecret: env.STRIPE_WEBHOOK_SECRET!,
-    });
+    const providerName = env.PAYMENT_PROVIDER ?? "stripe";
+
+    switch (providerName) {
+      case "stripe":
+        providerInstance = new StripeAdapter({
+          secretKey: env.STRIPE_SECRET_KEY!,
+          webhookSecret: env.STRIPE_WEBHOOK_SECRET!,
+        });
+        break;
+      case "pagarme":
+        providerInstance = new PagarmeAdapter({
+          secretKey: env.PAGARME_SECRET_KEY!,
+          webhookSecret: env.PAGARME_WEBHOOK_SECRET!,
+        });
+        break;
+      default:
+        throw new Error(`Unknown payment provider: ${providerName}`);
+    }
   }
   return providerInstance;
 }
