@@ -22,7 +22,7 @@ export const acceptInvitation = defineCommand(
     try {
       const result = await auth.api.acceptInvitation({
         body: { invitationId: input.invitationId },
-        headers: new Headers(),
+        headers: ctx.headers ?? new Headers(),
       });
 
       ctx.emit("invitation.accepted", {

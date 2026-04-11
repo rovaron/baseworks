@@ -21,7 +21,7 @@ export const rejectInvitation = defineCommand(
     try {
       const result = await auth.api.rejectInvitation({
         body: { invitationId: input.invitationId },
-        headers: new Headers(),
+        headers: ctx.headers ?? new Headers(),
       });
 
       ctx.emit("invitation.rejected", {
