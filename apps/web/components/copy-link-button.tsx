@@ -14,9 +14,13 @@ export function CopyLinkButton({ text, label, copiedLabel }: CopyLinkButtonProps
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard write can fail (permissions, HTTP context, unfocused page)
+    }
   };
 
   return (
