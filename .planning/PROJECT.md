@@ -18,7 +18,7 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 - Config-driven module registry loads modules, routes commands/queries through CQRS, emits domain events
 - Tenant-scoped database wrapper with automatic tenant_id filtering on all queries
 - Full auth: email/password, OAuth (Google/GitHub), magic links, password reset, RBAC
-- Stripe billing: subscriptions, one-time payments, usage-based, webhooks with idempotency, customer portal
+- Provider-agnostic billing: PaymentProvider port interface with Stripe and Pagar.me adapters, webhook normalization, env-based provider selection with startup validation
 - BullMQ workers with per-module job queues, transactional email via Resend + React Email
 - Next.js customer app with auth pages, billing management, tenant switching
 - Vite admin dashboard with tenant/user management, billing overview, system health
@@ -137,4 +137,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-08 after v1.1 milestone start*
+*Last updated: 2026-04-11 after Phase 10 (Payment Abstraction) complete*
