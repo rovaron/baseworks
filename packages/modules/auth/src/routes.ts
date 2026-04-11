@@ -162,6 +162,15 @@ export const authRoutes = new Elysia({ name: "auth-routes" })
             return { success: false, error: "Invitation not found" };
           }
           const inv = getResult.data as any;
+          // Cancel original invitation before creating replacement
+          const cancelResult = await cancelInvitation(
+            { invitationId: params.id, organizationId: activeOrgId },
+            makeCtx("", activeOrgId),
+          );
+          if (!cancelResult.success) {
+            set.status = 400;
+            return { success: false, error: "Failed to cancel original invitation before resend" };
+          }
           // Detect mode from email: @internal = link mode, else email mode
           const mode = inv.email.endsWith("@internal") ? "link" : "email";
           const result = await createInvitation(
