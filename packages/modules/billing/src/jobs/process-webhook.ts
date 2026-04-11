@@ -4,31 +4,34 @@ import {
   billingCustomers,
   webhookEvents,
 } from "@baseworks/db";
-import { eq, and, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
+import type { NormalizedEvent } from "../ports/types";
 
 /**
  * Webhook event processing job handler.
  *
- * Per D-12: Processes 6 Stripe event types:
- * - checkout.session.completed
- * - customer.subscription.created
- * - customer.subscription.updated
- * - customer.subscription.deleted
- * - invoice.payment_succeeded
- * - invoice.payment_failed
+ * Processes provider-agnostic NormalizedEvent types (PAY-03):
+ * - checkout.completed
+ * - subscription.created
+ * - subscription.updated
+ * - subscription.cancelled
+ * - payment.succeeded
+ * - payment.failed
  *
  * Per Pitfall 3 (T-03-09): Uses lastEventAt column to protect against
  * out-of-order webhook delivery. Only updates billing_customers if the
  * event timestamp is newer than the stored lastEventAt.
+ *
+ * Per T-10-04: lastEventAt ordering protection preserved.
  */
 
 interface WebhookJobData {
   eventId: string;
-  type: string;
+  normalizedEvent: NormalizedEvent;
 }
 
 export async function processWebhook(data: unknown): Promise<void> {
-  const { eventId, type } = data as WebhookJobData;
+  const { eventId, normalizedEvent } = data as WebhookJobData;
   const db = createDb(env.DATABASE_URL);
 
   // Load the event from webhook_events table
@@ -47,40 +50,34 @@ export async function processWebhook(data: unknown): Promise<void> {
   }
 
   try {
-    const payload = event.payload ? JSON.parse(event.payload) : null;
-    const object = payload?.object;
-
-    switch (type) {
-      case "checkout.session.completed":
-        await handleCheckoutCompleted(db, object);
+    switch (normalizedEvent.type) {
+      case "checkout.completed":
+        await handleCheckoutCompleted(db, normalizedEvent);
         break;
 
-      case "customer.subscription.created":
-        await handleSubscriptionCreated(db, object, event.createdAt);
+      case "subscription.created":
+        await handleSubscriptionCreated(db, normalizedEvent, event.createdAt);
         break;
 
-      case "customer.subscription.updated":
-        await handleSubscriptionUpdated(db, object, event.createdAt);
+      case "subscription.updated":
+        await handleSubscriptionUpdated(db, normalizedEvent, event.createdAt);
         break;
 
-      case "customer.subscription.deleted":
-        await handleSubscriptionDeleted(db, object, event.createdAt);
+      case "subscription.cancelled":
+        await handleSubscriptionDeleted(db, normalizedEvent, event.createdAt);
         break;
 
-      case "invoice.payment_succeeded":
+      case "payment.succeeded":
         console.log(
-          `[BILLING] Payment succeeded for customer ${object?.customer}`,
+          `[BILLING] Payment succeeded for customer ${normalizedEvent.providerCustomerId}`,
         );
         break;
 
-      case "invoice.payment_failed":
+      case "payment.failed":
         console.log(
-          `[BILLING] Payment failed for customer ${object?.customer}`,
+          `[BILLING] Payment failed for customer ${normalizedEvent.providerCustomerId}`,
         );
         break;
-
-      default:
-        console.log(`[BILLING] Unhandled webhook event type: ${type}`);
     }
 
     // Mark event as processed (T-03-06: audit trail)
@@ -103,78 +100,70 @@ export async function processWebhook(data: unknown): Promise<void> {
 }
 
 /**
- * checkout.session.completed: Update billing_customers with subscription info.
+ * checkout.completed: Update billing_customers with subscription info.
  */
-async function handleCheckoutCompleted(db: any, object: any): Promise<void> {
-  if (!object?.customer || !object?.subscription) return;
-
-  const providerCustomerId = object.customer as string;
-  const providerSubscriptionId = object.subscription as string;
+async function handleCheckoutCompleted(db: any, normalizedEvent: NormalizedEvent): Promise<void> {
+  if (!normalizedEvent.providerCustomerId || !normalizedEvent.data.subscriptionId) return;
 
   await db
     .update(billingCustomers)
     .set({
-      providerSubscriptionId,
+      providerSubscriptionId: normalizedEvent.data.subscriptionId,
       status: "active",
       lastEventAt: new Date(),
       updatedAt: new Date(),
     })
-    .where(eq(billingCustomers.providerCustomerId, providerCustomerId));
+    .where(eq(billingCustomers.providerCustomerId, normalizedEvent.providerCustomerId));
 }
 
 /**
- * customer.subscription.created: Create/update billing_customers record.
+ * subscription.created: Create/update billing_customers record.
  */
 async function handleSubscriptionCreated(
   db: any,
-  object: any,
+  normalizedEvent: NormalizedEvent,
   eventTime: Date,
 ): Promise<void> {
-  if (!object?.customer) return;
+  if (!normalizedEvent.providerCustomerId) return;
 
-  const providerCustomerId = object.customer as string;
   const now = new Date();
 
   await db
     .update(billingCustomers)
     .set({
-      providerSubscriptionId: object.id,
-      providerPriceId: object.items?.data?.[0]?.price?.id ?? null,
-      status: object.status ?? "active",
-      currentPeriodEnd: object.current_period_end
-        ? new Date(object.current_period_end * 1000)
-        : null,
+      providerSubscriptionId: normalizedEvent.data.subscriptionId ?? null,
+      providerPriceId: normalizedEvent.data.priceId ?? null,
+      status: normalizedEvent.data.status ?? "active",
+      currentPeriodEnd: normalizedEvent.data.currentPeriodEnd ?? null,
       lastEventAt: eventTime,
       updatedAt: now,
     })
-    .where(eq(billingCustomers.providerCustomerId, providerCustomerId));
+    .where(eq(billingCustomers.providerCustomerId, normalizedEvent.providerCustomerId));
 }
 
 /**
- * customer.subscription.updated: Update billing_customers if event is newer.
+ * subscription.updated: Update billing_customers if event is newer.
  *
  * Per Pitfall 3 (T-03-09): Only update if event timestamp > lastEventAt
  * to protect against out-of-order webhook delivery.
  */
 async function handleSubscriptionUpdated(
   db: any,
-  object: any,
+  normalizedEvent: NormalizedEvent,
   eventTime: Date,
 ): Promise<void> {
-  if (!object?.customer) return;
-
-  const providerCustomerId = object.customer as string;
+  if (!normalizedEvent.providerCustomerId) return;
 
   // Only update if this event is newer than the last processed event
   const [existing] = await db
     .select({ lastEventAt: billingCustomers.lastEventAt })
     .from(billingCustomers)
-    .where(eq(billingCustomers.providerCustomerId, providerCustomerId))
+    .where(eq(billingCustomers.providerCustomerId, normalizedEvent.providerCustomerId))
     .limit(1);
 
   if (existing?.lastEventAt && eventTime <= existing.lastEventAt) {
     console.log(
-      `[BILLING] Skipping stale subscription.updated for ${providerCustomerId} (event: ${eventTime.toISOString()}, lastEventAt: ${existing.lastEventAt.toISOString()})`,
+      `[BILLING] Skipping stale subscription.updated for ${normalizedEvent.providerCustomerId} (event: ${eventTime.toISOString()}, lastEventAt: ${existing.lastEventAt.toISOString()})`,
     );
     return;
   }
@@ -182,29 +171,25 @@ async function handleSubscriptionUpdated(
   await db
     .update(billingCustomers)
     .set({
-      providerSubscriptionId: object.id,
-      providerPriceId: object.items?.data?.[0]?.price?.id ?? null,
-      status: object.status ?? "active",
-      currentPeriodEnd: object.current_period_end
-        ? new Date(object.current_period_end * 1000)
-        : null,
+      providerSubscriptionId: normalizedEvent.data.subscriptionId ?? null,
+      providerPriceId: normalizedEvent.data.priceId ?? null,
+      status: normalizedEvent.data.status ?? "active",
+      currentPeriodEnd: normalizedEvent.data.currentPeriodEnd ?? null,
       lastEventAt: eventTime,
       updatedAt: new Date(),
     })
-    .where(eq(billingCustomers.providerCustomerId, providerCustomerId));
+    .where(eq(billingCustomers.providerCustomerId, normalizedEvent.providerCustomerId));
 }
 
 /**
- * customer.subscription.deleted: Mark subscription as canceled.
+ * subscription.cancelled: Mark subscription as canceled.
  */
 async function handleSubscriptionDeleted(
   db: any,
-  object: any,
+  normalizedEvent: NormalizedEvent,
   eventTime: Date,
 ): Promise<void> {
-  if (!object?.customer) return;
-
-  const providerCustomerId = object.customer as string;
+  if (!normalizedEvent.providerCustomerId) return;
 
   await db
     .update(billingCustomers)
@@ -213,5 +198,5 @@ async function handleSubscriptionDeleted(
       lastEventAt: eventTime,
       updatedAt: new Date(),
     })
-    .where(eq(billingCustomers.providerCustomerId, providerCustomerId));
+    .where(eq(billingCustomers.providerCustomerId, normalizedEvent.providerCustomerId));
 }

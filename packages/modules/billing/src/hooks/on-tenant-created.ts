@@ -1,16 +1,13 @@
 import { env } from "@baseworks/config";
 import { createDb, billingCustomers } from "@baseworks/db";
-import { getStripe } from "../stripe";
+import { getPaymentProvider } from "../provider-factory";
 
 /**
- * Auto-create Stripe customer when a tenant is created.
+ * Auto-create payment provider customer when a tenant is created.
  *
- * Per D-01, D-24, BILL-07: Every tenant gets a Stripe customer record
+ * Per D-01, D-24, BILL-07: Every tenant gets a provider customer record
  * automatically when the organization (tenant) is created. This ensures
- * billing operations can reference a Stripe customer from day one.
- *
- * Per D-09: Uses crypto.randomUUID() as idempotency key on the Stripe
- * API call to prevent duplicate customer creation on retries.
+ * billing operations can reference a provider customer from day one.
  *
  * Registered as a listener on the "tenant.created" event via the
  * TypedEventBus in the module registry.
@@ -33,46 +30,37 @@ export function registerBillingHooks(eventBus: {
     const { tenantId, name } = data as TenantCreatedEvent;
 
     try {
-      // Skip Stripe customer creation if STRIPE_SECRET_KEY is not configured
+      // Skip customer creation if payment provider keys are not configured
       // (e.g., in test environments)
       if (!env.STRIPE_SECRET_KEY) {
         console.log(
-          `[BILLING] Skipping Stripe customer creation for tenant ${tenantId} (no STRIPE_SECRET_KEY)`,
+          `[BILLING] Skipping payment provider customer creation for tenant ${tenantId} (no payment keys configured)`,
         );
         return;
       }
 
-      const stripe = getStripe();
+      const provider = getPaymentProvider();
       const db = createDb(env.DATABASE_URL);
 
-      // Create Stripe customer with idempotency key (D-09)
-      const idempotencyKey = crypto.randomUUID();
-      const customer = await stripe.customers.create(
-        {
-          metadata: {
-            tenantId,
-          },
-          name: name ?? `Tenant ${tenantId}`,
-        },
-        {
-          idempotencyKey,
-        },
-      );
+      const customer = await provider.createCustomer({
+        tenantId,
+        name: name ?? `Tenant ${tenantId}`,
+      });
 
-      // Insert billing_customers record linking tenant to Stripe customer
+      // Insert billing_customers record linking tenant to provider customer
       await db.insert(billingCustomers).values({
         tenantId,
-        providerCustomerId: customer.id,
+        providerCustomerId: customer.providerCustomerId,
         status: "inactive",
       });
 
       console.log(
-        `[BILLING] Created Stripe customer ${customer.id} for tenant ${tenantId}`,
+        `[BILLING] Created ${provider.name} customer ${customer.providerCustomerId} for tenant ${tenantId}`,
       );
     } catch (err) {
       // Log error but do not crash the tenant creation flow
       console.error(
-        `[BILLING] Failed to create Stripe customer for tenant ${tenantId}:`,
+        `[BILLING] Failed to create payment provider customer for tenant ${tenantId}:`,
         err,
       );
     }

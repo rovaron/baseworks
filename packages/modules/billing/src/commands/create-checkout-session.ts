@@ -1,7 +1,7 @@
 import { Type } from "@sinclair/typebox";
 import { defineCommand, ok, err } from "@baseworks/shared";
 import { billingCustomers } from "../schema";
-import { getStripe } from "../stripe";
+import { getPaymentProvider } from "../provider-factory";
 import { eq } from "drizzle-orm";
 
 const CreateCheckoutSessionInput = Type.Object({
@@ -11,10 +11,9 @@ const CreateCheckoutSessionInput = Type.Object({
 });
 
 /**
- * Create a Stripe Checkout session for subscription.
+ * Create a checkout session for subscription.
  *
- * Per D-04: Redirects tenant to Stripe-hosted payment page.
- * Per D-09: Uses crypto.randomUUID() as idempotency key.
+ * Per D-04: Redirects tenant to provider-hosted payment page.
  * Per T-03-10: Scoped to ctx.tenantId.
  */
 export const createCheckoutSession = defineCommand(
@@ -31,21 +30,15 @@ export const createCheckoutSession = defineCommand(
         return err("BILLING_NOT_CONFIGURED");
       }
 
-      const stripe = getStripe();
-      const session = await stripe.checkout.sessions.create(
-        {
-          customer: customer.providerCustomerId,
-          mode: "subscription",
-          line_items: [{ price: input.priceId, quantity: 1 }],
-          success_url: input.successUrl,
-          cancel_url: input.cancelUrl,
-        },
-        {
-          idempotencyKey: crypto.randomUUID(),
-        },
-      );
+      const provider = getPaymentProvider();
+      const session = await provider.createCheckoutSession({
+        providerCustomerId: customer.providerCustomerId,
+        priceId: input.priceId,
+        successUrl: input.successUrl,
+        cancelUrl: input.cancelUrl,
+      });
 
-      return ok({ sessionId: session.id, url: session.url });
+      return ok({ sessionId: session.sessionId, url: session.url });
     } catch (error: any) {
       return err(error.message || "Failed to create checkout session");
     }

@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia";
-import { getStripe } from "./stripe";
+import { getPaymentProvider } from "./provider-factory";
 import { env } from "@baseworks/config";
 import { createDb, webhookEvents } from "@baseworks/db";
 import { eq } from "drizzle-orm";
@@ -17,18 +17,19 @@ import { getBillingHistory } from "./queries/get-billing-history";
  * Billing routes plugin.
  *
  * Public routes (no auth, no tenant middleware):
- * - POST /api/billing/webhooks -- Stripe webhook endpoint
+ * - POST /api/billing/webhooks -- Payment provider webhook endpoint
  *
  * Webhook pipeline (D-10, D-11, D-13):
- * 1. Verify Stripe signature using raw body (Pitfall 1)
- * 2. Check idempotency via webhook_events table (D-11)
- * 3. Insert event record with status "pending"
- * 4. Enqueue to BullMQ for async processing (Pitfall 5: return 200 fast)
+ * 1. Verify signature via provider.verifyWebhookSignature() (T-10-02)
+ * 2. Normalize event via provider.normalizeEvent() (PAY-03)
+ * 3. Check idempotency via webhook_events table (D-11, T-10-03)
+ * 4. Insert event record with status "pending"
+ * 5. Enqueue NormalizedEvent to BullMQ for async processing (Pitfall 5: return 200 fast)
  *
- * Security (T-03-04, T-03-05, T-03-08):
- * - Signature verification via stripe.webhooks.constructEvent()
- * - Dedup at DB level (unique stripe_event_id) and queue level (BullMQ jobId)
- * - No auth/tenant middleware on webhook route (external Stripe calls)
+ * Security (T-03-04, T-03-05, T-03-08, T-10-02):
+ * - Signature verification via provider SDK (never hand-rolled HMAC)
+ * - Dedup at DB level (unique providerEventId) and queue level (BullMQ jobId)
+ * - No auth/tenant middleware on webhook route (external provider calls)
  */
 
 // Lazy queue initialization -- avoids requiring Redis in test environments
@@ -45,40 +46,39 @@ function getWebhookQueue(): Queue | null {
 
 export const billingRoutes = new Elysia({ prefix: "/api/billing" })
   .post("/webhooks", async (ctx) => {
-    const stripe = getStripe();
-    const sig = ctx.request.headers.get("stripe-signature");
+    const provider = getPaymentProvider();
+
+    // Read signature from provider-specific headers
+    const sig =
+      ctx.request.headers.get("stripe-signature") ||
+      ctx.request.headers.get("x-hub-signature") ||
+      "";
 
     if (!sig) {
-      return new Response("Missing stripe-signature header", { status: 400 });
-    }
-
-    if (!env.STRIPE_WEBHOOK_SECRET) {
-      return new Response("Webhook secret not configured", { status: 500 });
+      return new Response("Missing webhook signature header", { status: 400 });
     }
 
     // CRITICAL: Use raw body text for signature verification (Pitfall 1)
     // Elysia may auto-parse JSON bodies, so clone the request to get raw text
     const rawBody = await ctx.request.clone().text();
 
-    let event;
+    let rawEvent;
     try {
-      event = stripe.webhooks.constructEvent(
-        rawBody,
-        sig,
-        env.STRIPE_WEBHOOK_SECRET,
-      );
+      rawEvent = await provider.verifyWebhookSignature({ rawBody, signature: sig });
     } catch (err) {
       return new Response("Webhook signature verification failed", {
         status: 400,
       });
     }
 
-    // Idempotency check (D-11, T-03-05)
+    const normalizedEvent = provider.normalizeEvent(rawEvent);
+
+    // Idempotency check (D-11, T-03-05, T-10-03)
     const db = createDb(env.DATABASE_URL);
     const existing = await db
       .select()
       .from(webhookEvents)
-      .where(eq(webhookEvents.providerEventId, event.id))
+      .where(eq(webhookEvents.providerEventId, normalizedEvent.providerEventId))
       .limit(1);
 
     if (existing.length > 0) {
@@ -87,10 +87,10 @@ export const billingRoutes = new Elysia({ prefix: "/api/billing" })
 
     // Insert event record with status "pending" (T-03-06: audit trail)
     await db.insert(webhookEvents).values({
-      providerEventId: event.id,
-      eventType: event.type,
+      providerEventId: normalizedEvent.providerEventId,
+      eventType: normalizedEvent.type,
       status: "pending",
-      payload: JSON.stringify(event.data),
+      payload: JSON.stringify(normalizedEvent.raw),
     });
 
     // Enqueue for async processing (D-10, Pitfall 5 -- return 200 fast)
@@ -99,10 +99,10 @@ export const billingRoutes = new Elysia({ prefix: "/api/billing" })
       await queue.add(
         "process-webhook",
         {
-          eventId: event.id,
-          type: event.type,
+          eventId: normalizedEvent.providerEventId,
+          normalizedEvent,
         },
-        { jobId: event.id }, // BullMQ-level dedup via jobId (T-03-05)
+        { jobId: normalizedEvent.providerEventId }, // BullMQ-level dedup via jobId (T-03-05)
       );
     }
 

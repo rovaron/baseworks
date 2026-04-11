@@ -1,7 +1,7 @@
 import { Type } from "@sinclair/typebox";
 import { defineCommand, ok, err } from "@baseworks/shared";
 import { billingCustomers } from "../schema";
-import { getStripe } from "../stripe";
+import { getPaymentProvider } from "../provider-factory";
 import { eq } from "drizzle-orm";
 
 const CreatePortalSessionInput = Type.Object({
@@ -9,10 +9,12 @@ const CreatePortalSessionInput = Type.Object({
 });
 
 /**
- * Create a Stripe Customer Portal session for self-service billing management.
+ * Create a billing portal session for self-service billing management.
  *
- * Per D-08: Tenant can access Stripe Customer Portal.
+ * Per D-08: Tenant can access provider's billing portal.
  * Per T-03-10: Scoped to ctx.tenantId.
+ *
+ * Returns null/error if the active provider doesn't support hosted portals.
  */
 export const createPortalSession = defineCommand(
   CreatePortalSessionInput,
@@ -28,11 +30,15 @@ export const createPortalSession = defineCommand(
         return err("BILLING_NOT_CONFIGURED");
       }
 
-      const stripe = getStripe();
-      const session = await stripe.billingPortal.sessions.create({
-        customer: customer.providerCustomerId,
-        return_url: input.returnUrl,
+      const provider = getPaymentProvider();
+      const session = await provider.createPortalSession({
+        providerCustomerId: customer.providerCustomerId,
+        returnUrl: input.returnUrl,
       });
+
+      if (!session) {
+        return err("PORTAL_NOT_SUPPORTED");
+      }
 
       return ok({ url: session.url });
     } catch (error: any) {

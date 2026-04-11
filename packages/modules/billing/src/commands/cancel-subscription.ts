@@ -1,7 +1,7 @@
 import { Type } from "@sinclair/typebox";
 import { defineCommand, ok, err } from "@baseworks/shared";
 import { billingCustomers } from "../schema";
-import { getStripe } from "../stripe";
+import { getPaymentProvider } from "../provider-factory";
 import { eq } from "drizzle-orm";
 
 const CancelSubscriptionInput = Type.Object({});
@@ -10,7 +10,6 @@ const CancelSubscriptionInput = Type.Object({});
  * Cancel a tenant's subscription at period end.
  *
  * Per D-05: Uses cancel_at_period_end to avoid immediate cancellation.
- * Per D-09: Uses crypto.randomUUID() as idempotency key.
  * Per T-03-10: Scoped to ctx.tenantId.
  */
 export const cancelSubscription = defineCommand(
@@ -27,12 +26,11 @@ export const cancelSubscription = defineCommand(
         return err("NO_ACTIVE_SUBSCRIPTION");
       }
 
-      const stripe = getStripe();
-      await stripe.subscriptions.update(
-        customer.providerSubscriptionId,
-        { cancel_at_period_end: true },
-        { idempotencyKey: crypto.randomUUID() },
-      );
+      const provider = getPaymentProvider();
+      await provider.cancelSubscription({
+        providerSubscriptionId: customer.providerSubscriptionId,
+        cancelAtPeriodEnd: true,
+      });
 
       return ok({
         cancelledAt: "period_end" as const,

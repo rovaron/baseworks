@@ -1,7 +1,7 @@
 import { Type } from "@sinclair/typebox";
 import { defineQuery, ok, err } from "@baseworks/shared";
 import { billingCustomers } from "../schema";
-import { getStripe } from "../stripe";
+import { getPaymentProvider } from "../provider-factory";
 import { eq } from "drizzle-orm";
 
 const GetBillingHistoryInput = Type.Object({
@@ -9,7 +9,7 @@ const GetBillingHistoryInput = Type.Object({
 });
 
 /**
- * Get billing/invoice history for the requesting tenant from Stripe.
+ * Get billing/invoice history for the requesting tenant.
  *
  * Per T-03-12: Uses ctx.tenantId to look up providerCustomerId, then
  * fetches only that customer's invoices from the payment provider API.
@@ -28,21 +28,11 @@ export const getBillingHistory = defineQuery(
         return ok({ invoices: [] });
       }
 
-      const stripe = getStripe();
-      const invoiceList = await stripe.invoices.list({
-        customer: customer.providerCustomerId,
-        limit: input.limit ?? 10,
-      });
-
-      const invoices = invoiceList.data.map((inv) => ({
-        id: inv.id,
-        amount: inv.amount_due,
-        currency: inv.currency,
-        status: inv.status,
-        created: inv.created,
-        invoiceUrl: inv.hosted_invoice_url,
-        pdfUrl: inv.invoice_pdf,
-      }));
+      const provider = getPaymentProvider();
+      const invoices = await provider.getInvoices(
+        customer.providerCustomerId,
+        input.limit ?? 10,
+      );
 
       return ok({ invoices });
     } catch (error: any) {

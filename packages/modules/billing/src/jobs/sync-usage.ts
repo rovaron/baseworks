@@ -2,20 +2,19 @@ import { eq, and, sql } from "drizzle-orm";
 import { createDb } from "@baseworks/db";
 import { env } from "@baseworks/config";
 import { usageRecords, billingCustomers } from "../schema";
-import { getStripe } from "../stripe";
+import { getPaymentProvider } from "../provider-factory";
 import pino from "pino";
 
 const logger = pino({ name: "billing:sync-usage" });
 
 /**
- * Sync unsynced usage records to Stripe.
+ * Sync unsynced usage records to the payment provider.
  *
  * Per D-07: Scheduled BullMQ repeatable job (every 5 minutes default).
  * Queries all usage_records WHERE syncedToProvider = false, grouped by
- * tenantId and metric. For each group, looks up the Stripe subscription
- * and reports metered usage via subscriptionItems.createUsageRecord.
+ * tenantId and metric. For each group, reports metered usage via the
+ * provider's reportUsage() method.
  *
- * Per D-09: Uses idempotency keys for Stripe API calls.
  * Per T-03-16: Processes all tenants (not tenant-scoped -- this is a system job).
  */
 export async function syncUsage(_data: unknown): Promise<void> {
@@ -37,9 +36,14 @@ export async function syncUsage(_data: unknown): Promise<void> {
     return;
   }
 
-  logger.info({ groupCount: unsyncedGroups.length }, "Syncing usage records to Stripe");
+  logger.info({ groupCount: unsyncedGroups.length }, "Syncing usage records to payment provider");
 
-  const stripe = getStripe();
+  const provider = getPaymentProvider();
+
+  if (!provider.reportUsage) {
+    logger.warn("Current payment provider does not support usage reporting");
+    return;
+  }
 
   for (const group of unsyncedGroups) {
     try {
@@ -58,41 +62,18 @@ export async function syncUsage(_data: unknown): Promise<void> {
         continue;
       }
 
-      // Retrieve subscription to get the subscription item ID
-      const subscription = await stripe.subscriptions.retrieve(
-        customer.providerSubscriptionId,
-      );
-
-      if (!subscription.items.data.length) {
-        logger.warn(
-          { tenantId: group.tenantId, subscriptionId: customer.providerSubscriptionId },
-          "Subscription has no items, skipping usage sync",
-        );
-        continue;
-      }
-
-      const subscriptionItemId = subscription.items.data[0].id;
-
-      // Report usage to Stripe with idempotency key (D-09)
-      const idempotencyKey = `usage-sync-${group.tenantId}-${group.metric}-${Date.now()}`;
-      const usageRecord = await stripe.subscriptionItems.createUsageRecord(
-        subscriptionItemId,
-        {
-          quantity: group.totalQuantity,
-          timestamp: Math.floor(Date.now() / 1000),
-          action: "increment",
-        },
-        {
-          idempotencyKey,
-        },
-      );
+      const result = await provider.reportUsage({
+        providerSubscriptionId: customer.providerSubscriptionId,
+        quantity: group.totalQuantity,
+        timestamp: Math.floor(Date.now() / 1000),
+      });
 
       // Mark all matching records as synced
       await db
         .update(usageRecords)
         .set({
           syncedToProvider: true,
-          providerUsageRecordId: usageRecord.id,
+          providerUsageRecordId: result.providerUsageRecordId,
         })
         .where(
           and(
@@ -107,9 +88,9 @@ export async function syncUsage(_data: unknown): Promise<void> {
           tenantId: group.tenantId,
           metric: group.metric,
           quantity: group.totalQuantity,
-          providerUsageRecordId: usageRecord.id,
+          providerUsageRecordId: result.providerUsageRecordId,
         },
-        "Usage synced to Stripe",
+        "Usage synced to payment provider",
       );
     } catch (error: any) {
       logger.error(
@@ -118,7 +99,7 @@ export async function syncUsage(_data: unknown): Promise<void> {
           metric: group.metric,
           error: error.message,
         },
-        "Failed to sync usage to Stripe",
+        "Failed to sync usage to payment provider",
       );
       // Continue with next group -- don't fail the entire job
     }

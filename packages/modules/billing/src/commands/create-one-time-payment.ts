@@ -1,7 +1,7 @@
 import { Type } from "@sinclair/typebox";
 import { defineCommand, ok, err } from "@baseworks/shared";
 import { billingCustomers } from "../schema";
-import { getStripe } from "../stripe";
+import { getPaymentProvider } from "../provider-factory";
 import { eq } from "drizzle-orm";
 
 const CreateOneTimePaymentInput = Type.Object({
@@ -12,10 +12,9 @@ const CreateOneTimePaymentInput = Type.Object({
 });
 
 /**
- * Create a Stripe Checkout session for one-time payment.
+ * Create a checkout session for one-time payment.
  *
- * Per D-06: Uses Checkout in payment mode for one-off charges.
- * Per D-09: Uses crypto.randomUUID() as idempotency key.
+ * Per D-06: Uses payment mode for one-off charges.
  * Per T-03-10: Scoped to ctx.tenantId.
  */
 export const createOneTimePayment = defineCommand(
@@ -32,21 +31,16 @@ export const createOneTimePayment = defineCommand(
         return err("BILLING_NOT_CONFIGURED");
       }
 
-      const stripe = getStripe();
-      const session = await stripe.checkout.sessions.create(
-        {
-          customer: customer.providerCustomerId,
-          mode: "payment",
-          line_items: [{ price: input.priceId, quantity: input.quantity ?? 1 }],
-          success_url: input.successUrl,
-          cancel_url: input.cancelUrl,
-        },
-        {
-          idempotencyKey: crypto.randomUUID(),
-        },
-      );
+      const provider = getPaymentProvider();
+      const session = await provider.createOneTimePayment({
+        providerCustomerId: customer.providerCustomerId,
+        priceId: input.priceId,
+        quantity: input.quantity ?? 1,
+        successUrl: input.successUrl,
+        cancelUrl: input.cancelUrl,
+      });
 
-      return ok({ sessionId: session.id, url: session.url });
+      return ok({ sessionId: session.sessionId, url: session.url });
     } catch (error: any) {
       return err(error.message || "Failed to create payment session");
     }
