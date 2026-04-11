@@ -1,29 +1,24 @@
 ---
 phase: 10-payment-abstraction
-verified: 2026-04-11T17:30:00Z
-status: gaps_found
-score: 9/10 must-haves verified
+verified: 2026-04-11T18:30:00Z
+status: passed
+score: 10/10 must-haves verified
 overrides_applied: 0
-gaps:
-  - truth: "Env validation conditionally requires PAGARME_SECRET_KEY when PAYMENT_PROVIDER=pagarme (at startup)"
-    status: failed
-    reason: "validatePaymentProviderEnv() is exported from packages/config/src/env.ts but is never called. It does not run at startup (not called in apps/api/src/index.ts, apps/api/src/worker.ts, or packages/modules/billing/src/index.ts). The app can start with PAYMENT_PROVIDER=pagarme and no PAGARME_SECRET_KEY, then crash on the first billing operation."
-    artifacts:
-      - path: "packages/config/src/env.ts"
-        issue: "validatePaymentProviderEnv() defined but never invoked"
-      - path: "apps/api/src/index.ts"
-        issue: "Does not call validatePaymentProviderEnv() during startup"
-    missing:
-      - "Call validatePaymentProviderEnv() in apps/api/src/index.ts at startup (before app.listen)"
-      - "Call validatePaymentProviderEnv() in apps/api/src/worker.ts at startup (if it exists and boots independently)"
+re_verification:
+  previous_status: gaps_found
+  previous_score: 9/10
+  gaps_closed:
+    - "Env validation conditionally requires PAGARME_SECRET_KEY when PAYMENT_PROVIDER=pagarme (at startup)"
+  gaps_remaining: []
+  regressions: []
 ---
 
 # Phase 10: Payment Abstraction Verification Report
 
 **Phase Goal:** Billing module operates through a provider-agnostic interface, with Stripe and one Brazilian provider as concrete adapters
-**Verified:** 2026-04-11T17:30:00Z
-**Status:** gaps_found
-**Re-verification:** No — initial verification
+**Verified:** 2026-04-11T18:30:00Z
+**Status:** passed
+**Re-verification:** Yes — after gap closure (Plan 04 wired validatePaymentProviderEnv() into both entrypoints)
 
 ## Goal Achievement
 
@@ -35,14 +30,20 @@ gaps:
 | 2  | DB schema uses provider-agnostic column names (providerCustomerId, providerSubscriptionId, etc.) | VERIFIED | `packages/db/src/schema/billing.ts` — all 6 columns renamed; zero Stripe-specific names remain anywhere in billing or db packages |
 | 3  | A Drizzle migration file exists for the column renames | VERIFIED | `packages/db/migrations/0001_rename_stripe_to_provider.sql` — 6 RENAME COLUMN statements present |
 | 4  | StripeAdapter implements the full PaymentProvider interface | VERIFIED | `packages/modules/billing/src/adapters/stripe/stripe-adapter.ts` — 207 lines, `class StripeAdapter implements PaymentProvider`, all 12 methods implemented |
-| 5  | No command, query, job, or hook imports getStripe() or Stripe SDK directly | VERIFIED | grep of commands/, queries/, jobs/, hooks/, routes.ts yields zero matches for getStripe or Stripe SDK imports; stripe.ts deleted |
+| 5  | No command, query, job, or hook imports getStripe() or Stripe SDK directly | VERIFIED | Zero matches for getStripe or Stripe SDK imports in commands/, queries/, jobs/, hooks/, routes.ts; stripe.ts deleted |
 | 6  | Webhook events are normalized into NormalizedEvent before processing | VERIFIED | `routes.ts` calls `provider.verifyWebhookSignature()` then `provider.normalizeEvent()`, passes full NormalizedEvent to BullMQ job data; `process-webhook.ts` switches on `normalizedEvent.type` (not raw Stripe event strings) |
 | 7  | PagarmeAdapter implements PaymentProvider interface | VERIFIED | `packages/modules/billing/src/adapters/pagarme/pagarme-adapter.ts` — 313 lines, `class PagarmeAdapter implements PaymentProvider`, all methods implemented; createPortalSession returns null; reportUsage not implemented (interface method is optional) |
 | 8  | Setting PAYMENT_PROVIDER=pagarme returns PagarmeAdapter from getPaymentProvider() | VERIFIED | `packages/modules/billing/src/provider-factory.ts` — switch statement on `env.PAYMENT_PROVIDER`, "pagarme" case returns `new PagarmeAdapter(...)`, 6 passing provider-factory tests confirm behavior |
 | 9  | Pagar.me webhook events are normalized to NormalizedEvent | VERIFIED | `packages/modules/billing/src/adapters/pagarme/pagarme-webhook-mapper.ts` — maps 5 events (subscription.created, subscription.canceled, charge.paid, charge.payment_failed, order.paid); 5 real tests confirm mappings |
-| 10 | Env validation conditionally requires PAGARME_SECRET_KEY when PAYMENT_PROVIDER=pagarme | FAILED | `validatePaymentProviderEnv()` is defined in env.ts but is NEVER CALLED. It is not invoked in apps/api/src/index.ts, apps/api/src/worker.ts, or packages/modules/billing/src/index.ts. The protection against startup with missing keys does not run. |
+| 10 | Env validation conditionally requires PAGARME_SECRET_KEY when PAYMENT_PROVIDER=pagarme (at startup) | VERIFIED | `apps/api/src/index.ts` line 1 imports `validatePaymentProviderEnv` from `@baseworks/config`; line 22 calls it before `app.listen` (line 130). `apps/api/src/worker.ts` line 1 imports it; line 15 calls it before `createWorker` (line 35). Gap closed by Plan 04 commit 85def56. |
 
-**Score:** 9/10 truths verified
+**Score:** 10/10 truths verified
+
+### Re-verification: Gap Closure
+
+| Gap | Previous Status | Current Status | Fix Applied |
+|-----|----------------|----------------|-------------|
+| validatePaymentProviderEnv() not called at startup | FAILED | VERIFIED | Plan 04 added import + call in both `apps/api/src/index.ts` (line 22) and `apps/api/src/worker.ts` (line 15) — both before their respective module/worker startup sequences |
 
 ### Required Artifacts
 
@@ -52,11 +53,13 @@ gaps:
 | `packages/modules/billing/src/ports/types.ts` | Shared types: NormalizedEvent, NormalizedEventType, param types | VERIFIED | Exists, 125 lines, all required types exported |
 | `packages/db/src/schema/billing.ts` | Provider-agnostic column names | VERIFIED | providerCustomerId, providerSubscriptionId, providerPriceId, providerEventId, syncedToProvider, providerUsageRecordId all present |
 | `packages/modules/billing/src/adapters/stripe/stripe-adapter.ts` | StripeAdapter implementing PaymentProvider | VERIFIED | Exists, 207 lines, `class StripeAdapter implements PaymentProvider` |
-| `packages/modules/billing/src/adapters/stripe/stripe-webhook-mapper.ts` | Stripe-to-NormalizedEvent mapping | VERIFIED | Exists, 58 lines, exports `mapStripeEvent`, maps 6 event types |
+| `packages/modules/billing/src/adapters/stripe/stripe-webhook-mapper.ts` | Stripe-to-NormalizedEvent mapping | VERIFIED | Exists, exports `mapStripeEvent`, maps 6 event types |
 | `packages/modules/billing/src/provider-factory.ts` | Singleton provider instance getter | VERIFIED | Exists, exports getPaymentProvider(), resetPaymentProvider(), setPaymentProvider() |
 | `packages/modules/billing/src/adapters/pagarme/pagarme-adapter.ts` | PagarmeAdapter implementing PaymentProvider | VERIFIED | Exists, 313 lines, implements PaymentProvider via REST API |
-| `packages/modules/billing/src/adapters/pagarme/pagarme-webhook-mapper.ts` | Pagar.me to NormalizedEvent mapping | VERIFIED | Exists, 59 lines, exports `mapPagarmeEvent`, maps 5 event types |
-| `packages/config/src/env.ts` | PAYMENT_PROVIDER and PAGARME_* env vars | VERIFIED | PAYMENT_PROVIDER, PAGARME_SECRET_KEY, PAGARME_WEBHOOK_SECRET all defined; validatePaymentProviderEnv() exported |
+| `packages/modules/billing/src/adapters/pagarme/pagarme-webhook-mapper.ts` | Pagar.me to NormalizedEvent mapping | VERIFIED | Exists, exports `mapPagarmeEvent`, maps 5 event types |
+| `packages/config/src/env.ts` | PAYMENT_PROVIDER and PAGARME_* env vars + startup validation | VERIFIED | PAYMENT_PROVIDER, PAGARME_SECRET_KEY, PAGARME_WEBHOOK_SECRET defined; validatePaymentProviderEnv() exported and now called at startup (11 matches in grep) |
+| `apps/api/src/index.ts` | Payment provider env validation at API startup | VERIFIED | Imports validatePaymentProviderEnv from @baseworks/config (line 1), calls it at line 22 before app.listen (line 130) |
+| `apps/api/src/worker.ts` | Payment provider env validation at worker startup | VERIFIED | Imports validatePaymentProviderEnv from @baseworks/config (line 1), calls it at line 15 before createWorker (line 35) |
 | `packages/db/migrations/0001_rename_stripe_to_provider.sql` | Column rename migration | VERIFIED | 6 ALTER TABLE RENAME COLUMN statements |
 | `packages/modules/billing/src/__tests__/provider-factory.test.ts` | Provider factory tests | VERIFIED | 6 real tests (not todos) covering stripe, pagarme, unknown, singleton, reset |
 | `packages/modules/billing/src/__tests__/webhook-normalization.test.ts` | Webhook normalization tests | VERIFIED | 9 Stripe tests + 5 Pagar.me tests, all real (not todos) |
@@ -70,7 +73,8 @@ gaps:
 | `routes.ts` | `provider-factory.ts` | provider.verifyWebhookSignature | VERIFIED | `getPaymentProvider`, `verifyWebhookSignature`, `normalizeEvent` all found in routes.ts |
 | `jobs/process-webhook.ts` | `ports/types.ts` | NormalizedEvent type | VERIFIED | `import type { NormalizedEvent } from "../ports/types"` at line 8 |
 | `provider-factory.ts` | `adapters/pagarme/pagarme-adapter.ts` | dynamic import based on env | VERIFIED | `PagarmeAdapter` imported and used in switch case "pagarme" |
-| `config/src/env.ts` | `provider-factory.ts` | PAYMENT_PROVIDER env var | PARTIAL | PAYMENT_PROVIDER defined in env.ts and read by provider-factory.ts, but validatePaymentProviderEnv() not called at startup |
+| `apps/api/src/index.ts` | `packages/config/src/env.ts` | import validatePaymentProviderEnv | VERIFIED | Import on line 1, call on line 22 — gap from prior verification now closed |
+| `apps/api/src/worker.ts` | `packages/config/src/env.ts` | import validatePaymentProviderEnv | VERIFIED | Import on line 1, call on line 15 — gap from prior verification now closed |
 | `payment-provider.ts` | `ports/types.ts` | import types | VERIFIED | `import type {...} from "./types"` present |
 | `on-tenant-created.ts` | `provider-factory.ts` | getPaymentProvider | VERIFIED | `getPaymentProvider` found in hook |
 
@@ -82,11 +86,12 @@ Not applicable — this phase produces interfaces, adapters, and infrastructure 
 
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| PaymentProvider interface exports all required types | `grep "createCustomer\|createSubscription\|cancelSubscription\|changeSubscription\|getSubscription\|createOneTimePayment\|createCheckoutSession\|createPortalSession\|verifyWebhookSignature" ports/payment-provider.ts` | 9 method matches | PASS |
-| DB schema has zero Stripe-specific column names | `grep -r "stripeCustomerId\|stripeEventId\|syncedToStripe" packages/` | 0 matches | PASS |
-| stripe.ts singleton deleted | `ls packages/modules/billing/src/stripe.ts` | File not found | PASS |
-| PagarmeAdapter has 80+ lines (substantive) | File line count | 313 lines | PASS |
-| validatePaymentProviderEnv is called at startup | `grep -r "validatePaymentProviderEnv" apps/ packages/` excluding definition | 0 call sites found | FAIL |
+| PaymentProvider interface exports all required types | grep on payment-provider.ts | 9+ method matches | PASS |
+| DB schema has zero Stripe-specific column names | grep for stripeCustomerId/stripeEventId/syncedToStripe in packages/ | 0 matches | PASS |
+| stripe.ts singleton deleted | file existence check | File not found | PASS |
+| PagarmeAdapter has 80+ lines (substantive) | file line count | 313 lines | PASS |
+| validatePaymentProviderEnv called before startup in index.ts | grep line 22, app.listen line 130 | Call precedes listen | PASS |
+| validatePaymentProviderEnv called before startup in worker.ts | grep line 15, createWorker line 35 | Call precedes workers | PASS |
 
 ### Requirements Coverage
 
@@ -96,14 +101,13 @@ Not applicable — this phase produces interfaces, adapters, and infrastructure 
 | PAY-02 | 10-02-PLAN.md | Existing Stripe code refactored into StripeAdapter implementing PaymentProvider interface | SATISFIED | StripeAdapter exists with 12 methods; zero direct Stripe imports outside adapters/; stripe.ts deleted |
 | PAY-03 | 10-02-PLAN.md | Webhook normalization layer translates provider-specific events into unified domain events | SATISFIED | mapStripeEvent normalizes 6 events; mapPagarmeEvent normalizes 5 events; routes.ts pipeline: verify -> normalize -> enqueue NormalizedEvent; process-webhook.ts switches on NormalizedEventType |
 | PAY-04 | 10-03-PLAN.md | Brazilian payment provider adapter implementing PaymentProvider interface | SATISFIED | PagarmeAdapter implements PaymentProvider via raw fetch to Pagar.me REST API v5; 19 tests pass |
-| PAY-05 | 10-03-PLAN.md | Active payment provider selected via environment configuration at startup -- no code changes | PARTIAL | Factory selection works (env.PAYMENT_PROVIDER switch); but validatePaymentProviderEnv() is not called at startup, so the startup guard against misconfiguration is inert |
+| PAY-05 | 10-03-PLAN.md + 10-04-PLAN.md | Active payment provider selected via environment configuration at startup — no code changes | SATISFIED | Factory selection works (env.PAYMENT_PROVIDER switch); validatePaymentProviderEnv() now called at startup in both entrypoints, enforcing conditional key requirements before app accepts traffic |
 
 ### Anti-Patterns Found
 
 | File | Line | Pattern | Severity | Impact |
 |------|------|---------|----------|--------|
-| `packages/config/src/env.ts` | 49 | `validatePaymentProviderEnv()` exported but never called | Warning | App can start with PAYMENT_PROVIDER=pagarme and no PAGARME_SECRET_KEY; first billing call will throw a runtime error instead of a startup error |
-| `packages/modules/billing/src/adapters/pagarme/pagarme-adapter.ts` | 102-114 | cancelSubscription with cancelAtPeriodEnd=true still does immediate cancel (both branches are identical) | Info | Behavioral difference from Stripe documented in comments, not a blocking issue |
+| `packages/modules/billing/src/adapters/pagarme/pagarme-adapter.ts` | 102-114 | cancelSubscription with cancelAtPeriodEnd=true still does immediate cancel (both branches are identical) | Info | Behavioral difference from Stripe documented in comments, not blocking |
 
 ### Human Verification Required
 
@@ -111,20 +115,18 @@ None — all verification was achievable programmatically.
 
 ### Gaps Summary
 
-One gap blocks complete goal achievement:
+No gaps remaining. The single gap from the initial verification has been closed:
 
-**validatePaymentProviderEnv() is defined but never called at startup.** The function correctly implements the startup guard (PAGARME_SECRET_KEY required when PAYMENT_PROVIDER=pagarme), but it is exported from `packages/config/src/env.ts` without ever being invoked. The main API entrypoint (`apps/api/src/index.ts`) and worker entrypoint do not call it. As a result, the protection against T-10-09 (app starting with missing provider keys) is dead code — the app can start cleanly with a misconfigured payment provider and crash on the first billing operation.
+- **Gap closed:** `validatePaymentProviderEnv()` was defined but never called at startup. Plan 04 (commit 85def56) wired the call into `apps/api/src/index.ts` (line 22, before `app.listen`) and `apps/api/src/worker.ts` (line 15, before `createWorker`). The app will now throw at startup if `PAYMENT_PROVIDER=pagarme` without `PAGARME_SECRET_KEY`, completing the T-10-09 threat mitigation.
 
-**Fix:** Add `validatePaymentProviderEnv()` call to `apps/api/src/index.ts` at startup (before `app.listen()`), and to `apps/api/src/worker.ts` if the worker boots independently.
-
-All other phase goals are fully achieved:
-- PaymentProvider port interface is complete and covers all 9 PAY-01 methods plus extras
-- Stripe code is fully extracted into StripeAdapter; zero direct SDK imports remain outside adapters/
-- Webhook normalization pipeline works end-to-end for both providers
-- PagarmeAdapter implements the full interface via raw REST API calls
-- Provider factory correctly selects adapters based on PAYMENT_PROVIDER env var
+All phase goals are fully achieved:
+- PaymentProvider port interface is complete covering all 9 PAY-01 methods plus normalizeEvent, getInvoices, and optional reportUsage
+- Stripe code is fully extracted into StripeAdapter with zero direct SDK imports outside adapters/
+- Webhook normalization pipeline works end-to-end for both providers (6 Stripe event types, 5 Pagar.me event types)
+- PagarmeAdapter implements the full interface via raw REST API calls with HMAC-SHA256 webhook verification
+- Provider factory correctly selects adapters based on PAYMENT_PROVIDER env var with startup guard enforced
 
 ---
 
-_Verified: 2026-04-11T17:30:00Z_
+_Verified: 2026-04-11T18:30:00Z_
 _Verifier: Claude (gsd-verifier)_

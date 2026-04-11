@@ -26,7 +26,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 - [x] **Phase 7: Accessibility** - Keyboard navigation, screen reader support, semantic HTML, and automated a11y testing across both apps
 - [x] **Phase 8: Internationalization** - Shared i18n package with pt-BR and en translations wired into both frontends
 - [ ] **Phase 9: Team Invites** - Invite-by-email, invite links, role assignment, accept/decline flow with translated UI
-- [ ] **Phase 10: Payment Abstraction** - Port/adapter interface, Stripe adapter extraction, Brazilian provider adapter, webhook normalization
+- [x] **Phase 10: Payment Abstraction** - Port/adapter interface, Stripe adapter extraction, Brazilian provider adapter, webhook normalization (completed 2026-04-11)
 
 ## Phase Details
 
@@ -111,11 +111,11 @@ Plans:
   3. Webhook events from any provider are normalized into unified domain events (subscription.created, payment.succeeded, etc.) before processing
   4. A Brazilian payment provider adapter implements the PaymentProvider interface with support for its native payment methods
   5. Switching the active payment provider requires only changing an environment variable at startup -- no code changes
-**Plans:** 3 plans
+**Plans:** 4/4 plans complete
 Plans:
-- [ ] 10-01-PLAN.md — PaymentProvider port interface, DB schema column renames, test scaffolds
-- [ ] 10-02-PLAN.md — StripeAdapter extraction, billing module refactoring, webhook normalization
-- [ ] 10-03-PLAN.md — PagarmeAdapter, provider factory env-based selection, conditional env validation
+- [x] 10-01-PLAN.md — PaymentProvider port interface, DB schema column renames, test scaffolds
+- [x] 10-02-PLAN.md — StripeAdapter extraction, billing module refactoring, webhook normalization
+- [x] 10-03-PLAN.md — PagarmeAdapter, provider factory env-based selection, conditional env validation
 
 ## Progress
 
@@ -133,4 +133,4 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10
 | 7. Accessibility | v1.1 | 3/4 | Executing | - |
 | 8. Internationalization | v1.1 | 0/0 | Not started | - |
 | 9. Team Invites | v1.1 | 0/5 | Planned | - |
-| 10. Payment Abstraction | v1.1 | 0/3 | Planned | - |
+| 10. Payment Abstraction | v1.1 | 4/4 | Complete    | 2026-04-11 |
