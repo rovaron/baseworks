@@ -372,22 +372,19 @@ export const createCheckoutSession = defineCommand(
 | A4 | Pagar.me is the best choice for the Brazilian adapter | Standard Stack | User may prefer a different provider -- needs confirmation |
 | A5 | Mercado Pago is more marketplace-oriented than gateway-oriented | Alternatives | May be equally suitable, different trade-offs |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Which Brazilian payment provider to use?**
    - What we know: Pagar.me has the most mature SDK (v5.8.1, official, TypeScript). Asaas has unofficial SDK (v0.1.0). AbacatePay is Pix-only.
-   - What's unclear: User may have a preference or business relationship with a specific provider.
-   - Recommendation: Default to Pagar.me unless user specifies otherwise.
+   - RESOLVED: Pagar.me selected — best SDK maturity, official TypeScript support, covers all required payment methods (Pix, boleto, credit card).
 
 2. **Should portal session throw or return null for unsupported providers?**
    - What we know: Requirements note portal sessions are out of scope for the payment interface. But the existing code has a `createPortalSession` command.
-   - What's unclear: Whether to keep it in the interface as optional or remove from non-Stripe adapters.
-   - Recommendation: Keep in interface, return `null` for unsupported providers. The frontend conditionally shows the portal button.
+   - RESOLVED: Keep in interface, return `null` for unsupported providers. Frontend conditionally shows the portal button based on provider capability.
 
 3. **Should usage-based billing be in the PaymentProvider interface?**
    - What we know: Usage recording is local (DB insert), but sync-usage job pushes to Stripe. This is explicitly out of scope per REQUIREMENTS.md.
-   - What's unclear: Whether to abstract the sync or leave it Stripe-specific.
-   - Recommendation: Mark `reportUsage` as optional method. StripeAdapter implements it; others skip.
+   - RESOLVED: Mark `reportUsage` as optional method (`reportUsage?`). StripeAdapter implements it; others skip.
 
 ## Validation Architecture
 

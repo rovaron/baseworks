@@ -50,9 +50,8 @@ created: 2026-04-11
 
 ## Wave 0 Requirements
 
-- [ ] `packages/modules/billing/src/__tests__/payment-provider.test.ts` — stubs for PAY-01
-- [ ] `packages/modules/billing/src/__tests__/stripe-adapter.test.ts` — stubs for PAY-02
-- [ ] `packages/modules/billing/src/__tests__/webhook-normalizer.test.ts` — stubs for PAY-03
+- [ ] `packages/modules/billing/src/__tests__/provider-factory.test.ts` — stubs for PAY-01, PAY-05
+- [ ] `packages/modules/billing/src/__tests__/webhook-normalization.test.ts` — stubs for PAY-03
 - [ ] `packages/modules/billing/src/__tests__/pagarme-adapter.test.ts` — stubs for PAY-04
 
 ---
