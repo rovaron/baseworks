@@ -79,7 +79,11 @@ export function InviteDialog({ orgId, orgName }: InviteDialogProps) {
         handleClose();
       } else {
         // Link mode: show the generated URL
-        const invitationId = data?.data?.id ?? data?.id;
+        const invitationId = (data as any)?.data?.id;
+        if (!invitationId) {
+          toast.error(tc("error"));
+          return;
+        }
         const url = `${window.location.origin}/invite/${invitationId}`;
         setGeneratedUrl(url);
         toast.success(t("toast.linkGenerated"));
