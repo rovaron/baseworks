@@ -41,6 +41,7 @@ export function PendingInvitations() {
   const tc = useTranslations("common");
   const queryClient = useQueryClient();
   const [cancelTarget, setCancelTarget] = useState<{ id: string; email: string } | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
 
   const invitationsQuery = useQuery({
     queryKey: ["invitations"],
@@ -68,6 +69,7 @@ export function PendingInvitations() {
 
   const resendMutation = useMutation({
     mutationFn: async (invitationId: string) => {
+      setResendingId(invitationId);
       const { error } = await (api.api.invitations as any)[invitationId].resend.post();
       if (error) throw error;
     },
@@ -82,6 +84,7 @@ export function PendingInvitations() {
     onError: () => {
       toast.error(tc("error"));
     },
+    onSettled: () => setResendingId(null),
   });
 
   if (invitationsQuery.isPending) {
@@ -161,9 +164,9 @@ export function PendingInvitations() {
                             size="sm"
                             className="h-8 w-8 p-0"
                             onClick={() => resendMutation.mutate(invitation.id)}
-                            disabled={resendMutation.isPending}
+                            disabled={resendingId === invitation.id}
                           >
-                            {resendMutation.isPending ? (
+                            {resendingId === invitation.id ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
                               <Mail className="h-4 w-4" />
