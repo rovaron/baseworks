@@ -94,11 +94,11 @@ Plans:
   5. Org admin can view all pending invitations and cancel or resend any invitation from a management page
 **Plans:** 5 plans
 Plans:
-- [ ] 09-00-PLAN.md — Wave 0: Test scaffold for invitation lifecycle (invitation.test.ts with failing stubs)
-- [ ] 09-01-PLAN.md — Backend invitation infrastructure: sendInvitationEmail callback with @internal email suppression, email template, i18n translations, Switch component
-- [ ] 09-02-PLAN.md — CQRS commands/queries and API routes for invitation lifecycle with email/link mode support
-- [ ] 09-03-PLAN.md — Settings page with Team tab: members list, pending invitations, invite dialog
-- [ ] 09-04-PLAN.md — Invite accept page with 5 user states, login/signup redirect wiring, and signup auto-accept per D-08
+- [x] 09-00-PLAN.md — Wave 0: Test scaffold for invitation lifecycle (invitation.test.ts with failing stubs)
+- [x] 09-01-PLAN.md — Backend invitation infrastructure: sendInvitationEmail callback with @internal email suppression, email template, i18n translations, Switch component
+- [x] 09-02-PLAN.md — CQRS commands/queries and API routes for invitation lifecycle with email/link mode support
+- [x] 09-03-PLAN.md — Settings page with Team tab: members list, pending invitations, invite dialog
+- [x] 09-04-PLAN.md — Invite accept page with 5 user states, login/signup redirect wiring, and signup auto-accept per D-08
 **UI hint**: yes
 
 ### Phase 10: Payment Abstraction
