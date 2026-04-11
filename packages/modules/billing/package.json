@@ -9,6 +9,7 @@
     "@baseworks/config": "workspace:*",
     "@baseworks/db": "workspace:*",
     "@baseworks/shared": "workspace:*",
+    "@pagarme/sdk": "5.8.1",
     "@react-email/components": "1.0.11",
     "@sinclair/typebox": "0.34.49",
     "bullmq": "^5.0.0",

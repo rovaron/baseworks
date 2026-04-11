@@ -150,10 +150,85 @@ describe("Webhook Normalization", () => {
   });
 
   describe("Pagar.me", () => {
-    test.todo("maps subscription.created to subscription.created");
-    test.todo("maps subscription.canceled to subscription.cancelled");
-    test.todo("maps charge.paid to payment.succeeded");
-    test.todo("maps charge.payment_failed to payment.failed");
-    test.todo("maps order.paid to checkout.completed");
+    const { mapPagarmeEvent } = require("../adapters/pagarme/pagarme-webhook-mapper");
+
+    function makePagarmeEvent(
+      type: string,
+      data: Record<string, unknown> = {},
+    ): RawProviderEvent {
+      return {
+        id: `hook_test_${type.replace(/\./g, "_")}`,
+        type,
+        data,
+      };
+    }
+
+    test("maps subscription.created to subscription.created", () => {
+      const raw = makePagarmeEvent("subscription.created", {
+        id: "sub_123",
+        customer: { id: "cus_456" },
+        plan: { id: "plan_789" },
+        status: "active",
+      });
+      const normalized = mapPagarmeEvent(raw);
+
+      expect(normalized.type).toBe("subscription.created");
+      expect(normalized.providerCustomerId).toBe("cus_456");
+      expect(normalized.data.subscriptionId).toBe("sub_123");
+      expect(normalized.data.priceId).toBe("plan_789");
+    });
+
+    test("maps subscription.canceled to subscription.cancelled", () => {
+      const raw = makePagarmeEvent("subscription.canceled", {
+        id: "sub_123",
+        customer: { id: "cus_456" },
+        status: "canceled",
+      });
+      const normalized = mapPagarmeEvent(raw);
+
+      expect(normalized.type).toBe("subscription.cancelled");
+      expect(normalized.data.status).toBe("canceled");
+    });
+
+    test("maps charge.paid to payment.succeeded", () => {
+      const raw = makePagarmeEvent("charge.paid", {
+        id: "ch_123",
+        customer: { id: "cus_456" },
+        amount: 5000,
+        currency: "BRL",
+        status: "paid",
+      });
+      const normalized = mapPagarmeEvent(raw);
+
+      expect(normalized.type).toBe("payment.succeeded");
+      expect(normalized.data.amount).toBe(5000);
+      expect(normalized.data.currency).toBe("BRL");
+    });
+
+    test("maps charge.payment_failed to payment.failed", () => {
+      const raw = makePagarmeEvent("charge.payment_failed", {
+        id: "ch_456",
+        customer: { id: "cus_789" },
+        amount: 3000,
+        status: "failed",
+      });
+      const normalized = mapPagarmeEvent(raw);
+
+      expect(normalized.type).toBe("payment.failed");
+      expect(normalized.providerCustomerId).toBe("cus_789");
+    });
+
+    test("maps order.paid to checkout.completed", () => {
+      const raw = makePagarmeEvent("order.paid", {
+        id: "ord_123",
+        customer: { id: "cus_456" },
+        amount: 10000,
+        status: "paid",
+      });
+      const normalized = mapPagarmeEvent(raw);
+
+      expect(normalized.type).toBe("checkout.completed");
+      expect(normalized.data.amount).toBe(10000);
+    });
   });
 });
