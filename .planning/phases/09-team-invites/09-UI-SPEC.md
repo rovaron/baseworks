@@ -48,7 +48,7 @@ Exceptions: none
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
 | Body | 14px (text-sm) | 400 (normal) | 1.43 |
-| Label | 14px (text-sm) | 500 (medium) | 1.43 |
+| Label | 14px (text-sm) | 400 (normal) | 1.43 |
 | Heading | 20px (text-xl) | 600 (semibold) | 1.4 |
 | Display | 24px (text-2xl) | 600 (semibold) | 1.33 |
 
@@ -56,8 +56,8 @@ Exceptions: none
 - Page title ("Settings"): 24px semibold, matches billing page `h1` pattern
 - Section subheadings ("Members", "Pending Invitations"): 20px semibold as `h2`
 - Invite accept page org name: 24px semibold, centered
-- Invite accept page role badge: 14px, uses Badge component
-- Member/invitation list items: 14px body for name/email, 12px (text-xs) muted for metadata
+- Invite accept page role badge: 14px normal, uses Badge component
+- Member/invitation list items: 14px normal for name/email, 12px (text-xs) muted for metadata
 
 ---
 
@@ -68,9 +68,19 @@ Exceptions: none
 | Dominant (60%) | hsl(0 0% 100%) `--background` | Page background, dialog background, invite accept page |
 | Secondary (30%) | hsl(0 0% 96.1%) `--secondary` | Card surfaces, member list rows hover, muted text areas |
 | Accent (10%) | hsl(0 0% 9%) `--primary` | "Send Invite" button, "Accept" button on invite page, "Generate Link" button |
-| Destructive | hsl(0 84.2% 60.2%) `--destructive` | "Cancel Invitation" button, "Decline" button on invite page |
+| Destructive | hsl(0 84.2% 60.2%) `--destructive` | "Cancel Invitation" button, "Decline Invitation" button on invite page |
 
 Accent reserved for: "Send Invite" primary CTA in dialog, "Accept Invitation" button on invite accept page, "Generate Link" primary CTA in dialog (link mode), "Invite Team Member" button on settings page.
+
+---
+
+## Focal Points
+
+| Page | Primary Focal Point |
+|------|---------------------|
+| Settings — Team tab | The "Invite Team Member" button in the members section header (top-right of the Members section). It is the only accent-colored element above the fold and the entry point to the entire invite flow. |
+| Invite accept page | The org name (24px semibold, centered) inside the accept card, immediately followed by the Accept Invitation button as the primary action. |
+| Invite dialog | The email input field (email mode) or the generated link input (post-submit link mode). |
 
 ---
 
@@ -232,7 +242,7 @@ All components except Switch are already in the project. Switch needs `npx shadc
 ```
 
 **States:**
-1. **Logged in:** Show Accept + Decline buttons. On accept, call `acceptInvitation()` then `setActive()` then redirect to `/dashboard`.
+1. **Logged in:** Show Accept + Decline Invitation buttons. On accept, call `acceptInvitation()` then `setActive()` then redirect to `/dashboard`.
 2. **Not logged in, has account:** Show "Log in to accept" button. Redirects to `/login?invite=[token]`. After login, auto-redirects back to `/invite/[token]`.
 3. **No account:** Show "Create account to join" button. Redirects to `/signup?invite=[token]&email=[invitedEmail]`. After signup, auto-redirects back to `/invite/[token]`.
 4. **Invalid/expired/already accepted token:** Show error card with message and link to home.
@@ -257,7 +267,7 @@ All components except Switch are already in the project. Switch needs `npx shadc
 | Email | Invited email address | Always visible |
 | Role | Badge: Admin (secondary), Member (default) | Always visible |
 | Type | "Email" or "Link" indicator (text-xs muted) | Hidden on mobile |
-| Actions | "Resend" (email type only) + "Cancel" buttons | Icon buttons with tooltips |
+| Actions | "Resend Invite" (email type only) + "Cancel Invitation" buttons | Icon buttons with tooltips |
 
 ---
 
@@ -291,14 +301,14 @@ All components except Switch are already in the project. Switch needs `npx shadc
 | Cancel confirmation title | "Cancel this invitation?" | "Cancelar este convite?" |
 | Cancel confirmation body | "This will revoke the invitation. The recipient will no longer be able to join using this invite." | "Isso revogara o convite. O destinatario nao podera mais ingressar usando este convite." |
 | Cancel confirm button | "Yes, Cancel Invitation" | "Sim, Cancelar Convite" |
-| Resend button | "Resend" | "Reenviar" |
+| Resend button | "Resend Invite" | "Reenviar Convite" |
 | Empty state heading (members) | N/A (always has at least the owner) | N/A |
 | Empty state heading (pending) | "No pending invitations" | "Nenhum convite pendente" |
 | Empty state body (pending) | "Invite team members to collaborate in your organization." | "Convide membros da equipe para colaborar na sua organizacao." |
 | Accept page: invited by | "{name} invited you to join {orgName}" | "{name} convidou voce para {orgName}" |
 | Accept page: role assigned | "You'll join as" | "Voce entrara como" |
 | Accept button | "Accept Invitation" | "Aceitar Convite" |
-| Decline button | "Decline" | "Recusar" |
+| Decline button | "Decline Invitation" | "Recusar Convite" |
 | Login to accept button | "Log in to Accept" | "Entrar para Aceitar" |
 | Create account button | "Create Account to Join" | "Criar Conta para Participar" |
 | Error: invalid invite | "This invitation is no longer valid" | "Este convite nao e mais valido" |
@@ -306,7 +316,7 @@ All components except Switch are already in the project. Switch needs `npx shadc
 | Error: already member | "You're already a member of this organization." | "Voce ja e membro desta organizacao." |
 | Decline confirmation title | "Decline this invitation?" | "Recusar este convite?" |
 | Decline confirmation body | "You can ask for a new invitation later if you change your mind." | "Voce pode pedir um novo convite depois se mudar de ideia." |
-| Decline confirm button | "Yes, Decline" | "Sim, Recusar" |
+| Decline confirm button | "Yes, Decline Invitation" | "Sim, Recusar Convite" |
 
 **i18n namespace:** `invite` (new namespace in `packages/i18n`). Shared labels like "Cancel" reuse `common` namespace.
 
@@ -330,12 +340,12 @@ All components except Switch are already in the project. Switch needs `npx shadc
 | State | What User Sees | Primary Action |
 |-------|---------------|----------------|
 | Loading | Skeleton card (avatar + 3 text lines + 2 button skeletons) | Wait |
-| Logged in | Org card with Accept + Decline | Accept or Decline |
+| Logged in | Org card with Accept Invitation + Decline Invitation | Accept or Decline |
 | Not logged in (has account) | Org card with "Log in to Accept" | Redirect to `/login?invite=[token]` |
 | No account | Org card with "Create Account to Join" | Redirect to `/signup?invite=[token]&email=[email]` |
 | Invalid token | Error card with message + "Go to Home" link | Navigate away |
 | Already member | Info card with "You're already a member" + "Go to Dashboard" | Navigate to dashboard |
-| Processing accept | Accept button shows Loader2 spinner, Decline disabled | Wait |
+| Processing accept | Accept button shows Loader2 spinner, Decline Invitation disabled | Wait |
 | Accept success | Redirect to `/dashboard` with org auto-selected | Automatic |
 | Decline success | Card shows "Invitation declined" + "Go to Home" link | Navigate away |
 
@@ -347,7 +357,7 @@ All components except Switch are already in the project. Switch needs `npx shadc
 | 2 | Click "Yes, Cancel Invitation" | API call, dialog closes, row removed from list, toast confirms |
 | 3 | Click "Cancel" in dialog | Dialog closes, no action |
 
-### Resend Invitation
+### Resend Invite
 
 | Step | Action | Result |
 |------|--------|--------|
@@ -391,7 +401,7 @@ All components except Switch are already in the project. Switch needs `npx shadc
 - Role selector: keyboard navigable via Select component (Radix)
 - Members table: semantic `<table>` with proper `<th>` headers and `scope="col"`
 - Pending invitations table: same semantic table pattern
-- Cancel/Decline confirmations: Dialog with `role="alertdialog"` and auto-focus on cancel (safe) button
+- Cancel/Decline Invitation confirmations: Dialog with `role="alertdialog"` and auto-focus on cancel (safe) button
 - Toast announcements: handled by Sonner (already configured with aria-live)
 - Invite accept page: single `h1` for org name, clear button labels for all three states
 - Copy link: `aria-live="polite"` region for "Copied!" feedback
