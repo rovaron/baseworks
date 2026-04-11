@@ -23,8 +23,8 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 ### v1.1 Polish & Extensibility
 
 - [ ] **Phase 6: Responsive Layouts** - Fix sidebar overlay and make both frontends fully responsive across mobile, tablet, and desktop
-- [ ] **Phase 7: Accessibility** - Keyboard navigation, screen reader support, semantic HTML, and automated a11y testing across both apps
-- [ ] **Phase 8: Internationalization** - Shared i18n package with pt-BR and en translations wired into both frontends
+- [x] **Phase 7: Accessibility** - Keyboard navigation, screen reader support, semantic HTML, and automated a11y testing across both apps
+- [x] **Phase 8: Internationalization** - Shared i18n package with pt-BR and en translations wired into both frontends
 - [ ] **Phase 9: Team Invites** - Invite-by-email, invite links, role assignment, accept/decline flow with translated UI
 - [ ] **Phase 10: Payment Abstraction** - Port/adapter interface, Stripe adapter extraction, Brazilian provider adapter, webhook normalization
 
@@ -62,7 +62,7 @@ Plans:
 - [x] 07-01-PLAN.md — Semantic landmarks, skip-to-content links, and route change focus management
 - [x] 07-02-PLAN.md — aria-live regions, FormMessage role="alert", and keyboard focus audit
 - [x] 07-03-PLAN.md — vitest-axe automated accessibility tests for shared UI components
-- [ ] 07-04-PLAN.md — Gap closure: h1 heading hierarchy on auth pages
+- [x] 07-04-PLAN.md — Gap closure: h1 heading hierarchy on auth pages
 **UI hint**: yes
 
 ### Phase 8: Internationalization
@@ -76,9 +76,10 @@ Plans:
   4. Developer can add a new language by creating JSON files in packages/i18n without modifying application code
 **Plans**: 3 plans
 Plans:
-- [ ] 08-01-PLAN.md — i18n infrastructure: packages/i18n with en/pt-BR translations, next-intl + react-i18next providers
-- [ ] 08-02-PLAN.md — Customer app string replacement with next-intl
-- [ ] 08-03-PLAN.md — Admin dashboard string replacement with react-i18next
+- [x] 08-01-PLAN.md — i18n infrastructure: packages/i18n with en/pt-BR translations, next-intl + react-i18next providers
+- [x] 08-02-PLAN.md — Customer app string replacement with next-intl
+- [x] 08-03-PLAN.md — Admin dashboard string replacement with react-i18next
+
 **UI hint**: yes
 
 ### Phase 9: Team Invites
@@ -91,7 +92,12 @@ Plans:
   3. Org admin can generate a shareable invite link with a pre-assigned role that anyone with the link can use to join
   4. Invited user (existing or new account) can accept an invite and immediately land in the organization with the correct role
   5. Org admin can view all pending invitations and cancel or resend any invitation from a management page
-**Plans**: TBD
+**Plans:** 4 plans
+Plans:
+- [ ] 09-01-PLAN.md — Backend invitation infrastructure: sendInvitationEmail callback, email template, i18n translations, Switch component
+- [ ] 09-02-PLAN.md — CQRS commands/queries and API routes for invitation lifecycle
+- [ ] 09-03-PLAN.md — Settings page with Team tab: members list, pending invitations, invite dialog
+- [ ] 09-04-PLAN.md — Invite accept page with 3 user states and login/signup redirect wiring
 **UI hint**: yes
 
 ### Phase 10: Payment Abstraction
@@ -121,5 +127,5 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10
 | 6. Responsive Layouts | v1.1 | 0/3 | Planned | - |
 | 7. Accessibility | v1.1 | 3/4 | Executing | - |
 | 8. Internationalization | v1.1 | 0/0 | Not started | - |
-| 9. Team Invites | v1.1 | 0/0 | Not started | - |
+| 9. Team Invites | v1.1 | 0/4 | Planned | - |
 | 10. Payment Abstraction | v1.1 | 0/0 | Not started | - |
