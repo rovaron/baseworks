@@ -1,0 +1,80 @@
+{
+  "settings": {
+    "title": "Settings",
+    "tabs": {
+      "team": "Team"
+    }
+  },
+  "members": {
+    "title": "Members",
+    "removeMember": "Remove member",
+    "removeConfirmTitle": "Remove this member?",
+    "removeConfirmBody": "This member will lose access to the organization.",
+    "removeConfirmButton": "Yes, Remove Member",
+    "removed": "Member removed"
+  },
+  "pending": {
+    "title": "Pending Invitations",
+    "empty": "No pending invitations",
+    "emptyDescription": "Invite team members to collaborate in your organization.",
+    "cancelled": "Invitation cancelled",
+    "resent": "Invitation resent to {email}",
+    "typeEmail": "Email",
+    "typeLink": "Link"
+  },
+  "dialog": {
+    "title": "Invite to {orgName}",
+    "description": "Send an email invite or generate a shareable link.",
+    "modeLabel": "Invitation type",
+    "emailMode": "Email",
+    "linkMode": "Link",
+    "emailLabel": "Email address",
+    "emailPlaceholder": "colleague@example.com",
+    "roleLabel": "Role",
+    "validation": {
+      "emailRequired": "Email address is required",
+      "emailInvalid": "Please enter a valid email address"
+    }
+  },
+  "roles": {
+    "owner": "Owner",
+    "admin": "Admin",
+    "member": "Member"
+  },
+  "actions": {
+    "inviteMember": "Invite Team Member",
+    "sendInvite": "Send Invite",
+    "generateLink": "Generate Link",
+    "copyLink": "Copy Link",
+    "linkCopied": "Copied!",
+    "accept": "Accept Invitation",
+    "decline": "Decline Invitation",
+    "loginToAccept": "Log in to Accept",
+    "createAccountToJoin": "Create Account to Join",
+    "cancelInvitation": "Cancel Invitation",
+    "resendInvite": "Resend Invite"
+  },
+  "toast": {
+    "inviteSent": "Invitation sent to {email}",
+    "linkCopied": "Invite link copied to clipboard",
+    "linkGenerated": "Invite link generated"
+  },
+  "accept": {
+    "invitedBy": "{name} invited you to join {orgName}",
+    "roleAssigned": "You'll join as",
+    "invalidTitle": "This invitation is no longer valid",
+    "invalidBody": "It may have been cancelled or already used. Contact the person who invited you for a new link.",
+    "alreadyMember": "You're already a member of this organization.",
+    "goHome": "Go to Home",
+    "goToDashboard": "Go to Dashboard",
+    "declineConfirmTitle": "Decline this invitation?",
+    "declineConfirmBody": "You can ask for a new invitation later if you change your mind.",
+    "declineConfirmButton": "Yes, Decline Invitation",
+    "declined": "Invitation declined"
+  },
+  "cancel": {
+    "confirmTitle": "Cancel this invitation?",
+    "confirmBody": "This will revoke the invitation. The recipient will no longer be able to join using this invite.",
+    "confirmButton": "Yes, Cancel Invitation"
+  }
+}

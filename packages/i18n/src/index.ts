@@ -2,7 +2,7 @@ export const defaultLocale = "en" as const;
 export const locales = ["en", "pt-BR"] as const;
 export type Locale = (typeof locales)[number];
 
-export const namespaces = ["common", "auth", "dashboard", "billing", "admin"] as const;
+export const namespaces = ["common", "auth", "dashboard", "billing", "admin", "invite"] as const;
 export type Namespace = (typeof namespaces)[number];
 
 // Re-export all English translations (used as type source and fallback)
@@ -11,6 +11,7 @@ export { default as enAuth } from "./locales/en/auth.json";
 export { default as enDashboard } from "./locales/en/dashboard.json";
 export { default as enBilling } from "./locales/en/billing.json";
 export { default as enAdmin } from "./locales/en/admin.json";
+export { default as enInvite } from "./locales/en/invite.json";
 
 // Re-export all Portuguese translations
 export { default as ptBRCommon } from "./locales/pt-BR/common.json";
@@ -18,6 +19,7 @@ export { default as ptBRAuth } from "./locales/pt-BR/auth.json";
 export { default as ptBRDashboard } from "./locales/pt-BR/dashboard.json";
 export { default as ptBRBilling } from "./locales/pt-BR/billing.json";
 export { default as ptBRAdmin } from "./locales/pt-BR/admin.json";
+export { default as ptBRInvite } from "./locales/pt-BR/invite.json";
 
 /**
  * Load all messages for a given locale, merged by namespace.

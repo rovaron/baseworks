@@ -14,6 +14,7 @@ export * from "./components/sheet";
 export * from "./components/sidebar";
 export * from "./components/skeleton";
 export * from "./components/sonner";
+export * from "./components/switch";
 export * from "./components/table";
 export * from "./components/data-table-cards";
 export * from "./components/tabs";

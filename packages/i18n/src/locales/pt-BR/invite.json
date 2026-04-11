@@ -1,0 +1,80 @@
+{
+  "settings": {
+    "title": "Configuracoes",
+    "tabs": {
+      "team": "Equipe"
+    }
+  },
+  "members": {
+    "title": "Membros",
+    "removeMember": "Remover membro",
+    "removeConfirmTitle": "Remover este membro?",
+    "removeConfirmBody": "Este membro perdera acesso a organizacao.",
+    "removeConfirmButton": "Sim, Remover Membro",
+    "removed": "Membro removido"
+  },
+  "pending": {
+    "title": "Convites Pendentes",
+    "empty": "Nenhum convite pendente",
+    "emptyDescription": "Convide membros da equipe para colaborar na sua organizacao.",
+    "cancelled": "Convite cancelado",
+    "resent": "Convite reenviado para {email}",
+    "typeEmail": "Email",
+    "typeLink": "Link"
+  },
+  "dialog": {
+    "title": "Convidar para {orgName}",
+    "description": "Envie um convite por email ou gere um link compartilhavel.",
+    "modeLabel": "Tipo de convite",
+    "emailMode": "Email",
+    "linkMode": "Link",
+    "emailLabel": "Endereco de email",
+    "emailPlaceholder": "colega@exemplo.com",
+    "roleLabel": "Funcao",
+    "validation": {
+      "emailRequired": "Endereco de email e obrigatorio",
+      "emailInvalid": "Por favor, insira um endereco de email valido"
+    }
+  },
+  "roles": {
+    "owner": "Proprietario",
+    "admin": "Admin",
+    "member": "Membro"
+  },
+  "actions": {
+    "inviteMember": "Convidar Membro",
+    "sendInvite": "Enviar Convite",
+    "generateLink": "Gerar Link",
+    "copyLink": "Copiar Link",
+    "linkCopied": "Copiado!",
+    "accept": "Aceitar Convite",
+    "decline": "Recusar Convite",
+    "loginToAccept": "Entrar para Aceitar",
+    "createAccountToJoin": "Criar Conta para Participar",
+    "cancelInvitation": "Cancelar Convite",
+    "resendInvite": "Reenviar Convite"
+  },
+  "toast": {
+    "inviteSent": "Convite enviado para {email}",
+    "linkCopied": "Link de convite copiado",
+    "linkGenerated": "Link de convite gerado"
+  },
+  "accept": {
+    "invitedBy": "{name} convidou voce para {orgName}",
+    "roleAssigned": "Voce entrara como",
+    "invalidTitle": "Este convite nao e mais valido",
+    "invalidBody": "Ele pode ter sido cancelado ou ja utilizado. Entre em contato com quem o convidou para um novo link.",
+    "alreadyMember": "Voce ja e membro desta organizacao.",
+    "goHome": "Ir para Inicio",
+    "goToDashboard": "Ir para Painel",
+    "declineConfirmTitle": "Recusar este convite?",
+    "declineConfirmBody": "Voce pode pedir um novo convite depois se mudar de ideia.",
+    "declineConfirmButton": "Sim, Recusar Convite",
+    "declined": "Convite recusado"
+  },
+  "cancel": {
+    "confirmTitle": "Cancelar este convite?",
+    "confirmBody": "Isso revogara o convite. O destinatario nao podera mais ingressar usando este convite.",
+    "confirmButton": "Sim, Cancelar Convite"
+  }
+}
