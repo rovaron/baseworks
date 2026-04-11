@@ -10,9 +10,9 @@ const RecordUsageInput = Type.Object({
 /**
  * Record a usage event for metered billing.
  *
- * Per D-07/D-11: Inserts into usage_records with syncedToStripe = false.
+ * Per D-07/D-11: Inserts into usage_records with syncedToProvider = false.
  * The billing:sync-usage scheduled job picks up unsynced records and
- * reports them to Stripe via subscriptionItems.createUsageRecord.
+ * reports them to the payment provider.
  *
  * Per T-03-16: Scoped to ctx.tenantId -- usage cannot be attributed
  * to a different tenant.
@@ -25,7 +25,7 @@ export const recordUsage = defineCommand(
       tenantId: ctx.tenantId,
       metric: input.metric,
       quantity: input.quantity,
-      syncedToStripe: false,
+      syncedToProvider: false,
     });
 
     return ok({

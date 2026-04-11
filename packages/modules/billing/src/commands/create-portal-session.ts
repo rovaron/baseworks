@@ -30,7 +30,7 @@ export const createPortalSession = defineCommand(
 
       const stripe = getStripe();
       const session = await stripe.billingPortal.sessions.create({
-        customer: customer.stripeCustomerId,
+        customer: customer.providerCustomerId,
         return_url: input.returnUrl,
       });
 

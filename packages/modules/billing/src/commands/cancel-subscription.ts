@@ -23,13 +23,13 @@ export const cancelSubscription = defineCommand(
         .where(eq(billingCustomers.tenantId, ctx.tenantId))
         .limit(1);
 
-      if (!customer?.stripeSubscriptionId) {
+      if (!customer?.providerSubscriptionId) {
         return err("NO_ACTIVE_SUBSCRIPTION");
       }
 
       const stripe = getStripe();
       await stripe.subscriptions.update(
-        customer.stripeSubscriptionId,
+        customer.providerSubscriptionId,
         { cancel_at_period_end: true },
         { idempotencyKey: crypto.randomUUID() },
       );

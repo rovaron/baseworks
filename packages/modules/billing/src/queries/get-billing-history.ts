@@ -11,8 +11,8 @@ const GetBillingHistoryInput = Type.Object({
 /**
  * Get billing/invoice history for the requesting tenant from Stripe.
  *
- * Per T-03-12: Uses ctx.tenantId to look up stripeCustomerId, then
- * fetches only that customer's invoices from the Stripe API.
+ * Per T-03-12: Uses ctx.tenantId to look up providerCustomerId, then
+ * fetches only that customer's invoices from the payment provider API.
  */
 export const getBillingHistory = defineQuery(
   GetBillingHistoryInput,
@@ -30,7 +30,7 @@ export const getBillingHistory = defineQuery(
 
       const stripe = getStripe();
       const invoiceList = await stripe.invoices.list({
-        customer: customer.stripeCustomerId,
+        customer: customer.providerCustomerId,
         limit: input.limit ?? 10,
       });
 

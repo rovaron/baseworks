@@ -24,18 +24,18 @@ export const getSubscriptionStatus = defineQuery(
       return ok({
         status: "inactive" as const,
         hasSubscription: false,
-        stripeSubscriptionId: null,
-        stripePriceId: null,
+        providerSubscriptionId: null,
+        providerPriceId: null,
         currentPeriodEnd: null,
       });
     }
 
     return ok({
       status: record.status,
-      stripeSubscriptionId: record.stripeSubscriptionId,
-      stripePriceId: record.stripePriceId,
+      providerSubscriptionId: record.providerSubscriptionId,
+      providerPriceId: record.providerPriceId,
       currentPeriodEnd: record.currentPeriodEnd,
-      hasSubscription: !!record.stripeSubscriptionId,
+      hasSubscription: !!record.providerSubscriptionId,
     });
   },
 );

@@ -25,12 +25,12 @@ export const changeSubscription = defineCommand(
         .where(eq(billingCustomers.tenantId, ctx.tenantId))
         .limit(1);
 
-      if (!customer?.stripeSubscriptionId) {
+      if (!customer?.providerSubscriptionId) {
         return err("NO_ACTIVE_SUBSCRIPTION");
       }
 
       const stripe = getStripe();
-      const subscriptionId = customer.stripeSubscriptionId;
+      const subscriptionId = customer.providerSubscriptionId;
 
       // Retrieve current subscription to get item ID
       const sub = await stripe.subscriptions.retrieve(subscriptionId);

@@ -295,13 +295,13 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
   .get("/billing/overview", async () => {
     const customers = await db.select().from(billingCustomers);
 
-    const totalSubscribers = customers.filter((c) => c.stripeSubscriptionId).length;
+    const totalSubscribers = customers.filter((c) => c.providerSubscriptionId).length;
     const activeSubscriptions = customers.filter((c) => c.status === "active");
 
     // Subscription distribution by price/plan
     const planDistribution: Record<string, number> = {};
     for (const c of activeSubscriptions) {
-      const plan = c.stripePriceId || "unknown";
+      const plan = c.providerPriceId || "unknown";
       planDistribution[plan] = (planDistribution[plan] || 0) + 1;
     }
 

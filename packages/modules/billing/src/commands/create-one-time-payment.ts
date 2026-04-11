@@ -35,7 +35,7 @@ export const createOneTimePayment = defineCommand(
       const stripe = getStripe();
       const session = await stripe.checkout.sessions.create(
         {
-          customer: customer.stripeCustomerId,
+          customer: customer.providerCustomerId,
           mode: "payment",
           line_items: [{ price: input.priceId, quantity: input.quantity ?? 1 }],
           success_url: input.successUrl,

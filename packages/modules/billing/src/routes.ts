@@ -78,7 +78,7 @@ export const billingRoutes = new Elysia({ prefix: "/api/billing" })
     const existing = await db
       .select()
       .from(webhookEvents)
-      .where(eq(webhookEvents.stripeEventId, event.id))
+      .where(eq(webhookEvents.providerEventId, event.id))
       .limit(1);
 
     if (existing.length > 0) {
@@ -87,7 +87,7 @@ export const billingRoutes = new Elysia({ prefix: "/api/billing" })
 
     // Insert event record with status "pending" (T-03-06: audit trail)
     await db.insert(webhookEvents).values({
-      stripeEventId: event.id,
+      providerEventId: event.id,
       eventType: event.type,
       status: "pending",
       payload: JSON.stringify(event.data),

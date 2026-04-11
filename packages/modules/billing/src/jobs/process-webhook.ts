@@ -35,7 +35,7 @@ export async function processWebhook(data: unknown): Promise<void> {
   const [event] = await db
     .select()
     .from(webhookEvents)
-    .where(eq(webhookEvents.stripeEventId, eventId))
+    .where(eq(webhookEvents.providerEventId, eventId))
     .limit(1);
 
   if (!event) {
@@ -90,13 +90,13 @@ export async function processWebhook(data: unknown): Promise<void> {
         status: "processed",
         processedAt: new Date(),
       })
-      .where(eq(webhookEvents.stripeEventId, eventId));
+      .where(eq(webhookEvents.providerEventId, eventId));
   } catch (err) {
     // Mark event as failed -- BullMQ will retry the job
     await db
       .update(webhookEvents)
       .set({ status: "failed" })
-      .where(eq(webhookEvents.stripeEventId, eventId));
+      .where(eq(webhookEvents.providerEventId, eventId));
 
     throw err; // Re-throw so BullMQ knows to retry
   }
@@ -108,18 +108,18 @@ export async function processWebhook(data: unknown): Promise<void> {
 async function handleCheckoutCompleted(db: any, object: any): Promise<void> {
   if (!object?.customer || !object?.subscription) return;
 
-  const stripeCustomerId = object.customer as string;
-  const stripeSubscriptionId = object.subscription as string;
+  const providerCustomerId = object.customer as string;
+  const providerSubscriptionId = object.subscription as string;
 
   await db
     .update(billingCustomers)
     .set({
-      stripeSubscriptionId,
+      providerSubscriptionId,
       status: "active",
       lastEventAt: new Date(),
       updatedAt: new Date(),
     })
-    .where(eq(billingCustomers.stripeCustomerId, stripeCustomerId));
+    .where(eq(billingCustomers.providerCustomerId, providerCustomerId));
 }
 
 /**
@@ -132,14 +132,14 @@ async function handleSubscriptionCreated(
 ): Promise<void> {
   if (!object?.customer) return;
 
-  const stripeCustomerId = object.customer as string;
+  const providerCustomerId = object.customer as string;
   const now = new Date();
 
   await db
     .update(billingCustomers)
     .set({
-      stripeSubscriptionId: object.id,
-      stripePriceId: object.items?.data?.[0]?.price?.id ?? null,
+      providerSubscriptionId: object.id,
+      providerPriceId: object.items?.data?.[0]?.price?.id ?? null,
       status: object.status ?? "active",
       currentPeriodEnd: object.current_period_end
         ? new Date(object.current_period_end * 1000)
@@ -147,7 +147,7 @@ async function handleSubscriptionCreated(
       lastEventAt: eventTime,
       updatedAt: now,
     })
-    .where(eq(billingCustomers.stripeCustomerId, stripeCustomerId));
+    .where(eq(billingCustomers.providerCustomerId, providerCustomerId));
 }
 
 /**
@@ -163,18 +163,18 @@ async function handleSubscriptionUpdated(
 ): Promise<void> {
   if (!object?.customer) return;
 
-  const stripeCustomerId = object.customer as string;
+  const providerCustomerId = object.customer as string;
 
   // Only update if this event is newer than the last processed event
   const [existing] = await db
     .select({ lastEventAt: billingCustomers.lastEventAt })
     .from(billingCustomers)
-    .where(eq(billingCustomers.stripeCustomerId, stripeCustomerId))
+    .where(eq(billingCustomers.providerCustomerId, providerCustomerId))
     .limit(1);
 
   if (existing?.lastEventAt && eventTime <= existing.lastEventAt) {
     console.log(
-      `[BILLING] Skipping stale subscription.updated for ${stripeCustomerId} (event: ${eventTime.toISOString()}, lastEventAt: ${existing.lastEventAt.toISOString()})`,
+      `[BILLING] Skipping stale subscription.updated for ${providerCustomerId} (event: ${eventTime.toISOString()}, lastEventAt: ${existing.lastEventAt.toISOString()})`,
     );
     return;
   }
@@ -182,8 +182,8 @@ async function handleSubscriptionUpdated(
   await db
     .update(billingCustomers)
     .set({
-      stripeSubscriptionId: object.id,
-      stripePriceId: object.items?.data?.[0]?.price?.id ?? null,
+      providerSubscriptionId: object.id,
+      providerPriceId: object.items?.data?.[0]?.price?.id ?? null,
       status: object.status ?? "active",
       currentPeriodEnd: object.current_period_end
         ? new Date(object.current_period_end * 1000)
@@ -191,7 +191,7 @@ async function handleSubscriptionUpdated(
       lastEventAt: eventTime,
       updatedAt: new Date(),
     })
-    .where(eq(billingCustomers.stripeCustomerId, stripeCustomerId));
+    .where(eq(billingCustomers.providerCustomerId, providerCustomerId));
 }
 
 /**
@@ -204,7 +204,7 @@ async function handleSubscriptionDeleted(
 ): Promise<void> {
   if (!object?.customer) return;
 
-  const stripeCustomerId = object.customer as string;
+  const providerCustomerId = object.customer as string;
 
   await db
     .update(billingCustomers)
@@ -213,5 +213,5 @@ async function handleSubscriptionDeleted(
       lastEventAt: eventTime,
       updatedAt: new Date(),
     })
-    .where(eq(billingCustomers.stripeCustomerId, stripeCustomerId));
+    .where(eq(billingCustomers.providerCustomerId, providerCustomerId));
 }

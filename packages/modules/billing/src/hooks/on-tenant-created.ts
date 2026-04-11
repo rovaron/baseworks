@@ -62,7 +62,7 @@ export function registerBillingHooks(eventBus: {
       // Insert billing_customers record linking tenant to Stripe customer
       await db.insert(billingCustomers).values({
         tenantId,
-        stripeCustomerId: customer.id,
+        providerCustomerId: customer.id,
         status: "inactive",
       });
 

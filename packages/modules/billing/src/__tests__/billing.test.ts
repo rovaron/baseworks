@@ -179,24 +179,24 @@ describe("Billing Schema", () => {
     const columns = Object.keys(billingCustomers);
     expect(columns).toContain("id");
     expect(columns).toContain("tenantId");
-    expect(columns).toContain("stripeCustomerId");
-    expect(columns).toContain("stripeSubscriptionId");
+    expect(columns).toContain("providerCustomerId");
+    expect(columns).toContain("providerSubscriptionId");
     expect(columns).toContain("status");
   });
 
-  test("webhookEvents table has stripeEventId column", () => {
+  test("webhookEvents table has providerEventId column", () => {
     const columns = Object.keys(webhookEvents);
-    expect(columns).toContain("stripeEventId");
+    expect(columns).toContain("providerEventId");
     expect(columns).toContain("eventType");
     expect(columns).toContain("status");
   });
 
-  test("usageRecords table has syncedToStripe column", () => {
+  test("usageRecords table has syncedToProvider column", () => {
     const columns = Object.keys(usageRecords);
-    expect(columns).toContain("syncedToStripe");
+    expect(columns).toContain("syncedToProvider");
     expect(columns).toContain("tenantId");
     expect(columns).toContain("metric");
     expect(columns).toContain("quantity");
-    expect(columns).toContain("stripeUsageRecordId");
+    expect(columns).toContain("providerUsageRecordId");
   });
 });

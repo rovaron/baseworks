@@ -10,21 +10,24 @@ import { primaryKeyColumn, tenantIdColumn, timestampColumns } from "./base";
 /**
  * Billing module tables.
  *
- * Per D-02: billing_customers links tenants to Stripe customers.
- * Per D-07: webhook_events stores Stripe webhook events for idempotency and audit.
- * Per D-11: usage_records tracks metered usage for Stripe billing.
+ * Per D-02: billing_customers links tenants to payment provider customers.
+ * Per D-07: webhook_events stores provider webhook events for idempotency and audit.
+ * Per D-11: usage_records tracks metered usage for provider billing.
  *
  * The `lastEventAt` column in billing_customers supports event ordering
  * protection (Pitfall 3): only update billing_customers if the incoming
  * webhook event's `created` timestamp is newer than `lastEventAt`.
+ *
+ * Column names are provider-agnostic (providerCustomerId, providerSubscriptionId, etc.)
+ * to support multiple payment providers (Stripe, Pagar.me, etc.).
  */
 
 export const billingCustomers = pgTable("billing_customers", {
   id: primaryKeyColumn(),
   tenantId: tenantIdColumn(),
-  stripeCustomerId: text("stripe_customer_id").notNull().unique(),
-  stripeSubscriptionId: text("stripe_subscription_id"),
-  stripePriceId: text("stripe_price_id"),
+  providerCustomerId: text("provider_customer_id").notNull().unique(),
+  providerSubscriptionId: text("provider_subscription_id"),
+  providerPriceId: text("provider_price_id"),
   status: text("status").notNull().default("inactive"),
   currentPeriodEnd: timestamp("current_period_end"),
   lastEventAt: timestamp("last_event_at"),
@@ -33,7 +36,7 @@ export const billingCustomers = pgTable("billing_customers", {
 
 export const webhookEvents = pgTable("webhook_events", {
   id: primaryKeyColumn(),
-  stripeEventId: text("stripe_event_id").notNull().unique(),
+  providerEventId: text("provider_event_id").notNull().unique(),
   eventType: text("event_type").notNull(),
   status: text("status").notNull().default("pending"),
   payload: text("payload"),
@@ -47,6 +50,6 @@ export const usageRecords = pgTable("usage_records", {
   metric: text("metric").notNull(),
   quantity: integer("quantity").notNull(),
   recordedAt: timestamp("recorded_at").defaultNow().notNull(),
-  syncedToStripe: boolean("synced_to_stripe").notNull().default(false),
-  stripeUsageRecordId: text("stripe_usage_record_id"),
+  syncedToProvider: boolean("synced_to_provider").notNull().default(false),
+  providerUsageRecordId: text("provider_usage_record_id"),
 });

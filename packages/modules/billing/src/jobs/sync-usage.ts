@@ -11,7 +11,7 @@ const logger = pino({ name: "billing:sync-usage" });
  * Sync unsynced usage records to Stripe.
  *
  * Per D-07: Scheduled BullMQ repeatable job (every 5 minutes default).
- * Queries all usage_records WHERE syncedToStripe = false, grouped by
+ * Queries all usage_records WHERE syncedToProvider = false, grouped by
  * tenantId and metric. For each group, looks up the Stripe subscription
  * and reports metered usage via subscriptionItems.createUsageRecord.
  *
@@ -29,7 +29,7 @@ export async function syncUsage(_data: unknown): Promise<void> {
       totalQuantity: sql<number>`sum(${usageRecords.quantity})::int`,
     })
     .from(usageRecords)
-    .where(eq(usageRecords.syncedToStripe, false))
+    .where(eq(usageRecords.syncedToProvider, false))
     .groupBy(usageRecords.tenantId, usageRecords.metric);
 
   if (unsyncedGroups.length === 0) {
@@ -50,7 +50,7 @@ export async function syncUsage(_data: unknown): Promise<void> {
         .where(eq(billingCustomers.tenantId, group.tenantId))
         .limit(1);
 
-      if (!customer?.stripeSubscriptionId) {
+      if (!customer?.providerSubscriptionId) {
         logger.warn(
           { tenantId: group.tenantId, metric: group.metric },
           "No active subscription found, skipping usage sync",
@@ -60,12 +60,12 @@ export async function syncUsage(_data: unknown): Promise<void> {
 
       // Retrieve subscription to get the subscription item ID
       const subscription = await stripe.subscriptions.retrieve(
-        customer.stripeSubscriptionId,
+        customer.providerSubscriptionId,
       );
 
       if (!subscription.items.data.length) {
         logger.warn(
-          { tenantId: group.tenantId, subscriptionId: customer.stripeSubscriptionId },
+          { tenantId: group.tenantId, subscriptionId: customer.providerSubscriptionId },
           "Subscription has no items, skipping usage sync",
         );
         continue;
@@ -91,14 +91,14 @@ export async function syncUsage(_data: unknown): Promise<void> {
       await db
         .update(usageRecords)
         .set({
-          syncedToStripe: true,
-          stripeUsageRecordId: usageRecord.id,
+          syncedToProvider: true,
+          providerUsageRecordId: usageRecord.id,
         })
         .where(
           and(
             eq(usageRecords.tenantId, group.tenantId),
             eq(usageRecords.metric, group.metric),
-            eq(usageRecords.syncedToStripe, false),
+            eq(usageRecords.syncedToProvider, false),
           ),
         );
 
@@ -107,7 +107,7 @@ export async function syncUsage(_data: unknown): Promise<void> {
           tenantId: group.tenantId,
           metric: group.metric,
           quantity: group.totalQuantity,
-          stripeUsageRecordId: usageRecord.id,
+          providerUsageRecordId: usageRecord.id,
         },
         "Usage synced to Stripe",
       );
