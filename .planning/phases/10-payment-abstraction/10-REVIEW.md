@@ -1,13 +1,20 @@
 ---
 phase: 10-payment-abstraction
-reviewed: 2026-04-11T00:00:00Z
+reviewed: 2026-04-11T12:00:00Z
 depth: standard
-files_reviewed: 23
+files_reviewed: 30
 files_reviewed_list:
+  - apps/api/src/index.ts
   - apps/api/src/routes/admin.ts
+  - apps/api/src/worker.ts
   - packages/config/src/env.ts
   - packages/db/migrations/0001_rename_stripe_to_provider.sql
   - packages/db/src/schema/billing.ts
+  - packages/modules/billing/package.json
+  - packages/modules/billing/src/__tests__/billing.test.ts
+  - packages/modules/billing/src/__tests__/pagarme-adapter.test.ts
+  - packages/modules/billing/src/__tests__/provider-factory.test.ts
+  - packages/modules/billing/src/__tests__/webhook-normalization.test.ts
   - packages/modules/billing/src/adapters/pagarme/pagarme-adapter.ts
   - packages/modules/billing/src/adapters/pagarme/pagarme-webhook-mapper.ts
   - packages/modules/billing/src/adapters/stripe/stripe-adapter.ts
@@ -37,9 +44,9 @@ status: issues_found
 
 # Phase 10: Code Review Report
 
-**Reviewed:** 2026-04-11T00:00:00Z
+**Reviewed:** 2026-04-11T12:00:00Z
 **Depth:** standard
-**Files Reviewed:** 23
+**Files Reviewed:** 30
 **Status:** issues_found
 
 ## Summary
@@ -50,7 +57,7 @@ This phase introduces a payment provider abstraction layer that adds Pagar.me al
 
 ## Critical Issues
 
-### CR-01: Pagar.me webhook signature — `crypto.subtle.timingSafeEqual` does not exist; secure path is dead code
+### CR-01: Pagar.me webhook signature -- `crypto.subtle.timingSafeEqual` does not exist; secure path is dead code
 
 **File:** `packages/modules/billing/src/adapters/pagarme/pagarme-adapter.ts:244-274`
 
@@ -88,11 +95,11 @@ async verifyWebhookSignature(params: VerifyWebhookParams): Promise<RawProviderEv
 
 ---
 
-### CR-02: Pagar.me webhooks always rejected — missing Pagar.me signature header in webhook route
+### CR-02: Pagar.me webhooks always rejected -- missing Pagar.me signature header in webhook route
 
 **File:** `packages/modules/billing/src/routes.ts:52-58`
 
-**Issue:** The webhook route reads the signature from only two headers: `stripe-signature` and `x-hub-signature`. Pagar.me sends webhook signatures in the `x-pagarme-signature` header. When `PAYMENT_PROVIDER=pagarme`, `sig` will always be an empty string and the route returns `400 "Missing webhook signature header"`. No Pagar.me webhook will ever be processed.
+**Issue:** The webhook route reads the signature from only two headers: `stripe-signature` and `x-hub-signature`. Pagar.me sends webhook signatures in a provider-specific header (commonly `x-pagarme-signature`). When `PAYMENT_PROVIDER=pagarme`, `sig` will always be an empty string and the route returns `400 "Missing webhook signature header"`. No Pagar.me webhook will ever be processed.
 
 **Fix:** Add the Pagar.me header to the lookup chain:
 
@@ -106,7 +113,7 @@ const sig =
 
 ---
 
-### CR-03: `on-tenant-created.ts` checks `STRIPE_SECRET_KEY` regardless of active provider — Pagar.me customer creation silently skipped
+### CR-03: `on-tenant-created.ts` checks `STRIPE_SECRET_KEY` regardless of active provider -- Pagar.me customer creation silently skipped
 
 **File:** `packages/modules/billing/src/hooks/on-tenant-created.ts:35`
 
@@ -130,11 +137,11 @@ if (!hasProviderKey) {
 
 ---
 
-### CR-04: `getPaymentProvider()` passes `undefined` to adapter constructors with non-null assertion — no runtime guard
+### CR-04: `getPaymentProvider()` passes `undefined` to adapter constructors with non-null assertion -- no runtime guard
 
 **File:** `packages/modules/billing/src/provider-factory.ts:27-35`
 
-**Issue:** Both adapter constructors receive `env.STRIPE_SECRET_KEY!` and `env.PAGARME_SECRET_KEY!`. TypeScript's `!` operator is erased at runtime. If `validatePaymentProviderEnv()` was not called at startup (it is an exported function that must be called manually — nothing enforces it), both adapters will silently receive `undefined` as their secret key. For Stripe, the SDK constructor will throw immediately. For Pagar.me, `undefined` will be base64-encoded in the `Authorization` header, producing incorrect credentials and opaque 401 errors on first API call.
+**Issue:** Both adapter constructors receive `env.STRIPE_SECRET_KEY!` and `env.PAGARME_SECRET_KEY!`. TypeScript's `!` operator is erased at runtime. If `validatePaymentProviderEnv()` was not called at startup (it is an exported function that must be called manually -- nothing enforces it), both adapters will silently receive `undefined` as their secret key. For Stripe, the SDK constructor will throw immediately. For Pagar.me, `undefined` will be base64-encoded in the `Authorization` header, producing incorrect credentials and opaque 401 errors on first API call.
 
 **Fix:** Add explicit runtime guards inside `getPaymentProvider()`:
 
@@ -165,33 +172,31 @@ case "pagarme": {
 
 **File:** `packages/modules/billing/src/adapters/pagarme/pagarme-adapter.ts:164,188`
 
-**Issue:** Both order creation calls set `amount: 0` in the line items with a comment "Amount comes from the plan/price in a real integration." A zero-amount order will either be rejected by Pagar.me's API, silently create a free order, or result in an incorrect charge. This is not a placeholder that can be deferred — it will cause real money issues in production.
+**Issue:** Both order creation calls set `amount: 0` in the line items with a comment "Amount comes from the plan/price in a real integration." A zero-amount order will either be rejected by Pagar.me's API, silently create a free order, or result in an incorrect charge. This is not a placeholder that can be deferred -- it will cause real money issues in production.
 
 **Fix:** `CreateOneTimePaymentParams` and `CreateCheckoutSessionParams` do not currently carry an `amount` field. Either add an `amount` field to these param interfaces, or document that the Pagar.me adapter requires a plan ID that maps to a server-side price (and fetch that price from a Pagar.me plan endpoint). At minimum, replace the silent `0` with a thrown error so misconfiguration is visible:
 
 ```typescript
 // In createOneTimePayment:
-if (!params.amount) {
-  throw new Error("Pagar.me adapter requires 'amount' in CreateOneTimePaymentParams (centavos)");
-}
-items: [{ amount: params.amount, ... }]
+throw new Error("Pagar.me adapter: amount resolution not yet implemented for one-time payments");
 ```
 
 ---
 
-### WR-02: `cancelSubscription` ignores `cancelAtPeriodEnd` — both branches call identical DELETE
+### WR-02: `cancelSubscription` ignores `cancelAtPeriodEnd` -- both branches call identical DELETE
 
 **File:** `packages/modules/billing/src/adapters/pagarme/pagarme-adapter.ts:100-113`
 
-**Issue:** The `if (params.cancelAtPeriodEnd)` / `else` branches are identical — both call `DELETE /subscriptions/:id` immediately. While the comment acknowledges Pagar.me lacks native period-end cancellation, the structural bug means there's no behavioral difference, and the conditional is dead branching. Callers that pass `cancelAtPeriodEnd: false` expecting immediate cancellation and callers that pass `true` expecting deferred cancellation get identical behavior with no indication either way.
+**Issue:** The `if (params.cancelAtPeriodEnd)` / `else` branches are identical -- both call `DELETE /subscriptions/:id` immediately. While the comment acknowledges Pagar.me lacks native period-end cancellation, the structural bug means there is no behavioral difference, and the conditional is dead branching. Callers that pass `cancelAtPeriodEnd: true` expecting deferred cancellation get immediate cancellation with no indication.
 
-**Fix:** Collapse to a single call and document the behavioral difference prominently at the adapter level:
+**Fix:** Collapse to a single call and log a warning when `cancelAtPeriodEnd` is requested:
 
 ```typescript
 async cancelSubscription(params: CancelSubscriptionParams): Promise<void> {
-  // Pagar.me does not support cancel_at_period_end -- always cancels immediately.
-  // The caller (cancel-subscription.ts) passes cancelAtPeriodEnd: true which
-  // has no effect here. Consider informing the tenant of immediate cancellation.
+  if (params.cancelAtPeriodEnd) {
+    // Pagar.me does not support cancel_at_period_end -- cancels immediately.
+    console.warn("[PagarmeAdapter] cancelAtPeriodEnd not supported; canceling immediately");
+  }
   await this.request("DELETE", `/subscriptions/${params.providerSubscriptionId}`);
 }
 ```
@@ -202,9 +207,9 @@ async cancelSubscription(params: CancelSubscriptionParams): Promise<void> {
 
 **File:** `packages/modules/billing/src/routes.ts:198-205`
 
-**Issue:** The `/history` route reads `offset` from the query string (`const offset = Number(ctx.query?.offset) || 0`) but never passes it to `getBillingHistory`. The `getBillingHistory` command also does not accept an `offset` parameter. Pagination is therefore broken — requesting any page beyond the first always returns the same first page.
+**Issue:** The `/history` route reads `offset` from the query string (`const offset = Number(ctx.query?.offset) || 0`) but never passes it to `getBillingHistory`. The `getBillingHistory` command also does not accept an `offset` parameter. Pagination is therefore broken -- requesting any page beyond the first always returns the same first page.
 
-**Fix:** Either remove the `offset` extraction (since the command doesn't use it), or add `offset` support through to `getInvoices` on the `PaymentProvider` interface and pass it through. Stripe's `invoices.list` supports a `starting_after` cursor which is more appropriate than numeric offset, but at minimum the unused variable should be removed to avoid confusion:
+**Fix:** Either remove the `offset` extraction (since the command does not use it), or add `offset` support through to `getInvoices` on the `PaymentProvider` interface:
 
 ```typescript
 // Remove the dead offset variable:
@@ -214,17 +219,17 @@ const result = await getBillingHistory({ limit }, ctx.handlerCtx);
 
 ---
 
-### WR-04: Webhook event ordering uses DB insertion timestamp (`event.createdAt`) instead of provider event timestamp
+### WR-04: Webhook event ordering uses DB insertion timestamp instead of provider event timestamp
 
 **File:** `packages/modules/billing/src/jobs/process-webhook.ts:59,65,68`
 
 **Issue:** `handleSubscriptionCreated` and `handleSubscriptionUpdated` receive `event.createdAt` as `eventTime`, which is the timestamp when the row was inserted into `webhook_events` by the API process. This is a local wall-clock time, not the payment provider's event timestamp. The out-of-order protection in `handleSubscriptionUpdated` (line 164: `eventTime <= existing.lastEventAt`) compares two local DB insertion times rather than the provider-side event creation times. A stale event that arrived late but was inserted after a newer event will pass the ordering check and incorrectly overwrite the newer state.
 
-**Fix:** Store the provider's event timestamp in `webhook_events` and use it for ordering. Add a `providerCreatedAt` column to `webhook_events`, populate it from `normalizedEvent.occurredAt` in `routes.ts`, and pass it through to the process job. Note that `occurredAt` itself is currently set to `new Date()` (see IN-02 and IN-03), so that field also needs fixing at the mapper level.
+**Fix:** Store the provider's event timestamp in `webhook_events` and use it for ordering. Add a `providerCreatedAt` column to `webhook_events`, populate it from `normalizedEvent.occurredAt` in `routes.ts`, and pass it through to the process job. Note that `occurredAt` itself is currently set to `new Date()` in both mappers (see IN-02), so that field also needs fixing at the mapper level to extract the actual provider timestamp.
 
 ---
 
-### WR-05: Missing Stripe key at startup only warns — inconsistent with Pagar.me validation that throws
+### WR-05: Missing Stripe key at startup only warns -- inconsistent with Pagar.me validation that throws
 
 **File:** `packages/config/src/env.ts:59-64`
 
@@ -251,30 +256,28 @@ If test environments need to run without Stripe, detect them via `NODE_ENV === "
 
 **File:** `packages/modules/billing/src/hooks/on-tenant-created.ts:36,57,62`
 
-**Issue:** The hook uses raw `console.log` and `console.error` while the rest of the backend uses `pino` for structured logging. This produces unstructured output that cannot be filtered or correlated with request context in production.
+**Issue:** The hook uses raw `console.log` and `console.error` while the rest of the backend uses `pino` for structured logging. This produces unstructured output that cannot be filtered or correlated with request context in production. Same pattern in `packages/modules/billing/src/jobs/process-webhook.ts:71,79`.
 
 **Fix:** Import and use the module-level pino logger:
 
 ```typescript
 import pino from "pino";
 const logger = pino({ name: "billing:on-tenant-created" });
-// Replace console.log(...) with logger.info({ tenantId }, "message")
-// Replace console.error(..., err) with logger.error({ tenantId, err }, "message")
 ```
 
 ---
 
-### IN-02 & IN-03: Both webhook mappers set `occurredAt: new Date()` — event timestamp is lost
+### IN-02: Both webhook mappers set `occurredAt: new Date()` -- event timestamp is lost
 
 **Files:**
 - `packages/modules/billing/src/adapters/pagarme/pagarme-webhook-mapper.ts:56`
 - `packages/modules/billing/src/adapters/stripe/stripe-webhook-mapper.ts:56`
 
-**Issue:** Both mappers set `occurredAt: new Date()` which captures the processing time, not the payment provider's event creation time. For Stripe, the event's `created` Unix timestamp is available on the raw event object. For Pagar.me, `event.created_at` is available on the payload. Using processing time means `occurredAt` cannot be used for reliable event ordering (also see WR-04).
+**Issue:** Both mappers set `occurredAt: new Date()` which captures the processing time, not the payment provider's event creation time. For Stripe, the event's `created` Unix timestamp is available on the raw event object. For Pagar.me, `created_at` is available on the payload. Using processing time means `occurredAt` cannot be used for reliable event ordering.
 
 **Fix for Stripe mapper:**
 ```typescript
-occurredAt: rawEvent.created ? new Date(rawEvent.created * 1000) : new Date(),
+occurredAt: (rawEvent as any).created ? new Date((rawEvent as any).created * 1000) : new Date(),
 ```
 
 **Fix for Pagar.me mapper:**
@@ -284,26 +287,33 @@ occurredAt: data?.created_at ? new Date(data.created_at) : new Date(),
 
 ---
 
-### IN-04: `process-webhook.ts` job creates a new DB connection on every invocation
+### IN-03: Unused `@pagarme/sdk` dependency
+
+**File:** `packages/modules/billing/package.json:13`
+
+**Issue:** The `@pagarme/sdk` package (version 5.8.1) is listed as a dependency, but the `PagarmeAdapter` uses raw `fetch` calls instead of the SDK (as documented in the adapter's JSDoc comment). This is dead dependency weight that adds to install time and bundle size.
+
+**Fix:** Remove `"@pagarme/sdk": "5.8.1"` from `package.json` dependencies.
+
+---
+
+### IN-04: `process-webhook.ts` creates a new DB connection on every invocation
 
 **File:** `packages/modules/billing/src/jobs/process-webhook.ts:35`
 
 **Issue:** `const db = createDb(env.DATABASE_URL)` runs on every job invocation. If `createDb` does not pool connections internally (depends on postgres.js implementation), high webhook throughput will exhaust the PostgreSQL connection limit. The same pattern appears in `sync-usage.ts:21` and `on-tenant-created.ts:43`.
 
-**Fix:** Pass a shared `db` instance via the job context or module-level initialization, similar to how `getPaymentProvider()` uses a singleton:
+**Fix:** Move db creation to module-level singleton:
 
 ```typescript
-// Module-level singleton
 const db = createDb(env.DATABASE_URL);
 export async function processWebhook(data: unknown): Promise<void> {
   // use module-level db
 }
 ```
 
-Note: postgres.js does pool connections by default, so this is a code quality concern more than an immediate runtime failure — but the pattern is inconsistent with how the rest of the codebase manages the DB instance.
-
 ---
 
-_Reviewed: 2026-04-11T00:00:00Z_
+_Reviewed: 2026-04-11T12:00:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
