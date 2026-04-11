@@ -27,11 +27,12 @@ import {
 } from "@baseworks/ui";
 import { auth } from "@/lib/api";
 import { env } from "@/lib/env";
+import { sanitizeInviteToken } from "@/lib/invite";
 
 export default function SignupPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const inviteToken = searchParams.get("invite");
+  const inviteToken = sanitizeInviteToken(searchParams.get("invite"));
   const inviteEmail = searchParams.get("email");
   const t = useTranslations("auth");
 

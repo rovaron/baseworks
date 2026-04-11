@@ -26,11 +26,12 @@ import {
   Input,
 } from "@baseworks/ui";
 import { auth } from "@/lib/api";
+import { sanitizeInviteToken } from "@/lib/invite";
 
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const inviteToken = searchParams.get("invite");
+  const inviteToken = sanitizeInviteToken(searchParams.get("invite"));
   const t = useTranslations("auth");
 
   const loginSchema = z.object({
