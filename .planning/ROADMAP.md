@@ -111,7 +111,11 @@ Plans:
   3. Webhook events from any provider are normalized into unified domain events (subscription.created, payment.succeeded, etc.) before processing
   4. A Brazilian payment provider adapter implements the PaymentProvider interface with support for its native payment methods
   5. Switching the active payment provider requires only changing an environment variable at startup -- no code changes
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 10-01-PLAN.md — PaymentProvider port interface, DB schema column renames, test scaffolds
+- [ ] 10-02-PLAN.md — StripeAdapter extraction, billing module refactoring, webhook normalization
+- [ ] 10-03-PLAN.md — PagarmeAdapter, provider factory env-based selection, conditional env validation
 
 ## Progress
 
@@ -129,4 +133,4 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10
 | 7. Accessibility | v1.1 | 3/4 | Executing | - |
 | 8. Internationalization | v1.1 | 0/0 | Not started | - |
 | 9. Team Invites | v1.1 | 0/5 | Planned | - |
-| 10. Payment Abstraction | v1.1 | 0/0 | Not started | - |
+| 10. Payment Abstraction | v1.1 | 0/3 | Planned | - |
