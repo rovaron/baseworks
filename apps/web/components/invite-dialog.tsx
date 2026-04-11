@@ -62,7 +62,12 @@ export function InviteDialog({ orgId, orgName }: InviteDialogProps) {
 
   const inviteMutation = useMutation({
     mutationFn: async (values: { email?: string; role: string; mode: "email" | "link" }) => {
-      const { data, error } = await api.api.invitations.post(values as any);
+      const payload = {
+        role: values.role,
+        mode: values.mode,
+        ...(values.mode === "email" ? { email: values.email } : {}),
+      };
+      const { data, error } = await api.api.invitations.post(payload);
       if (error) throw error;
       return data;
     },
