@@ -4,12 +4,14 @@ import { env } from "@baseworks/config";
 import { WelcomeEmail } from "../templates/welcome";
 import { PasswordResetEmail } from "../templates/password-reset";
 import { BillingNotificationEmail } from "../templates/billing-notification";
+import { TeamInviteEmail } from "../templates/team-invite";
 
 const templates: Record<string, (data: any) => JSX.Element> = {
   "welcome": (data) => WelcomeEmail(data),
   "password-reset": (data) => PasswordResetEmail(data),
   "magic-link": (data) => PasswordResetEmail({ ...data, userName: data.email }),
   "billing-notification": (data) => BillingNotificationEmail(data),
+  "team-invite": (data) => TeamInviteEmail(data),
 };
 
 const subjects: Record<string, string> = {
@@ -17,6 +19,7 @@ const subjects: Record<string, string> = {
   "password-reset": "Reset Your Password",
   "magic-link": "Your Sign-in Link",
   "billing-notification": "Billing Update",
+  "team-invite": "You're Invited to Join a Team",
 };
 
 /**

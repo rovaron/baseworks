@@ -85,6 +85,33 @@ export const auth = betterAuth({
       allowUserToCreateOrganization: true,
       creatorRole: "owner",
       organizationLimit: 5,
+      invitationExpiresIn: 315360000, // ~10 years in seconds, effectively no expiration per D-11
+      sendInvitationEmail: async (data) => {
+        // Email suppression for shareable link mode:
+        // Plan 02 creates link invitations with placeholder email `link-invite-{nanoid}@internal`
+        // When we detect the @internal suffix, skip email enqueueing entirely.
+        if (data.email.endsWith("@internal")) {
+          console.log(`[AUTH] Link-mode invite (no email): ${data.email}`);
+          return;
+        }
+
+        const queue = getEmailQueue();
+        const inviteLink = `${env.WEB_URL}/invite/${data.id}`;
+        if (queue) {
+          await queue.add("team-invite", {
+            to: data.email,
+            template: "team-invite",
+            data: {
+              inviteLink,
+              organizationName: data.organization.name,
+              inviterName: data.inviter.user.name || data.inviter.user.email,
+              role: data.role,
+            },
+          });
+        } else {
+          console.log(`[AUTH] Team invite for ${data.email}: ${inviteLink}`);
+        }
+      },
     }),
     magicLink({
       expiresIn: 300, // 5 minutes per T-02-04
