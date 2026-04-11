@@ -1,4 +1,4 @@
-import { env } from "@baseworks/config";
+import { env, validatePaymentProviderEnv } from "@baseworks/config";
 import { createDb, scopedDb } from "@baseworks/db";
 import type { HandlerContext } from "@baseworks/shared";
 import { Elysia } from "elysia";
@@ -16,6 +16,10 @@ import { logger } from "./lib/logger";
 
 // Create database instance
 const db = createDb(env.DATABASE_URL);
+
+// Validate payment provider env vars at startup (T-10-09)
+// Prevents starting with PAYMENT_PROVIDER=pagarme but no PAGARME_SECRET_KEY
+validatePaymentProviderEnv();
 
 // Create module registry -- auth module loaded alongside example
 const registry = new ModuleRegistry({

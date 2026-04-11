@@ -1,4 +1,4 @@
-import { env, assertRedisUrl } from "@baseworks/config";
+import { env, assertRedisUrl, validatePaymentProviderEnv } from "@baseworks/config";
 import { createDb } from "@baseworks/db";
 import { createWorker, closeConnection } from "@baseworks/queue";
 import type { Worker } from "bullmq";
@@ -10,6 +10,9 @@ const _env = env;
 
 // Ensure REDIS_URL is present for worker role
 const redisUrl = assertRedisUrl(env.INSTANCE_ROLE, env.REDIS_URL);
+
+// Validate payment provider env vars at startup (T-10-09)
+validatePaymentProviderEnv();
 
 // Create database instance
 const db = createDb(env.DATABASE_URL);
