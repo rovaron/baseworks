@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -26,9 +26,13 @@ import {
   Input,
 } from "@baseworks/ui";
 import { auth } from "@/lib/api";
+import { env } from "@/lib/env";
 
 export default function SignupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const inviteToken = searchParams.get("invite");
+  const inviteEmail = searchParams.get("email");
   const t = useTranslations("auth");
 
   const signupSchema = z.object({
@@ -43,7 +47,7 @@ export default function SignupPage() {
     resolver: zodResolver(signupSchema),
     defaultValues: {
       name: "",
-      email: "",
+      email: inviteEmail || "",
       password: "",
     },
   });
@@ -60,6 +64,33 @@ export default function SignupPage() {
     if (error) {
       toast.error(error.message ?? t("toast.somethingWentWrong"));
       return;
+    }
+
+    // D-08: Auto-accept invitation on signup completion
+    if (inviteToken) {
+      try {
+        await auth.organization.acceptInvitation({ invitationId: inviteToken });
+
+        // Fetch invitation to get organizationId for setActive (Pitfall 3)
+        const res = await fetch(
+          `${env.NEXT_PUBLIC_API_URL}/api/invitations/${inviteToken}`
+        );
+        if (res.ok) {
+          const invitation = await res.json();
+          if (invitation?.organizationId) {
+            await auth.organization.setActive({
+              organizationId: invitation.organizationId,
+            });
+          }
+        }
+
+        router.push("/dashboard");
+        return;
+      } catch (autoAcceptError) {
+        // If auto-accept fails (e.g., invitation was cancelled meanwhile),
+        // still redirect to dashboard -- user has an account now
+        console.error("[SIGNUP] Auto-accept failed:", autoAcceptError);
+      }
     }
 
     router.push("/dashboard");

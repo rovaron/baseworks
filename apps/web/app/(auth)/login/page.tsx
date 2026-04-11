@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -29,6 +29,8 @@ import { auth } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const inviteToken = searchParams.get("invite");
   const t = useTranslations("auth");
 
   const loginSchema = z.object({
@@ -59,13 +61,20 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/dashboard");
+    if (inviteToken) {
+      router.push(`/invite/${inviteToken}`);
+    } else {
+      router.push("/dashboard");
+    }
   }
 
   async function handleOAuth(provider: "google" | "github") {
+    const callbackURL = inviteToken
+      ? `/invite/${inviteToken}`
+      : "/dashboard";
     await auth.signIn.social({
       provider,
-      callbackURL: "/dashboard",
+      callbackURL,
     });
   }
 
