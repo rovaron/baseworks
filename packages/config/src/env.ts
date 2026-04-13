@@ -49,18 +49,37 @@ export const env = createEnv({
 export function validatePaymentProviderEnv(): void {
   const provider = env.PAYMENT_PROVIDER ?? "stripe";
 
+  // Test environments are allowed to boot without real provider keys so the
+  // billing module can be imported by the test runner. Production and
+  // development must have the active provider's key set.
+  const isTest = env.NODE_ENV === "test";
+
   if (provider === "pagarme" && !env.PAGARME_SECRET_KEY) {
-    throw new Error(
-      "PAGARME_SECRET_KEY is required when PAYMENT_PROVIDER=pagarme. " +
-        "Set PAGARME_SECRET_KEY in your environment.",
-    );
+    if (isTest) {
+      console.warn(
+        "[env] WARNING: PAGARME_SECRET_KEY is not set (NODE_ENV=test).",
+      );
+    } else {
+      throw new Error(
+        "PAGARME_SECRET_KEY is required when PAYMENT_PROVIDER=pagarme. " +
+          "Set PAGARME_SECRET_KEY in your environment.",
+      );
+    }
   }
 
   if (provider === "stripe" && !env.STRIPE_SECRET_KEY) {
-    // Log warning but don't throw -- allows test environments without Stripe keys
-    console.warn(
-      "[env] WARNING: STRIPE_SECRET_KEY is not set. Billing operations will fail.",
-    );
+    // WR-05: Must throw symmetrically with the Pagar.me branch -- a missing
+    // Stripe key in a stripe-configured deployment is a fatal startup error.
+    if (isTest) {
+      console.warn(
+        "[env] WARNING: STRIPE_SECRET_KEY is not set (NODE_ENV=test).",
+      );
+    } else {
+      throw new Error(
+        "STRIPE_SECRET_KEY is required when PAYMENT_PROVIDER=stripe. " +
+          "Set STRIPE_SECRET_KEY in your environment.",
+      );
+    }
   }
 }
 
