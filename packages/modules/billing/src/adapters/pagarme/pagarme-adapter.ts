@@ -99,18 +99,17 @@ export class PagarmeAdapter implements PaymentProvider {
 
   async cancelSubscription(params: CancelSubscriptionParams): Promise<void> {
     if (params.cancelAtPeriodEnd) {
-      // Pagar.me does not have a native "cancel at period end" -- cancel immediately
-      // and note this behavioral difference
-      await this.request(
-        "DELETE",
-        `/subscriptions/${params.providerSubscriptionId}`,
-      );
-    } else {
-      await this.request(
-        "DELETE",
-        `/subscriptions/${params.providerSubscriptionId}`,
+      // WR-02: Pagar.me has no native "cancel at period end" -- this request
+      // cancels the subscription immediately. Log a warning so callers who
+      // relied on deferred cancellation can detect the behavioral difference.
+      console.warn(
+        "[PagarmeAdapter] cancelAtPeriodEnd is not supported; subscription will be canceled immediately",
       );
     }
+    await this.request(
+      "DELETE",
+      `/subscriptions/${params.providerSubscriptionId}`,
+    );
   }
 
   async changeSubscription(
