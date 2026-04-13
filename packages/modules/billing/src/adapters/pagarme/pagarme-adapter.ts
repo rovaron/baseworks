@@ -212,12 +212,13 @@ export class PagarmeAdapter implements PaymentProvider {
   /**
    * Verify Pagar.me webhook signature using HMAC-SHA256.
    *
-   * Per T-10-07: Uses crypto.timingSafeEqual to prevent timing attacks.
+   * Per T-10-07: Uses node:crypto timingSafeEqual to prevent timing attacks.
    * NEVER use simple string comparison for signature verification.
    */
   async verifyWebhookSignature(
     params: VerifyWebhookParams,
   ): Promise<RawProviderEvent> {
+    const { timingSafeEqual } = await import("node:crypto");
     const encoder = new TextEncoder();
     const key = await crypto.subtle.importKey(
       "raw",
@@ -237,40 +238,15 @@ export class PagarmeAdapter implements PaymentProvider {
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
 
-    // Use timing-safe comparison to prevent timing attacks
-    const expectedBuffer = encoder.encode(expectedSignature);
-    const receivedBuffer = encoder.encode(params.signature);
-
+    // Use node:crypto timingSafeEqual for constant-time comparison.
+    // Length check first because timingSafeEqual requires equal-length buffers.
+    const expectedBuf = Buffer.from(expectedSignature);
+    const receivedBuf = Buffer.from(params.signature);
     if (
-      expectedBuffer.byteLength !== receivedBuffer.byteLength ||
-      !crypto.subtle.timingSafeEqual
+      expectedBuf.length !== receivedBuf.length ||
+      !timingSafeEqual(expectedBuf, receivedBuf)
     ) {
-      // Fallback: use a constant-time comparison manually
-      let mismatch = expectedBuffer.byteLength !== receivedBuffer.byteLength;
-      const minLen = Math.min(
-        expectedBuffer.byteLength,
-        receivedBuffer.byteLength,
-      );
-      for (let i = 0; i < minLen; i++) {
-        if (expectedBuffer[i] !== receivedBuffer[i]) {
-          mismatch = true;
-        }
-      }
-      if (mismatch) {
-        throw new Error("Invalid Pagar.me webhook signature");
-      }
-    } else {
-      // Use Node.js/Bun crypto.timingSafeEqual for constant-time comparison
-      const nodeTimingSafeEqual =
-        (await import("node:crypto")).timingSafeEqual;
-      if (
-        !nodeTimingSafeEqual(
-          Buffer.from(expectedSignature),
-          Buffer.from(params.signature),
-        )
-      ) {
-        throw new Error("Invalid Pagar.me webhook signature");
-      }
+      throw new Error("Invalid Pagar.me webhook signature");
     }
 
     const event = JSON.parse(params.rawBody);
