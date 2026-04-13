@@ -30,9 +30,15 @@ export function registerBillingHooks(eventBus: {
     const { tenantId, name } = data as TenantCreatedEvent;
 
     try {
-      // Skip customer creation if payment provider keys are not configured
-      // (e.g., in test environments)
-      if (!env.STRIPE_SECRET_KEY) {
+      // Skip customer creation if the active provider's keys are not configured
+      // (e.g., in test environments). Must check the active provider's key,
+      // not just STRIPE_SECRET_KEY -- see CR-03.
+      const providerName = env.PAYMENT_PROVIDER ?? "stripe";
+      const hasProviderKey =
+        (providerName === "stripe" && !!env.STRIPE_SECRET_KEY) ||
+        (providerName === "pagarme" && !!env.PAGARME_SECRET_KEY);
+
+      if (!hasProviderKey) {
         console.log(
           `[BILLING] Skipping payment provider customer creation for tenant ${tenantId} (no payment keys configured)`,
         );
