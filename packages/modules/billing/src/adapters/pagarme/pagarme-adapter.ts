@@ -155,47 +155,25 @@ export class PagarmeAdapter implements PaymentProvider {
   }
 
   async createOneTimePayment(
-    params: CreateOneTimePaymentParams,
+    _params: CreateOneTimePaymentParams,
   ): Promise<ProviderCheckoutSession> {
-    const order = await this.request("POST", "/orders", {
-      customer_id: params.providerCustomerId,
-      items: [
-        {
-          amount: 0, // Amount comes from the plan/price in a real integration
-          description: `Payment for ${params.priceId}`,
-          quantity: params.quantity ?? 1,
-          code: params.priceId,
-        },
-      ],
-      payments: [{ payment_method: "checkout", checkout: {} }],
-    });
-    return {
-      sessionId: order.id,
-      url: order.checkouts?.[0]?.payment_url ?? "",
-    };
+    // WR-01: A zero-amount order is dangerous -- fail loudly until price
+    // resolution (via a Pagar.me plan lookup or an amount field on params)
+    // is implemented.
+    throw new Error(
+      "Pagar.me adapter: amount resolution not yet implemented for one-time payments",
+    );
   }
 
   async createCheckoutSession(
-    params: CreateCheckoutSessionParams,
+    _params: CreateCheckoutSessionParams,
   ): Promise<ProviderCheckoutSession> {
-    // Pagar.me does not have a hosted checkout like Stripe.
-    // Create an order with checkout payment method and return the payment URL.
-    const order = await this.request("POST", "/orders", {
-      customer_id: params.providerCustomerId,
-      items: [
-        {
-          amount: 0,
-          description: `Subscription for ${params.priceId}`,
-          quantity: 1,
-          code: params.priceId,
-        },
-      ],
-      payments: [{ payment_method: "checkout", checkout: {} }],
-    });
-    return {
-      sessionId: order.id,
-      url: order.checkouts?.[0]?.payment_url ?? "",
-    };
+    // WR-01: Same as createOneTimePayment -- Pagar.me has no hosted checkout
+    // and the previous placeholder silently created zero-amount orders.
+    // Fail loudly until a real price-resolution path is added.
+    throw new Error(
+      "Pagar.me adapter: amount resolution not yet implemented for checkout sessions",
+    );
   }
 
   /**
