@@ -51,6 +51,7 @@ export const billingRoutes = new Elysia({ prefix: "/api/billing" })
     // Read signature from provider-specific headers
     const sig =
       ctx.request.headers.get("stripe-signature") ||
+      ctx.request.headers.get("x-pagarme-signature") ||
       ctx.request.headers.get("x-hub-signature") ||
       "";
 
