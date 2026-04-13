@@ -196,8 +196,11 @@ export const billingRoutes = new Elysia({ prefix: "/api/billing" })
     return { success: true, data: result.data };
   })
   .get("/history", async (ctx: any) => {
+    // WR-03: `offset` is not supported by getBillingHistory / getInvoices.
+    // Do not accept it from the query string until pagination is wired through
+    // to the PaymentProvider interface -- otherwise callers silently get
+    // page 1 every time and assume pagination is working.
     const limit = Number(ctx.query?.limit) || 20;
-    const offset = Number(ctx.query?.offset) || 0;
     const result = await getBillingHistory({ limit }, ctx.handlerCtx);
     if (!result.success) {
       ctx.set.status = 400;
