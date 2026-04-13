@@ -50,21 +50,29 @@ export async function processWebhook(data: unknown): Promise<void> {
   }
 
   try {
+    // WR-04: Use the provider-semantic event timestamp (normalizedEvent.occurredAt)
+    // rather than the DB row insertion time (event.createdAt). DB insertion time
+    // is a local wall-clock time that gets assigned in an uncoordinated order
+    // under concurrent webhook ingestion, so it cannot protect against
+    // out-of-order replay. The mappers still need to populate occurredAt from
+    // the provider's own event timestamp (see IN-02) for this to be fully robust.
+    const eventTime = normalizedEvent.occurredAt ?? event.createdAt;
+
     switch (normalizedEvent.type) {
       case "checkout.completed":
         await handleCheckoutCompleted(db, normalizedEvent);
         break;
 
       case "subscription.created":
-        await handleSubscriptionCreated(db, normalizedEvent, event.createdAt);
+        await handleSubscriptionCreated(db, normalizedEvent, eventTime);
         break;
 
       case "subscription.updated":
-        await handleSubscriptionUpdated(db, normalizedEvent, event.createdAt);
+        await handleSubscriptionUpdated(db, normalizedEvent, eventTime);
         break;
 
       case "subscription.cancelled":
-        await handleSubscriptionDeleted(db, normalizedEvent, event.createdAt);
+        await handleSubscriptionDeleted(db, normalizedEvent, eventTime);
         break;
 
       case "payment.succeeded":
