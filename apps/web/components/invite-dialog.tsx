@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -16,6 +16,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
   Input,
   Label,
   Select,
@@ -61,8 +67,14 @@ export function InviteDialog({ orgId, orgName }: InviteDialogProps) {
 
   const emailSchema = useMemo(() => buildEmailSchema(t), [t]);
 
+  // Resolver is widened via cast because the conditional schema (linkSchema vs emailSchema)
+  // produces a union type that TypeScript cannot unify with EmailFormValues. The runtime
+  // behavior is correct: when isLinkMode is true the email field is unmounted, so the
+  // linkSchema (role only) validates the only mounted field.
   const form = useForm<EmailFormValues>({
-    resolver: zodResolver(isLinkMode ? linkSchema : emailSchema),
+    resolver: zodResolver(
+      isLinkMode ? linkSchema : emailSchema,
+    ) as unknown as Resolver<EmailFormValues>,
     defaultValues: {
       email: "",
       role: "member",
@@ -154,74 +166,86 @@ export function InviteDialog({ orgId, orgName }: InviteDialogProps) {
             </DialogFooter>
           </div>
         ) : (
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="invite-mode">{t("dialog.modeLabel")}</Label>
-              <div className="flex items-center gap-2 text-sm">
-                <span className={!isLinkMode ? "font-medium" : "text-muted-foreground"}>
-                  {t("dialog.emailMode")}
-                </span>
-                <Switch
-                  id="invite-mode"
-                  checked={isLinkMode}
-                  onCheckedChange={(checked) => {
-                    setIsLinkMode(checked);
-                    if (checked) {
-                      form.clearErrors("email");
-                    }
-                  }}
-                />
-                <span className={isLinkMode ? "font-medium" : "text-muted-foreground"}>
-                  {t("dialog.linkMode")}
-                </span>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="invite-mode">{t("dialog.modeLabel")}</Label>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className={!isLinkMode ? "font-medium" : "text-muted-foreground"}>
+                    {t("dialog.emailMode")}
+                  </span>
+                  <Switch
+                    id="invite-mode"
+                    checked={isLinkMode}
+                    onCheckedChange={(checked) => {
+                      setIsLinkMode(checked);
+                      if (checked) {
+                        form.clearErrors("email");
+                      }
+                    }}
+                  />
+                  <span className={isLinkMode ? "font-medium" : "text-muted-foreground"}>
+                    {t("dialog.linkMode")}
+                  </span>
+                </div>
               </div>
-            </div>
 
-            {!isLinkMode && (
-              <div className="space-y-2">
-                <Label htmlFor="invite-email">{t("dialog.emailLabel")}</Label>
-                <Input
-                  id="invite-email"
-                  type="email"
-                  placeholder={t("dialog.emailPlaceholder")}
-                  {...form.register("email")}
+              {!isLinkMode && (
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("dialog.emailLabel")}</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="email"
+                          placeholder={t("dialog.emailPlaceholder")}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                {form.formState.errors.email && (
-                  <p className="text-sm text-destructive">
-                    {form.formState.errors.email.type === "too_small"
-                      ? t("dialog.validation.emailRequired")
-                      : t("dialog.validation.emailInvalid")}
-                  </p>
+              )}
+
+              <FormField
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("dialog.roleLabel")}</FormLabel>
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="member">{t("roles.member")}</SelectItem>
+                        <SelectItem value="admin">{t("roles.admin")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
                 )}
-              </div>
-            )}
+              />
 
-            <div className="space-y-2">
-              <Label htmlFor="invite-role">{t("dialog.roleLabel")}</Label>
-              <Select
-                value={form.watch("role")}
-                onValueChange={(value) => form.setValue("role", value as "admin" | "member")}
-              >
-                <SelectTrigger id="invite-role">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="member">{t("roles.member")}</SelectItem>
-                  <SelectItem value="admin">{t("roles.admin")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button type="button" variant="outline" onClick={handleClose}>
-                {tc("cancel")}
-              </Button>
-              <Button type="submit" disabled={inviteMutation.isPending}>
-                {inviteMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-                {isLinkMode ? t("actions.generateLink") : t("actions.sendInvite")}
-              </Button>
-            </DialogFooter>
-          </form>
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button type="button" variant="outline" onClick={handleClose}>
+                  {tc("cancel")}
+                </Button>
+                <Button type="submit" disabled={inviteMutation.isPending}>
+                  {inviteMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {isLinkMode ? t("actions.generateLink") : t("actions.sendInvite")}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
         )}
       </DialogContent>
     </Dialog>
