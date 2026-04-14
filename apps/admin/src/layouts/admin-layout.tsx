@@ -70,7 +70,7 @@ function AdminLayoutContent() {
 
   return (
     <SidebarProvider>
-      <SkipToContent />
+      <SkipToContent label={tc("skipToContent")} />
       <NavigationAutoClose />
       <TooltipProvider>
         <nav aria-label="Main navigation">
