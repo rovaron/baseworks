@@ -8,6 +8,7 @@
   "dependencies": {
     "@baseworks/config": "workspace:*",
     "@baseworks/db": "workspace:*",
+    "@baseworks/i18n": "workspace:*",
     "@baseworks/shared": "workspace:*",
     "@pagarme/sdk": "5.8.1",
     "@react-email/components": "1.0.11",
