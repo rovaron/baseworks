@@ -129,6 +129,10 @@ Plans:
   2. `apps/web/components/invite-dialog.tsx` uses shared `Form`/`FormField`/`FormItem`/`FormMessage` primitives — raw `<p className="text-sm text-destructive">` error paragraphs are removed
   3. Submitting the invite dialog with an empty or invalid email announces the error to screen readers via `role="alert"` (verified through vitest-axe + manual screen reader check)
   4. Heading hierarchy on auth pages passes automated vitest-axe checks for heading order (no skipped levels)
+**Plans:** 2 plans
+Plans:
+- [ ] 11-01-PLAN.md — Invite accept page: replace 5 CardTitle usages with h1 (A11Y-01)
+- [ ] 11-02-PLAN.md — InviteDialog: refactor to Form/FormField/FormMessage primitives with i18n schema factory (A11Y-04, A11Y-05)
 **UI hint**: yes
 
 ### Phase 12: i18n Hardcoded String Cleanup
