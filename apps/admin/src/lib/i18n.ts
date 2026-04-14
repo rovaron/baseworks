@@ -9,11 +9,13 @@ import {
   enDashboard,
   enBilling,
   enAdmin,
+  enInvite,
   ptBRCommon,
   ptBRAuth,
   ptBRDashboard,
   ptBRBilling,
   ptBRAdmin,
+  ptBRInvite,
 } from "@baseworks/i18n";
 
 const resources = {
@@ -23,6 +25,7 @@ const resources = {
     dashboard: enDashboard,
     billing: enBilling,
     admin: enAdmin,
+    invite: enInvite,
   },
   "pt-BR": {
     common: ptBRCommon,
@@ -30,6 +33,7 @@ const resources = {
     dashboard: ptBRDashboard,
     billing: ptBRBilling,
     admin: ptBRAdmin,
+    invite: ptBRInvite,
   },
 };
 
