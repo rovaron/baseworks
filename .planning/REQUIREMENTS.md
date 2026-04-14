@@ -88,18 +88,18 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RESP-04 | Phase 6 | Pending |
 | RESP-05 | Phase 6 | Pending |
 | RESP-06 | Phase 6 | Pending |
-| A11Y-01 | Phase 7 | Pending |
+| A11Y-01 | Phase 11 | Pending |
 | A11Y-02 | Phase 7 | Pending |
-| A11Y-03 | Phase 7 | Pending |
-| A11Y-04 | Phase 7 | Pending |
-| A11Y-05 | Phase 7 | Pending |
+| A11Y-03 | Phase 12 | Pending |
+| A11Y-04 | Phase 11 | Pending |
+| A11Y-05 | Phase 11 | Pending |
 | A11Y-06 | Phase 7 | Pending |
-| I18N-01 | Phase 8 | Pending |
-| I18N-02 | Phase 8 | Pending |
-| I18N-03 | Phase 8 | Pending |
-| I18N-04 | Phase 8 | Pending |
+| I18N-01 | Phase 12 | Pending |
+| I18N-02 | Phase 12 | Pending |
+| I18N-03 | Phase 12 | Pending |
+| I18N-04 | Phase 12 | Pending |
 | INVT-01 | Phase 9 | Pending |
-| INVT-02 | Phase 9 | Pending |
+| INVT-02 | Phase 12 | Pending |
 | INVT-03 | Phase 9 | Pending |
 | INVT-04 | Phase 9 | Pending |
 | INVT-05 | Phase 9 | Pending |
@@ -116,4 +116,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-04-08*
-*Last updated: 2026-04-08 after roadmap creation*
+*Last updated: 2026-04-13 after v1.1 milestone audit gap closure phases (11, 12) added*

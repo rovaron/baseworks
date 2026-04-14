@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v1.0 MVP** -- Phases 1-5 (shipped 2026-04-08)
-- 🚧 **v1.1 Polish & Extensibility** -- Phases 6-10 (in progress)
+- 🚧 **v1.1 Polish & Extensibility** -- Phases 6-12 (in progress)
 
 ## Phases
 
@@ -27,6 +27,8 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 - [x] **Phase 8: Internationalization** - Shared i18n package with pt-BR and en translations wired into both frontends
 - [ ] **Phase 9: Team Invites** - Invite-by-email, invite links, role assignment, accept/decline flow with translated UI
 - [x] **Phase 10: Payment Abstraction** - Port/adapter interface, Stripe adapter extraction, Brazilian provider adapter, webhook normalization (completed 2026-04-11)
+- [ ] **Phase 11: Accessibility Gap Closure** - Close A11Y-01 auth page heading hierarchy and GAP-3 InviteDialog a11y regression flagged by v1.1 milestone audit
+- [ ] **Phase 12: i18n Hardcoded String Cleanup** - Eliminate hardcoded English from invite email template and skip link, register invite namespace in admin i18n (GAP-1, GAP-2)
 
 ## Phase Details
 
@@ -117,10 +119,35 @@ Plans:
 - [x] 10-02-PLAN.md — StripeAdapter extraction, billing module refactoring, webhook normalization
 - [x] 10-03-PLAN.md — PagarmeAdapter, provider factory env-based selection, conditional env validation
 
+### Phase 11: Accessibility Gap Closure
+**Goal**: Close the accessibility regressions v1.1 milestone audit found so A11Y-01, A11Y-04, and A11Y-05 are satisfied end-to-end across auth pages and the team invite dialog
+**Depends on**: Phase 9 (InviteDialog exists), Phase 7 (Form primitives exist)
+**Requirements**: A11Y-01, A11Y-04, A11Y-05
+**Gap Closure**: Closes audit gaps A11Y-01 (partial), A11Y-04 (partial), A11Y-05 (partial), integration GAP-3, Flow D
+**Success Criteria** (what must be TRUE):
+  1. Every auth page (login, signup, forgot password, reset password) renders an `<h1>` at the top of its Card — `CardTitle` no longer resolves to a generic `div` inside these pages
+  2. `apps/web/components/invite-dialog.tsx` uses shared `Form`/`FormField`/`FormItem`/`FormMessage` primitives — raw `<p className="text-sm text-destructive">` error paragraphs are removed
+  3. Submitting the invite dialog with an empty or invalid email announces the error to screen readers via `role="alert"` (verified through vitest-axe + manual screen reader check)
+  4. Heading hierarchy on auth pages passes automated vitest-axe checks for heading order (no skipped levels)
+**UI hint**: yes
+
+### Phase 12: i18n Hardcoded String Cleanup
+**Goal**: Remove the hardcoded English strings the integration checker flagged so pt-BR users see a fully localized UI and I18N-01/I18N-02/I18N-03 are satisfied when Phase 8 is re-verified
+**Depends on**: Phase 8 (i18n infrastructure), Phase 9 (invite email template)
+**Requirements**: I18N-01, I18N-02, I18N-03, I18N-04, A11Y-03, INVT-02
+**Gap Closure**: Closes audit gaps I18N-01..04 (partial), integration GAP-1, GAP-2
+**Success Criteria** (what must be TRUE):
+  1. `packages/ui/src/components/skip-link.tsx` accepts a `label` prop and both app layouts pass a translated string — no hardcoded `"Skip to content"` literal remains
+  2. `apps/admin/src/lib/i18n.ts` registers the `invite` namespace alongside existing resources
+  3. `packages/modules/billing/src/templates/team-invite.tsx` renders all strings (heading, body, CTA button, footer) from `packages/i18n` based on a `locale` parameter — no hardcoded English strings
+  4. The `sendInvitationEmail` callback in `auth.ts` resolves the recipient locale (from invite record or inviter user) and passes it into the email template renderer
+  5. Pt-BR invitee receiving an invite email sees Portuguese copy, and pt-BR user tabbing to the skip link sees Portuguese label text in both apps
+**UI hint**: no
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10
+Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10 -> 11 -> 12
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -134,3 +161,5 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10
 | 8. Internationalization | v1.1 | 0/0 | Not started | - |
 | 9. Team Invites | v1.1 | 0/5 | Planned | - |
 | 10. Payment Abstraction | v1.1 | 4/4 | Complete    | 2026-04-11 |
+| 11. Accessibility Gap Closure | v1.1 | 0/0 | Planned | - |
+| 12. i18n Hardcoded String Cleanup | v1.1 | 0/0 | Planned | - |
