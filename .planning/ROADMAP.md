@@ -27,7 +27,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 - [x] **Phase 8: Internationalization** - Shared i18n package with pt-BR and en translations wired into both frontends
 - [ ] **Phase 9: Team Invites** - Invite-by-email, invite links, role assignment, accept/decline flow with translated UI
 - [x] **Phase 10: Payment Abstraction** - Port/adapter interface, Stripe adapter extraction, Brazilian provider adapter, webhook normalization (completed 2026-04-11)
-- [ ] **Phase 11: Accessibility Gap Closure** - Close A11Y-01 auth page heading hierarchy and GAP-3 InviteDialog a11y regression flagged by v1.1 milestone audit
+- [x] **Phase 11: Accessibility Gap Closure** - Close A11Y-01 auth page heading hierarchy and GAP-3 InviteDialog a11y regression flagged by v1.1 milestone audit (completed 2026-04-14)
 - [ ] **Phase 12: i18n Hardcoded String Cleanup** - Eliminate hardcoded English from invite email template and skip link, register invite namespace in admin i18n (GAP-1, GAP-2)
 
 ## Phase Details
@@ -129,10 +129,10 @@ Plans:
   2. `apps/web/components/invite-dialog.tsx` uses shared `Form`/`FormField`/`FormItem`/`FormMessage` primitives — raw `<p className="text-sm text-destructive">` error paragraphs are removed
   3. Submitting the invite dialog with an empty or invalid email announces the error to screen readers via `role="alert"` (verified through vitest-axe + manual screen reader check)
   4. Heading hierarchy on auth pages passes automated vitest-axe checks for heading order (no skipped levels)
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
-- [ ] 11-01-PLAN.md — Invite accept page: replace 5 CardTitle usages with h1 (A11Y-01)
-- [ ] 11-02-PLAN.md — InviteDialog: refactor to Form/FormField/FormMessage primitives with i18n schema factory (A11Y-04, A11Y-05)
+- [x] 11-01-PLAN.md — Invite accept page: replace 5 CardTitle usages with h1 (A11Y-01)
+- [x] 11-02-PLAN.md — InviteDialog: refactor to Form/FormField/FormMessage primitives with i18n schema factory (A11Y-04, A11Y-05)
 **UI hint**: yes
 
 ### Phase 12: i18n Hardcoded String Cleanup
@@ -165,5 +165,5 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10 -> 11 -> 12
 | 8. Internationalization | v1.1 | 0/0 | Not started | - |
 | 9. Team Invites | v1.1 | 0/5 | Planned | - |
 | 10. Payment Abstraction | v1.1 | 4/4 | Complete    | 2026-04-11 |
-| 11. Accessibility Gap Closure | v1.1 | 0/0 | Planned | - |
+| 11. Accessibility Gap Closure | v1.1 | 2/2 | Complete    | 2026-04-14 |
 | 12. i18n Hardcoded String Cleanup | v1.1 | 0/0 | Planned | - |
