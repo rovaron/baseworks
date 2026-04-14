@@ -48,16 +48,18 @@ Out of scope: anything outside these two locations. Other audit gaps (GAP-1 emai
 
 ### Regression prevention
 
-**Locked:**
-- Phase 07-03 established vitest-axe tests for `packages/ui` primitives only. `apps/web` has no vitest-axe setup today (confirmed via codebase scan — no vitest-axe imports in apps/web).
-- Phase 11 must include a regression test that would have caught both bugs.
+**Locked (hard codebase constraints — confirmed via scan):**
+- `apps/web` has **zero test files** today (`find apps/web -name "*.test.*"` returns nothing) and **no vitest config** (`apps/web/vitest.config.*` does not exist). Adding a single regression test would require bootstrapping vitest + @testing-library/react + jsdom + vitest.config.ts + test setup file — substantial infrastructure for a gap-closure phase.
+- `packages/ui` already has vitest-axe coverage of `FormMessage` (`packages/ui/src/components/__tests__/form.a11y.test.tsx`) — `FormMessage`'s `role="alert"` is already test-guaranteed at the primitive level.
+- The audit's GAP-3 root cause is "developer bypassed the shared Form primitives and wrote raw JSX". Making the fix use those primitives transfers regression protection to the existing packages/ui tests automatically.
 
 **Claude's Discretion:**
-- Where to locate the regression test. Options:
-  1. Add a vitest-axe smoke test for `InviteDialog` in `apps/web/__tests__/` — requires setting up vitest-axe in apps/web (new pattern).
-  2. Add a vitest-axe test alongside the existing packages/ui form.a11y.test.tsx that renders a minimal reproduction of the invite dialog's form structure.
-  3. Add a DOM-assertion test (no axe) that checks for `role="alert"` on the error node and for `<h1>` presence on the invite accept page.
-- Recommendation: Option 3 (DOM assertions) — cheapest, fastest, catches the exact regressions. Puts one test in `apps/web/components/__tests__/invite-dialog.test.tsx` (assert `role="alert"` appears after submitting with empty email) and one in `apps/web/app/(auth)/invite/__tests__/page.test.tsx` OR inside an existing test file if one exists. Defers "full vitest-axe in apps/web" as a separate future concern — out of audit scope.
+- Whether to bootstrap a test harness in `apps/web` just for this phase, or rely on the existing packages/ui primitive tests + a static grep assertion.
+- **Recommendation: skip the apps/web test harness in Phase 11.** Instead:
+  1. Rely on the existing `packages/ui/src/components/__tests__/form.a11y.test.tsx` coverage for `role="alert"` and `aria-describedby` wiring (the primitives are guaranteed).
+  2. Add acceptance-criteria-level grep assertions in the PLAN.md (see `<specifics>` section below) that a human or CI grep step can verify: `grep -c "FormMessage" apps/web/components/invite-dialog.tsx >= 1`, `grep -c "text-sm text-destructive" apps/web/components/invite-dialog.tsx == 0`, `grep -c "CardTitle" apps/web/app/\(auth\)/invite/\[token\]/page.tsx == 0`.
+  3. File an explicit deferral note: "apps/web test infrastructure is tracked separately as tech debt, not part of Phase 11 scope."
+- If the planner disagrees and wants to bootstrap apps/web vitest: allocate a dedicated plan for it and call out the added scope explicitly so reviewers see the tradeoff.
 
 ### Verification
 
@@ -104,8 +106,8 @@ Out of scope: anything outside these two locations. Other audit gaps (GAP-1 emai
 4. `grep -c "FormMessage" apps/web/components/invite-dialog.tsx` returns `>= 1`
 5. `grep -c "FormField" apps/web/components/invite-dialog.tsx` returns `>= 2` (email field + role field)
 6. Running `bun test` in the repo passes (existing tests must not regress)
-7. Regression test file exists and asserts `role="alert"` on rendered InviteDialog form errors
-8. Regression test file exists (or existing test extended) that asserts the invite accept page renders exactly one top-level `<h1>` per card state
+7. The existing `packages/ui/src/components/__tests__/form.a11y.test.tsx` still passes — it is the upstream guarantee that `FormMessage` announces `role="alert"`, transitively protecting InviteDialog once it uses the primitive.
+8. No new test file required in `apps/web` (apps/web has no vitest harness — bootstrapping one is explicitly out of scope; see `<decisions>` Regression prevention).
 
 **Visual / UX constraints (nothing visible should change):**
 - Heading font size/weight/tracking stay identical (reuse `text-2xl font-semibold leading-none tracking-tight`)
@@ -120,7 +122,8 @@ Out of scope: anything outside these two locations. Other audit gaps (GAP-1 emai
 
 **Not in Phase 11:**
 - Changing `CardTitle` to accept an `as` prop or default to `<h2>` — cascading packages/ui refactor, out of scope. Audit does not request it.
-- Running vitest-axe on the full invite accept page — requires new vitest-axe setup in apps/web, deferred as tech debt beyond this phase.
+- Bootstrapping vitest + @testing-library/react + jsdom in `apps/web` — apps/web has zero test files and no vitest config today; creating that harness is substantial infrastructure unrelated to the audit's gap language and is explicitly deferred.
+- Running vitest-axe on the full invite accept page — same reason as above.
 - Fixing Phase 9 "human_needed" UAT status — that is a manual verification concern, handled by `/gsd-verify-work 9` after this phase lands.
 - i18n cleanup (GAP-1, GAP-2) — Phase 12 owns that scope.
 - Phase 8 VERIFICATION.md regeneration — post-Phase 12 verifier rerun, not a plan task.
