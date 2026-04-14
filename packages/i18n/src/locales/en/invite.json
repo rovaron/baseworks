@@ -76,5 +76,12 @@
     "confirmTitle": "Cancel this invitation?",
     "confirmBody": "This will revoke the invitation. The recipient will no longer be able to join using this invite.",
     "confirmButton": "Yes, Cancel Invitation"
+  },
+  "email": {
+    "heading": "You're invited to {orgName}",
+    "body": "{inviterName} has invited you to join {orgName} as a {roleLabel}.",
+    "cta": "Accept Invitation",
+    "footer": "If you were not expecting this invitation, you can ignore this email.",
+    "subject": "You're Invited to Join a Team"
   }
 }

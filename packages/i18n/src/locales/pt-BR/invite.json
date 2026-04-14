@@ -76,5 +76,12 @@
     "confirmTitle": "Cancelar este convite?",
     "confirmBody": "Isso revogara o convite. O destinatario nao podera mais ingressar usando este convite.",
     "confirmButton": "Sim, Cancelar Convite"
+  },
+  "email": {
+    "heading": "Você foi convidado para {orgName}",
+    "body": "{inviterName} convidou você para entrar em {orgName} como {roleLabel}.",
+    "cta": "Aceitar Convite",
+    "footer": "Se você não estava esperando este convite, pode ignorar este email.",
+    "subject": "Você foi convidado para uma equipe"
   }
 }
