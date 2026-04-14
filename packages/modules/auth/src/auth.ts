@@ -5,6 +5,7 @@ import { createDb } from "@baseworks/db";
 import { env } from "@baseworks/config";
 import { createQueue } from "@baseworks/queue";
 import type { Queue } from "bullmq";
+import { getLocale } from "./locale-context";
 
 /**
  * Lazy-initialized email queue.
@@ -95,6 +96,11 @@ export const auth = betterAuth({
           return;
         }
 
+        // Phase 12 D-02/D-03: resolve recipient locale from the inviter's active
+        // request locale via AsyncLocalStorage. Falls back to defaultLocale ("en")
+        // if called outside a request context.
+        const locale = getLocale();
+
         const queue = getEmailQueue();
         const inviteLink = `${env.WEB_URL}/invite/${data.id}`;
         if (queue) {
@@ -106,10 +112,13 @@ export const auth = betterAuth({
               organizationName: data.organization.name,
               inviterName: data.inviter.user.name || data.inviter.user.email,
               role: data.role,
+              locale,
             },
           });
         } else {
-          console.log(`[AUTH] Team invite for ${data.email}: ${inviteLink}`);
+          console.log(
+            `[AUTH] Team invite for ${data.email} (locale=${locale}): ${inviteLink}`,
+          );
         }
       },
     }),
