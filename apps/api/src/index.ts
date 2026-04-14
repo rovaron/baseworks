@@ -5,7 +5,7 @@ import { Elysia } from "elysia";
 import { sql } from "drizzle-orm";
 import cors from "@elysiajs/cors";
 import swagger from "@elysiajs/swagger";
-import { requireRole } from "@baseworks/module-auth";
+import { requireRole, localeMiddleware } from "@baseworks/module-auth";
 import { registerBillingHooks } from "@baseworks/module-billing";
 import { ModuleRegistry } from "./core/registry";
 import { tenantMiddleware } from "./core/middleware/tenant";
@@ -45,6 +45,10 @@ const app = new Elysia()
   .use(errorMiddleware)
   // Request tracing -- generates requestId, logs method/path/status/duration
   .use(requestTraceMiddleware)
+  // Locale capture (Phase 12 D-02) -- reads NEXT_LOCALE cookie into AsyncLocalStorage
+  // so sendInvitationEmail and other auth callbacks can resolve the request locale
+  // without touching better-auth's plugin config.
+  .use(localeMiddleware)
   .use(
     cors({
       credentials: true,

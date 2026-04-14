@@ -17,6 +17,7 @@ import { getInvitation } from "./queries/get-invitation";
 
 export { auth } from "./auth";
 export { betterAuthPlugin, requireRole } from "./middleware";
+export { localeMiddleware, getLocale } from "./locale-context";
 
 /**
  * Auth module definition following the Medusa-style module pattern.
