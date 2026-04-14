@@ -15,7 +15,6 @@ import {
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -149,9 +148,9 @@ export default function InviteAcceptPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="items-center text-center">
           <AlertCircle className="h-12 w-12 text-destructive" />
-          <CardTitle className="mt-4 text-2xl">
+          <h1 className="mt-4 text-2xl font-semibold leading-none tracking-tight">
             {t("accept.invalidTitle")}
-          </CardTitle>
+          </h1>
           <CardDescription>{t("accept.invalidBody")}</CardDescription>
         </CardHeader>
         <CardFooter className="justify-center">
@@ -168,9 +167,9 @@ export default function InviteAcceptPage() {
     return (
       <Card className="w-full max-w-md">
         <CardHeader className="items-center text-center">
-          <CardTitle className="text-2xl">
+          <h1 className="text-2xl font-semibold leading-none tracking-tight">
             {t("accept.alreadyMember")}
-          </CardTitle>
+          </h1>
         </CardHeader>
         <CardFooter className="justify-center">
           <Button onClick={() => router.push("/dashboard")}>
@@ -186,7 +185,9 @@ export default function InviteAcceptPage() {
     return (
       <Card className="w-full max-w-md">
         <CardHeader className="items-center text-center">
-          <CardTitle className="text-2xl">{t("accept.declined")}</CardTitle>
+          <h1 className="text-2xl font-semibold leading-none tracking-tight">
+            {t("accept.declined")}
+          </h1>
         </CardHeader>
         <CardFooter className="justify-center">
           <Button variant="outline" onClick={() => router.push("/")}>
@@ -215,7 +216,9 @@ export default function InviteAcceptPage() {
                 {getOrgInitials(orgName)}
               </AvatarFallback>
             </Avatar>
-            <CardTitle className="mt-4 text-2xl">{orgName}</CardTitle>
+            <h1 className="mt-4 text-2xl font-semibold leading-none tracking-tight">
+              {orgName}
+            </h1>
             <CardDescription>
               {t("accept.invitedBy", { name: inviterName, orgName })}
             </CardDescription>
@@ -286,7 +289,9 @@ export default function InviteAcceptPage() {
             {getOrgInitials(orgName)}
           </AvatarFallback>
         </Avatar>
-        <CardTitle className="mt-4 text-2xl">{orgName}</CardTitle>
+        <h1 className="mt-4 text-2xl font-semibold leading-none tracking-tight">
+          {orgName}
+        </h1>
         <CardDescription>
           {t("accept.invitedBy", { name: inviterName, orgName })}
         </CardDescription>
