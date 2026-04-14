@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -33,16 +33,23 @@ interface InviteDialogProps {
   orgName: string | undefined;
 }
 
-const emailSchema = z.object({
-  email: z.string().min(1).email(),
-  role: z.enum(["admin", "member"]),
-});
+// Factory builds emailSchema with pre-translated error messages so that
+// FormMessage can render errors.email.message without any conditional logic.
+function buildEmailSchema(t: (key: string) => string) {
+  return z.object({
+    email: z
+      .string()
+      .min(1, { message: t("dialog.validation.emailRequired") })
+      .email({ message: t("dialog.validation.emailInvalid") }),
+    role: z.enum(["admin", "member"]),
+  });
+}
 
 const linkSchema = z.object({
   role: z.enum(["admin", "member"]),
 });
 
-type EmailFormValues = z.infer<typeof emailSchema>;
+type EmailFormValues = z.infer<ReturnType<typeof buildEmailSchema>>;
 
 export function InviteDialog({ orgId, orgName }: InviteDialogProps) {
   const t = useTranslations("invite");
@@ -51,6 +58,8 @@ export function InviteDialog({ orgId, orgName }: InviteDialogProps) {
   const [open, setOpen] = useState(false);
   const [isLinkMode, setIsLinkMode] = useState(false);
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
+
+  const emailSchema = useMemo(() => buildEmailSchema(t), [t]);
 
   const form = useForm<EmailFormValues>({
     resolver: zodResolver(isLinkMode ? linkSchema : emailSchema),
