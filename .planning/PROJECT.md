@@ -53,7 +53,7 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 ### Active
 
 - [ ] Fully responsive layouts (mobile/tablet/desktop) for both frontends; fix sidebar overlay
-- [ ] Accessibility (a11y) — keyboard nav, screen reader support, semantic HTML, ARIA
+- [ ] Accessibility (a11y) — keyboard nav, screen reader support, semantic HTML, ARIA (gap closure v1.1 — A11Y-01 invite page h1 and A11Y-04/05 InviteDialog Form primitives validated in Phase 11)
 - [ ] i18n infrastructure + pt-BR and en translations for both frontends
 - [ ] Team/org invites — invite-by-email, role assignment, invite links, accept/decline, expiration
 - [ ] Payment provider abstraction — port interface, Stripe adapter, one Brazilian provider adapter
@@ -137,4 +137,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-11 after Phase 10 (Payment Abstraction) complete*
+*Last updated: 2026-04-13 after Phase 11 (A11Y Gap Closure) complete — invite page h1 hierarchy and InviteDialog Form primitive refactor closed A11Y-01/A11Y-04/A11Y-05 audit gaps, verified via Chrome DevTools MCP live-DOM checks*
