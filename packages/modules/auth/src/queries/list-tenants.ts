@@ -5,7 +5,16 @@ import { auth } from "../auth";
 const ListTenantsInput = Type.Object({});
 
 /**
- * List all tenants (organizations) the current user belongs to.
+ * List all tenants the authenticated user belongs to.
+ *
+ * Returns all organizations where the user has a membership
+ * record. Used for tenant switching in the frontend sidebar.
+ *
+ * @param input - ListTenantsInput (empty object, no filters)
+ * @param ctx   - Handler context (unused; auth.api resolves
+ *   user from session headers)
+ * @returns Result<Organization[]> -- array of organizations,
+ *   or empty array if none
  *
  * Per TNNT-03: Tenant listing via CQRS query.
  * Per Pitfall 6: Uses auth.api, not scopedDb.

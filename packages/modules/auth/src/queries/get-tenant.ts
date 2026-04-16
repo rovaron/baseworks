@@ -7,7 +7,16 @@ const GetTenantInput = Type.Object({
 });
 
 /**
- * Get full tenant (organization) details including members.
+ * Retrieve full tenant organization details including members.
+ *
+ * Fetches the organization via better-auth's getFullOrganization
+ * API, which includes the member list with roles.
+ *
+ * @param input - GetTenantInput: organizationId (UUID)
+ * @param ctx   - Handler context (unused; auth.api is not
+ *   tenant-scoped)
+ * @returns Result<FullOrganization> -- organization with members
+ *   array, or err if not found
  *
  * Per TNNT-03: Tenant read available via CQRS query.
  * Per Pitfall 6: Uses auth.api, not scopedDb.

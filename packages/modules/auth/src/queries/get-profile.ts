@@ -14,12 +14,21 @@ const db = createDb(env.DATABASE_URL);
 const GetProfileInput = Type.Object({});
 
 /**
- * Get user profile by authenticated userId from context.
+ * Retrieve the authenticated user's profile by ctx.userId.
  *
- * IMPORTANT: Uses ctx.userId + direct DB query (not auth.api.getSession
- * with empty headers, which would always return null).
+ * Uses a direct DB query against the user table instead of
+ * auth.api.getSession (which requires request headers and
+ * would return null with empty Headers). Only selected columns
+ * are exposed -- no password hash.
  *
- * Per T-02-14: Only selected columns exposed -- no password hash.
+ * @param input - GetProfileInput (empty object)
+ * @param ctx   - Handler context: userId (required for query),
+ *   db is unused (direct DB connection for auth tables)
+ * @returns Result<UserProfile> -- id, name, email, image,
+ *   emailVerified, createdAt; or err if not authenticated
+ *
+ * Per T-02-14: Only selected columns exposed -- no password
+ * hash.
  * Per D-17: Profile read via auth module query.
  */
 export const getProfile = defineQuery(GetProfileInput, async (_input, ctx) => {

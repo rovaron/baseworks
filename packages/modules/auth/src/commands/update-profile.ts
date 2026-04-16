@@ -13,12 +13,27 @@ const UpdateProfileInput = Type.Object({
 });
 
 /**
- * Update user profile (name, email, avatar URL, password).
+ * Update the authenticated user's profile fields and optionally
+ * change their password.
+ *
+ * Splits into two API calls: basic fields (name, email, image)
+ * via updateUser, and password change via changePassword if both
+ * currentPassword and newPassword are provided.
+ *
+ * @param input - UpdateProfileInput: name (optional, 1-100
+ *   chars), email (optional), image (optional URL),
+ *   currentPassword (required for password change), newPassword
+ *   (8-128 chars, required with currentPassword)
+ * @param ctx   - Handler context: tenantId, userId, db, emit
+ * @returns Result<{ updated: true }> -- confirmation object, or
+ *   err with failure message
  *
  * Per D-17: User profile managed through auth module.
  * Per TNNT-05: User can update their profile.
- * Per T-02-15: Password change requires currentPassword verification.
- * Per T-02-13: Uses ctx.userId from authenticated session, not from input.
+ * Per T-02-15: Password change requires currentPassword
+ * verification.
+ * Per T-02-13: Uses ctx.userId from authenticated session, not
+ * from input.
  */
 export const updateProfile = defineCommand(
   UpdateProfileInput,
