@@ -71,7 +71,7 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 
 ### Active
 
-- [ ] Comprehensive JSDoc annotations across all source files
+- [x] Comprehensive JSDoc annotations across all source files — Validated in Phase 13: JSDoc Annotations
 - [ ] High-quality unit tests increasing coverage across the full stack
 - [ ] In-repo developer documentation (configuration, testing, third-party integrations)
 
@@ -98,6 +98,8 @@ The frontend is split into two apps: a Next.js customer-facing app (deployable t
 v1.0 shipped in 3 days (2026-04-05 to 2026-04-08) across 116 commits and 5 phases (15 plans). All 49 v1 requirements validated.
 
 v1.1 shipped in 6 days (2026-04-08 to 2026-04-14) across 157 commits and 7 phases (24 plans). All 26 v1.1 requirements validated. Added +6,565 lines across 117 files.
+
+Phase 13 complete (2026-04-16) — JSDoc style guide + annotations across all 53 exported files (shared, db, auth, billing, example, core infrastructure). 14 @example blocks, 6 requirements validated.
 
 ## Constraints
 
