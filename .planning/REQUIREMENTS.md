@@ -77,35 +77,35 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| JSDOC-01 | — | Pending |
-| JSDOC-02 | — | Pending |
-| JSDOC-03 | — | Pending |
-| JSDOC-04 | — | Pending |
-| JSDOC-05 | — | Pending |
-| JSDOC-06 | — | Pending |
-| TEST-01 | — | Pending |
-| TEST-02 | — | Pending |
-| TEST-03 | — | Pending |
-| TEST-04 | — | Pending |
-| TEST-05 | — | Pending |
-| TEST-06 | — | Pending |
-| TEST-07 | — | Pending |
-| TEST-08 | — | Pending |
-| DOCS-01 | — | Pending |
-| DOCS-02 | — | Pending |
-| DOCS-03 | — | Pending |
-| DOCS-04 | — | Pending |
-| DOCS-05 | — | Pending |
-| DOCS-06 | — | Pending |
-| DOCS-07 | — | Pending |
-| DOCS-08 | — | Pending |
-| DOCS-09 | — | Pending |
+| JSDOC-01 | Phase 13 | Pending |
+| JSDOC-02 | Phase 13 | Pending |
+| JSDOC-03 | Phase 13 | Pending |
+| JSDOC-04 | Phase 13 | Pending |
+| JSDOC-05 | Phase 13 | Pending |
+| JSDOC-06 | Phase 13 | Pending |
+| TEST-01 | Phase 14 | Pending |
+| TEST-02 | Phase 14 | Pending |
+| TEST-03 | Phase 14 | Pending |
+| TEST-04 | Phase 14 | Pending |
+| TEST-05 | Phase 14 | Pending |
+| TEST-06 | Phase 14 | Pending |
+| TEST-07 | Phase 14 | Pending |
+| TEST-08 | Phase 14 | Pending |
+| DOCS-01 | Phase 15 | Pending |
+| DOCS-02 | Phase 15 | Pending |
+| DOCS-03 | Phase 15 | Pending |
+| DOCS-04 | Phase 15 | Pending |
+| DOCS-05 | Phase 15 | Pending |
+| DOCS-06 | Phase 15 | Pending |
+| DOCS-07 | Phase 15 | Pending |
+| DOCS-08 | Phase 15 | Pending |
+| DOCS-09 | Phase 15 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 23 total
-- Mapped to phases: 0
-- Unmapped: 23 ⚠️
+- Mapped to phases: 23
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-16*
-*Last updated: 2026-04-16 after initial definition*
+*Last updated: 2026-04-16 after roadmap creation*
