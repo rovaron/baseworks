@@ -106,6 +106,6 @@ Phases execute in numeric order: 13 -> 14 -> 15
 | 10. Payment Abstraction | v1.1 | 4/4 | Complete | 2026-04-11 |
 | 11. Accessibility Gap Closure | v1.1 | 2/2 | Complete | 2026-04-14 |
 | 12. i18n Hardcoded String Cleanup | v1.1 | 3/3 | Complete | 2026-04-14 |
-| 13. JSDoc Annotations | v1.2 | 4/4 | Complete   | 2026-04-16 |
+| 13. JSDoc Annotations | v1.2 | 4/4 | Complete    | 2026-04-16 |
 | 14. Unit Tests | v1.2 | 0/0 | Not started | - |
 | 15. Developer Documentation | v1.2 | 0/0 | Not started | - |
