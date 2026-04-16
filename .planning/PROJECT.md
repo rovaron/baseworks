@@ -8,6 +8,15 @@ A production-grade monorepo starter kit for SaaS and freelance projects. Provide
 
 Clone, configure, and start building a multitenant SaaS in minutes — not weeks.
 
+## Current Milestone: v1.2 Documentation & Quality
+
+**Goal:** Annotate the entire codebase with comprehensive JSDoc, increase test coverage with high-quality unit tests, and create in-repo developer documentation covering configuration, testing, and third-party integrations.
+
+**Target features:**
+- Comprehensive JSDoc annotations across all source files (backend, frontend, shared packages)
+- High-quality unit tests increasing coverage across the full stack
+- In-repo developer documentation: configuration guides, testing guides, third-party integration docs
+
 ## Current State
 
 **Shipped:** v1.1 Polish & Extensibility (2026-04-16)
@@ -62,7 +71,9 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 
 ### Active
 
-(No active requirements — define next milestone with `/gsd-new-milestone`)
+- [ ] Comprehensive JSDoc annotations across all source files
+- [ ] High-quality unit tests increasing coverage across the full stack
+- [ ] In-repo developer documentation (configuration, testing, third-party integrations)
 
 ### Out of Scope
 
@@ -139,4 +150,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-16 after v1.1 milestone complete — responsive layouts, accessibility, i18n, team invites, payment abstraction all shipped*
+*Last updated: 2026-04-16 after v1.2 milestone started — Documentation & Quality*
