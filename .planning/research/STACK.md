@@ -1,322 +1,291 @@
-# Stack Research: v1.1 Additions
+# Stack Research: v1.2 Documentation & Quality
 
-**Domain:** SaaS Starter Kit -- i18n, a11y, responsive, payments abstraction, team invites
-**Researched:** 2026-04-08
-**Confidence:** MEDIUM-HIGH
+**Domain:** JSDoc annotations, test coverage, developer documentation for TypeScript monorepo
+**Researched:** 2026-04-16
+**Confidence:** HIGH
 
-**Scope:** This document covers ONLY new stack additions for v1.1. The existing v1.0 stack (Bun, Elysia, Drizzle, Next.js 15, Vite, React 19, shadcn/ui, Tailwind 4, better-auth, Stripe, BullMQ, etc.) is validated and unchanged.
+**Scope:** This document covers ONLY new stack additions for v1.2 Documentation & Quality. The existing stack (Bun, Elysia, Drizzle, Next.js 15, Vite, React 19, shadcn/ui, Tailwind 4, better-auth, Stripe, Pagar.me, BullMQ, pino, Biome, bun test, Vitest, etc.) is validated and unchanged.
 
 ---
 
 ## New Stack Additions
 
-### 1. Internationalization (i18n)
+### 1. JSDoc / TSDoc Annotation Tooling
 
-**Strategy:** Use `next-intl` for the Next.js app and `react-i18next` for the Vite admin app. Share translation JSON files from a common `packages/i18n` workspace package. Both consume the same `{locale}/{namespace}.json` structure.
+**Strategy:** Use standard JSDoc syntax (not TSDoc-specific tags) because TypeDoc, TypeScript, and all major editors support JSDoc natively. Since this is a TypeScript codebase, omit type annotations from JSDoc comments -- TypeScript's type system provides that. Focus JSDoc on `@param` descriptions, `@returns` descriptions, `@throws`, `@example`, and module/function purpose documentation.
 
-**Why two libraries instead of one:**
-- `next-intl` is purpose-built for Next.js App Router with first-class Server Component support, locale-prefixed routing, and zero-hydration overhead for server-rendered pages. It is the most popular i18n library for App Router (1.8M weekly downloads, growing).
-- `react-i18next` is the standard for non-Next.js React SPAs. It works perfectly with Vite + React Router. Using `next-i18next` in the admin app would require Next.js-specific infrastructure that does not exist.
-- Both read the same JSON message format, so translation files are shared without conversion.
+**Why JSDoc over TSDoc syntax:**
+- TypeDoc supports both JSDoc and TSDoc tags, with JSDoc being the more widely understood format
+- TypeScript's own compiler understands JSDoc comments and surfaces them in hover tooltips
+- TSDoc's stricter spec adds marginal value when you already have TypeScript types -- the descriptions are the same
+- No need for `eslint-plugin-tsdoc` dependency; JSDoc is the pragmatic choice
 
-| Library | Version | Target App | Purpose | Why | Confidence |
-|---------|---------|------------|---------|-----|------------|
-| next-intl | ^4.0+ | apps/web | Next.js App Router i18n | Native Server Component support, locale routing, no hydration cost. Most popular App Router i18n lib. | HIGH |
-| i18next | ^24.0+ | apps/admin | i18n core engine | Framework-agnostic core. 8.9M weekly downloads. Battle-tested. | HIGH |
-| react-i18next | ^15.0+ | apps/admin | React bindings for i18next | Standard React integration for i18next. useTranslation() hook. | HIGH |
-| i18next-browser-languagedetector | ^8.0+ | apps/admin | Auto-detect user locale | Detects from browser settings, URL, cookies. Needed for SPA. | HIGH |
+**No JSDoc linting tool needed.** Biome does not yet support JSDoc validation rules (as of 2026). Adding `eslint-plugin-jsdoc` would require reintroducing ESLint alongside Biome, creating a dual-linter setup. This is not worth the complexity. Instead, enforce JSDoc quality through:
+- Code review conventions (documented in the developer guide)
+- TypeDoc build step that will surface broken references and missing exports
+- TypeScript's own `@param` tooltip rendering as visual feedback during development
 
-**What NOT to add:**
-- `i18next-http-backend` -- Unnecessary. Bundle JSON files at build time rather than fetching at runtime. Simpler, faster, no CORS issues.
-- `next-i18next` -- Legacy Pages Router library. `next-intl` is the App Router standard.
-- `i18next-resources-to-backend` -- Not needed if translations are statically imported.
-
-**Shared translation structure (new package: `packages/i18n`):**
-```
-packages/i18n/
-  messages/
-    en/
-      common.json      # Shared strings (buttons, labels, errors)
-      auth.json         # Auth-related strings
-      billing.json      # Billing-related strings
-    pt-BR/
-      common.json
-      auth.json
-      billing.json
-  src/
-    index.ts           # Export message loaders and locale config
-    locales.ts         # Supported locales, default locale
-```
-
-**Integration notes:**
-- `next-intl` supports monorepo setups natively -- merge messages from packages using TypeScript augmentation of `IntlMessages`
-- For the admin app, initialize i18next once in `apps/admin/src/i18n.ts` and import shared JSONs from `@baseworks/i18n`
-- Use ICU message format for plurals and interpolation (supported by both libraries)
-- Store user locale preference in the session/user profile (database column)
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| (none)     | --      | JSDoc authoring | No tooling additions needed. Use standard JSDoc in `.ts` files. TypeScript + editor IntelliSense handles display. |
 
 ---
 
-### 2. Accessibility (a11y) Tooling
+### 2. Documentation Generation
 
-**Strategy:** Layer three complementary tools -- Biome's built-in a11y rules (already present), `vitest-axe` for component-level testing, and `@axe-core/react` for runtime dev auditing.
+**Strategy:** Use TypeDoc to generate API reference documentation from JSDoc comments and TypeScript type signatures. TypeDoc is the only mature, actively maintained documentation generator for TypeScript. Configure it in monorepo "packages" mode to produce unified docs across all workspace packages.
 
-| Library | Version | Where | Purpose | Why | Confidence |
-|---------|---------|-------|---------|-----|------------|
-| vitest-axe | ^1.0+ | Dev dependency | Component a11y test assertions | Vitest-native version of jest-axe. Custom `toHaveNoViolations()` matcher. Works with existing Vitest + RTL setup. | MEDIUM |
-| axe-core | ^4.10+ | Dev dependency | Accessibility engine | Core engine used by vitest-axe. Industry standard by Deque Labs. WCAG 2.1 AA rules. | HIGH |
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| typedoc | ^0.28 | API docs from TSDoc/JSDoc + types | The standard TypeScript documentation generator. Reads JSDoc comments + TS type signatures. Outputs HTML or JSON. Supports monorepo workspaces via `entryPointStrategy: "packages"`. Actively maintained, TS 5.0-5.8+ compatible. |
+| typedoc-plugin-markdown | ^4.0 | Markdown output | Generates Markdown instead of HTML. Better for in-repo docs that live alongside code. Can be committed to `docs/api/` and read on GitHub directly. |
 
-**What is already available (no additions needed):**
-- **Biome a11y rules** -- Biome 1.9+ includes ~35 accessibility lint rules (subset of jsx-a11y). Already configured in the project. Catches static JSX issues (missing alt text, invalid ARIA, etc.).
-- **Radix UI primitives** -- All shadcn/ui components are built on Radix, which handles ARIA attributes, keyboard navigation, and focus management automatically. This is the biggest a11y win -- use shadcn components rather than custom HTML.
-- **@testing-library/react** -- Already in the project. Its query hierarchy (`getByRole` > `getByLabelText` > `getByText`) naturally enforces accessible patterns.
-
-**What NOT to add:**
-- `@axe-core/react` -- Deprecated for React 18+. Deque recommends axe Developer Hub (paid) or vitest-axe (free) instead.
-- `eslint-plugin-jsx-a11y` -- Would require adding ESLint back alongside Biome. Biome covers the most important rules. Not worth the tooling complexity.
-- `pa11y` or `lighthouse` -- E2E a11y testing tools. Overkill for a starter kit. Add later if needed for CI.
-
-**Testing pattern:**
-```typescript
-import { render } from '@testing-library/react';
-import { axe } from 'vitest-axe';
-import 'vitest-axe/extend-expect';
-
-it('has no a11y violations', async () => {
-  const { container } = render(<MyComponent />);
-  expect(await axe(container)).toHaveNoViolations();
-});
-```
-
-**Manual a11y checklist (no library needed, just conventions):**
-- All interactive elements must be keyboard-accessible (Tab, Enter, Escape)
-- Focus trapping in modals/dialogs (Radix handles this)
-- Skip-to-content link on main layouts
-- Sufficient color contrast (4.5:1 minimum for WCAG AA)
-- `aria-live` regions for dynamic content updates (toasts, form errors)
-- Semantic HTML: `<main>`, `<nav>`, `<header>`, `<aside>`, `<section>` with headings
-
----
-
-### 3. Responsive Design (Tailwind 4)
-
-**Strategy:** No new libraries needed. Tailwind 4 ships everything required -- viewport breakpoints, container queries, and responsive utilities. The work is CSS/component architecture, not library additions.
-
-**Built-in Tailwind 4 features to leverage:**
-
-| Feature | Syntax | Use Case |
-|---------|--------|----------|
-| Viewport breakpoints | `sm:`, `md:`, `lg:`, `xl:`, `2xl:` | Page-level layout changes |
-| Container queries | `@container` + `@sm:`, `@md:`, `@lg:` | Component-level responsiveness (cards, sidebar, tables) |
-| Custom containers | `@container/sidebar` | Named containers for specific components |
-
-**Container queries are the key addition for v1.1.** They let components respond to their parent's width rather than the viewport. This is critical for:
-- Sidebar that collapses to icon-only on narrow viewports
-- Dashboard cards that reflow based on grid cell size
-- Admin tables that switch between table and card views
-
-**Container query breakpoints (different from viewport):**
-| Name | Container | Viewport |
-|------|-----------|----------|
-| @sm | 320px | 640px |
-| @md | 448px | 768px |
-| @lg | 576px | 1024px |
-
-**What NOT to add:**
-- `@tailwindcss/container-queries` plugin -- Was needed for Tailwind 3. Container queries are native in Tailwind 4.
-- Any CSS-in-JS responsive library -- Tailwind handles everything.
-- `react-responsive` or `use-media-query` hooks -- Use Tailwind CSS classes instead of JS-based media queries. Avoids hydration mismatches in Next.js.
-
-**Sidebar fix pattern (the specific issue from PROJECT.md):**
-```html
-<!-- Mobile: overlay with backdrop -->
-<!-- Desktop: persistent sidebar -->
-<aside class="fixed inset-y-0 left-0 z-40 w-64 -translate-x-full md:translate-x-0 md:static">
-  ...
-</aside>
-```
-
----
-
-### 4. Payment Provider Abstraction
-
-**Strategy:** Define a `PaymentProvider` TypeScript interface in `@baseworks/shared`, implement a `StripeAdapter` that wraps the existing Stripe code, and add a `MercadoPagoAdapter` for Brazil. Use the Adapter pattern (not Strategy) because providers have fundamentally different APIs that must be normalized.
-
-| Library | Version | Purpose | Why | Confidence |
-|---------|---------|---------|-----|------------|
-| mercadopago | ^2.0+ | Mercado Pago Node.js SDK | Official SDK by MercadoLibre. Supports PIX, boleto, credit cards, installments. Most widely used Brazilian payment gateway. Has Node.js 16+ support. | MEDIUM |
-
-**Why Mercado Pago over alternatives:**
-- **Pagar.me**: Good API, but smaller ecosystem and recently acquired by Stone. SDK maintenance uncertain.
-- **Asaas**: Community SDK only (unofficial). Not suitable for a starter kit that needs reliability.
-- **PagSeguro**: Legacy API design, poor TypeScript support.
-- **Mercado Pago**: Official SDK (`mercadopago` npm), 70K+ weekly downloads, backed by MercadoLibre (MELI), supports PIX natively, best Brazilian payment coverage.
-
-**Interface design:**
-```typescript
-// packages/shared/src/types/payment-provider.ts
-interface PaymentProvider {
-  readonly name: string;
-  createCustomer(params: CreateCustomerParams): Promise<Result<Customer>>;
-  createCheckoutSession(params: CheckoutParams): Promise<Result<CheckoutSession>>;
-  createSubscription(params: SubscriptionParams): Promise<Result<Subscription>>;
-  cancelSubscription(subscriptionId: string): Promise<Result<void>>;
-  verifyWebhook(payload: string, signature: string): Promise<Result<WebhookEvent>>;
-  getPortalUrl?(customerId: string): Promise<Result<string>>;  // Optional: not all providers have portals
+**Monorepo configuration (typedoc.json at root):**
+```json
+{
+  "entryPointStrategy": "packages",
+  "entryPoints": [
+    "packages/shared",
+    "packages/db",
+    "packages/config",
+    "packages/queue",
+    "packages/ui",
+    "packages/api-client",
+    "packages/modules/auth",
+    "packages/modules/billing"
+  ],
+  "out": "docs/api",
+  "packageOptions": {
+    "entryPoints": ["src/index.ts"]
+  },
+  "plugin": ["typedoc-plugin-markdown"],
+  "excludePrivate": true,
+  "excludeInternal": true
 }
 ```
 
-**Key abstraction decisions:**
-- `getPortalUrl` is optional -- Stripe has Customer Portal, Mercado Pago does not. UI must handle this gracefully.
-- Webhook event types must be normalized to a common enum (`subscription.created`, `payment.succeeded`, etc.)
-- Provider-specific data (e.g., PIX QR codes from Mercado Pago) goes in a `metadata` field
-- The billing module config specifies which provider to use per tenant or globally
-- Idempotency handling stays in the adapter (Stripe uses idempotency keys, Mercado Pago uses its own mechanism)
-
-**Migration path from current code:**
-The current billing module calls `getStripe()` directly in command handlers. The refactor:
-1. Define `PaymentProvider` interface in `@baseworks/shared`
-2. Move existing Stripe logic into `packages/modules/billing/src/adapters/stripe.ts` implementing the interface
-3. Create `packages/modules/billing/src/adapters/mercado-pago.ts`
-4. Replace `getStripe()` calls with `getPaymentProvider()` that returns the configured adapter
-5. Command handlers call `provider.createCheckoutSession()` instead of `stripe.checkout.sessions.create()`
+**What NOT to use for docs:**
+- **Docusaurus / VitePress / Nextra** -- Full static site generators are overkill for in-repo developer documentation. The milestone scope is "in-repo docs," not a documentation website. Plain Markdown files in `docs/` plus TypeDoc-generated API reference is sufficient.
+- **Storybook** -- Out of scope for this milestone. Would be valuable for UI component documentation but adds significant build infrastructure.
+- **api-extractor (@microsoft/api-extractor)** -- Designed for published npm packages with .d.ts rollup. Baseworks is a monorepo starter kit, not a published library. Unnecessary complexity.
 
 ---
 
-### 5. Team/Org Invite Flow
+### 3. Test Coverage Reporting
 
-**Strategy:** No new libraries needed. better-auth's organization plugin already includes invitation infrastructure. The work is configuration, UI, and email templates.
+**Strategy:** Use Bun's built-in coverage reporter for backend tests and Vitest's v8 coverage provider for frontend/UI tests. Both output LCOV format for unified reporting.
 
-**What better-auth organization plugin provides out-of-the-box:**
-- `auth.api.createInvitation({ email, role, organizationId })` -- Create invites
-- `auth.api.acceptInvitation({ invitationId })` -- Accept invites
-- `auth.api.rejectInvitation({ invitationId })` -- Decline invites
-- `auth.api.cancelInvitation({ invitationId })` -- Cancel pending invites
-- `auth.api.getInvitation({ id })` -- Get invite details
-- Invitation expiration (`invitationExpiresIn`, default 48 hours)
-- Invitation limits per org (`invitationLimit`)
-- Role assignment on invite (`role: "admin" | "member" | "owner"`)
-- Auto-cancel old invites on re-invite (`cancelPendingInvitationsOnReInvite`)
+#### Backend Coverage (bun test)
 
-**Configuration additions to existing auth.ts:**
-```typescript
-organization({
-  allowUserToCreateOrganization: true,
-  creatorRole: "owner",
-  organizationLimit: 5,
-  // NEW for v1.1:
-  invitationExpiresIn: 60 * 60 * 48,  // 48 hours
-  invitationLimit: 20,                  // Max pending invites per org
-  sendInvitationEmail: async ({ invitation, organization, inviter }) => {
-    const queue = getEmailQueue();
-    if (queue) {
-      await queue.add("org-invite", {
-        to: invitation.email,
-        template: "org-invite",
-        data: {
-          orgName: organization.name,
-          inviterName: inviter.name,
-          role: invitation.role,
-          acceptUrl: `${env.WEB_URL}/invites/${invitation.id}/accept`,
-        },
-      });
-    }
-  },
-}),
+Bun's test runner has native coverage support via `--coverage` flag. It supports `text` and `lcov` reporters, configurable through CLI flags or `bunfig.toml`.
+
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| (bun built-in) | -- | Backend test coverage | `bun test --coverage --coverage-reporter=lcov` outputs lcov.info. Zero dependencies. Already part of the runtime. |
+
+**bunfig.toml configuration:**
+```toml
+[test]
+coverage = true
+coverageReporter = ["text", "lcov"]
+coverageDir = "coverage"
 ```
 
-**What to build (not library additions):**
-- Invite email template (React Email, already in stack)
-- `/invites/[id]/accept` page in Next.js app
-- Team management UI in admin dashboard (list members, send invites, revoke)
-- Invite link generation (shareable URL with token)
+#### Frontend Coverage (Vitest)
+
+Vitest supports v8 and istanbul coverage providers. Use v8 -- it is faster (10% overhead vs 300% for istanbul) and since Vitest 3.2.0 uses AST-based remapping that produces accuracy identical to istanbul.
+
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| @vitest/coverage-v8 | ^4.0 | UI component test coverage | v8 provider for Vitest. Fastest option. AST-based remapping since v3.2.0 gives istanbul-equivalent accuracy. Zero-config with Vitest. |
+
+**Vitest config addition (packages/ui/vitest.config.ts):**
+```typescript
+export default defineConfig({
+  test: {
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'],
+      reportsDirectory: './coverage',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/**/*.test.{ts,tsx}', 'src/test-setup.ts']
+    }
+  }
+})
+```
+
+**What NOT to use:**
+- **istanbul / @vitest/coverage-istanbul** -- v8 is faster and now equally accurate. Istanbul adds 300% overhead.
+- **nyc** -- Legacy CLI wrapper for istanbul. Replaced by native coverage in modern test runners.
+- **c8** -- Standalone v8 coverage CLI. Redundant when both bun test and Vitest have built-in v8 coverage.
+- **codecov / coveralls** -- Cloud coverage tracking services. Not needed for an in-repo starter kit. If CI reporting is wanted later, the LCOV output is compatible.
 
 ---
 
-## Installation (v1.1 additions only)
+### 4. Testing Utilities for Existing Stack
+
+#### Database Testing with PGlite
+
+**Strategy:** Use `@electric-sql/pglite` for database-dependent unit tests. PGlite is a WASM build of PostgreSQL that runs entirely in-process -- no Docker, no external database, instant startup. Combined with Drizzle ORM, it provides real PostgreSQL semantics in tests.
+
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| @electric-sql/pglite | ^0.4 | In-memory PostgreSQL for tests | WASM PostgreSQL -- real Postgres semantics without Docker. 3MB gzipped. Instant startup. Native Drizzle integration via `drizzle-orm/pglite`. Ideal for testing tenant-scoped queries, CQRS handlers, and migration correctness. |
+
+**Test helper pattern:**
+```typescript
+import { PGlite } from '@electric-sql/pglite';
+import { drizzle } from 'drizzle-orm/pglite';
+import * as schema from '@baseworks/db/schema';
+
+export async function createTestDb() {
+  const client = new PGlite();
+  const db = drizzle(client, { schema });
+  // Run migrations or push schema
+  return { db, client };
+}
+```
+
+**Why PGlite over alternatives:**
+- **SQLite (better-sqlite3)**: Different SQL dialect. Baseworks uses PostgreSQL-specific features (JSONB, gen_random_uuid()). Testing with SQLite would miss real bugs.
+- **Testcontainers**: Requires Docker. Slower startup (~2-5s per container). PGlite starts in ~50ms.
+- **Mocking Drizzle directly**: Fragile. Mocks drift from real behavior. PGlite gives real PostgreSQL execution.
+
+#### BullMQ Testing
+
+**Strategy:** Test job processors in isolation by extracting processor functions and testing them with mocked dependencies. For queue integration, use `ioredis-mock` to avoid requiring Redis in the test environment.
+
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| ioredis-mock | ^8.0 | Mock Redis for BullMQ tests | In-memory Redis mock compatible with ioredis API. Avoids requiring real Redis for unit tests. Use for testing queue add/processing logic without infrastructure. |
+
+**Testing pattern for BullMQ:**
+```typescript
+// Extract processor logic into pure functions
+export async function processEmailJob(data: EmailJobData, deps: { resend: ResendClient }) {
+  // Business logic here -- testable without BullMQ
+}
+
+// Test the processor directly
+it('sends email with correct template', async () => {
+  const mockResend = { emails: { send: mock(() => ({ id: 'test' })) } };
+  await processEmailJob({ to: 'a@b.com', template: 'welcome' }, { resend: mockResend });
+  expect(mockResend.emails.send).toHaveBeenCalledWith(expect.objectContaining({ to: 'a@b.com' }));
+});
+```
+
+#### Elysia Testing
+
+**No new libraries needed.** Elysia provides built-in testing via `app.handle()` which accepts Web Standard Request objects and returns Response. Eden Treaty can also be passed an Elysia instance directly for type-safe testing without network requests. Both approaches work with `bun test` out of the box.
+
+#### better-auth Testing
+
+**No new libraries needed.** better-auth handlers are testable through the Elysia app's `handle()` method. Mock the database layer (via PGlite) and test auth flows as HTTP request/response cycles.
+
+---
+
+## Installation (v1.2 additions only)
 
 ```bash
-# i18n -- Next.js app
-cd apps/web && bun add next-intl
+# Documentation generation (root dev dependency)
+bun add -D typedoc typedoc-plugin-markdown
 
-# i18n -- Admin app
-cd apps/admin && bun add i18next react-i18next i18next-browser-languagedetector
+# Frontend test coverage (packages/ui)
+cd packages/ui && bun add -D @vitest/coverage-v8
 
-# i18n -- Shared translations package
-mkdir -p packages/i18n && cd packages/i18n && bun init
+# Database testing (root dev dependency -- used across packages)
+bun add -D @electric-sql/pglite
 
-# a11y testing
-cd . && bun add -D vitest-axe  # root or packages/ui
+# BullMQ testing (root dev dependency)
+bun add -D ioredis-mock
+```
 
-# Payment abstraction -- Brazilian provider
-cd packages/modules/billing && bun add mercadopago
+**Backend coverage (bun test) requires no installation** -- built into Bun runtime.
 
-# Responsive: Nothing to install (Tailwind 4 native)
-# Team invites: Nothing to install (better-auth native)
+---
+
+## Root package.json Script Additions
+
+```json
+{
+  "scripts": {
+    "test": "bun test",
+    "test:coverage": "bun test --coverage --coverage-reporter=lcov",
+    "test:ui": "cd packages/ui && bun vitest run",
+    "test:ui:coverage": "cd packages/ui && bun vitest run --coverage",
+    "docs:api": "typedoc"
+  }
+}
 ```
 
 ---
 
-## Alternatives Considered (v1.1 specific)
+## Alternatives Considered
 
 | Category | Recommended | Alternative | Why Not |
 |----------|-------------|-------------|---------|
-| i18n (Next.js) | next-intl | next-i18next | next-i18next was Pages Router era. next-intl is built for App Router with Server Component support. |
-| i18n (Next.js) | next-intl | lingui | Smaller community, compile-time extraction adds build complexity. |
-| i18n (Vite) | react-i18next | react-intl (FormatJS) | react-i18next has better ecosystem (plugins, tools). react-intl requires more boilerplate. |
-| i18n (shared) | Two libs + shared JSON | Single i18next everywhere | next-intl's Server Component integration is too good to give up. The JSON format is the same, so sharing works. |
-| a11y testing | vitest-axe | @axe-core/react | @axe-core/react is deprecated for React 18+. vitest-axe integrates with existing test setup. |
-| a11y linting | Biome (existing) | eslint-plugin-jsx-a11y | Would require re-adding ESLint. Biome covers core rules. Not worth the tooling split. |
-| Responsive | Tailwind 4 native | react-responsive | JS-based media queries cause hydration mismatches in SSR. CSS-only approach is simpler and faster. |
-| BR Payments | Mercado Pago | Pagar.me | Official SDK, largest market share in Brazil, PIX native. Pagar.me SDK maintenance uncertain post-Stone acquisition. |
-| BR Payments | Mercado Pago | Asaas | Asaas only has unofficial community SDK. Not production-grade for a starter kit. |
-| Invite flow | better-auth org plugin | Custom implementation | Plugin already has full invite CRUD + expiration + role assignment. Building custom would duplicate existing code. |
+| Doc generator | TypeDoc | api-extractor | api-extractor is for published npm packages with .d.ts rollup. Baseworks is a monorepo, not a library. |
+| Doc generator | TypeDoc | Docusaurus/VitePress | Full static site generators. Overkill for in-repo docs. Adds build complexity. |
+| Doc output | typedoc-plugin-markdown | TypeDoc HTML | Markdown is readable on GitHub, diffable in PRs, and lives in-repo. HTML requires hosting. |
+| JSDoc linting | None (conventions) | eslint-plugin-jsdoc | Would require reintroducing ESLint alongside Biome. Dual-linter complexity not worth it. |
+| Comment standard | JSDoc | TSDoc | JSDoc is universally supported. TSDoc adds marginal value in a TypeScript project where types are already explicit. |
+| Backend coverage | Bun built-in | c8 / nyc | Redundant. Bun has native v8 coverage with LCOV output. |
+| Frontend coverage | @vitest/coverage-v8 | @vitest/coverage-istanbul | v8 is 30x faster. Since Vitest 3.2.0, accuracy is equivalent to istanbul via AST remapping. |
+| DB testing | PGlite | Testcontainers | Docker required, 2-5s startup. PGlite is in-process WASM Postgres, ~50ms startup. |
+| DB testing | PGlite | SQLite (better-sqlite3) | Different SQL dialect. Would miss PostgreSQL-specific bugs (JSONB, UUID, etc.). |
+| DB testing | PGlite | Mocking Drizzle | Fragile mocks that drift from real DB behavior. PGlite executes real SQL. |
+| Redis mocking | ioredis-mock | Testcontainers Redis | Simpler for unit tests. No Docker needed. Real Redis only needed for integration tests. |
+| Component docs | None (defer) | Storybook | Significant infrastructure. Out of scope for v1.2. Worth considering in a future milestone. |
 
 ---
 
-## What NOT to Add for v1.1
+## What NOT to Add for v1.2
 
-| Technology | Why Not | What to Use Instead |
-|------------|---------|---------------------|
-| next-i18next | Legacy Pages Router library | next-intl |
-| @axe-core/react | Deprecated for React 18+ | vitest-axe |
-| eslint-plugin-jsx-a11y | Would require ESLint alongside Biome | Biome's built-in a11y rules |
-| @tailwindcss/container-queries | Tailwind 3 plugin, built-in to v4 | Native Tailwind 4 container queries |
-| react-responsive / use-media-query | JS-based, SSR hydration issues | Tailwind CSS responsive classes |
-| i18next-http-backend | Runtime fetching adds latency and CORS complexity | Static imports of JSON at build time |
-| Custom invite system | Duplicates better-auth functionality | better-auth organization plugin |
-| Pagar.me SDK | Uncertain maintenance post-acquisition | Mercado Pago official SDK |
+| Technology | Why Not | Use Instead |
+|------------|---------|-------------|
+| eslint-plugin-jsdoc | Reintroduces ESLint alongside Biome; dual-linter complexity | Code review conventions + TypeDoc build validation |
+| eslint-plugin-tsdoc | Same ESLint problem. TSDoc standard adds marginal value over JSDoc | Standard JSDoc syntax |
+| Docusaurus / VitePress / Nextra | Overkill for in-repo docs. Adds build pipeline, hosting requirement | Markdown files in `docs/` + TypeDoc-generated API reference |
+| Storybook | Major infrastructure addition. Not in milestone scope | Defer to future milestone |
+| @vitest/coverage-istanbul | 30x slower than v8. No accuracy advantage since Vitest 3.2.0 | @vitest/coverage-v8 |
+| nyc / c8 | Legacy coverage CLIs. Both Bun and Vitest have built-in coverage | Native coverage in test runners |
+| codecov / coveralls | Cloud services. Not needed for a starter kit | Local LCOV files. Add cloud reporting in CI if desired later |
+| Testcontainers | Docker overhead for unit tests | PGlite for DB tests, ioredis-mock for Redis tests |
+| better-sqlite3 | Wrong SQL dialect for PostgreSQL testing | PGlite (real PostgreSQL semantics) |
+| api-extractor | Designed for published packages, not monorepo internal docs | TypeDoc |
+| @snaplet/seed | Listed in original stack but adds complexity for seeding. Test data factories can be simple functions | Manual test factory helpers using PGlite |
 
 ---
 
-## Version Compatibility (v1.1 additions)
+## Version Compatibility (v1.2 additions)
 
 | New Package | Compatible With | Notes |
 |-------------|-----------------|-------|
-| next-intl ^4.0 | Next.js 15+, React 19+, App Router | Requires `createNavigation` and `NextIntlClientProvider` setup |
-| i18next ^24.0 | Any React version | Framework-agnostic core |
-| react-i18next ^15.0 | React 18+ or 19+ | Uses hooks API (useTranslation) |
-| vitest-axe ^1.0 | Vitest 2.0+, axe-core 4.x | Fork of jest-axe adapted for Vitest |
-| mercadopago ^2.0 | Node.js 16+, Bun 1.0+ | Official Mercado Pago SDK |
+| typedoc ^0.28 | TypeScript 5.0-5.8+ | Reads tsconfig.json directly. Monorepo mode via `entryPointStrategy: "packages"` |
+| typedoc-plugin-markdown ^4.0 | typedoc ^0.28 | Must match typedoc major version |
+| @vitest/coverage-v8 ^4.0 | Vitest ^4.0 | Must match Vitest version. Currently installed: Vitest 4.1.3 |
+| @electric-sql/pglite ^0.4 | Bun 1.0+, drizzle-orm 0.36+ | Use `drizzle-orm/pglite` adapter. WASM-based, no native dependencies |
+| ioredis-mock ^8.0 | ioredis 5.x, BullMQ 5.x | Drop-in replacement for ioredis in test context |
 
 ---
 
 ## Sources
 
-- [next-intl official docs](https://next-intl.dev/docs/getting-started/app-router) -- App Router setup, monorepo support
-- [next-intl vs i18next comparison](https://i18nexus.com/posts/i18next-vs-next-intl) -- Feature comparison, download stats
-- [next-intl complete guide 2026](https://intlpull.com/blog/next-intl-complete-guide-2026) -- Current best practices
-- [react-i18next quick start](https://react.i18next.com/guides/quick-start) -- Vite + React setup
-- [vitest-axe GitHub](https://github.com/chaance/vitest-axe) -- Vitest accessibility matcher
-- [Biome linter docs](https://biomejs.dev/linter/) -- Built-in a11y rules
-- [Biome 2026 roadmap](https://biomejs.dev/blog/roadmap-2026/) -- Planned a11y improvements
-- [Tailwind CSS responsive design docs](https://tailwindcss.com/docs/responsive-design) -- Viewport + container queries
-- [Tailwind 4 container queries guide](https://www.sitepoint.com/tailwind-css-v4-container-queries-modern-layouts/) -- Native container query usage
-- [better-auth organization plugin](https://better-auth.com/docs/plugins/organization) -- Invitation API, config options
-- [better-auth organization deep wiki](https://deepwiki.com/better-auth/better-auth/5.2-organization-plugin) -- Members, roles, invitations detail
-- [Mercado Pago Node.js SDK](https://github.com/mercadopago/sdk-nodejs) -- Official SDK repository
-- [Payment gateway strategy pattern](https://medium.com/@anayshri/implementing-a-multi-payment-gateway-system-with-strategy-pattern-7750e86f1f65) -- Abstraction pattern reference
-- [Payment gateways in Brazil 2026](https://www.rebill.com/en/blog/pasarelas-pago-brasil) -- Market overview
+- [TypeDoc official site](https://typedoc.org/) -- Version 0.28.17, TypeScript 5.0-5.8 support, monorepo packages mode
+- [TypeDoc GitHub releases](https://github.com/TypeStrong/typedoc/releases) -- Latest version verification
+- [TypeDoc input options](https://typedoc.org/documents/Options.Input.html) -- entryPointStrategy: "packages" for monorepos
+- [Bun test coverage docs](https://bun.com/docs/test/coverage) -- Built-in --coverage flag, LCOV reporter
+- [Vitest coverage guide](https://vitest.dev/guide/coverage) -- v8 vs istanbul, AST-based remapping since v3.2.0
+- [Elysia unit testing docs](https://elysiajs.com/patterns/unit-test) -- app.handle() for HTTP testing without network
+- [Eden Treaty unit testing](https://elysiajs.com/eden/treaty/unit-test) -- Pass Elysia instance directly to Eden
+- [PGlite npm package](https://www.npmjs.com/package/@electric-sql/pglite) -- v0.4.4, WASM PostgreSQL for testing
+- [Drizzle + PGlite integration](https://orm.drizzle.team/docs/connect-pglite) -- Official Drizzle adapter for PGlite
+- [BullMQ unit testing guide](https://oneuptime.com/blog/post/2026-01-21-bullmq-unit-testing/view) -- Processor extraction pattern
+- [Biome JSDoc discussion](https://github.com/biomejs/biome/discussions/741) -- JSDoc formatter/linting not yet implemented
+- [Biome 2026 roadmap](https://biomejs.dev/blog/roadmap-2026/) -- JSDoc not on roadmap
+- [eslint-plugin-jsdoc npm](https://www.npmjs.com/package/eslint-plugin-jsdoc) -- v62+, TypeScript recommended config available (but requires ESLint)
+- [TypeScript JSDoc reference](https://www.typescriptlang.org/docs/handbook/jsdoc-supported-types.html) -- Supported JSDoc tags in TS
 
 ---
-*Stack research for: Baseworks v1.1 additions*
-*Researched: 2026-04-08*
+*Stack research for: Baseworks v1.2 Documentation & Quality*
+*Researched: 2026-04-16*

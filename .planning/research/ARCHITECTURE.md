@@ -1,552 +1,508 @@
 # Architecture Research
 
-**Domain:** v1.1 Feature Integration into Existing Baseworks Monorepo
-**Researched:** 2026-04-08
+**Domain:** JSDoc, Unit Tests, and Developer Documentation for a Bun + Elysia + Drizzle + Next.js monorepo SaaS starter kit
+**Researched:** 2026-04-16
 **Confidence:** HIGH
 
-## System Overview: v1.1 Integration Points
+## System Overview
 
 ```
-                         EXISTING (v1.0)                    NEW (v1.1)
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          Shared Packages Layer                              │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────┐ │
-│  │ @bw/ui   │  │ @bw/db   │  │@bw/shared│  │@bw/config│  │ @bw/i18n     │ │
-│  │ shadcn   │  │ drizzle  │  │ types    │  │ env      │  │ (NEW)        │ │
-│  │ +a11y fix│  │ +provider│  │ +payment │  │          │  │ shared JSON  │ │
-│  │ +respond.│  │  columns │  │  port    │  │          │  │ translations │ │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────────┘ │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                          Module Layer                                       │
-│  ┌────────────────┐  ┌──────────────────┐                                  │
-│  │ auth module    │  │ billing module   │                                  │
-│  │ EXTEND:        │  │ REFACTOR:        │                                  │
-│  │ +invite cmds   │  │ +PaymentProvider │                                  │
-│  │ +invite queries│  │  port interface  │                                  │
-│  │ +invite jobs   │  │ +StripeAdapter   │                                  │
-│  │ +invite events │  │ +AsaasAdapter    │                                  │
-│  └────────────────┘  └──────────────────┘                                  │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                          Application Layer                                  │
-│  ┌────────────────────┐  ┌────────────────────┐  ┌──────────────────────┐  │
-│  │ apps/web (Next.js) │  │ apps/admin (Vite)  │  │ apps/api (Elysia)   │  │
-│  │ +next-intl         │  │ +react-i18next     │  │ (routes unchanged)  │  │
-│  │ +responsive layouts│  │ +responsive layouts│  │                      │  │
-│  │ +invite accept UI  │  │ +invite mgmt UI   │  │                      │  │
-│  └────────────────────┘  └────────────────────┘  └──────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────────────┘
+Existing Monorepo Structure (156 source files, 29 test files)
+===============================================================
+
+baseworks/
+├── apps/
+│   ├── api/src/              # Elysia backend (core/, routes, middleware, worker)
+│   │   ├── core/             # CQRS bus, event bus, module registry
+│   │   │   └── __tests__/    # 3 unit tests (existing)
+│   │   └── __tests__/        # 4 integration tests (existing)
+│   ├── web/                  # Next.js 15 customer app (App Router)
+│   │   └── (no tests)
+│   └── admin/src/            # Vite SPA admin dashboard
+│       └── (no tests)
+├── packages/
+│   ├── shared/src/           # Types, Result monad, CQRS helpers
+│   ├── db/src/               # Drizzle schema, connection, scoped-db
+│   │   └── __tests__/        # 2 tests (existing)
+│   ├── config/src/           # Env validation
+│   │   └── __tests__/        # 1 test (existing)
+│   ├── api-client/src/       # Eden Treaty client, auth client
+│   ├── queue/src/            # BullMQ wrapper
+│   │   └── __tests__/        # 1 test (existing)
+│   ├── i18n/src/             # Shared i18n JSON + exports
+│   ├── ui/src/               # shadcn components + hooks
+│   │   └── components/__tests__/  # 9 a11y tests (existing, Vitest)
+│   └── modules/
+│       ├── auth/src/         # Auth module (commands/, queries/, routes, hooks)
+│       │   └── __tests__/    # 5 tests (existing)
+│       ├── billing/src/      # Billing module (adapters/, commands/, queries/, jobs/, ports/)
+│       │   └── __tests__/    # 4 tests (existing)
+│       └── example/src/      # Example module
+└── docs/                     # NEW - developer documentation (does not exist yet)
 ```
 
 ### Component Responsibilities
 
-| Component | Responsibility | v1.1 Changes |
-|-----------|----------------|--------------|
-| `@baseworks/i18n` (NEW) | Shared translation JSON files, locale types, shared utilities | New package. Holds all `en.json` / `pt-BR.json` files and TypeScript locale type definitions |
-| `@baseworks/ui` | Shared shadcn components | Fix responsive issues (sidebar overlay), add a11y attributes, touch targets. No i18n here -- components receive translated strings as props |
-| `@baseworks/shared` | CQRS types, module contract | Add `PaymentProvider` port interface for billing abstraction |
-| `@baseworks/db` | Drizzle schema, scoped DB | Billing schema migration: rename Stripe-specific columns to provider-agnostic names |
-| `modules/auth` | Auth, tenancy, membership | EXTEND with invite commands/queries/jobs/events (NOT a new module) |
-| `modules/billing` | Payment processing | REFACTOR: extract Stripe-specific code behind a `PaymentProvider` port; add adapter selection |
-| `apps/web` | Customer Next.js app | Add next-intl, responsive layouts, invite accept flow |
-| `apps/admin` | Admin Vite SPA | Add react-i18next, responsive layouts, invite management UI |
+| Component | Responsibility | JSDoc Priority | Test Priority |
+|-----------|----------------|----------------|---------------|
+| `packages/shared` | Type definitions, Result monad, `defineCommand`/`defineQuery` | HIGHEST - every module depends on these types | HIGH - pure functions, easy to test |
+| `packages/db` | Schema, connection, tenant-scoped wrapper | HIGH - scoped-db is the security boundary | HIGH - scoped-db is critical path |
+| `apps/api/src/core` | CQRS bus, event bus, module registry | HIGH - core infrastructure | MEDIUM - already has 3 tests |
+| `packages/modules/auth` | Auth commands, queries, routes, hooks | HIGH - most-used module | HIGH - 5 tests exist, need unit tests for each handler |
+| `packages/modules/billing` | Payment adapters, commands, webhooks, jobs | HIGH - money path | HIGH - 4 tests exist, adapters need thorough coverage |
+| `packages/config` | Env validation | MEDIUM | LOW - 1 test exists, simple |
+| `packages/queue` | BullMQ wrapper | MEDIUM | LOW - 1 test exists |
+| `packages/api-client` | Eden Treaty setup | MEDIUM - consumer docs matter | LOW - thin wrappers |
+| `packages/ui` | shadcn components | LOW - shadcn components are well-known | MEDIUM - 9 a11y tests, add render tests |
+| `packages/i18n` | i18n JSON resources | LOW | LOW - static data |
+| `apps/web` | Next.js pages/components | MEDIUM | MEDIUM - page-level tests |
+| `apps/admin` | Vite dashboard pages | MEDIUM | MEDIUM - page-level tests |
 
-## Question 1: Where Do i18n Translations Live?
-
-### Recommendation: New `packages/i18n` Package for Shared Translations
-
-**Architecture:** Create `@baseworks/i18n` as a new shared package. Both apps import from it, but each app uses its own i18n framework.
-
-```
-packages/i18n/
-├── package.json
-├── src/
-│   ├── index.ts              # Type exports, locale list, utility functions
-│   ├── types.ts              # TypeScript type for translation keys (generated or manual)
-│   └── locales/
-│       ├── en/
-│       │   ├── common.json   # Shared: buttons, labels, errors, navigation
-│       │   ├── auth.json     # Auth-related strings
-│       │   ├── billing.json  # Billing-related strings
-│       │   └── admin.json    # Admin-specific strings
-│       └── pt-BR/
-│           ├── common.json
-│           ├── auth.json
-│           ├── billing.json
-│           └── admin.json
-```
-
-**Why shared package, not per-app:**
-- Both frontends share 60-70% of strings (auth forms, billing, navigation, error messages)
-- Single source of truth avoids translation drift between apps
-- Translators work in one place, not two
-- Type-safe keys can be generated once and shared
-
-**Why NOT in `@baseworks/ui`:**
-- UI components should be language-agnostic. They receive translated strings as props
-- Mixing translations into UI creates coupling (what if a third frontend is added?)
-- Separation of concerns: `@baseworks/ui` = visual components, `@baseworks/i18n` = text content
-
-### Per-App i18n Framework (Different Libraries, Same Translations)
-
-**apps/web (Next.js): Use `next-intl`**
-- Purpose-built for Next.js App Router + Server Components
-- ~2KB bundle. Translations load on server, zero client JS for server-rendered pages
-- Middleware handles locale detection and routing (`/en/dashboard`, `/pt-BR/dashboard`)
-- Import translation JSONs from `@baseworks/i18n` package
-
-**apps/admin (Vite SPA): Use `react-i18next`**
-- The standard for non-Next.js React apps. Mature, well-documented
-- No SSR needed in admin SPA, so next-intl's server component advantage is irrelevant
-- Namespace support maps cleanly to the JSON file structure (`common`, `auth`, `billing`, `admin`)
-- Import same translation JSONs from `@baseworks/i18n` package
-
-**Why different libraries per app:** next-intl is superior for Next.js (server component support, middleware routing, smaller bundle). But next-intl is Next.js-only -- it cannot run in a Vite SPA. react-i18next is the correct choice for the admin dashboard. The shared `@baseworks/i18n` package ensures both apps consume identical translation files regardless of the i18n runtime.
-
-### Data Flow: Translations
+## Recommended Documentation Structure
 
 ```
-@baseworks/i18n (JSON files + types)
-    |
-    ├── apps/web (next-intl)
-    |   ├── middleware.ts          # Locale detection, /[locale]/ routing
-    |   ├── i18n/request.ts       # next-intl getRequestConfig, loads from @baseworks/i18n
-    |   └── components use:       # useTranslations('common') -- server or client
-    |
-    └── apps/admin (react-i18next)
-        ├── lib/i18n.ts           # i18next.init(), import JSONs from @baseworks/i18n
-        └── components use:       # useTranslation('common') -- client only
+docs/                              # NEW top-level directory
+├── getting-started.md             # Clone, install, configure, run
+├── architecture.md                # System overview, module pattern, CQRS, data flow
+├── configuration.md               # Env vars, module config, provider selection
+├── modules/
+│   ├── creating-a-module.md       # Step-by-step module creation guide
+│   ├── auth.md                    # Auth module reference
+│   └── billing.md                 # Billing module reference
+├── testing.md                     # Test conventions, how to write tests, runners
+├── deployment.md                  # Docker, Vercel, VPS setup
+└── integrations/
+    ├── stripe.md                  # Stripe setup, webhooks, testing
+    ├── pagarme.md                 # Pagar.me setup
+    ├── resend.md                  # Email setup, React Email templates
+    ├── better-auth.md             # Auth configuration, OAuth providers
+    └── i18n.md                    # Adding languages, namespaces
 ```
 
-### JSON Namespace Strategy
+### Structure Rationale
 
-| Namespace | Used By | Contents |
-|-----------|---------|----------|
-| `common` | Both apps | Buttons (Save, Cancel, Delete), validation errors, navigation labels, date formats |
-| `auth` | Both apps | Login, signup, password reset, invite accept/reject |
-| `billing` | Both apps | Subscription, payment, invoice, plan names |
-| `admin` | Admin only | Admin-specific: tenant management, user management, system health |
-| `dashboard` | Web only | Customer dashboard-specific strings |
+- **Top-level `docs/`:** Not inside any package -- these are cross-cutting guides that reference multiple packages. Co-locating with a single package would be misleading.
+- **`modules/`:** Each module gets a reference doc. The "creating a module" guide is the most valuable doc for the starter kit's purpose (fork and extend).
+- **`integrations/`:** Third-party service setup is configuration-heavy and changes independently of the codebase architecture.
+- **No auto-generated API docs:** The codebase is 16K lines. JSDoc annotations serve as inline docs read in-editor, not as an auto-generated doc site. A `typedoc` build is unnecessary overhead for a starter kit.
 
-**Confidence:** HIGH -- this pattern is well-established in monorepos. The separation of translation data (shared) from i18n runtime (per-app) is the standard approach.
+## Architectural Patterns
 
-## Question 2: Payment Provider Abstraction in CQRS Billing Module
+### Pattern 1: Co-located Tests in `__tests__/` Directories
 
-### Recommendation: Port/Adapter Pattern Inside the Billing Module
+**What:** Tests live in `__tests__/` subdirectories alongside the code they test, NOT in a separate top-level `tests/` folder.
+**When to use:** All packages and apps in this monorepo.
+**Trade-offs:** Keeps tests close to implementation (easy to find, easy to maintain). Slightly noisier file tree, but standard for the JS ecosystem.
 
-The existing billing module has Stripe calls directly inside CQRS command handlers (e.g., `create-checkout-session.ts` calls `getStripe()` directly). The abstraction introduces a `PaymentProvider` port interface and adapter implementations.
-
-### Architecture
+**This is already the established pattern** -- all 29 existing test files follow it. Do not change it.
 
 ```
-packages/shared/src/types/
-├── payment-provider.ts    # NEW: PaymentProvider port interface
-
-packages/modules/billing/src/
-├── adapters/
-│   ├── index.ts           # Adapter factory (reads config/env to select provider)
-│   ├── stripe.ts          # Move getStripe() + Stripe-specific logic here
-│   └── asaas.ts           # NEW: Asaas adapter (Pix + boleto)
+packages/modules/auth/src/
 ├── commands/
-│   ├── create-checkout-session.ts  # REFACTORED: Uses PaymentProvider instead of getStripe()
-│   ├── cancel-subscription.ts      # REFACTORED: Uses PaymentProvider
+│   ├── create-tenant.ts
 │   └── ...
-├── index.ts               # Unchanged module definition
-├── routes.ts              # Webhook route needs per-provider endpoints
-└── schema.ts              # Re-exports provider-agnostic column names
+├── queries/
+│   └── ...
+├── __tests__/                     # Existing: integration tests
+│   ├── auth-setup.test.ts
+│   ├── tenant-crud.test.ts
+│   └── ...
+└── commands/__tests__/            # NEW: unit tests per command
+    ├── create-tenant.test.ts
+    └── ...
 ```
 
-### PaymentProvider Port Interface
+**Key decision: Where to add NEW unit tests.**
+
+The existing `__tests__/` at module root contains integration tests (they spin up auth, hit routes). New unit tests for individual command/query handlers should go in `__tests__/` subdirectories within `commands/` and `queries/` folders to maintain separation:
+
+```
+packages/modules/auth/src/
+├── commands/
+│   ├── create-tenant.ts
+│   ├── update-tenant.ts
+│   └── __tests__/                 # NEW - unit tests for commands
+│       ├── create-tenant.test.ts
+│       └── update-tenant.test.ts
+├── queries/
+│   ├── get-tenant.ts
+│   └── __tests__/                 # NEW - unit tests for queries
+│       └── get-tenant.test.ts
+└── __tests__/                     # EXISTING - integration tests (keep as-is)
+    ├── auth-setup.test.ts
+    └── tenant-crud.test.ts
+```
+
+This gives clear separation: root `__tests__` = integration, subdirectory `__tests__` = unit.
+
+### Pattern 2: JSDoc for CQRS Handlers (Commands and Queries)
+
+**What:** A standardized JSDoc template for every command and query handler.
+**When to use:** Every file in `commands/` and `queries/` across all modules.
+**Trade-offs:** Slightly verbose but provides essential context for anyone forking the starter kit.
+
+**Template for commands:**
+```typescript
+/**
+ * Create a new tenant (organization) via better-auth's org plugin.
+ *
+ * @remarks
+ * Uses better-auth's org API directly (not scopedDb) because auth/org
+ * tables are managed by better-auth and not tenant-scoped.
+ *
+ * Emits: `tenant.created` with `{ tenantId, createdBy }`
+ *
+ * @param input - Validated against CreateTenantInput schema (name, optional slug)
+ * @param ctx - Handler context with userId, tenantId, db, emit, enqueue
+ * @returns Ok with organization object, or Err with error message
+ *
+ * @example
+ * ```typescript
+ * const result = await cqrs.execute("auth:create-tenant", {
+ *   name: "Acme Corp",
+ *   slug: "acme-corp"
+ * }, ctx);
+ * ```
+ */
+```
+
+**Key JSDoc elements for CQRS handlers:**
+1. What the handler does (one sentence)
+2. `@remarks` for architectural notes (why scopedDb vs raw, auth API quirks)
+3. Events emitted (critical for understanding side effects)
+4. `@param` with schema reference
+5. `@returns` with Result type explanation
+6. `@example` showing CQRS bus invocation
+
+### Pattern 3: JSDoc for Port/Adapter Interfaces
+
+**What:** Document the port interface methods with contract-level JSDoc, then each adapter documents implementation-specific behavior.
+**When to use:** `PaymentProvider` port and its adapters (Stripe, Pagar.me).
+**Trade-offs:** More upfront doc work, but essential for anyone adding a new payment adapter.
 
 ```typescript
-// packages/shared/src/types/payment-provider.ts
-
+/**
+ * Payment provider port interface.
+ *
+ * All payment provider adapters MUST implement this interface.
+ * The billing module calls these methods through the factory-resolved adapter --
+ * it never knows which provider is active.
+ *
+ * @remarks
+ * - `createPortalSession` returns null when the provider has no hosted portal (e.g., Pagar.me)
+ * - `reportUsage` is optional -- only providers with usage metering implement it
+ * - `normalizeEvent` converts provider-specific webhook events into the shared NormalizedEvent shape
+ *
+ * @see StripeAdapter - Stripe implementation
+ * @see PagarmeAdapter - Pagar.me implementation
+ */
 export interface PaymentProvider {
-  readonly name: string;  // 'stripe' | 'asaas'
-
-  // Customer management
-  createCustomer(params: CreateCustomerParams): Promise<Result<ProviderCustomer>>;
-
-  // Checkout / Payment creation
-  createCheckoutSession(params: CheckoutParams): Promise<Result<CheckoutResult>>;
-  createOneTimePayment(params: OneTimePaymentParams): Promise<Result<PaymentResult>>;
-
-  // Subscription management
-  cancelSubscription(params: CancelParams): Promise<Result<void>>;
-  changeSubscription(params: ChangeParams): Promise<Result<void>>;
-
-  // Portal (self-service billing management)
-  createPortalSession(params: PortalParams): Promise<Result<PortalResult>>;
-
-  // Usage-based billing
-  recordUsage(params: UsageParams): Promise<Result<void>>;
-
-  // Webhook verification
-  verifyWebhook(rawBody: string, signature: string): Promise<Result<WebhookEvent>>;
-
-  // Status
-  getSubscriptionStatus(customerId: string): Promise<Result<SubscriptionStatus>>;
+  /**
+   * Create a customer record in the payment provider.
+   *
+   * Called during tenant creation (via `on-tenant-created` hook).
+   * The returned `providerCustomerId` is stored in the billing_customers table.
+   *
+   * @param params - Customer email and optional metadata
+   * @returns Provider customer with ID for storage
+   * @throws When provider API is unreachable or rate-limited
+   */
+  createCustomer(params: CreateCustomerParams): Promise<ProviderCustomer>;
+  // ...
 }
 ```
 
-### How It Fits Existing CQRS
+### Pattern 4: JSDoc for Tenant-Scoped Database Wrapper
 
-The CQRS pattern stays exactly the same. Command handlers still receive `(input, ctx)`. The change is internal to the handler -- instead of calling `getStripe()`, they call `getPaymentProvider()`:
-
-```typescript
-// BEFORE (v1.0): Direct Stripe coupling
-import { getStripe } from "../stripe";
-
-export const createCheckoutSession = defineCommand(schema, async (input, ctx) => {
-  const stripe = getStripe();
-  const session = await stripe.checkout.sessions.create({...});
-  return ok({ sessionId: session.id, url: session.url });
-});
-
-// AFTER (v1.1): Provider-agnostic
-import { getPaymentProvider } from "../adapters";
-
-export const createCheckoutSession = defineCommand(schema, async (input, ctx) => {
-  const provider = getPaymentProvider();
-  const result = await provider.createCheckoutSession({...});
-  return result;
-});
-```
-
-### Webhook Route Changes
-
-The webhook route (`/api/billing/webhooks`) needs provider-specific endpoints:
-
-```
-/api/billing/webhooks/stripe   -- Stripe webhooks (existing, relocated)
-/api/billing/webhooks/asaas    -- Asaas webhooks (new)
-```
-
-Each route calls the correct adapter's `verifyWebhook()`. This is cleaner than header detection and allows both providers to be configured simultaneously (e.g., migrating tenants from one provider to another).
-
-### Database Schema Changes
-
-The current `billing_customers` table has Stripe-specific columns. Abstract them:
+**What:** Document the scoped-db security boundary clearly, especially the `raw` escape hatch.
+**When to use:** `packages/db/src/helpers/scoped-db.ts`
 
 ```typescript
-// BEFORE (Stripe-coupled)
-stripeCustomerId: text("stripe_customer_id").notNull().unique(),
-stripeSubscriptionId: text("stripe_subscription_id"),
-stripePriceId: text("stripe_price_id"),
-
-// AFTER (provider-agnostic)
-provider: text("provider").notNull().default("stripe"),       // 'stripe' | 'asaas'
-providerCustomerId: text("provider_customer_id").notNull(),
-providerSubscriptionId: text("provider_subscription_id"),
-providerPriceId: text("provider_price_id"),
-providerMetadata: text("provider_metadata"),  // JSON for provider-specific data
+/**
+ * Tenant-scoped Drizzle query wrapper.
+ *
+ * @remarks
+ * **SECURITY BOUNDARY** -- This wrapper automatically applies `WHERE tenant_id = ?`
+ * on all select/update/delete and injects `tenantId` on all inserts.
+ * Using this wrapper makes cross-tenant data access structurally impossible.
+ *
+ * The `raw` property exposes the underlying Drizzle instance for queries that
+ * genuinely need cross-tenant access (e.g., admin endpoints, migrations).
+ *
+ * @warning The `raw` property bypasses tenant isolation. Only use for admin
+ * operations that explicitly need cross-tenant access. Document WHY when using it.
+ */
 ```
 
-The `webhook_events` table similarly needs `stripeEventId` renamed to `providerEventId` with a `provider` column added.
+### Pattern 5: Module Definition JSDoc
 
-### Brazilian Provider Recommendation: Asaas
+**What:** Each module's `index.ts` export gets a comprehensive JSDoc block documenting the full module surface area.
+**When to use:** Every module's default export.
 
-**Why Asaas over alternatives (EBANX, PagSeguro, MercadoPago):**
-- REST API, no SDK needed (HTTP calls from adapter). Works with any runtime including Bun
-- Supports Pix, Boleto, and Credit Card
-- Sandbox environment for testing
-- Well-documented API with English docs available
-- Reasonable pricing for SaaS. No minimum volume requirements
-- Pix Automatico support coming for recurring payments
+This pattern already exists (see auth and billing module indexes). Enhance it with:
+- `@see` links to relevant docs pages
+- Full list of CQRS command/query names with brief descriptions
+- Job queue names and their purposes
+- Event names and their payloads
 
-**Confidence:** MEDIUM on Asaas adapter specifics (needs real integration testing). HIGH on the port/adapter pattern design.
+## Data Flow
 
-## Question 3: Team Invitations -- Extend Auth Module, Not New Module
+### JSDoc Coverage Flow (Build Order)
 
-### Recommendation: Extend the Existing Auth Module
+```
+Phase 1: Foundation Types
+    packages/shared/src/types/*.ts     (Result, HandlerContext, ModuleDefinition)
+    packages/shared/src/result.ts      (ok, err helpers)
+    packages/db/src/helpers/scoped-db.ts (ScopedDb interface)
+         |
+Phase 2: Core Infrastructure
+    apps/api/src/core/cqrs.ts          (CqrsBus class)
+    apps/api/src/core/event-bus.ts     (TypedEventBus class)
+    apps/api/src/core/registry.ts      (ModuleRegistry class)
+    apps/api/src/core/middleware/*.ts   (tenant, error, request-trace)
+         |
+Phase 3: Database and Config Layer
+    packages/db/src/schema/*.ts        (all table definitions)
+    packages/db/src/connection.ts      (DB connection setup)
+    packages/config/src/env.ts         (env validation)
+    packages/queue/src/*.ts            (BullMQ wrapper)
+         |
+Phase 4: Module Handlers
+    packages/modules/auth/src/commands/*.ts
+    packages/modules/auth/src/queries/*.ts
+    packages/modules/billing/src/commands/*.ts
+    packages/modules/billing/src/queries/*.ts
+    packages/modules/billing/src/ports/*.ts
+    packages/modules/billing/src/adapters/**/*.ts
+    packages/modules/billing/src/jobs/*.ts
+         |
+Phase 5: Routes and Frontend Integration
+    packages/modules/*/src/routes.ts
+    packages/api-client/src/*.ts
+    apps/web/**/*.ts(x)
+    apps/admin/**/*.ts(x)
+    packages/ui/src/components/*.tsx
+```
 
-**Why NOT a separate `invitations` module:**
-- better-auth's organization plugin ALREADY has built-in invitation support (`inviteMember`, `acceptInvitation`, `rejectInvitation`, `cancelInvitation`)
-- Invitations are intrinsically tied to organizations (tenants) and membership -- they are auth/tenancy concerns
-- A separate module would need to import from auth anyway, creating circular dependencies
-- The auth module already has `member.added` and `member.removed` events
+### Test Coverage Flow (Build Order)
 
-**What better-auth provides out of the box:**
-- `invitation` table in DB (auto-managed by better-auth org plugin)
-- Client methods: `organization.inviteMember()`, `organization.acceptInvitation()`, etc.
-- Server API: `auth.api.createInvitation()`, `auth.api.acceptInvitation()`, etc.
-- Configurable: `sendInvitationEmail`, `invitationExpiresIn`, role assignment
-- Built-in roles: owner, admin, member (plus custom roles)
+```
+Phase 1: Pure Functions (easiest, highest value)
+    packages/shared/src/result.ts      -> ok(), err() return correct shapes
+    packages/shared/src/types/cqrs.ts  -> defineCommand/defineQuery validation
+    packages/db/src/helpers/scoped-db.ts -> tenant filtering correctness
+         |
+Phase 2: Core Infrastructure (already partially tested)
+    apps/api/src/core/cqrs.ts          -> expand existing 4 tests
+    apps/api/src/core/event-bus.ts     -> async error handling, off()
+    apps/api/src/core/registry.ts      -> module loading, error paths
+         |
+Phase 3: Command/Query Handlers (highest business value)
+    Each handler gets a unit test:
+    - Mock HandlerContext (db, emit, enqueue)
+    - Test validation (invalid input -> VALIDATION_ERROR)
+    - Test happy path (valid input -> ok result)
+    - Test error paths (external failure -> err result)
+    - Test event emission (handler calls ctx.emit with correct args)
+         |
+Phase 4: Adapters and Jobs
+    Billing adapters: mock Stripe/Pagar.me SDK, verify mapping
+    Job handlers: mock dependencies, verify side effects
+    Webhook normalization: existing tests, expand edge cases
+         |
+Phase 5: Frontend Components
+    UI components: render tests (already have a11y tests)
+    Admin routes: component render + data display tests (Vitest)
+    Web pages: basic render tests (Vitest)
+```
 
-### New CQRS Commands/Queries in Auth Module
+### Documentation Flow (Build Order)
 
+```
+Phase 1: Architecture and Getting Started
+    docs/architecture.md        -> system overview for new developers
+    docs/getting-started.md     -> clone-to-running guide
+         |
+Phase 2: Module Development Guide
+    docs/modules/creating-a-module.md  -> THE most valuable doc
+         |
+Phase 3: Configuration and Testing
+    docs/configuration.md       -> env vars, module config
+    docs/testing.md             -> test conventions, mocking patterns
+         |
+Phase 4: Integration Guides
+    docs/integrations/stripe.md
+    docs/integrations/better-auth.md
+    docs/integrations/resend.md
+    docs/integrations/pagarme.md
+    docs/integrations/i18n.md
+         |
+Phase 5: Module References
+    docs/modules/auth.md
+    docs/modules/billing.md
+    docs/deployment.md
+```
+
+## Key Integration Points
+
+### Test Runner Configuration
+
+| Package/App | Test Runner | Config | Reason |
+|-------------|-------------|--------|--------|
+| `apps/api` | `bun test` | bunfig.toml (if needed) | Backend, Bun-native, existing pattern |
+| `packages/shared` | `bun test` | None needed | Pure TS, no DOM |
+| `packages/db` | `bun test` | None needed | Existing pattern |
+| `packages/config` | `bun test` | None needed | Existing pattern |
+| `packages/queue` | `bun test` | None needed | Existing pattern |
+| `packages/modules/*` | `bun test` | None needed | Existing pattern |
+| `packages/ui` | Vitest | `vitest.config.ts` (exists) | React components need jsdom/happy-dom |
+| `apps/web` | Vitest | Need to add config | React components, Next.js |
+| `apps/admin` | Vitest | Need to add config | React components, Vite |
+
+**New files needed:**
+- `apps/web/vitest.config.ts` -- for Next.js page component tests
+- `apps/admin/vitest.config.ts` -- for admin dashboard tests (if not reusing Vite config)
+- Root `package.json` needs `test` and `test:unit` scripts
+
+**Suggested root scripts to add:**
+```json
+{
+  "test": "bun test && cd packages/ui && bun run test",
+  "test:api": "bun test --filter 'apps/api'",
+  "test:modules": "bun test --filter 'packages/modules'",
+  "test:ui": "cd packages/ui && bun run test"
+}
+```
+
+### JSDoc and TypeScript Integration
+
+- `tsconfig.json` already has `"declaration": true` and `"declarationMap": true` -- JSDoc comments in `.ts` files will appear in generated `.d.ts` files and in IDE hover
+- No additional tooling needed. JSDoc works natively with TypeScript. No `typedoc` build step required.
+- Biome does not lint JSDoc quality (it lints syntax, not doc content). JSDoc quality is enforced by review, not tooling.
+
+### Mocking Patterns for Unit Tests
+
+The codebase already demonstrates the correct mocking approach:
+
+**For command/query handler unit tests:**
 ```typescript
-// packages/modules/auth/src/index.ts -- EXTENDED
-export default {
-  name: "auth",
-  routes: authRoutes,
-  commands: {
-    // Existing
-    "auth:create-tenant": createTenant,
-    "auth:update-tenant": updateTenant,
-    "auth:delete-tenant": deleteTenant,
-    "auth:update-profile": updateProfile,
-    // NEW v1.1
-    "auth:invite-member": inviteMember,
-    "auth:accept-invitation": acceptInvitation,
-    "auth:reject-invitation": rejectInvitation,
-    "auth:cancel-invitation": cancelInvitation,
-    "auth:remove-member": removeMember,
-    "auth:update-member-role": updateMemberRole,
-  },
-  queries: {
-    // Existing
-    "auth:get-tenant": getTenant,
-    "auth:list-tenants": listTenants,
-    "auth:list-members": listMembers,
-    "auth:get-profile": getProfile,
-    // NEW v1.1
-    "auth:list-invitations": listInvitations,
-    "auth:list-user-invitations": listUserInvitations,
-    "auth:get-invitation": getInvitation,
-  },
-  jobs: {
-    // NEW v1.1 -- reuses existing email:send queue
-    "auth:send-invite-email": {
-      queue: "email:send",
-      handler: sendInviteEmail,
-    },
-  },
-  events: [
-    // Existing
-    "user.created", "tenant.created", "member.added", "member.removed", "tenant.deleted",
-    // NEW v1.1
-    "invitation.sent", "invitation.accepted", "invitation.rejected", "invitation.expired",
-  ],
-} satisfies ModuleDefinition;
+import { describe, expect, it } from "bun:test";
+import type { HandlerContext } from "@baseworks/shared";
+
+// Minimal mock context -- just what the handler uses
+const mockCtx: HandlerContext = {
+  tenantId: "test-tenant-id",
+  userId: "test-user-id",
+  db: {}, // Mock scoped DB -- per-test overrides
+  emit: () => {}, // Spy on this for event emission tests
+};
 ```
 
-### better-auth Configuration Changes
-
+**For adapter tests (mocking external SDKs):**
 ```typescript
-// packages/modules/auth/src/auth.ts -- ADD to organization plugin config
-organization({
-  allowUserToCreateOrganization: true,
-  creatorRole: "owner",
-  organizationLimit: 5,
-  // NEW v1.1
-  invitationExpiresIn: 60 * 60 * 48, // 48 hours
-  sendInvitationEmail: async ({ invitation, organization, inviter }) => {
-    const queue = getEmailQueue();
-    if (queue) {
-      await queue.add("invite-email", {
-        to: invitation.email,
-        template: "organization-invite",
-        data: {
-          organizationName: organization.name,
-          inviterName: inviter.name,
-          inviteUrl: `${env.WEB_URL}/invitations/${invitation.id}`,
-          role: invitation.role,
-          expiresAt: invitation.expiresAt,
-        },
-      });
-    }
-  },
-}),
+import { mock } from "bun:test";
+
+// Mock external SDK BEFORE importing the module under test
+mock.module("stripe", () => ({
+  default: class MockStripe { /* ... */ },
+}));
+
+const { createCheckoutSession } = await import("../commands/create-checkout-session");
 ```
 
-### Invite Accept Flow
-
-```
-1. Owner clicks "Invite Member" in web/admin UI
-2. Frontend calls auth:invite-member command
-3. Command wraps auth.api.createInvitation()
-4. better-auth creates invitation record in DB
-5. sendInvitationEmail fires -> BullMQ email:send queue
-6. Worker sends email via Resend with invite link
-7. Invitee clicks link -> /invitations/[id] in Next.js app
-8. Page calls auth:accept-invitation command
-9. better-auth adds member to organization
-10. Events "invitation.accepted" + "member.added" emitted
-```
-
-**Confidence:** HIGH -- better-auth's organization plugin has first-class invitation support. The CQRS wrapping follows the exact same pattern as existing auth commands.
-
-## Question 4: Responsive Breakpoints with Existing Tailwind 4 + shadcn
-
-### Current State
-
-The existing setup already has responsive foundations:
-- `useIsMobile()` hook in `@baseworks/ui` (768px breakpoint)
-- shadcn `Sidebar` component uses `Sheet` for mobile (slide-over overlay)
-- Tailwind 4 includes default breakpoints: `sm:640px`, `md:768px`, `lg:1024px`, `xl:1280px`
-- The sidebar already uses `md:block` / `md:flex` for desktop, Sheet for mobile
-
-### What Needs Fixing
-
-The PROJECT.md mentions "fix sidebar overlay" -- the sidebar Sheet overlay likely does not dismiss on navigation or the overlay covers content incorrectly. The sidebar component already handles mobile via Sheet; the fix is behavioral, not structural.
-
-### Responsive Strategy
-
-**No new breakpoints needed.** Tailwind 4's defaults align with shadcn's conventions:
-
-| Breakpoint | Target | Usage |
-|------------|--------|-------|
-| `< 640px` (default) | Mobile phones | Single column, hamburger menu, stacked cards |
-| `sm:` (640px+) | Large phones / small tablets | Minor spacing adjustments |
-| `md:` (768px+) | Tablets / small laptops | Sidebar visible, 2-column layouts |
-| `lg:` (1024px+) | Laptops | Full sidebar + content, data tables comfortable |
-| `xl:` (1280px+) | Desktops | Max-width containers, extra whitespace |
-
-### Changes Required
-
-**`@baseworks/ui` (shared):**
-- Fix sidebar overlay dismiss behavior (likely Sheet `onOpenChange` not firing on route change)
-- Ensure all interactive elements have minimum 44x44px touch targets on mobile
-- Verify Sheet, Dialog, DropdownMenu work on touch devices
-- Add `sr-only` labels and ARIA attributes where missing
-
-**`apps/web` dashboard layout:**
+**For React component tests (Vitest):**
 ```typescript
-// CURRENT (v1.0)
-<main className="flex-1 overflow-auto">
-  <div className="mx-auto max-w-4xl p-6">{children}</div>
-</main>
-
-// AFTER (v1.1): Responsive padding
-<main className="flex-1 overflow-auto">
-  <div className="mx-auto max-w-4xl px-4 py-4 md:px-6 md:py-6">{children}</div>
-</main>
+import { render, screen } from "@testing-library/react";
+import { describe, it, expect } from "vitest";
 ```
 
-**`apps/admin` data tables:**
-- Tables need horizontal scroll on mobile: `<div className="overflow-x-auto">`
-- Consider card view for list pages on mobile (users, tenants) as alternative to tables
-- Admin is less critical for mobile (admins typically use desktops), but should not break
+## Anti-Patterns
 
-**No custom breakpoint configuration needed.** Tailwind 4 uses CSS-first configuration. If custom breakpoints were needed (they are not), they would go in the CSS `@theme` block.
+### Anti-Pattern 1: Generating API Documentation Sites
 
-**Confidence:** HIGH -- Tailwind 4 defaults + shadcn's built-in responsive patterns cover all needs. The work is applying responsive classes to existing layouts, not configuring new infrastructure.
+**What people do:** Set up typedoc/api-extractor to auto-generate HTML documentation from JSDoc
+**Why it's wrong:** This is a starter kit, not a library. Nobody reads auto-generated API docs for a project they fork and own. The maintenance burden of keeping generated docs in sync is pure overhead.
+**Do this instead:** Write JSDoc for IDE consumption (hover, autocomplete). Write prose docs in `docs/` for concepts and guides.
 
-## Question 5: Suggested Build Order
+### Anti-Pattern 2: Testing Through the HTTP Layer When You Can Test Handlers Directly
 
-### Dependency Analysis
+**What people do:** Write all tests as HTTP integration tests hitting Elysia routes
+**Why it's wrong:** Integration tests are slow, require full app bootstrap, and conflate routing/auth/validation failures with business logic failures. The existing integration tests at `apps/api/src/__tests__/` are valuable but insufficient for coverage.
+**Do this instead:** Unit test command/query handlers directly by calling the function with a mock `HandlerContext`. Keep integration tests for route-level concerns (auth, middleware, serialization).
 
-```
-                    [Responsive + a11y]
-                         |
-                         |  (no backend deps, pure UI)
-                         |
-                    [i18n infrastructure]
-                         |
-                         |  (needs responsive layouts done first so
-                         |   translated strings fit in responsive containers)
-                         |
-              ┌──────────┴──────────┐
-              |                     |
-    [Team Invitations]    [Payment Abstraction]
-              |                     |
-              |  (uses i18n for     |  (uses i18n for
-              |   invite emails)    |   payment status strings)
-              └──────────┬──────────┘
-                         |
-                    [Integration Testing]
-```
+### Anti-Pattern 3: Duplicating JSDoc Between Interface and Implementation
 
-### Recommended Phase Order
+**What people do:** Copy the same JSDoc from the `PaymentProvider` interface onto `StripeAdapter.createCustomer()` and `PagarmeAdapter.createCustomer()`
+**Why it's wrong:** JSDoc on interface methods is inherited by implementations in IDEs. Duplicating it means maintaining two copies that drift apart.
+**Do this instead:** Put the contract-level JSDoc on the interface. On the adapter implementation, only add `@remarks` for adapter-specific behavior (e.g., Stripe-specific rate limit handling).
 
-**Phase 1: Responsive + Accessibility**
-- Zero backend changes. Pure frontend work
-- Fix sidebar overlay bug in `@baseworks/ui`
-- Add responsive classes to all layouts and pages in both apps
-- Add a11y: keyboard navigation, ARIA labels, focus management, semantic HTML
-- Touch targets on mobile for all interactive elements
-- This phase produces a solid UI foundation that all subsequent features build on
+### Anti-Pattern 4: Putting Module-Specific Docs in the Module Package
 
-**Phase 2: i18n Infrastructure**
-- Create `@baseworks/i18n` package with JSON translation files
-- Set up `next-intl` in `apps/web` with locale routing middleware
-- Set up `react-i18next` in `apps/admin`
-- Translate all existing UI strings to `en` + `pt-BR`
-- Add locale switcher component to both apps
-- Must come after responsive because pt-BR strings are ~30% longer than English and need to fit in responsive containers
+**What people do:** Create `packages/modules/auth/docs/` with module documentation
+**Why it's wrong:** Cross-cutting concerns (how auth interacts with billing, how modules register into the CQRS bus) get split across packages and nobody finds them. The starter kit's docs should be a cohesive narrative, not scattered per-package fragments.
+**Do this instead:** Top-level `docs/` directory with module reference pages. Each page covers one module end-to-end, including its integration points with other modules.
 
-**Phase 3: Team/Org Invitations**
-- Configure better-auth organization plugin with `sendInvitationEmail`
-- Add CQRS commands/queries/jobs/events to auth module
-- Build invite email template (React Email, already in the stack)
-- Build invite accept page in `apps/web`
-- Build invite management UI in `apps/admin`
-- Depends on i18n being ready (invite emails and UI should be translated from day one)
+### Anti-Pattern 5: Writing Tests That Test the Framework
 
-**Phase 4: Payment Provider Abstraction**
-- Define `PaymentProvider` port interface in `@baseworks/shared`
-- Extract existing Stripe code into `StripeAdapter`
-- Refactor all billing commands to use adapter
-- Database migration (Stripe-specific columns to provider-agnostic)
-- Build `AsaasAdapter` (Pix + boleto)
-- Add provider-specific webhook routes
-- This is the highest-risk phase (refactoring working code + new external integration)
+**What people do:** Test that Elysia returns 200, that Drizzle inserts rows, that BullMQ enqueues jobs
+**Why it's wrong:** You are testing third-party code, not your business logic. These tests are slow and fragile.
+**Do this instead:** Test YOUR logic -- validation rules, business rules, event emissions, error handling. Trust that Elysia routes work; test that your handler returns the correct Result shape.
 
-### Phase Ordering Rationale
+## New Directories and Files Summary
 
-1. **Responsive/a11y first** because it is pure frontend, zero backend risk, and creates the visual foundation everything else builds on
-2. **i18n second** because all subsequent features (invite emails, payment status messages, new UI pages) should be born translated rather than retrofitted
-3. **Invitations third** because it extends existing better-auth patterns with moderate complexity and produces visible new functionality
-4. **Payment abstraction last** because it is the highest-risk refactor (changing working billing code), involves external API integration (Asaas), and has the fewest dependencies on other v1.1 features
+### New Directories
 
-## Anti-Patterns to Avoid
+| Directory | Purpose |
+|-----------|---------|
+| `docs/` | Top-level developer documentation |
+| `docs/modules/` | Module reference docs |
+| `docs/integrations/` | Third-party integration guides |
+| `packages/shared/src/__tests__/` | Unit tests for Result monad, defineCommand, defineQuery |
+| `packages/modules/auth/src/commands/__tests__/` | Unit tests for auth commands |
+| `packages/modules/auth/src/queries/__tests__/` | Unit tests for auth queries |
+| `packages/modules/billing/src/commands/__tests__/` | Unit tests for billing commands |
+| `packages/modules/billing/src/queries/__tests__/` | Unit tests for billing queries |
+| `packages/modules/billing/src/jobs/__tests__/` | Unit tests for job handlers |
+| `packages/modules/billing/src/adapters/stripe/__tests__/` | Unit tests for Stripe adapter |
+| `packages/modules/billing/src/adapters/pagarme/__tests__/` | Unit tests for Pagar.me adapter |
 
-### Anti-Pattern 1: i18n in Shared UI Components
+### Modified Existing Files (JSDoc annotations added)
 
-**What people do:** Put `useTranslation()` calls inside `@baseworks/ui` components
-**Why it's wrong:** Couples UI components to i18n runtime. Breaks reusability. Forces both apps to use the same i18n library. Components cannot be used without i18n context
-**Do this instead:** UI components accept translated strings as props. The calling app handles translation
+All 156 source files get JSDoc. No structural changes -- just adding documentation comments above exports, classes, interfaces, functions, and non-obvious logic.
 
-### Anti-Pattern 2: Separate Invitations Module
+### New Config Files
 
-**What people do:** Create `packages/modules/invitations/` as a standalone module
-**Why it's wrong:** Invitations are a sub-feature of the organization/tenancy system. Separate module creates circular dependencies with auth (needs org context, needs user context). Duplicates auth middleware setup
-**Do this instead:** Extend `packages/modules/auth/` with invite commands/queries/jobs
+| File | Purpose |
+|------|---------|
+| `apps/web/vitest.config.ts` | Vitest config for Next.js page tests |
+| `apps/admin/vitest.config.ts` | Vitest config for admin dashboard tests (if not reusing Vite config) |
 
-### Anti-Pattern 3: Single PaymentProvider Per Tenant (Too Early)
+## Build Order Rationale
 
-**What people do:** Allow each tenant to configure their own payment provider
-**Why it's wrong:** Massively increases complexity (multi-provider webhooks per request, provider-specific onboarding flows, mixed reporting). Premature for a starter kit
-**Do this instead:** Single payment provider per deployment (set via env var). The port interface makes swapping providers easy, but one deployment = one provider
+**JSDoc before tests before docs** because:
+1. JSDoc forces you to understand each function's contract before writing tests
+2. Writing tests exposes undocumented edge cases that improve JSDoc
+3. Prose docs are easiest to write after you have annotated and tested everything
 
-### Anti-Pattern 4: Translating Database Content
+**Bottom-up within each phase** (shared -> core -> modules -> apps) because:
+1. `packages/shared` types are imported everywhere -- annotating them first means IDE hints propagate immediately
+2. Core infrastructure (CQRS, registry) is the framework's "API" -- getting these docs right helps everything downstream
+3. Module handlers are the most numerous files and benefit from established patterns
+4. Frontend files have the least documentation need (React components are largely self-documenting via props types)
 
-**What people do:** Try to i18n dynamic content (plan names, tenant names, user-generated text)
-**Why it's wrong:** i18n is for static UI strings, not user content. Dynamic content translation requires a completely different system
-**Do this instead:** Only translate static strings (buttons, labels, messages). Predefined plan names can use translation keys; user-generated content stays as-is
-
-## Integration Points
-
-### Internal Boundaries
-
-| Boundary | Communication | v1.1 Changes |
-|----------|---------------|-------------|
-| `@baseworks/i18n` -> `apps/web` | JSON import at build time | NEW: next-intl loads translations from shared package |
-| `@baseworks/i18n` -> `apps/admin` | JSON import at bundle time | NEW: react-i18next loads translations from shared package |
-| `modules/auth` -> `better-auth` | Direct API calls | EXTENDED: invitation methods added to org plugin config |
-| `modules/auth` -> `email:send` queue | BullMQ job enqueue | EXTENDED: invite email template added to email worker |
-| `modules/billing` -> `PaymentProvider` | Port interface | NEW: commands call adapter instead of Stripe SDK directly |
-| `PaymentProvider` -> Stripe/Asaas | HTTP via SDKs | NEW: adapter pattern isolates provider-specific code |
-
-### External Services
-
-| Service | Integration Pattern | v1.1 Notes |
-|---------|---------------------|------------|
-| Stripe | StripeAdapter wraps SDK | Existing code relocated into adapter. No functional change |
-| Asaas | AsaasAdapter wraps REST API | NEW: HTTP calls, no SDK needed. Pix + Boleto support |
-| Resend (email) | Existing BullMQ worker | EXTENDED: New invite email template added |
+**Priority within modules: auth before billing** because:
+1. Auth has more handlers (8 commands + 6 queries vs 6 + 2)
+2. Auth patterns (better-auth API wrapping, org plugin quirks) are less obvious than billing patterns
+3. Auth module is used by every other module
 
 ## Sources
 
-- [better-auth Organization Plugin Docs](https://better-auth.com/docs/plugins/organization) -- invitation API, schema, configuration
-- [better-auth Organization DeepWiki](https://deepwiki.com/better-auth/better-auth/5.2-organization-plugin) -- members, roles, invitations
-- [next-intl Monorepo Discussion](https://github.com/amannn/next-intl/discussions/1688) -- shared translations in monorepo
-- [Best i18n Libraries for Next.js 2026](https://dev.to/erayg/best-i18n-libraries-for-nextjs-react-react-native-in-2026-honest-comparison-3m8f) -- next-intl vs react-i18next comparison
-- [Asaas API Documentation](https://docs.asaas.com/docs/visao-geral) -- Brazilian payment provider REST API
-- [Asaas Pix Overview](https://docs.asaas.com/docs/pix-overview) -- Pix payment integration details
-- [Stripe Pix Guide](https://stripe.com/resources/more/pix-replacing-cards-cash-brazil) -- Stripe also supports Pix
-- Existing codebase analysis: billing module, auth module, UI components, layouts
+- Direct codebase analysis (29 existing test files, 156 source files examined)
+- Existing test patterns in `apps/api/src/core/__tests__/` and `packages/modules/billing/src/__tests__/`
+- TypeScript handbook on JSDoc annotations (training data, HIGH confidence)
+- Bun test runner documentation (training data, HIGH confidence -- `bun test` features are stable)
+- Vitest documentation for React component testing (training data, HIGH confidence)
 
 ---
-*Architecture research for: Baseworks v1.1 Feature Integration*
-*Researched: 2026-04-08*
+*Architecture research for: Documentation and Quality milestone*
+*Researched: 2026-04-16*

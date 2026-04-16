@@ -1,358 +1,325 @@
-# Feature Research: v1.1 Polish & Extensibility
+# Feature Research: v1.2 Documentation & Quality
 
-**Domain:** SaaS Starter Kit -- v1.1 new capabilities (i18n, a11y, responsive, team invites, payment abstraction)
-**Researched:** 2026-04-08
-**Confidence:** MEDIUM-HIGH (verified against official docs and current ecosystem state)
+**Domain:** Developer documentation, JSDoc annotations, and unit testing for a TypeScript monorepo SaaS starter kit
+**Researched:** 2026-04-16
+**Confidence:** HIGH (well-established practices; verified against codebase structure)
 
 ## Feature Landscape
 
 ### Table Stakes (Users Expect These)
 
-For a "production-ready" SaaS starter kit in 2026, these are no longer optional -- competitors like Makerkit and Supastarter already ship them.
+For a "fork-and-build" starter kit claiming production-grade status, these are non-negotiable. Developers evaluating Baseworks will compare against Makerkit, Supastarter, and similar kits where documentation quality directly drives adoption.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| **Responsive layouts (mobile/tablet/desktop)** | Users access SaaS from phones. Broken mobile = amateur. | LOW | shadcn sidebar component already has `useIsMobile` + Sheet (drawer). Mostly CSS/breakpoint work. |
-| **Mobile sidebar drawer** | Dashboard nav must work on small screens | LOW | Sidebar component uses Sheet for mobile already. Need to wire SidebarTrigger properly + fix overlay issue noted in PROJECT.md. |
-| **Collapsible desktop sidebar** | Standard dashboard pattern -- icon-only mode saves screen space | LOW | SidebarProvider already supports `expanded`/`collapsed` state. Wire toggle + persist preference. |
-| **Keyboard navigation** | WCAG 2.1 Level A requirement. Tab through all interactive elements. | MEDIUM | shadcn/Radix provides baseline. Need audit: focus order, focus indicators, skip links, escape-to-close. |
-| **Screen reader support** | WCAG 2.1 Level A. Semantic HTML + ARIA labels on all controls. | MEDIUM | Radix primitives add ARIA automatically. Need: aria-label on custom controls, live regions for toasts, landmark roles. |
-| **Basic i18n (2 languages)** | Brazilian developer building for BR + international market. pt-BR + en is minimum. | HIGH | Touches every string in both apps. Largest single effort in v1.1. |
-| **Team invite by email** | Multi-user tenants need to add members. Every B2B SaaS has this. | MEDIUM | better-auth organization plugin provides `inviteMember`, `acceptInvitation`, `rejectInvitation`, `cancelInvitation` out of the box. |
-| **Role assignment on invite** | Inviter must choose role (owner/admin/member) at invite time | LOW | better-auth org plugin supports role param on `inviteMember()`. Already has owner/admin/member defaults. |
-| **Invite link expiration** | Security requirement. Stale invites must not grant access. | LOW | better-auth org plugin has `invitationExpiresIn` config (default 48h). |
+| **JSDoc on all public interfaces (types, ports, CQRS contracts)** | Developers forking the kit need IDE tooltips explaining what each type/interface means without reading source. The `PaymentProvider` port, `ModuleDefinition`, `HandlerContext`, CQRS types are the API surface. | MEDIUM | ~30 exported types/interfaces across `packages/shared`, `packages/modules/*/ports`, `packages/db/schema`. Already partially done (payment-provider.ts has good JSDoc). |
+| **JSDoc on all command/query handlers** | CQRS handlers ARE the business logic API. Each handler needs: what it does, params, return type, side effects, events emitted. | MEDIUM | ~25 handlers across auth (8 commands, 6 queries), billing (6 commands, 2 queries), example (1+1). Pattern is consistent so can be templated. |
+| **JSDoc on core infrastructure (registry, CQRS bus, event bus, middleware)** | These are the framework internals developers must understand to add modules. Without docs, they reverse-engineer from source. | LOW | ~7 files in `apps/api/src/core/`. Some already have file-level JSDoc. Need method-level docs. |
+| **Unit tests for CQRS handlers (commands and queries)** | Handlers are pure-ish functions (input + context -> result). Easy to test, high value. Missing tests = "is this code correct?" uncertainty for forkers. | HIGH | ~25 handlers need tests. Each test needs mock context (db, emit, tenantId). Existing `cqrs.test.ts` shows the pattern. Largest effort item. |
+| **Unit tests for core infrastructure** | Registry, CQRS bus, event bus are the backbone. Tests prove they work and serve as living documentation. | LOW | 3 test files already exist (`cqrs.test.ts`, `event-bus.test.ts`, `registry.test.ts`). May need expansion but baseline is there. |
+| **Getting Started guide** | First thing a developer reads after cloning. Must cover: prerequisites, install, env setup, run dev, run tests. | LOW | Single markdown file. Follows standard pattern. |
+| **Configuration guide** | Module registry config, env vars, provider selection, deployment config -- developers need to know what knobs exist. | MEDIUM | Must document: module config, env vars per package (config/env.ts validates these), Docker env, Vercel env. |
+| **Architecture overview** | High-level "how does this thing work" -- module system, CQRS flow, request lifecycle, tenant scoping, auth flow. | MEDIUM | Diagrams (text-based Mermaid or ASCII) showing request flow, module loading, CQRS dispatch, event propagation. |
 
 ### Differentiators (Competitive Advantage)
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Payment provider abstraction (port/adapter)** | Switch between Stripe and local providers without changing business logic. No competitor offers this. | HIGH | Requires extracting current Stripe-specific code behind an interface. Major refactor of billing module. |
-| **Brazilian payment provider adapter** | Serves BR market directly. Pix + boleto support via local gateway. | HIGH | Pagar.me or Mercado Pago SDK. Different API shape, different webhook format, different payment methods (Pix, boleto). |
-| **Shared i18n package across SSR + SPA** | One set of translations for both frontends. No duplication, no drift. | MEDIUM | `packages/i18n` with JSON files consumed by both Next.js and Vite apps. Unique in starter kit space. |
-| **Invite link (shareable URL)** | Copy a link instead of typing emails. Faster team onboarding. | LOW | Generate a signed URL with token, role, org. better-auth may support this or can be built on top of invitation hooks. |
-| **i18n-ready module system** | Modules can declare their own translation namespaces | MEDIUM | Each module ships `locales/{lang}/{namespace}.json`. Module registry loads them. |
-| **a11y testing in CI** | Catch accessibility regressions automatically | LOW | axe-core + Vitest integration. Differentiator vs competitors who ignore a11y entirely. |
+| **"Add a Module" tutorial** | Step-by-step guide for adding a new module with commands, queries, routes, jobs, events. THE critical doc for a modular kit. No competitor has this because no competitor has this architecture. | MEDIUM | Uses the existing `example` module as the walkthrough subject. Covers: module definition, schema, commands/queries, routes, jobs, events, registration. |
+| **JSDoc with `@example` blocks on key functions** | Code examples in JSDoc show up directly in IDE autocomplete. Dramatically improves DX vs plain descriptions. | LOW | Add to: `createScopedDb()`, `bus.execute()`, `bus.query()`, `registry.loadModules()`, `emit()`. ~10 key functions. |
+| **Testing guide with patterns for mocking tenant context** | CQRS testing requires mocking `HandlerContext` (db, tenantId, emit). A guide showing the pattern once saves every forker from figuring it out. | LOW | Document the mock pattern from existing `cqrs.test.ts`. Show how to test commands (verify side effects), queries (verify returns), event handlers. |
+| **Third-party integration docs** | How better-auth is configured, how Stripe/Pagar.me adapters work, how BullMQ queues are set up, how email templates work. Each is a "how to customize X" guide. | HIGH | 4-5 separate docs. Each follows: what it does, how it is configured, how to customize, common tasks. Competitors have this but shallow. |
+| **Unit tests for payment provider adapters** | Tests proving both adapters conform to the port interface. High confidence for forkers who will modify billing. | MEDIUM | Already have `pagarme-adapter.test.ts`, `provider-factory.test.ts`, `webhook-normalization.test.ts`. Need Stripe adapter test parity. |
+| **Unit tests for tenant-scoped DB wrapper** | The `scoped-db` helper is the security boundary. Tests proving tenant isolation works are trust-building. | LOW | `scoped-db.test.ts` exists. May need more edge case coverage (cross-tenant query prevention). |
+| **Inline code comments for non-obvious decisions** | Short `// WHY:` comments on tricky code (not JSDoc, just inline). Explains decisions that aren't obvious from types alone. | LOW | Examples: why static import map instead of dynamic imports, why session-derived tenant context, why idempotency table for webhooks. |
+| **API reference (auto-generated from JSDoc)** | TypeDoc generates browsable API docs from JSDoc annotations. Zero maintenance after setup. | MEDIUM | TypeDoc supports monorepo via `entryPointStrategy: "packages"`. Generates HTML docs from existing JSDoc. Setup once, runs in CI. |
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| **next-intl for Next.js + react-i18next for Vite** | "Use the best tool for each framework" | Two different i18n libraries with different APIs, different interpolation syntax, different pluralization rules. Translation keys will subtly diverge. Devs must learn two systems. | Use i18next ecosystem everywhere: `react-i18next` for Vite admin, `next-i18next` (v16, wraps react-i18next) for Next.js. Same JSON files, same API, same mental model. |
-| **Runtime language detection from browser** | "Auto-detect user language" | Causes SSR hydration mismatch in Next.js (server renders one locale, client detects another). Flash of wrong language. | Use URL-based locale (`/en/dashboard`, `/pt-BR/dashboard`). Detect on first visit only, then persist as user preference. |
-| **Full WCAG 2.2 AAA compliance** | "Be maximally accessible" | AAA is aspirational, not legally required. Many AAA criteria (e.g., sign language for video) are irrelevant for a dashboard app. Massive effort for minimal gain. | Target WCAG 2.1 Level AA. Covers keyboard nav, screen readers, color contrast, focus indicators. This is the industry standard for web apps. |
-| **Payment abstraction for 5+ providers** | "Support every gateway" | Each provider has different capabilities (subscriptions vs one-time, metered billing, refund flows, dispute handling). Abstraction becomes lowest-common-denominator. | Abstract the core operations (see below). Support Stripe + one BR provider. Design the interface so adding more is straightforward but don't over-abstract. |
-| **Automatic translation via AI** | "Just run strings through GPT" | Quality issues, inconsistent terminology, no context awareness. Translations need human review for SaaS (billing terms, legal text, error messages). | Provide extraction tooling (`i18next-parser`) to find untranslated keys. Manual translations for v1.1. |
-| **Full RTL (right-to-left) support** | "Support Arabic/Hebrew" | Requires mirroring entire layout, different CSS logical properties throughout, testing every component in RTL mode. Enormous effort. | Use CSS logical properties (`margin-inline-start` vs `margin-left`) from the start so RTL can be added later. Don't implement RTL now. |
-| **Custom role builder UI** | "Let admins define custom roles" | Adds permission management complexity (permission inheritance, conflicts, UI for defining permissions). Custom roles are rarely needed in early SaaS. | Ship with 3 fixed roles (owner/admin/member). better-auth org plugin supports custom roles via `creatorRole` config if needed later. |
+| **100% test coverage target** | "High quality means 100% coverage" | Drives writing tests for trivial code (re-exports, type files, config objects). Coverage gaming produces low-value tests. The ~130 source files include many that are pure config/wiring. | Target coverage on business logic (handlers, adapters, core infra). Skip: UI components (already have a11y tests), config re-exports, schema definitions, route wiring. Aim for 80%+ on handlers/core. |
+| **E2E tests in this milestone** | "Test the full flow" | E2E tests require running DB + Redis + API + frontend. Different infrastructure, different tooling (Playwright/Cypress), different maintenance burden. Conflates with unit test goals. | Unit tests for handlers + integration tests for core (already exist). E2E is a separate future milestone. |
+| **Storybook for all UI components** | "Visual documentation for components" | Storybook adds significant tooling overhead (config, build pipeline, deployment). The 18+ shadcn components are standard -- developers know what a Button or Dialog looks like. | In-repo docs listing available components with their props. shadcn's own docs serve as the component reference. |
+| **External documentation site (Docusaurus/Nextra)** | "Professional docs like a real product" | Baseworks is a starter kit, not a SaaS product. External doc sites need hosting, deployment, versioning. Adds maintenance for a personal tool. | In-repo `/docs` directory with markdown files. Readable on GitHub, readable in IDE, no hosting needed. If needed later, any static site generator can consume markdown. |
+| **JSDoc on every single function including React components** | "Comprehensive means everything" | React component props are already typed. JSDoc on `<Button variant="default">` adds noise. shadcn components are documented upstream. | JSDoc on: exported types/interfaces, CQRS handlers, core infrastructure, utility functions, hooks with non-obvious behavior. Skip: standard React components, re-exports, trivial wrappers. |
+| **Snapshot tests for UI components** | "Catch unintended UI changes" | Snapshots break on any change (even intentional), creating toil. With shadcn components that get customized, snapshots become noise factories. | Accessibility tests (already exist via vitest-axe) + visual review. Component behavior tests where logic exists (e.g., `data-table-cards.test.tsx`). |
+| **Video tutorials** | "Some people prefer video" | High production cost, impossible to update when code changes, doesn't work for a personal starter kit. | Written guides with code snippets. Easy to update, searchable, version-controlled. |
 
 ## Feature Dependencies
 
 ```
-Responsive Layouts
-    (no dependencies -- CSS/component work on existing layouts)
-
-i18n Infrastructure
+JSDoc Annotations
     |
-    +---> packages/i18n (shared translations JSON + config)
+    +---> Types & interfaces first (packages/shared, ports)
     |       |
-    |       +---> Next.js integration (next-i18next / middleware routing)
+    |       +---> Command/query handlers second (reference the types)
     |       |
-    |       +---> Vite admin integration (react-i18next + language detector)
+    |       +---> Core infrastructure third (registry, CQRS bus, event bus)
     |
-    +---> All UI strings externalized (depends on responsive layouts being stable first)
+    +---> No external dependencies. Pure documentation addition.
 
-Accessibility (a11y)
+Unit Tests
     |
-    +---> Responsive layouts must be done first (a11y audits mobile + desktop)
-    |
-    +---> i18n should be done first (aria-labels need to be translatable)
-
-Team/Org Invites
-    |
-    +---> Depends on: existing auth module + better-auth org plugin (already used)
-    |
-    +---> Invite email sending ---> existing BullMQ email job infrastructure
-    |
-    +---> Invite UI pages ---> depends on i18n (invite strings need translation)
-
-Payment Provider Abstraction
-    |
-    +---> Depends on: existing billing module (must refactor, not rewrite)
-    |
-    +---> PaymentProvider port interface (defined first)
+    +---> Core infra tests (already partially exist -- expand)
     |       |
-    |       +---> StripeAdapter (extract from current billing commands)
+    |       +---> Handler tests (depend on understanding mock patterns from core tests)
     |       |
-    |       +---> BrazilianProviderAdapter (Pagar.me or Mercado Pago)
+    |       +---> Adapter tests (depend on handler test patterns)
     |
-    +---> Webhook normalization layer (each provider has different webhook format)
+    +---> Depends on: existing test infrastructure (bun:test for backend, vitest for UI)
+    +---> Does NOT depend on JSDoc (but benefits from doing JSDoc first -- clarifies intent)
+
+Developer Documentation
     |
-    +---> Does NOT depend on i18n or a11y (backend only)
+    +---> Getting Started guide (no dependencies -- first doc written)
+    |
+    +---> Architecture overview (depends on understanding codebase -- JSDoc helps)
+    |       |
+    |       +---> "Add a Module" tutorial (references architecture overview)
+    |
+    +---> Configuration guide (standalone, references env.ts validation)
+    |
+    +---> Testing guide (depends on unit tests existing -- documents patterns found)
+    |
+    +---> Integration docs (standalone per integration -- auth, billing, email, queue)
+    |
+    +---> Depends on: JSDoc done first (docs reference the same concepts)
 ```
 
 ### Dependency Notes
 
-- **Responsive before a11y:** Accessibility audit must cover the final responsive layouts. Doing a11y first means re-auditing after layout changes.
-- **i18n before team invites UI:** Invite screens (send invite, pending invites list, accept page) need translated strings. Build i18n first so invite UI ships localized.
-- **Payment abstraction is independent:** Pure backend refactor. Can run in parallel with frontend work (responsive, i18n, a11y).
-- **i18n is the largest dependency bottleneck:** It touches every string in both apps. Must be done early so other features (invite UI, a11y aria-labels) build on top of it.
+- **JSDoc before tests:** Annotating handlers clarifies their contract (params, return, side effects), making test writing faster and more accurate.
+- **JSDoc before docs:** Developer documentation references the same types and interfaces. Having JSDoc done means docs can say "see `PaymentProvider` interface" and IDE users get the full picture.
+- **Core tests before handler tests:** The mock pattern for `HandlerContext` is established in core tests. Handler tests reuse it.
+- **Getting Started is independent:** Can be written anytime. Should be first doc because it is the entry point.
+- **Architecture overview before module tutorial:** The tutorial references concepts (module registry, CQRS bus, event system) that the architecture doc explains.
 
-## v1.1 Launch Scope
+## Scope Definition
 
-### Must Build (v1.1 Core)
+### Phase 1: JSDoc Annotations
 
-- [ ] **Responsive layouts** -- fix sidebar overlay, mobile drawer, tablet breakpoints for both apps
-- [ ] **i18n infrastructure** -- `packages/i18n` with JSON translations, next-i18next for web, react-i18next for admin, pt-BR + en
-- [ ] **Keyboard navigation audit + fixes** -- focus order, focus indicators (`:focus-visible`), skip-to-content link, escape-to-close on modals/sheets
-- [ ] **Screen reader basics** -- ARIA landmarks (`nav`, `main`, `aside`), aria-labels on icon buttons, live regions for toast notifications
-- [ ] **Team invite flow** -- send invite, accept/reject, pending invites list, invite link generation, role selection
-- [ ] **Payment provider port interface** -- define operations, extract Stripe adapter, one BR provider adapter
+- [ ] **All exported types and interfaces** -- `packages/shared/src/types/`, `packages/modules/*/ports/`, `packages/db/src/schema/`
+- [ ] **All CQRS command and query handlers** -- standardized JSDoc block per handler
+- [ ] **Core infrastructure methods** -- `CqrsBus`, `EventBus`, `ModuleRegistry`, middleware
+- [ ] **Key utility functions** -- `createScopedDb`, `createUnscopedDb`, result helpers, `cn()`
+- [ ] **`@example` blocks on 10-15 key functions** -- the ones developers call most often
 
-### Defer to v1.2+
+### Phase 2: Unit Tests
 
-- [ ] **Color contrast audit** -- automated contrast checking, dark mode a11y (trigger: when dark mode is added)
-- [ ] **Additional languages beyond pt-BR/en** -- (trigger: user/market demand)
-- [ ] **Invite link with custom expiration** -- (trigger: enterprise customers requesting longer/shorter windows)
-- [ ] **Payment provider: additional adapters** -- PayPal, Mercado Pago if Pagar.me chosen, etc. (trigger: market demand)
-- [ ] **a11y CI testing with axe-core** -- (trigger: after manual audit establishes baseline)
-- [ ] **Translation management UI** -- (trigger: non-developer translators joining)
+- [ ] **Expand core infrastructure tests** -- edge cases for registry, CQRS bus, event bus
+- [ ] **Auth module handler tests** -- all 8 commands + 6 queries
+- [ ] **Billing module handler tests** -- all 6 commands + 2 queries
+- [ ] **Adapter conformance tests** -- both payment adapters against port interface
+- [ ] **Scoped DB edge cases** -- cross-tenant prevention, empty tenant handling
+- [ ] **Config/env validation tests** -- `packages/config` validation logic
+
+### Phase 3: Developer Documentation
+
+- [ ] **Getting Started** -- clone, install, configure, run, test
+- [ ] **Architecture Overview** -- module system, CQRS flow, request lifecycle, tenant scoping
+- [ ] **"Add a Module" Tutorial** -- step-by-step using example module as reference
+- [ ] **Configuration Guide** -- env vars, module config, provider selection, deployment
+- [ ] **Testing Guide** -- how to write tests, mock patterns, running tests
+- [ ] **Integration Docs** -- better-auth setup, Stripe/Pagar.me customization, BullMQ queues, email templates
+
+### Defer to v1.3+
+
+- [ ] **Auto-generated API reference site (TypeDoc)** -- setup is low effort but hosting/deployment is out of scope
+- [ ] **E2E test suite** -- requires separate infrastructure (Playwright + test DB + test Redis)
+- [ ] **Contributing guide** -- only relevant if/when the project goes open source
+- [ ] **Changelog/migration guide** -- only relevant after multiple major versions exist
 
 ## Feature Prioritization Matrix
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Responsive layouts (sidebar fix + breakpoints) | HIGH | LOW | P1 |
-| i18n infrastructure + packages/i18n | HIGH | HIGH | P1 |
-| pt-BR + en translations for all existing strings | HIGH | HIGH | P1 |
-| Keyboard navigation + focus indicators | MEDIUM | MEDIUM | P1 |
-| ARIA landmarks + screen reader basics | MEDIUM | LOW | P1 |
-| Team invite flow (email + link) | HIGH | MEDIUM | P1 |
-| Payment provider port interface | HIGH | HIGH | P1 |
-| Stripe adapter (extract from current code) | HIGH | MEDIUM | P1 |
-| Brazilian provider adapter (Pagar.me) | MEDIUM | HIGH | P2 |
-| Skip-to-content link | LOW | LOW | P2 |
-| a11y CI testing (axe-core) | LOW | LOW | P2 |
-| Module-scoped translation namespaces | MEDIUM | MEDIUM | P2 |
+| JSDoc on exported types/interfaces | HIGH | LOW | P1 |
+| JSDoc on CQRS handlers | HIGH | MEDIUM | P1 |
+| JSDoc on core infrastructure | HIGH | LOW | P1 |
+| `@example` blocks on key functions | MEDIUM | LOW | P1 |
+| Unit tests for auth command handlers | HIGH | HIGH | P1 |
+| Unit tests for auth query handlers | HIGH | MEDIUM | P1 |
+| Unit tests for billing command handlers | HIGH | HIGH | P1 |
+| Unit tests for billing query handlers | HIGH | LOW | P1 |
+| Expand core infrastructure tests | MEDIUM | LOW | P1 |
+| Adapter conformance tests | MEDIUM | MEDIUM | P1 |
+| Scoped DB edge case tests | MEDIUM | LOW | P1 |
+| Config/env validation tests | LOW | LOW | P2 |
+| Getting Started guide | HIGH | LOW | P1 |
+| Architecture overview with diagrams | HIGH | MEDIUM | P1 |
+| "Add a Module" tutorial | HIGH | MEDIUM | P1 |
+| Configuration guide | MEDIUM | LOW | P1 |
+| Testing guide (mock patterns) | MEDIUM | LOW | P1 |
+| Integration docs (auth, billing, email, queue) | MEDIUM | HIGH | P2 |
+| Inline `// WHY:` comments on tricky code | LOW | LOW | P2 |
+| TypeDoc auto-generation setup | LOW | MEDIUM | P3 |
 
 **Priority key:**
-- P1: Must have for v1.1 launch
+- P1: Must have for v1.2 launch
 - P2: Should have, add if time permits
-- P3: Future consideration
+- P3: Nice to have, future consideration
 
 ## Detailed Feature Specifications
 
-### 1. i18n Architecture
+### 1. JSDoc Annotation Strategy
 
-**Approach:** i18next core shared across both frontends.
+**What to annotate (in priority order):**
 
-| Component | Library | Role |
-|-----------|---------|------|
-| `packages/i18n` | i18next (core) | Shared config, JSON translation files, type-safe key definitions |
-| `apps/web` | next-i18next v16 | Next.js App Router integration, SSR-safe, middleware for locale routing |
-| `apps/admin` | react-i18next | Client-side SPA integration, language detector, lazy-loaded namespaces |
+1. **Exported types and interfaces** -- the API surface that forkers depend on
+   - `packages/shared/src/types/` (ModuleDefinition, HandlerContext, CommandHandler, QueryHandler, DomainEvent, Result)
+   - `packages/modules/billing/src/ports/` (PaymentProvider, all param/result types)
+   - `packages/db/src/schema/` (table definitions, column helpers)
 
-**Translation file structure:**
-```
-packages/i18n/
-  locales/
-    en/
-      common.json      (shared: buttons, labels, errors)
-      auth.json         (login, signup, password reset)
-      billing.json      (plans, checkout, invoices)
-      dashboard.json    (navigation, layout)
-      admin.json        (admin-specific strings)
-    pt-BR/
-      common.json
-      auth.json
-      billing.json
-      dashboard.json
-      admin.json
-  index.ts              (i18next config, type exports)
-```
+2. **CQRS handlers** -- the business logic layer
+   - Standardized block: purpose, `@param`, `@returns`, `@throws`, `@emits` (custom tag for domain events), `@example`
+   - Example template:
+   ```typescript
+   /**
+    * Creates a new tenant and assigns the requesting user as owner.
+    *
+    * @param input - Tenant creation params (name, slug)
+    * @param ctx - Handler context with authenticated user's tenantId and scoped DB
+    * @returns Result with created tenant data or SLUG_TAKEN / TENANT_LIMIT_REACHED error
+    * @emits tenant:created - Triggers billing customer creation via on-tenant-created hook
+    *
+    * @example
+    * const result = await bus.execute("auth:create-tenant", { name: "Acme", slug: "acme" }, ctx);
+    */
+   ```
 
-**Key decisions:**
-- URL-based locale routing in Next.js (`/en/dashboard`, `/pt-BR/dashboard`) -- SSR-safe, SEO-friendly
-- User preference stored in session/profile -- persists across devices
-- Namespace-based loading -- admin app only loads `common` + `admin`, web app loads `common` + `auth` + `billing` + `dashboard`
-- Type-safe keys via `i18next` TypeScript integration (declare resource type)
+3. **Core infrastructure** -- method-level JSDoc on public methods
+   - `CqrsBus.execute()`, `CqrsBus.query()`, `CqrsBus.registerCommand()`, `CqrsBus.registerQuery()`
+   - `EventBus.emit()`, `EventBus.on()`
+   - `ModuleRegistry.loadModules()`, `ModuleRegistry.getModule()`
+   - Each middleware function (error, tenant, request-trace)
 
-### 2. Accessibility Scope
+4. **Utility functions** with non-obvious behavior
+   - `createScopedDb()` -- explain tenant isolation mechanism
+   - `createUnscopedDb()` -- explain when/why to use unscoped
+   - `ok()`, `err()` result helpers
+   - `cn()` utility in UI package
 
-**Target:** WCAG 2.1 Level AA for both frontends.
+**What NOT to annotate:**
+- Standard shadcn components (Button, Dialog, etc.) -- documented upstream
+- Re-export barrel files (`index.ts` that just re-export)
+- Obvious getter/setter methods
+- Test files
 
-| Category | What to Do | Effort |
-|----------|-----------|--------|
-| **Keyboard** | Tab through all interactive elements in correct order. Visible focus ring (`:focus-visible`). Escape closes modals/sheets/dropdowns. Arrow keys in menus. | MEDIUM |
-| **Screen reader** | `<nav>`, `<main>`, `<aside>` landmarks. `aria-label` on icon-only buttons. `aria-live="polite"` on toast container. `aria-current="page"` on active nav item. | LOW |
-| **Forms** | All inputs have associated `<label>`. Error messages linked via `aria-describedby`. Required fields marked with `aria-required`. | LOW |
-| **Focus management** | Focus moves to dialog content when opened. Focus returns to trigger when closed. Skip-to-content link as first focusable element. | MEDIUM |
-| **Color** | Ensure 4.5:1 contrast ratio for text (AA standard). Don't convey info with color alone (add icons/text). | LOW (shadcn defaults are good) |
+### 2. Unit Testing Strategy
 
-**What shadcn/Radix provides for free:** Correct `role` attributes, `aria-expanded`, `aria-haspopup`, keyboard interactions for dropdowns/dialogs/tabs/tooltips. The main work is auditing custom code, adding landmarks, and fixing focus management in layouts.
+**Test runner split (already established):**
+- `bun test` -- backend (apps/api, packages/modules, packages/db, packages/config, packages/queue, packages/shared)
+- `vitest` -- frontend components (packages/ui, accessibility tests)
 
-### 3. Responsive Layout Patterns
+**Existing test inventory (29 test files):**
+- Core infra: 3 tests (cqrs, event-bus, registry)
+- API integration: 4 tests (admin-auth, entrypoints, integration, workspace-imports)
+- packages/config: 1 test (env)
+- packages/db: 2 tests (connection, scoped-db)
+- Auth module: 5 tests (auth-setup, invitation, profile, tenant-crud, tenant-session)
+- Billing module: 4 tests (billing, pagarme-adapter, provider-factory, webhook-normalization)
+- Queue: 1 test (queue)
+- UI: 9 tests (7 a11y tests + data-table-cards + skip-link)
 
-**Current state:** Both apps use shadcn's Sidebar component which already has:
-- `useIsMobile()` hook for breakpoint detection
-- Sheet (drawer) for mobile sidebar
-- Collapsible mode with icon-only state
-- Cookie-based state persistence
+**What to add:**
+- Auth command handlers: `create-tenant`, `update-tenant`, `delete-tenant`, `update-profile`, `create-invitation`, `accept-invitation`, `cancel-invitation`, `reject-invitation` -- test happy path + error cases
+- Auth query handlers: `get-tenant`, `list-tenants`, `get-profile`, `list-members`, `get-invitation`, `list-invitations` -- test return shapes + tenant scoping
+- Billing command handlers: `create-checkout-session`, `create-one-time-payment`, `cancel-subscription`, `change-subscription`, `create-portal-session`, `record-usage` -- test provider delegation + error handling
+- Billing query handlers: `get-subscription-status`, `get-billing-history` -- test data shaping
+- Stripe adapter: parity with existing `pagarme-adapter.test.ts`
+- Edge cases for scoped-db, env validation
 
-**What needs fixing (per PROJECT.md: "fix sidebar overlay"):**
-- Mobile drawer likely has z-index or overlay backdrop issues
-- Tablet breakpoint may not exist (need md: breakpoint between mobile drawer and desktop sidebar)
-- Content area may not reflow properly when sidebar collapses
-
-**Responsive breakpoint strategy:**
-| Breakpoint | Sidebar Behavior | Content |
-|------------|-----------------|---------|
-| < 768px (mobile) | Hidden, triggered by hamburger, renders as Sheet/drawer overlay | Full width |
-| 768-1024px (tablet) | Collapsed (icon-only), expandable on hover or click | Fills remaining space |
-| > 1024px (desktop) | Expanded by default, collapsible via toggle | Fills remaining space |
-
-### 4. Team Invite Flow
-
-**better-auth organization plugin provides:**
-- `inviteMember({ email, role, organizationId })` -- sends invite
-- `acceptInvitation({ invitationId })` -- accept
-- `rejectInvitation({ invitationId })` -- reject
-- `cancelInvitation({ invitationId })` -- cancel pending
-- Hooks: `beforeCreateInvitation`, `afterCreateInvitation`, `beforeAcceptInvitation`, `afterAcceptInvitation`
-- Config: `invitationExpiresIn` (default 48h), `invitationLimit` (default 100)
-- DB tables: `invitation` (status, email, role, expiration, inviter)
-- `sendInvitationEmail` callback -- we wire this to existing BullMQ email job
-
-**What we need to build on top:**
-| Component | What | Effort |
-|-----------|------|--------|
-| Invite sending UI | Form with email input + role selector. In web app tenant settings. | LOW |
-| Pending invites list | Table showing pending/accepted/rejected invites with cancel button | LOW |
-| Accept/reject page | Public page at `/invite/[token]` -- shows org name, role, accept/reject buttons | LOW |
-| Invite link generation | Generate shareable URL (not email-based). May need custom endpoint on top of better-auth. | MEDIUM |
-| Email template | React Email template for invite notification. Uses existing BullMQ email job. | LOW |
-| Admin view | Admin dashboard: see all invitations across tenants | LOW |
-
-**Flow:**
-1. Owner/admin opens tenant settings -> "Invite Member"
-2. Enters email + selects role -> `inviteMember()` called
-3. `sendInvitationEmail` hook fires -> enqueues BullMQ email job
-4. Recipient gets email with link to `/invite/[token]`
-5. If logged in: accept/reject. If new user: signup then accept.
-6. On accept: added as member with assigned role
-
-### 5. Payment Provider Abstraction
-
-**Port interface operations (what the abstraction must cover):**
-
+**Mock strategy for CQRS handler tests:**
 ```typescript
-interface PaymentProvider {
-  // Identity
-  readonly name: string;  // "stripe" | "pagarme" | etc.
-
-  // Customer management
-  createCustomer(params: CreateCustomerParams): Promise<ProviderCustomer>;
-  getCustomer(customerId: string): Promise<ProviderCustomer | null>;
-  deleteCustomer(customerId: string): Promise<void>;
-
-  // Checkout / payment initiation
-  createCheckoutSession(params: CheckoutParams): Promise<CheckoutResult>;
-  createOneTimePayment(params: OneTimePaymentParams): Promise<PaymentResult>;
-
-  // Subscriptions
-  createSubscription(params: SubscriptionParams): Promise<SubscriptionResult>;
-  cancelSubscription(subscriptionId: string): Promise<void>;
-  changeSubscription(params: ChangeSubscriptionParams): Promise<SubscriptionResult>;
-  getSubscription(subscriptionId: string): Promise<SubscriptionResult | null>;
-
-  // Usage-based billing
-  recordUsage(params: UsageParams): Promise<void>;
-
-  // Portal / self-service
-  createPortalSession(params: PortalParams): Promise<PortalResult>;
-
-  // Webhooks
-  verifyWebhookSignature(payload: string | Buffer, signature: string): Promise<boolean>;
-  normalizeWebhookEvent(rawEvent: unknown): Promise<NormalizedWebhookEvent>;
+// Reusable mock context factory
+function createMockContext(overrides?: Partial<HandlerContext>): HandlerContext {
+  return {
+    tenantId: "test-tenant-id",
+    db: createMockScopedDb(),   // Mock Drizzle operations
+    emit: mock(() => {}),        // Spy on domain events
+    ...overrides,
+  };
 }
 ```
 
-**Normalized webhook event types:**
-```typescript
-type NormalizedWebhookEvent =
-  | { type: "checkout.completed"; data: CheckoutCompletedData }
-  | { type: "subscription.created"; data: SubscriptionData }
-  | { type: "subscription.updated"; data: SubscriptionData }
-  | { type: "subscription.deleted"; data: SubscriptionData }
-  | { type: "payment.succeeded"; data: PaymentData }
-  | { type: "payment.failed"; data: PaymentData };
-```
+**Testing patterns by handler type:**
+- **Commands:** Assert return value (ok/err) + verify side effects (db writes via mock, events emitted via spy)
+- **Queries:** Assert return shape + verify tenant scoping (ensure tenantId is used in queries)
+- **Adapters:** Assert interface conformance + verify provider SDK calls via mocks
 
-**Key design decisions:**
-- Each adapter maps provider-specific events to normalized events
-- Webhook handler calls `provider.normalizeWebhookEvent()` then processes normalized events (existing switch/case logic stays)
-- Provider selection via config: `PAYMENT_PROVIDER=stripe` or `PAYMENT_PROVIDER=pagarme`
-- Multiple providers can coexist (different tenants can use different providers if needed later)
-- The Stripe adapter is extracted from existing code (not rewritten) -- `getStripe()` calls become `stripeAdapter.method()` calls
+### 3. Developer Documentation Structure
 
-**Brazilian provider recommendation: Pagar.me**
-- Best developer experience among BR gateways
-- REST API with good TypeScript support
-- Supports: credit card, boleto, Pix
-- Subscription management built in
-- Better suited for SaaS than Mercado Pago (which is more marketplace-oriented)
-
-## Feature Dependencies (Ordered for Implementation)
+**Location:** `docs/` directory at repo root. Markdown files, readable on GitHub and in IDE.
 
 ```
-Phase 1: Responsive + Payment Abstraction (parallel tracks)
-    |
-    +---> [Frontend] Fix sidebar overlay, add breakpoints, test mobile/tablet
-    |
-    +---> [Backend] Define PaymentProvider interface, extract StripeAdapter
-    |
-Phase 2: i18n Infrastructure
-    |
-    +---> packages/i18n setup, JSON files, type-safe keys
-    +---> Next.js middleware for locale routing
-    +---> Vite admin language switcher
-    +---> Externalize ALL existing UI strings to translation files
-    |
-Phase 3: a11y + Team Invites (parallel tracks)
-    |
-    +---> [a11y] Audit with translated strings, fix focus, landmarks, ARIA
-    |
-    +---> [Invites] Wire better-auth org plugin invite methods, build UI pages, email template
-    |
-Phase 4: Brazilian Provider Adapter + Polish
-    |
-    +---> Pagar.me adapter implementing PaymentProvider interface
-    +---> Final a11y audit pass
-    +---> Translation review for pt-BR quality
+docs/
+  getting-started.md         -- Clone, install, configure, run
+  architecture.md            -- System overview, module system, CQRS, data flow
+  add-a-module.md            -- Step-by-step tutorial
+  configuration.md           -- Env vars, module config, provider selection
+  testing.md                 -- How to write and run tests, mock patterns
+  integrations/
+    auth.md                  -- better-auth configuration and customization
+    billing.md               -- Payment provider setup, adding new providers
+    email.md                 -- Email templates, Resend config, BullMQ email jobs
+    queue.md                 -- BullMQ setup, adding new job types
 ```
 
-## Competitor Feature Analysis (v1.1 specific features)
+**Getting Started content:**
+1. Prerequisites (Bun, Docker, PostgreSQL, Redis)
+2. Clone and install (`bun install`)
+3. Environment setup (copy `.env.example`, explain each var)
+4. Start dependencies (`docker-compose up`)
+5. Run migrations (`bun run db:push` or `db:migrate`)
+6. Start dev servers (`bun run dev` for API, `bun run dev:web`, `bun run dev:admin`)
+7. Run tests (`bun test`, `bun run test:ui`)
+8. Next steps: point to architecture.md and add-a-module.md
 
-| Feature | Makerkit | Supastarter | Baseworks v1.1 Plan |
-|---------|----------|-------------|---------------------|
-| **i18n** | Yes (next-intl, Next.js only) | Yes (next-intl, Next.js only) | Yes (i18next ecosystem, shared across Next.js + Vite admin -- unique) |
-| **Responsive** | Yes | Yes | Yes (fixing existing shadcn sidebar) |
-| **a11y** | Basic | Basic | WCAG 2.1 AA target (more thorough than competitors) |
-| **Team invites** | Yes (custom) | Yes (Supabase-based) | Yes (better-auth org plugin -- less custom code) |
-| **Payment abstraction** | No (Stripe + Lemon Squeezy, separate code paths) | No (Stripe only) | Yes (port/adapter pattern -- unique differentiator) |
-| **Brazilian provider** | No | No | Yes (Pagar.me adapter -- unique for BR market) |
+**Architecture overview content:**
+1. Monorepo structure diagram (packages, apps, their relationships)
+2. Request lifecycle (HTTP request -> Elysia -> middleware -> CQRS bus -> handler -> response)
+3. Module system (how modules register, what a ModuleDefinition contains)
+4. CQRS flow (command dispatch, query dispatch, when to use which)
+5. Event system (domain events, event handlers, cross-module communication)
+6. Tenant scoping (how tenant context flows from session to DB queries)
+7. Auth flow (better-auth integration points, session management)
+8. Job processing (BullMQ workers, job dispatch from handlers)
+
+**"Add a Module" tutorial content:**
+1. Define module schema (Drizzle table with tenantId)
+2. Create commands and queries (with types from shared package)
+3. Define routes (Elysia plugin with Eden Treaty types)
+4. Register jobs (BullMQ queue + worker handler)
+5. Emit and handle events (domain event types, event handlers)
+6. Register in module config (add to registry, configure loading)
+7. Add translations (i18n namespace for the module)
+8. Write tests (using established mock patterns)
+
+## Competitor Feature Analysis
+
+| Feature | Makerkit | Supastarter | ixartz/SaaS-Boilerplate | Baseworks v1.2 Plan |
+|---------|----------|-------------|-------------------------|---------------------|
+| **JSDoc coverage** | Partial (key files) | Minimal | Good (exported types) | Comprehensive (all public API + handlers + core) |
+| **Unit tests** | Basic (auth flows) | Basic | Good (Jest suite) | Comprehensive (all handlers + adapters + core) |
+| **Getting Started** | Yes (docs site) | Yes (docs site) | Yes (README) | Yes (in-repo markdown) |
+| **Architecture docs** | Minimal | Yes (docs site) | Minimal | Yes (detailed with diagrams) |
+| **"Add a feature" tutorial** | No | No | No | Yes ("Add a Module" -- unique due to modular architecture) |
+| **Testing guide** | No | No | Minimal | Yes (patterns, mocks, strategy) |
+| **API reference** | No | No | No | JSDoc-powered IDE tooltips (TypeDoc deferred) |
+| **Integration docs** | Partial (auth only) | Partial (auth + billing) | No | Yes (auth, billing, email, queue) |
 
 ## Sources
 
-- [better-auth Organization Plugin](https://better-auth.com/docs/plugins/organization) -- invitation API, roles, hooks, config (HIGH confidence)
-- [next-intl vs next-i18next comparison](https://i18nexus.com/posts/i18next-vs-next-intl) -- ecosystem comparison (HIGH confidence)
-- [next-intl App Router docs](https://next-intl.dev/docs/getting-started/app-router) -- Next.js i18n patterns (HIGH confidence)
-- [WCAG 2.1 Guidelines](https://www.w3.org/TR/WCAG21/) -- accessibility standards (HIGH confidence)
-- [shadcn/ui and Radix accessibility](https://eastondev.com/blog/en/posts/dev/20260330-shadcn-radix-accessibility/) -- component a11y baseline (MEDIUM confidence)
-- [Adapter Pattern for Payment Gateways](https://endgrate.com/blog/adapter-pattern-use-cases-payment-gateway-integration) -- port/adapter pattern (HIGH confidence)
-- [Brazilian Payment Gateways comparison](https://www.rebill.com/en/blog/pasarelas-pago-brasil) -- BR provider landscape (MEDIUM confidence)
-- [i18next monorepo shared translations](https://github.com/i18next/i18next/discussions/1604) -- monorepo i18n patterns (MEDIUM confidence)
-- Existing codebase: sidebar component, billing module, auth module, admin layout (HIGH confidence -- verified by reading source)
+- [TypeDoc monorepo support](https://typedoc.org/) -- entryPointStrategy: "packages" for monorepo docs (HIGH confidence)
+- [TSDoc standard](https://tsdoc.org/) -- comment standard for TypeScript (HIGH confidence)
+- [Google TypeScript Style Guide](https://google.github.io/styleguide/tsguide.html) -- JSDoc conventions for TS (HIGH confidence)
+- [Testing Strategies for CQRS Applications](https://reintech.io/blog/testing-strategies-cqrs-applications) -- mocks for commands, stubs for queries pattern (HIGH confidence)
+- [Bun test runner docs](https://bun.com/docs/test) -- bun:test API, mocking, lifecycle hooks (HIGH confidence)
+- [ixartz/SaaS-Boilerplate](https://github.com/ixartz/SaaS-Boilerplate) -- competitor reference for docs/testing scope (MEDIUM confidence)
+- Existing Baseworks test files -- verified patterns in `cqrs.test.ts`, `pagarme-adapter.test.ts`, `scoped-db.test.ts` (HIGH confidence)
+- Existing Baseworks JSDoc -- verified `payment-provider.ts` has comprehensive JSDoc, `registry.ts` has partial (HIGH confidence)
 
 ---
-*Feature research for: Baseworks v1.1 Polish & Extensibility*
-*Researched: 2026-04-08*
+*Feature research for: Baseworks v1.2 Documentation & Quality*
+*Researched: 2026-04-16*
