@@ -11,7 +11,17 @@ const CreateCheckoutSessionInput = Type.Object({
 });
 
 /**
- * Create a checkout session for subscription.
+ * Create a checkout session for subscription signup.
+ *
+ * Looks up the tenant's billing customer record, then delegates
+ * to the configured PaymentProvider adapter to generate a
+ * provider-hosted checkout page URL.
+ *
+ * @param input - Checkout parameters: priceId, successUrl,
+ *   cancelUrl
+ * @param ctx   - Handler context: tenantId, userId, db, emit
+ * @returns Result<{ sessionId, url }> -- redirect URL for the
+ *   provider-hosted checkout page
  *
  * Per D-04: Redirects tenant to provider-hosted payment page.
  * Per T-03-10: Scoped to ctx.tenantId.

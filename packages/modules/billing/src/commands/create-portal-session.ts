@@ -9,12 +9,21 @@ const CreatePortalSessionInput = Type.Object({
 });
 
 /**
- * Create a billing portal session for self-service billing management.
+ * Create a customer portal session for self-service billing
+ * management.
+ *
+ * Delegates to the configured PaymentProvider adapter to generate
+ * a portal URL (e.g., Stripe Customer Portal). Returns an error
+ * if the active provider does not support hosted portals.
+ *
+ * @param input - Portal parameters: returnUrl (redirect after
+ *   portal session ends)
+ * @param ctx   - Handler context: tenantId, userId, db, emit
+ * @returns Result<{ url }> -- redirect URL for the
+ *   provider-hosted billing portal
  *
  * Per D-08: Tenant can access provider's billing portal.
  * Per T-03-10: Scoped to ctx.tenantId.
- *
- * Returns null/error if the active provider doesn't support hosted portals.
  */
 export const createPortalSession = defineCommand(
   CreatePortalSessionInput,
