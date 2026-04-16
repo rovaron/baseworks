@@ -8,14 +8,18 @@ import pino from "pino";
 const logger = pino({ name: "billing:sync-usage" });
 
 /**
- * Sync unsynced usage records to the payment provider.
+ * Synchronize recorded usage events to the payment provider.
  *
- * Per D-07: Scheduled BullMQ repeatable job (every 5 minutes default).
- * Queries all usage_records WHERE syncedToProvider = false, grouped by
- * tenantId and metric. For each group, reports metered usage via the
- * provider's reportUsage() method.
+ * Scheduled BullMQ repeatable job (every 5 minutes default).
+ * Queries all usage_records where syncedToProvider = false,
+ * grouped by tenantId and metric. For each group, reports
+ * metered usage via the provider's reportUsage() method.
  *
- * Per T-03-16: Processes all tenants (not tenant-scoped -- this is a system job).
+ * @param _data - Job data (unused -- job is self-contained)
+ * @returns void
+ *
+ * Per D-07: Write-then-sync pattern for reliability.
+ * Per T-03-16: Processes all tenants (system-level job).
  */
 export async function syncUsage(_data: unknown): Promise<void> {
   const db = createDb(env.DATABASE_URL);

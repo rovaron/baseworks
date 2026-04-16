@@ -6,10 +6,20 @@ import { eq } from "drizzle-orm";
 const GetSubscriptionStatusInput = Type.Object({});
 
 /**
- * Get the current subscription status for the requesting tenant.
+ * Retrieve the current subscription status for the requesting
+ * tenant.
  *
- * Per T-03-12: Uses ctx.tenantId to scope the query -- returns only
- * the requesting tenant's billing information.
+ * Looks up the tenant's billing customer record and returns plan
+ * details, subscription status, and billing period. Returns an
+ * "inactive" status with null fields when no billing record exists.
+ *
+ * @param input - Empty object (no additional input required)
+ * @param ctx   - Handler context: tenantId, userId, db, emit
+ * @returns Result<{ status, providerSubscriptionId,
+ *   providerPriceId, currentPeriodEnd, hasSubscription }>
+ *
+ * Per T-03-12: Uses ctx.tenantId to scope the query -- returns
+ *   only the requesting tenant's billing information.
  */
 export const getSubscriptionStatus = defineQuery(
   GetSubscriptionStatusInput,

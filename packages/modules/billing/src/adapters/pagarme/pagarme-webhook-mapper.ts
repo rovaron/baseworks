@@ -21,14 +21,19 @@ const PAGARME_EVENT_MAP: Record<string, NormalizedEventType> = {
 /**
  * Map a raw Pagar.me webhook event to a NormalizedEvent.
  *
- * Extracts provider-agnostic fields from Pagar.me's event structure.
- * Pagar.me nests resource data differently from Stripe:
+ * Extracts provider-agnostic fields from Pagar.me's event
+ * structure. Pagar.me nests resource data differently from
+ * Stripe:
  * - Customer ID is on data.customer.id
  * - Subscription ID is on data.subscription.id or data.id
  * - Plan ID is on data.plan.id
  * - Amounts are in centavos (BRL integer)
  *
- * @throws Error if the Pagar.me event type is not in the mapping table
+ * @param rawEvent - Verified raw Pagar.me event from
+ *   verifyWebhookSignature
+ * @returns Normalized billing domain event
+ * @throws Error if the Pagar.me event type is not in the
+ *   mapping table
  */
 export function mapPagarmeEvent(rawEvent: RawProviderEvent): NormalizedEvent {
   const normalizedType = PAGARME_EVENT_MAP[rawEvent.type];

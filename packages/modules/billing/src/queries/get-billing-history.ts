@@ -9,10 +9,19 @@ const GetBillingHistoryInput = Type.Object({
 });
 
 /**
- * Get billing/invoice history for the requesting tenant.
+ * Retrieve billing history (invoices) for the requesting tenant.
  *
- * Per T-03-12: Uses ctx.tenantId to look up providerCustomerId, then
- * fetches only that customer's invoices from the payment provider API.
+ * Looks up the tenant's provider customer ID, then fetches
+ * invoice records from the payment provider API. Returns an
+ * empty array when no billing customer exists.
+ *
+ * @param input - Query parameters: limit (1-100, default 10)
+ * @param ctx   - Handler context: tenantId, userId, db, emit
+ * @returns Result<{ invoices: ProviderInvoice[] }> -- list of
+ *   invoice records from the payment provider
+ *
+ * Per T-03-12: Uses ctx.tenantId to look up providerCustomerId,
+ *   then fetches only that customer's invoices.
  */
 export const getBillingHistory = defineQuery(
   GetBillingHistoryInput,

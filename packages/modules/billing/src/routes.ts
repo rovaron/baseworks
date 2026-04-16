@@ -14,22 +14,26 @@ import { getSubscriptionStatus } from "./queries/get-subscription-status";
 import { getBillingHistory } from "./queries/get-billing-history";
 
 /**
- * Billing routes plugin.
+ * Billing module routes plugin.
+ *
+ * Mounts CQRS command/query endpoints for checkout, subscription
+ * management, portal, usage recording, and billing history under
+ * the /api/billing prefix.
  *
  * Public routes (no auth, no tenant middleware):
- * - POST /api/billing/webhooks -- Payment provider webhook endpoint
+ * - POST /api/billing/webhooks -- Payment provider webhook
  *
  * Webhook pipeline (D-10, D-11, D-13):
- * 1. Verify signature via provider.verifyWebhookSignature() (T-10-02)
+ * 1. Verify signature via provider.verifyWebhookSignature()
  * 2. Normalize event via provider.normalizeEvent() (PAY-03)
- * 3. Check idempotency via webhook_events table (D-11, T-10-03)
+ * 3. Check idempotency via webhook_events table (D-11)
  * 4. Insert event record with status "pending"
- * 5. Enqueue NormalizedEvent to BullMQ for async processing (Pitfall 5: return 200 fast)
+ * 5. Enqueue NormalizedEvent to BullMQ (return 200 fast)
  *
  * Security (T-03-04, T-03-05, T-03-08, T-10-02):
- * - Signature verification via provider SDK (never hand-rolled HMAC)
- * - Dedup at DB level (unique providerEventId) and queue level (BullMQ jobId)
- * - No auth/tenant middleware on webhook route (external provider calls)
+ * - Signature verification via provider SDK
+ * - Dedup at DB and BullMQ jobId level
+ * - No auth/tenant middleware on webhook route
  */
 
 // Lazy queue initialization -- avoids requiring Redis in test environments

@@ -70,6 +70,12 @@ export class PagarmeAdapter implements PaymentProvider {
     return response.json() as Promise<T>;
   }
 
+  /**
+   * Create a customer in Pagar.me with tenant metadata.
+   *
+   * @param params - Tenant ID, optional name and metadata
+   * @returns Provider customer with the Pagar.me customer ID
+   */
   async createCustomer(params: CreateCustomerParams): Promise<ProviderCustomer> {
     const customer = await this.request("POST", "/customers", {
       name: params.name ?? `Tenant ${params.tenantId}`,
@@ -79,6 +85,12 @@ export class PagarmeAdapter implements PaymentProvider {
     return { providerCustomerId: customer.id };
   }
 
+  /**
+   * Create a subscription in Pagar.me using credit card payment.
+   *
+   * @param params - Provider customer ID and plan ID
+   * @returns Subscription details with status and period
+   */
   async createSubscription(
     params: CreateSubscriptionParams,
   ): Promise<ProviderSubscription> {
@@ -97,6 +109,12 @@ export class PagarmeAdapter implements PaymentProvider {
     };
   }
 
+  /**
+   * Cancel a Pagar.me subscription. Pagar.me does not support
+   * cancel-at-period-end; cancellation is always immediate.
+   *
+   * @param params - Subscription ID and cancellation timing
+   */
   async cancelSubscription(params: CancelSubscriptionParams): Promise<void> {
     if (params.cancelAtPeriodEnd) {
       // WR-02: Pagar.me has no native "cancel at period end" -- this request
@@ -112,6 +130,12 @@ export class PagarmeAdapter implements PaymentProvider {
     );
   }
 
+  /**
+   * Change a Pagar.me subscription to a different plan.
+   *
+   * @param params - Subscription ID and target plan ID
+   * @returns Updated subscription details
+   */
   async changeSubscription(
     params: ChangeSubscriptionParams,
   ): Promise<ProviderSubscription> {
@@ -132,6 +156,12 @@ export class PagarmeAdapter implements PaymentProvider {
     };
   }
 
+  /**
+   * Retrieve a Pagar.me subscription by ID.
+   *
+   * @param providerSubscriptionId - Pagar.me subscription ID
+   * @returns Subscription details, or null if not found
+   */
   async getSubscription(
     providerSubscriptionId: string,
   ): Promise<ProviderSubscription | null> {
@@ -153,6 +183,15 @@ export class PagarmeAdapter implements PaymentProvider {
     }
   }
 
+  /**
+   * Create a one-time payment via Pagar.me.
+   *
+   * Not yet implemented -- throws an error because Pagar.me
+   * requires explicit amount resolution that is not yet wired.
+   *
+   * @param _params - Payment parameters (unused)
+   * @throws Error always -- amount resolution not implemented
+   */
   async createOneTimePayment(
     _params: CreateOneTimePaymentParams,
   ): Promise<ProviderCheckoutSession> {
@@ -164,6 +203,15 @@ export class PagarmeAdapter implements PaymentProvider {
     );
   }
 
+  /**
+   * Create a checkout session via Pagar.me.
+   *
+   * Not yet implemented -- Pagar.me has no hosted checkout page
+   * and amount resolution is not yet wired.
+   *
+   * @param _params - Checkout parameters (unused)
+   * @throws Error always -- amount resolution not implemented
+   */
   async createCheckoutSession(
     _params: CreateCheckoutSessionParams,
   ): Promise<ProviderCheckoutSession> {
@@ -234,10 +282,25 @@ export class PagarmeAdapter implements PaymentProvider {
     };
   }
 
+  /**
+   * Normalize a raw Pagar.me event into a domain event.
+   * Delegates to mapPagarmeEvent for the actual mapping.
+   *
+   * @param rawEvent - Verified raw Pagar.me event
+   * @returns Normalized billing domain event
+   */
   normalizeEvent(rawEvent: RawProviderEvent): NormalizedEvent {
     return mapPagarmeEvent(rawEvent);
   }
 
+  /**
+   * Retrieve charge history from Pagar.me for a customer.
+   * Maps Pagar.me charges to the ProviderInvoice interface.
+   *
+   * @param providerCustomerId - Pagar.me customer ID
+   * @param limit - Maximum number of charges to return
+   * @returns List of invoice-like charge records
+   */
   async getInvoices(
     providerCustomerId: string,
     limit: number,

@@ -9,7 +9,16 @@ const ChangeSubscriptionInput = Type.Object({
 });
 
 /**
- * Change a tenant's subscription to a different price/plan.
+ * Change the current tenant's subscription to a different plan.
+ *
+ * Looks up the tenant's active subscription, then delegates the
+ * plan change to the configured PaymentProvider adapter. Proration
+ * behavior is determined by the provider.
+ *
+ * @param input - Change parameters: newPriceId (target plan)
+ * @param ctx   - Handler context: tenantId, userId, db, emit
+ * @returns Result<{ subscriptionId, newPriceId }> -- confirms
+ *   the updated subscription and target price
  *
  * Per T-03-10: Scoped to ctx.tenantId.
  */

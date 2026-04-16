@@ -30,6 +30,17 @@ interface WebhookJobData {
   normalizedEvent: NormalizedEvent;
 }
 
+/**
+ * Process a normalized webhook event from the BullMQ queue.
+ *
+ * Dispatches to type-specific sub-handlers that update the
+ * billing_customers table. Uses lastEventAt ordering to protect
+ * against out-of-order webhook delivery.
+ *
+ * @param data - Job data containing eventId and normalizedEvent
+ * @returns void
+ * @throws Re-throws processing errors so BullMQ retries the job
+ */
 export async function processWebhook(data: unknown): Promise<void> {
   const { eventId, normalizedEvent } = data as WebhookJobData;
   const db = createDb(env.DATABASE_URL);
@@ -108,7 +119,10 @@ export async function processWebhook(data: unknown): Promise<void> {
 }
 
 /**
- * checkout.completed: Update billing_customers with subscription info.
+ * Handle checkout.completed: link subscription to billing customer.
+ *
+ * @param db - Database instance
+ * @param normalizedEvent - Normalized checkout event
  */
 async function handleCheckoutCompleted(db: any, normalizedEvent: NormalizedEvent): Promise<void> {
   if (!normalizedEvent.providerCustomerId || !normalizedEvent.data.subscriptionId) return;
@@ -125,7 +139,12 @@ async function handleCheckoutCompleted(db: any, normalizedEvent: NormalizedEvent
 }
 
 /**
- * subscription.created: Create/update billing_customers record.
+ * Handle subscription.created: set subscription details on
+ * billing customer.
+ *
+ * @param db - Database instance
+ * @param normalizedEvent - Normalized subscription event
+ * @param eventTime - Event timestamp for ordering protection
  */
 async function handleSubscriptionCreated(
   db: any,
@@ -150,10 +169,15 @@ async function handleSubscriptionCreated(
 }
 
 /**
- * subscription.updated: Update billing_customers if event is newer.
+ * Handle subscription.updated: update billing customer if event
+ * is newer than the last processed event.
  *
- * Per Pitfall 3 (T-03-09): Only update if event timestamp > lastEventAt
- * to protect against out-of-order webhook delivery.
+ * Per Pitfall 3 (T-03-09): Only update if event timestamp >
+ * lastEventAt to protect against out-of-order webhook delivery.
+ *
+ * @param db - Database instance
+ * @param normalizedEvent - Normalized subscription event
+ * @param eventTime - Event timestamp for ordering comparison
  */
 async function handleSubscriptionUpdated(
   db: any,
@@ -190,7 +214,12 @@ async function handleSubscriptionUpdated(
 }
 
 /**
- * subscription.cancelled: Mark subscription as canceled.
+ * Handle subscription.cancelled: mark billing customer as
+ * canceled.
+ *
+ * @param db - Database instance
+ * @param normalizedEvent - Normalized cancellation event
+ * @param eventTime - Event timestamp for ordering protection
  */
 async function handleSubscriptionDeleted(
   db: any,

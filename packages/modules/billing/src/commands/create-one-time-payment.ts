@@ -12,7 +12,16 @@ const CreateOneTimePaymentInput = Type.Object({
 });
 
 /**
- * Create a checkout session for one-time payment.
+ * Create a one-time payment checkout session.
+ *
+ * Generates a provider-hosted checkout page for a single charge
+ * (not a subscription). Used for add-ons or one-off purchases.
+ *
+ * @param input - Payment parameters: priceId, quantity (default 1),
+ *   successUrl, cancelUrl
+ * @param ctx   - Handler context: tenantId, userId, db, emit
+ * @returns Result<{ sessionId, url }> -- redirect URL for the
+ *   provider-hosted payment page
  *
  * Per D-06: Uses payment mode for one-off charges.
  * Per T-03-10: Scoped to ctx.tenantId.

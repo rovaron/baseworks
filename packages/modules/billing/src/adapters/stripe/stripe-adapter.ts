@@ -43,6 +43,12 @@ export class StripeAdapter implements PaymentProvider {
     this.webhookSecret = config.webhookSecret;
   }
 
+  /**
+   * Create a Stripe customer with tenant metadata.
+   *
+   * @param params - Tenant ID, optional name and metadata
+   * @returns Provider customer with the Stripe customer ID
+   */
   async createCustomer(params: CreateCustomerParams): Promise<ProviderCustomer> {
     const customer = await this.stripe.customers.create(
       {
@@ -54,6 +60,12 @@ export class StripeAdapter implements PaymentProvider {
     return { providerCustomerId: customer.id };
   }
 
+  /**
+   * Create a Stripe subscription for a customer.
+   *
+   * @param params - Provider customer ID and price ID
+   * @returns Subscription details with status and period
+   */
   async createSubscription(params: CreateSubscriptionParams): Promise<ProviderSubscription> {
     const subscription = await this.stripe.subscriptions.create(
       {
@@ -70,6 +82,12 @@ export class StripeAdapter implements PaymentProvider {
     };
   }
 
+  /**
+   * Cancel a Stripe subscription. Uses `cancel_at_period_end`
+   * by default to allow access until the billing period ends.
+   *
+   * @param params - Subscription ID and cancellation timing
+   */
   async cancelSubscription(params: CancelSubscriptionParams): Promise<void> {
     await this.stripe.subscriptions.update(
       params.providerSubscriptionId,
@@ -78,6 +96,14 @@ export class StripeAdapter implements PaymentProvider {
     );
   }
 
+  /**
+   * Change a Stripe subscription to a different price/plan.
+   * Retrieves the current subscription item and updates its
+   * price. Stripe handles proration automatically.
+   *
+   * @param params - Subscription ID and target price ID
+   * @returns Updated subscription details
+   */
   async changeSubscription(params: ChangeSubscriptionParams): Promise<ProviderSubscription> {
     const sub = await this.stripe.subscriptions.retrieve(params.providerSubscriptionId);
     const updated = await this.stripe.subscriptions.update(
@@ -95,6 +121,12 @@ export class StripeAdapter implements PaymentProvider {
     };
   }
 
+  /**
+   * Retrieve a Stripe subscription by ID.
+   *
+   * @param providerSubscriptionId - Stripe subscription ID
+   * @returns Subscription details, or null if not found
+   */
   async getSubscription(providerSubscriptionId: string): Promise<ProviderSubscription | null> {
     try {
       const sub = await this.stripe.subscriptions.retrieve(providerSubscriptionId);
@@ -109,6 +141,13 @@ export class StripeAdapter implements PaymentProvider {
     }
   }
 
+  /**
+   * Create a Stripe checkout session in "payment" mode for
+   * a one-time charge.
+   *
+   * @param params - Customer, price, quantity, and redirect URLs
+   * @returns Checkout session with redirect URL
+   */
   async createOneTimePayment(params: CreateOneTimePaymentParams): Promise<ProviderCheckoutSession> {
     const session = await this.stripe.checkout.sessions.create(
       {
@@ -123,6 +162,12 @@ export class StripeAdapter implements PaymentProvider {
     return { sessionId: session.id, url: session.url! };
   }
 
+  /**
+   * Create a Stripe checkout session in "subscription" mode.
+   *
+   * @param params - Customer, price ID, and redirect URLs
+   * @returns Checkout session with redirect URL
+   */
   async createCheckoutSession(params: CreateCheckoutSessionParams): Promise<ProviderCheckoutSession> {
     const session = await this.stripe.checkout.sessions.create(
       {
@@ -137,6 +182,13 @@ export class StripeAdapter implements PaymentProvider {
     return { sessionId: session.id, url: session.url! };
   }
 
+  /**
+   * Create a Stripe Customer Portal session for self-service
+   * billing management.
+   *
+   * @param params - Customer ID and return URL
+   * @returns Portal session with URL
+   */
   async createPortalSession(params: CreatePortalSessionParams): Promise<ProviderPortalSession | null> {
     const session = await this.stripe.billingPortal.sessions.create({
       customer: params.providerCustomerId,
@@ -145,6 +197,13 @@ export class StripeAdapter implements PaymentProvider {
     return { url: session.url };
   }
 
+  /**
+   * Verify a Stripe webhook signature using the Stripe SDK.
+   *
+   * @param params - Raw request body and stripe-signature header
+   * @returns Verified raw Stripe event
+   * @throws Error if signature verification fails
+   */
   async verifyWebhookSignature(params: VerifyWebhookParams): Promise<RawProviderEvent> {
     const event = this.stripe.webhooks.constructEvent(
       params.rawBody,
@@ -158,10 +217,24 @@ export class StripeAdapter implements PaymentProvider {
     };
   }
 
+  /**
+   * Normalize a raw Stripe event into a domain event.
+   * Delegates to mapStripeEvent for the actual mapping.
+   *
+   * @param rawEvent - Verified raw Stripe event
+   * @returns Normalized billing domain event
+   */
   normalizeEvent(rawEvent: RawProviderEvent): NormalizedEvent {
     return mapStripeEvent(rawEvent);
   }
 
+  /**
+   * Retrieve invoice history from Stripe for a customer.
+   *
+   * @param providerCustomerId - Stripe customer ID
+   * @param limit - Maximum number of invoices to return
+   * @returns List of invoice records
+   */
   async getInvoices(providerCustomerId: string, limit: number): Promise<ProviderInvoice[]> {
     const invoiceList = await this.stripe.invoices.list({
       customer: providerCustomerId,
@@ -178,6 +251,15 @@ export class StripeAdapter implements PaymentProvider {
     }));
   }
 
+  /**
+   * Report metered usage to Stripe via subscription item usage
+   * records. Retrieves the subscription to find the item ID,
+   * then creates an incremental usage record.
+   *
+   * @param params - Subscription ID, quantity, and timestamp
+   * @returns Usage record ID from Stripe
+   * @throws Error if the subscription has no items
+   */
   async reportUsage(params: ReportUsageParams): Promise<ReportUsageResult> {
     // Retrieve subscription to get the subscription item ID
     const subscription = await this.stripe.subscriptions.retrieve(
