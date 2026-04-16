@@ -1,3 +1,11 @@
+/**
+ * Example module table.
+ *
+ * Demonstrates the standard table pattern with tenantIdColumn() for
+ * tenant isolation and timestampColumns() for audit. Used as a reference
+ * when creating new module schemas.
+ */
+
 import { index, pgTable, text, varchar } from "drizzle-orm/pg-core";
 import { primaryKeyColumn, tenantIdColumn, timestampColumns } from "./base";
 

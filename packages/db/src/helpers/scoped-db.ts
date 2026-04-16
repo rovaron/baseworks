@@ -3,23 +3,25 @@ import type { DbInstance } from "../connection";
 
 /**
  * Tenant-scoped Drizzle query wrapper.
+ *
  * Auto-applies tenant_id filtering on all operations, making cross-tenant
- * data access structurally impossible through normal module code.
+ * data access structurally impossible through normal module code. All CQRS
+ * handlers receive a ScopedDb instance via HandlerContext.
  */
 export interface ScopedDb {
-  /** SELECT with automatic WHERE tenant_id = tenantId */
+  /** SELECT with automatic WHERE tenant_id = tenantId. */
   select(table: any): any;
-  /** INSERT with automatic tenantId injection */
+  /** INSERT with automatic tenantId injection into row data. */
   insert(table: any): {
     values: (data: Record<string, any> | Record<string, any>[]) => any;
   };
-  /** UPDATE with automatic WHERE tenant_id = tenantId */
+  /** UPDATE with automatic WHERE tenant_id = tenantId. */
   update(table: any): {
     set: (data: Record<string, any>) => any;
   };
-  /** DELETE with automatic WHERE tenant_id = tenantId */
+  /** DELETE with automatic WHERE tenant_id = tenantId. */
   delete(table: any): any;
-  /** The current tenant ID */
+  /** The current tenant ID this wrapper is scoped to. */
   tenantId: string;
   /**
    * The underlying Drizzle instance for complex queries.
@@ -29,8 +31,17 @@ export interface ScopedDb {
 }
 
 /**
- * Creates a tenant-scoped database wrapper that auto-applies tenant_id
+ * Create a tenant-scoped database wrapper that auto-applies tenant_id
  * filtering on all select/insert/update/delete operations.
+ *
+ * @param db - Raw Drizzle database instance
+ * @param tenantId - UUID of the tenant to scope all queries to
+ * @returns ScopedDb wrapper with automatic tenant isolation
+ *
+ * @example
+ * const db = scopedDb(rawDb, "tenant-123");
+ * const rows = await db.select(examples);
+ * // All queries automatically filtered by tenant_id = "tenant-123"
  */
 export function scopedDb(db: DbInstance, tenantId: string): ScopedDb {
   return {
