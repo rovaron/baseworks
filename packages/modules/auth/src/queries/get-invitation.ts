@@ -7,13 +7,19 @@ const GetInvitationInput = Type.Object({
 });
 
 /**
- * Get single invitation details.
+ * Retrieve a single invitation by ID.
  *
- * This query is used by the public invite accept page to display
- * org name, inviter name, and assigned role. It does NOT require
+ * Used by the public invite accept page to display org name,
+ * inviter name, and assigned role. Does NOT require
  * authentication context.
  *
- * Per D-05: Branded landing page shows org name, inviter name, role.
+ * @param input - GetInvitationInput: invitationId (UUID)
+ * @param ctx   - Handler context (unused; public endpoint)
+ * @returns Result<Invitation> -- invitation record with
+ *   organization and inviter details, or err if not found
+ *
+ * Per D-05: Branded landing page shows org name, inviter name,
+ * role.
  * Per INVT-04: Invite accept page displays invitation details.
  */
 export const getInvitation = defineQuery(

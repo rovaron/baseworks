@@ -4,13 +4,15 @@ import { auth } from "./auth";
 /**
  * Auth macro plugin for session injection into protected routes.
  *
- * Usage in routes:
- * ```ts
- * .get("/protected", ({ user, session }) => { ... }, { auth: true })
- * ```
+ * Registers an `auth` macro that resolves the current session
+ * from request headers via better-auth. Injects `user` and
+ * `session` into the Elysia route context. Returns 401 if no
+ * valid session exists.
  *
- * Per RESEARCH.md Pattern 1: Uses .macro() with resolve to inject
- * user and session into the route context.
+ * @returns Elysia plugin instance with `auth` macro registered
+ *
+ * Per RESEARCH.md Pattern 1: Uses .macro() with resolve to
+ * inject user and session into the route context.
  */
 export const betterAuthPlugin = new Elysia({ name: "better-auth" }).macro({
   auth: {
@@ -28,16 +30,29 @@ export const betterAuthPlugin = new Elysia({ name: "better-auth" }).macro({
 });
 
 /**
- * Role guard middleware. Checks the user's role in the active organization.
+ * Role guard middleware. Checks the user's role in the active
+ * organization and throws if insufficient.
  *
- * Per D-12: Composable requireRole('admin') derive that checks the active
- * user's membership role for the current tenant. Returns 403 on insufficient permissions.
+ * Creates a scoped Elysia plugin that derives `memberRole`
+ * into the route context. Fetches the full organization to
+ * resolve the current user's membership role. Throws
+ * "Unauthorized" (401) if no session, "No active organization"
+ * if no org selected, or "Forbidden" (403) if the user's role
+ * is not in the allowed list.
  *
- * Usage:
- * ```ts
- * .use(requireRole("owner", "admin"))
- * .get("/admin-only", handler)
- * ```
+ * @param roles - One or more allowed role strings
+ *   (e.g., "owner", "admin", "member")
+ * @returns Elysia plugin that derives `memberRole` into context
+ * @throws Error("Unauthorized") if no valid session
+ * @throws Error("Forbidden") if role not in allowed list
+ *
+ * @example
+ * app
+ *   .use(requireRole("owner", "admin"))
+ *   .delete("/tenant", handler);
+ *
+ * Per D-12: Composable requireRole derive that checks the
+ * active user's membership role for the current tenant.
  */
 export function requireRole(...roles: string[]) {
   return new Elysia({ name: `require-role-${roles.join(",")}` }).derive(

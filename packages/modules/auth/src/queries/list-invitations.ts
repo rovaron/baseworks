@@ -7,7 +7,16 @@ const ListInvitationsInput = Type.Object({
 });
 
 /**
- * List pending invitations for an organization.
+ * List all pending invitations for a tenant organization.
+ *
+ * Returns all invitations (pending, accepted, rejected) for
+ * the specified organization. Filtered to pending in the UI.
+ *
+ * @param input - ListInvitationsInput: organizationId (UUID)
+ * @param ctx   - Handler context (unused; auth.api is not
+ *   tenant-scoped)
+ * @returns Result<Invitation[]> -- array of invitation records,
+ *   or empty array if none
  *
  * Per D-03: Team tab shows pending invitations list.
  * Per INVT-05: Org admin can view pending invitations.

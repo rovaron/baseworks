@@ -27,7 +27,21 @@ import { getInvitation } from "./queries/get-invitation";
  * Per D-16: Members cannot invite anyone -- requireRole("owner", "admin") enforces this.
  */
 
-/** Build a minimal HandlerContext for CQRS calls that use auth.api (not scopedDb). */
+/**
+ * Build a minimal HandlerContext for CQRS handler calls that
+ * use auth.api instead of scopedDb.
+ *
+ * Constructs a context with userId, tenantId, a null db
+ * (auth handlers use auth.api directly), and a no-op emit
+ * function. Used by route handlers to bridge Elysia request
+ * context into the CQRS handler signature.
+ *
+ * @param userId   - Authenticated user ID from session, or
+ *   empty string for public/system calls
+ * @param tenantId - Active organization ID from session, or
+ *   empty string for public calls
+ * @returns HandlerContext with null db and no-op emit
+ */
 function makeCtx(userId: string, tenantId: string) {
   return {
     userId,

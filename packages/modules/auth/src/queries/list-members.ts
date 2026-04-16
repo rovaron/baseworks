@@ -7,9 +7,18 @@ const ListMembersInput = Type.Object({
 });
 
 /**
- * List members of a tenant (organization).
+ * List all members of a tenant organization with their roles.
  *
- * Uses getFullOrganization to get member list.
+ * Fetches the full organization via better-auth and extracts
+ * the members array. Returns err if the organization is not
+ * found.
+ *
+ * @param input - ListMembersInput: organizationId (UUID)
+ * @param ctx   - Handler context (unused; auth.api is not
+ *   tenant-scoped)
+ * @returns Result<Member[]> -- array of member records with
+ *   userId and role, or err if tenant not found
+ *
  * Per TNNT-03: Tenant member listing via CQRS query.
  * Per Pitfall 6: Uses auth.api, not scopedDb.
  */
