@@ -21,8 +21,18 @@ export interface RegistryConfig {
 }
 
 /**
- * Config-driven module registry. Loads modules listed in config,
- * registers their commands/queries into the CQRS bus, and attaches routes.
+ * Config-driven module registry.
+ *
+ * Loads modules listed in {@link RegistryConfig}, registers their
+ * commands and queries into the {@link CqrsBus}, and provides
+ * route-mounting helpers for the Elysia app composition chain.
+ * Each module is dynamically imported from the static import map
+ * to maintain Bun analyzability.
+ *
+ * @example
+ * const registry = new ModuleRegistry({ role: "api", modules: ["auth", "billing"] });
+ * await registry.loadAll();
+ * app.use(registry.getModuleRoutes());
  */
 export class ModuleRegistry {
   private loaded = new Map<string, ModuleDefinition>();
@@ -30,12 +40,30 @@ export class ModuleRegistry {
   private eventBus: TypedEventBus;
   private config: RegistryConfig;
 
+  /**
+   * Create a new registry with the given config.
+   *
+   * Instantiates internal CqrsBus and TypedEventBus. Modules are
+   * not loaded until {@link loadAll} is called.
+   *
+   * @param config - Registry configuration specifying role and module list
+   */
   constructor(config: RegistryConfig) {
     this.config = config;
     this.cqrs = new CqrsBus();
     this.eventBus = new TypedEventBus();
   }
 
+  /**
+   * Load all modules configured in the registry config.
+   *
+   * Imports each module from the static import map, registers its
+   * commands and queries in the CqrsBus, and stores the loaded
+   * ModuleDefinition. Throws on module load failure to prevent
+   * partial initialization.
+   *
+   * @throws If any configured module fails to import
+   */
   async loadAll(): Promise<void> {
     for (const name of this.config.modules) {
       const importFn = moduleImportMap[name];
@@ -89,6 +117,15 @@ export class ModuleRegistry {
     return null;
   }
 
+  /**
+   * Attach loaded module routes to the Elysia app instance.
+   *
+   * Must be called after {@link loadAll}. Skips auth and billing
+   * modules (mounted separately for type chain preservation).
+   * No-ops when running in worker role.
+   *
+   * @param app - Elysia app instance to mount routes on
+   */
   attachRoutes(app: Elysia<any>): void {
     if (this.config.role === "worker") {
       logger.info("Worker role -- skipping route attachment");
@@ -131,18 +168,22 @@ export class ModuleRegistry {
     return plugin;
   }
 
+  /** Returns the CqrsBus instance used by this registry. */
   getCqrs(): CqrsBus {
     return this.cqrs;
   }
 
+  /** Returns the TypedEventBus instance used by this registry. */
   getEventBus(): TypedEventBus {
     return this.eventBus;
   }
 
+  /** Returns the map of loaded ModuleDefinition objects keyed by name. */
   getLoaded(): Map<string, ModuleDefinition> {
     return this.loaded;
   }
 
+  /** Returns the names of all loaded modules as a string array. */
   getLoadedNames(): string[] {
     return [...this.loaded.keys()];
   }
