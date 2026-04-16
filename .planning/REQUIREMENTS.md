@@ -1,80 +1,75 @@
 # Requirements: Baseworks
 
-**Defined:** 2026-04-08
+**Defined:** 2026-04-16
 **Core Value:** Clone, configure, and start building a multitenant SaaS in minutes -- not weeks.
-
-## v1.1 Requirements
-
-Requirements for v1.1 Polish & Extensibility. Each maps to roadmap phases.
-
-### Responsive Layouts
-
-- [x] **RESP-01**: User sees sidebar that doesn't overlay page content on desktop
-- [x] **RESP-02**: User can toggle sidebar via hamburger menu on mobile, sees Sheet drawer
-- [x] **RESP-03**: User sees collapsible sidebar on tablet breakpoints
-- [x] **RESP-04**: User can browse data tables on mobile via card-based layout
-- [x] **RESP-05**: User experiences fully responsive layouts on all customer app pages
-- [x] **RESP-06**: User experiences fully responsive layouts on all admin dashboard pages
-
-### Accessibility
-
-- [x] **A11Y-01**: User navigates pages with proper semantic HTML landmarks (nav, main, aside, headings)
-- [x] **A11Y-02**: User can navigate all interactive elements via keyboard with visible focus indicators
-- [x] **A11Y-03**: User can use skip-to-content links on both apps
-- [x] **A11Y-04**: Screen reader user hears meaningful announcements for toasts, loading states, and dynamic content via aria-live regions
-- [x] **A11Y-05**: Screen reader user can understand all forms with proper labels, descriptions, and error announcements
-- [x] **A11Y-06**: All components pass automated vitest-axe accessibility checks
-
-### Internationalization
-
-- [x] **I18N-01**: Shared i18n package (packages/i18n) with pt-BR and en JSON translation files
-- [x] **I18N-02**: Customer app (Next.js) renders all UI strings from translation files via next-intl
-- [x] **I18N-03**: Admin dashboard (Vite) renders all UI strings from translation files via react-i18next
-- [x] **I18N-04**: User can add a new language by adding JSON files without code changes
-
-### Team Invites
-
-- [x] **INVT-01**: Org admin can invite a user by email with a role (admin/member)
-- [x] **INVT-02**: Invited user receives email with accept/decline link
-- [x] **INVT-03**: Org admin can generate a shareable invite link with a role
-- [x] **INVT-04**: Invited user can accept invite and join the organization (existing or new account)
-- [x] **INVT-05**: Org admin can view, cancel, and resend pending invitations from management page
-
-### Payment Abstraction
-
-- [x] **PAY-01**: PaymentProvider port interface covers: createCustomer, createSubscription, cancelSubscription, changeSubscription, getSubscription, createOneTimePayment, createCheckoutSession, createPortalSession, verifyWebhookSignature
-- [x] **PAY-02**: Existing Stripe code refactored into StripeAdapter implementing PaymentProvider interface
-- [x] **PAY-03**: Webhook normalization layer translates provider-specific events into unified domain events
-- [x] **PAY-04**: Brazilian payment provider adapter implementing PaymentProvider interface (provider TBD during planning)
-- [x] **PAY-05**: Active payment provider selected via environment configuration at startup
 
 ## v1.2 Requirements
 
+Requirements for Documentation & Quality milestone. Each maps to roadmap phases.
+
+### JSDoc Annotations
+
+- [ ] **JSDOC-01**: All exported types and interfaces have comprehensive JSDoc (packages/shared, module ports, db schema)
+- [ ] **JSDOC-02**: All CQRS command handlers have standardized JSDoc (purpose, params, returns, events emitted)
+- [ ] **JSDOC-03**: All CQRS query handlers have standardized JSDoc (purpose, params, returns)
+- [ ] **JSDOC-04**: Core infrastructure has method-level JSDoc (CqrsBus, EventBus, ModuleRegistry, middleware)
+- [ ] **JSDOC-05**: 10-15 key functions have `@example` blocks with usage examples
+- [ ] **JSDOC-06**: JSDoc style guide established with good/bad examples before volume work begins
+
+### Unit Tests
+
+- [ ] **TEST-01**: Auth command handler unit tests (8 handlers: create-tenant, update-tenant, delete-tenant, update-profile, create-invitation, accept-invitation, cancel-invitation, reject-invitation)
+- [ ] **TEST-02**: Auth query handler unit tests (6 handlers: get-tenant, list-tenants, get-profile, list-members, get-invitation, list-invitations)
+- [ ] **TEST-03**: Billing command handler unit tests (6 handlers: create-checkout, create-one-time, cancel-subscription, change-subscription, create-portal, record-usage)
+- [ ] **TEST-04**: Billing query handler unit tests (2 handlers: get-subscription-status, get-billing-history)
+- [ ] **TEST-05**: Stripe adapter conformance test parity with existing Pagar.me adapter test
+- [ ] **TEST-06**: Scoped-db edge case tests (cross-tenant prevention, empty tenant handling)
+- [ ] **TEST-07**: Core infrastructure test expansion (registry, CQRS bus, event bus edge cases)
+- [ ] **TEST-08**: Config/env validation tests (packages/config validation logic)
+
+### Developer Documentation
+
+- [ ] **DOCS-01**: Getting Started guide (prerequisites, install, env setup, run dev, run tests)
+- [ ] **DOCS-02**: Architecture Overview with Mermaid diagrams (module system, CQRS flow, request lifecycle, tenant scoping)
+- [ ] **DOCS-03**: "Add a Module" step-by-step tutorial using example module as reference
+- [ ] **DOCS-04**: Configuration guide (env vars, module config, provider selection, deployment config)
+- [ ] **DOCS-05**: Testing guide (test runner split, mock patterns for HandlerContext, how to test commands/queries)
+- [ ] **DOCS-06**: Integration doc: better-auth setup and customization
+- [ ] **DOCS-07**: Integration doc: Stripe/Pagar.me billing configuration and adding providers
+- [ ] **DOCS-08**: Integration doc: BullMQ queue setup and adding new job types
+- [ ] **DOCS-09**: Integration doc: Email templates with Resend and React Email
+
+## v2 Requirements
+
 Deferred to future release. Tracked but not in current roadmap.
 
-### Internationalization
+### API Reference
 
-- **I18N-05**: Locale-based URL routing (/en/dashboard, /pt-BR/dashboard) on customer app
-- **I18N-06**: Language switcher UI component in both apps
-- **I18N-07**: Backend i18n -- transactional emails and API errors in user's language
+- **APIDOC-01**: TypeDoc auto-generated API reference from JSDoc annotations
+- **APIDOC-02**: TypeDoc monorepo configuration with per-package output
 
-### Team Invites
+### End-to-End Tests
 
-- **INVT-06**: Configurable invite expiration with auto-cleanup
+- **E2E-01**: Playwright E2E test infrastructure (test DB, test Redis, test server)
+- **E2E-02**: Auth flow E2E tests (signup, login, password reset, OAuth)
+- **E2E-03**: Billing flow E2E tests (checkout, subscription management)
+
+### Community
+
+- **COMM-01**: Contributing guide with PR template and code review checklist
+- **COMM-02**: Changelog and migration guide between versions
 
 ## Out of Scope
 
-Explicitly excluded. Documented to prevent scope creep.
-
 | Feature | Reason |
 |---------|--------|
-| Provider selection per tenant | Over-engineering -- one provider per deployment is sufficient for starter kit |
-| Usage-based billing in payment interface | Provider-specific feature -- access via SDK directly |
-| Customer portal in payment interface | Stripe-specific, no equivalent in most Brazilian providers |
-| Real-time / WebSockets | Deferred from v1.0, still not needed |
-| Mobile app | Web-first, responsive web covers mobile needs |
-| Full event sourcing | Practical CQRS only, no projections or replay |
-| Landing page / marketing site | This is a starter kit, not a finished product |
+| 100% test coverage target | Drives writing tests for trivial code; aim for 80%+ on handlers/core instead |
+| Storybook for UI components | shadcn components are documented upstream; adds significant tooling overhead |
+| External documentation site (Docusaurus/VitePress) | In-repo markdown is sufficient; no hosting/deployment needed |
+| Snapshot tests for UI components | Break on any change; a11y tests + visual review are better for shadcn components |
+| Video tutorials | High production cost, impossible to update when code changes |
+| JSDoc on standard shadcn components | Documented upstream; would add noise |
+| E2E tests | Requires separate infrastructure; different milestone |
 
 ## Traceability
 
@@ -82,38 +77,35 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| RESP-01 | Phase 6 | Complete |
-| RESP-02 | Phase 6 | Complete |
-| RESP-03 | Phase 6 | Complete |
-| RESP-04 | Phase 6 | Complete |
-| RESP-05 | Phase 6 | Complete |
-| RESP-06 | Phase 6 | Complete |
-| A11Y-01 | Phase 11 | Complete |
-| A11Y-02 | Phase 7 | Complete |
-| A11Y-03 | Phase 12 | Complete |
-| A11Y-04 | Phase 11 | Complete |
-| A11Y-05 | Phase 11 | Complete |
-| A11Y-06 | Phase 7 | Complete |
-| I18N-01 | Phase 12 | Complete |
-| I18N-02 | Phase 12 | Complete |
-| I18N-03 | Phase 12 | Complete |
-| I18N-04 | Phase 12 | Complete |
-| INVT-01 | Phase 9 | Complete |
-| INVT-02 | Phase 12 | Complete |
-| INVT-03 | Phase 9 | Complete |
-| INVT-04 | Phase 9 | Complete |
-| INVT-05 | Phase 9 | Complete |
-| PAY-01 | Phase 10 | Complete |
-| PAY-02 | Phase 10 | Complete |
-| PAY-03 | Phase 10 | Complete |
-| PAY-04 | Phase 10 | Complete |
-| PAY-05 | Phase 10 | Complete |
+| JSDOC-01 | — | Pending |
+| JSDOC-02 | — | Pending |
+| JSDOC-03 | — | Pending |
+| JSDOC-04 | — | Pending |
+| JSDOC-05 | — | Pending |
+| JSDOC-06 | — | Pending |
+| TEST-01 | — | Pending |
+| TEST-02 | — | Pending |
+| TEST-03 | — | Pending |
+| TEST-04 | — | Pending |
+| TEST-05 | — | Pending |
+| TEST-06 | — | Pending |
+| TEST-07 | — | Pending |
+| TEST-08 | — | Pending |
+| DOCS-01 | — | Pending |
+| DOCS-02 | — | Pending |
+| DOCS-03 | — | Pending |
+| DOCS-04 | — | Pending |
+| DOCS-05 | — | Pending |
+| DOCS-06 | — | Pending |
+| DOCS-07 | — | Pending |
+| DOCS-08 | — | Pending |
+| DOCS-09 | — | Pending |
 
 **Coverage:**
-- v1.1 requirements: 26 total
-- Mapped to phases: 26
-- Unmapped: 0
+- v1.2 requirements: 23 total
+- Mapped to phases: 0
+- Unmapped: 23 ⚠️
 
 ---
-*Requirements defined: 2026-04-08*
-*Last updated: 2026-04-16 -- v1.1 milestone shipped, all 26 requirements marked complete*
+*Requirements defined: 2026-04-16*
+*Last updated: 2026-04-16 after initial definition*
