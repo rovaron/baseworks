@@ -12,7 +12,16 @@ const UpdateTenantInput = Type.Object({
 });
 
 /**
- * Update tenant (organization) settings.
+ * Update tenant organization display name, slug, or logo.
+ *
+ * Extracts organizationId from input and forwards remaining
+ * fields to better-auth's updateOrganization API.
+ *
+ * @param input - UpdateTenantInput: organizationId (UUID), name
+ *   (optional, 1-100 chars), slug (optional), logo (optional URL)
+ * @param ctx   - Handler context: tenantId, userId, db, emit
+ * @returns Result<Organization> -- the updated organization
+ *   record, or err with failure message
  *
  * Per D-13: Admin-level action (role enforcement at route level).
  * Per Pitfall 6: Uses auth.api, not scopedDb.

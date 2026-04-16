@@ -14,15 +14,27 @@ const CreateInvitationInput = Type.Object({
  * Create an invitation to join an organization.
  *
  * Supports two modes:
- * - "email": Uses the provided email address. The sendInvitationEmail callback
- *   in auth.ts will enqueue an email to this address.
- * - "link": Generates a placeholder email `link-invite-{nanoid}@internal`.
- *   The sendInvitationEmail callback detects the @internal suffix and returns
- *   early, suppressing email delivery. The invitation ID is returned for
- *   constructing a shareable URL.
+ * - "email": Uses the provided email address. The
+ *   sendInvitationEmail callback in auth.ts enqueues an email.
+ * - "link": Generates a placeholder email
+ *   `link-invite-{nanoid}@internal`. The sendInvitationEmail
+ *   callback detects the @internal suffix and returns early,
+ *   suppressing email delivery. The invitation ID is returned
+ *   for constructing a shareable URL.
  *
- * Per D-04: Single invite dialog supports email and shareable link modes.
- * Per D-13: Only admin and member roles are assignable (owner is not).
+ * Emits `invitation.created` with invitationId, organizationId,
+ * email, and mode.
+ *
+ * @param input - CreateInvitationInput: email (required for
+ *   email mode), role (admin | member), organizationId, mode
+ * @param ctx   - Handler context: tenantId, userId, db, emit
+ * @returns Result<Invitation> -- the created invitation record,
+ *   or err with failure message
+ *
+ * Per D-04: Single invite dialog supports email and shareable
+ * link modes.
+ * Per D-13: Only admin and member roles are assignable (owner
+ * is not).
  * Per INVT-01/INVT-03: Email invite and shareable link creation.
  */
 export const createInvitation = defineCommand(

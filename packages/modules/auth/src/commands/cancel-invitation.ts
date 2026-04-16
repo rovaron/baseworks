@@ -8,12 +8,23 @@ const CancelInvitationInput = Type.Object({
 });
 
 /**
- * Cancel a pending invitation.
+ * Cancel a pending invitation sent by the organization.
  *
- * Only owners and admins can cancel invitations (enforced at route level).
- * Delegates to better-auth's cancelInvitation API.
+ * Only owners and admins can cancel invitations (enforced at
+ * route level via requireRole). Delegates to better-auth's
+ * cancelInvitation API.
  *
- * Per D-12: Admin can revoke any pending invitation from management page.
+ * Emits `invitation.cancelled` with invitationId and
+ * organizationId.
+ *
+ * @param input - CancelInvitationInput: invitationId (UUID),
+ *   organizationId (UUID)
+ * @param ctx   - Handler context: tenantId, userId, db, emit
+ * @returns Result<object> -- better-auth cancellation result,
+ *   or err with failure message
+ *
+ * Per D-12: Admin can revoke any pending invitation from
+ * management page.
  * Per INVT-05: Invitation management including cancellation.
  */
 export const cancelInvitation = defineCommand(

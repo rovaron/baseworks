@@ -7,11 +7,19 @@ const RejectInvitationInput = Type.Object({
 });
 
 /**
- * Reject an invitation to join an organization.
+ * Reject a pending invitation without joining the organization.
  *
  * Delegates to better-auth's rejectInvitation API which handles:
  * - Validating the invitation exists and is pending
  * - Marking the invitation as rejected
+ *
+ * Emits `invitation.rejected` with invitationId.
+ *
+ * @param input - RejectInvitationInput: invitationId (UUID)
+ * @param ctx   - Handler context: tenantId, userId, db, emit,
+ *   headers (forwarded to better-auth for session resolution)
+ * @returns Result<object> -- better-auth rejection result, or
+ *   err with failure message
  *
  * Per INVT-04: Invited user can decline an invitation.
  */

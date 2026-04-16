@@ -10,11 +10,24 @@ const CreateTenantInput = Type.Object({
 });
 
 /**
- * Create a new tenant (organization) via better-auth's org plugin.
+ * Create a new tenant organization and assign the requesting
+ * user as owner.
+ *
+ * Inserts an organization record via better-auth, auto-generates
+ * a slug from the name if not provided, and emits a
+ * `tenant.created` domain event for downstream listeners
+ * (e.g., billing customer provisioning).
+ *
+ * @param input - CreateTenantInput: name (1-100 chars), slug
+ *   (optional, lowercase alphanumeric with hyphens)
+ * @param ctx   - Handler context: tenantId, userId, db, emit
+ * @returns Result<Organization> -- the created organization
+ *   record, or err with failure message
  *
  * Per D-15: Auth module commands wrap better-auth org API.
  * Per TNNT-03: Tenant CRUD available via CQRS handlers.
- * Per Pitfall 6: Auth/org tables accessed via auth.api, not scopedDb.
+ * Per Pitfall 6: Auth/org tables accessed via auth.api, not
+ * scopedDb.
  */
 export const createTenant = defineCommand(
   CreateTenantInput,
