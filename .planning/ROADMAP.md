@@ -56,7 +56,13 @@ Full details: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md)
   3. All CQRS command and query handlers have standardized JSDoc documenting purpose, params, returns, and (for commands) events emitted
   4. Core infrastructure methods (CqrsBus, EventBus, ModuleRegistry, middleware) have method-level JSDoc
   5. At least 10 key functions have `@example` blocks demonstrating usage
-**Plans**: TBD
+**Plans:** 4 plans
+
+Plans:
+- [ ] 13-01-PLAN.md -- Style guide + packages/shared + packages/db annotations
+- [ ] 13-02-PLAN.md -- Auth module handlers and supporting files
+- [ ] 13-03-PLAN.md -- Billing module + example module annotations
+- [ ] 13-04-PLAN.md -- Core infrastructure (CqrsBus, EventBus, Registry, middleware)
 
 ### Phase 14: Unit Tests
 **Goal**: CQRS handlers and core infrastructure have unit tests that verify behavior contracts, with test runner boundaries documented and test utilities established
@@ -100,6 +106,6 @@ Phases execute in numeric order: 13 -> 14 -> 15
 | 10. Payment Abstraction | v1.1 | 4/4 | Complete | 2026-04-11 |
 | 11. Accessibility Gap Closure | v1.1 | 2/2 | Complete | 2026-04-14 |
 | 12. i18n Hardcoded String Cleanup | v1.1 | 3/3 | Complete | 2026-04-14 |
-| 13. JSDoc Annotations | v1.2 | 0/0 | Not started | - |
+| 13. JSDoc Annotations | v1.2 | 0/4 | In progress | - |
 | 14. Unit Tests | v1.2 | 0/0 | Not started | - |
 | 15. Developer Documentation | v1.2 | 0/0 | Not started | - |
