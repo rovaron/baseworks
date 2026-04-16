@@ -18,6 +18,17 @@ import { PagarmeAdapter } from "./adapters/pagarme/pagarme-adapter";
  */
 let providerInstance: PaymentProvider | null = null;
 
+/**
+ * Return the cached PaymentProvider instance, creating it on
+ * first call based on the PAYMENT_PROVIDER env var.
+ *
+ * @returns The singleton PaymentProvider instance
+ * @throws Error if required provider keys are missing
+ *
+ * @example
+ * const provider = getPaymentProvider();
+ * const session = await provider.createCheckoutSession(input);
+ */
 export function getPaymentProvider(): PaymentProvider {
   if (!providerInstance) {
     const providerName = env.PAYMENT_PROVIDER ?? "stripe";
@@ -63,12 +74,22 @@ export function getPaymentProvider(): PaymentProvider {
   return providerInstance;
 }
 
-/** Reset singleton -- used in tests to inject mocks */
+/**
+ * Reset the provider singleton. Used in tests to inject mocks.
+ *
+ * @returns void
+ */
 export function resetPaymentProvider(): void {
   providerInstance = null;
 }
 
-/** Set provider directly -- used in tests */
+/**
+ * Set the provider singleton directly. Used in tests to inject
+ * a mock PaymentProvider without env var configuration.
+ *
+ * @param provider - The PaymentProvider instance to use
+ * @returns void
+ */
 export function setPaymentProvider(provider: PaymentProvider): void {
   providerInstance = provider;
 }

@@ -107,15 +107,23 @@ async function resolveTeamInvite(data: {
 }
 
 /**
- * Email job handler using Resend + React Email.
+ * Send a transactional email via Resend and React Email.
+ *
+ * Processes email:send BullMQ queue jobs. Resolves the template
+ * by name, renders it with React Email, and sends via Resend.
+ * Skips sending gracefully when RESEND_API_KEY is not configured
+ * (dev/test environments).
+ *
+ * @param data - Job data: to (recipient), template (template
+ *   name), data (template-specific props)
+ * @returns void
+ * @throws Error if the template name is unknown
  *
  * Per D-19/D-21: Processes email:send queue jobs.
- * Per T-03-17: Graceful degradation when RESEND_API_KEY is not set
- * (logs instead of crashing) so dev/test environments work without email config.
- * Per T-03-14: Templates receive minimal data (userName, url) -- no secrets.
- * Per Phase 12 D-05/D-09/D-10: team-invite is the only template that resolves
- * translations at send time; other templates keep their current hardcoded
- * English subject and content until a future transactional email i18n sweep.
+ * Per T-03-17: Graceful degradation without RESEND_API_KEY.
+ * Per T-03-14: Templates receive minimal data -- no secrets.
+ * Per Phase 12 D-05/D-09/D-10: team-invite resolves i18n at
+ *   send time; other templates use hardcoded English.
  */
 export async function sendEmail(data: unknown): Promise<void> {
   const { to, template, data: templateData } = data as {

@@ -21,7 +21,12 @@ interface TenantCreatedEvent {
 /**
  * Register billing hooks on the event bus.
  *
- * @param eventBus - The TypedEventBus instance from the module registry
+ * Attaches a `tenant.created` listener that auto-provisions a
+ * payment provider customer record for new tenants.
+ *
+ * @param eventBus - The TypedEventBus instance from the module
+ *   registry
+ * @returns void
  */
 export function registerBillingHooks(eventBus: {
   on: (event: string, handler: (data: any) => Promise<void>) => void;

@@ -23,11 +23,17 @@ const STRIPE_EVENT_MAP: Record<string, NormalizedEventType> = {
  * Map a raw Stripe webhook event to a NormalizedEvent.
  *
  * Extracts provider-agnostic fields from Stripe's event structure:
- * - event.data.object contains the Stripe resource (subscription, invoice, etc.)
+ * - event.data.object contains the Stripe resource
+ *   (subscription, invoice, etc.)
  * - Customer ID is always on object.customer
- * - Subscription fields vary by event type but follow consistent patterns
+ * - Subscription fields vary by event type but follow consistent
+ *   patterns
  *
- * @throws Error if the Stripe event type is not in the mapping table
+ * @param rawEvent - Verified raw Stripe event from
+ *   verifyWebhookSignature
+ * @returns Normalized billing domain event
+ * @throws Error if the Stripe event type is not in the mapping
+ *   table
  */
 export function mapStripeEvent(rawEvent: RawProviderEvent): NormalizedEvent {
   const normalizedType = STRIPE_EVENT_MAP[rawEvent.type];
