@@ -1,5 +1,25 @@
 # Milestones
 
+## v1.1 Polish & Extensibility (Shipped: 2026-04-16)
+
+**Phases completed:** 7 phases, 24 plans, 33 tasks
+
+**Key accomplishments:**
+
+- DataTableCards component with priority-based column rendering, tap-to-expand, sort dropdown, and filter chips -- wired into admin tenants/users lists with responsive mobile/desktop switching
+- Replaced div-based CardTitle with semantic h1 headings on all 6 auth pages
+- Shared i18n package with 280 translation keys (en + pt-BR), next-intl wired into Next.js customer app, react-i18next wired into Vite admin dashboard
+- All 7 pages and 2 components in apps/web now render strings from next-intl translation files with zero hardcoded English
+- All 8 routes and 1 layout in apps/admin now render strings from react-i18next translation files with zero hardcoded English
+- sendInvitationEmail callback with @internal link-mode suppression, TeamInviteEmail template via BullMQ, invite i18n namespace (en/pt-BR), and Switch UI component
+- Public invite accept page with 5 user states, login redirect with token preservation, and signup auto-accept per D-08
+- Replaced 5 `<CardTitle>` usages with `<h1>` on the invite accept page, closing the A11Y-01 heading hierarchy regression flagged by the v1.1 milestone audit.
+- SkipToContent primitive refactored to require a translated `label` prop, wiring all three app layouts (auth/dashboard/admin) to `common.skipToContent` — TypeScript now structurally blocks regressions to the old hardcoded English string.
+- Before (relevant excerpt):
+- 1. [Rule 3 - Blocking] Added `@baseworks/i18n` workspace dep to `packages/modules/auth/package.json`
+
+---
+
 ## v1.0 MVP (Shipped: 2026-04-08)
 
 **Phases completed:** 5 phases, 15 plans, 41 tasks

@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v1.0 MVP** -- Phases 1-5 (shipped 2026-04-08)
-- 🚧 **v1.1 Polish & Extensibility** -- Phases 6-12 (in progress)
+- ✅ **v1.1 Polish & Extensibility** -- Phases 6-12 (shipped 2026-04-16)
 
 ## Phases
 
@@ -20,138 +20,22 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 
 </details>
 
-### v1.1 Polish & Extensibility
+<details>
+<summary>v1.1 Polish & Extensibility (Phases 6-12) -- SHIPPED 2026-04-16</summary>
 
-- [ ] **Phase 6: Responsive Layouts** - Fix sidebar overlay and make both frontends fully responsive across mobile, tablet, and desktop
-- [x] **Phase 7: Accessibility** - Keyboard navigation, screen reader support, semantic HTML, and automated a11y testing across both apps
-- [x] **Phase 8: Internationalization** - Shared i18n package with pt-BR and en translations wired into both frontends
-- [ ] **Phase 9: Team Invites** - Invite-by-email, invite links, role assignment, accept/decline flow with translated UI
-- [x] **Phase 10: Payment Abstraction** - Port/adapter interface, Stripe adapter extraction, Brazilian provider adapter, webhook normalization (completed 2026-04-11)
-- [x] **Phase 11: Accessibility Gap Closure** - Close A11Y-01 auth page heading hierarchy and GAP-3 InviteDialog a11y regression flagged by v1.1 milestone audit (completed 2026-04-14)
-- [ ] **Phase 12: i18n Hardcoded String Cleanup** - Eliminate hardcoded English from invite email template and skip link, register invite namespace in admin i18n (GAP-1, GAP-2)
+- [x] Phase 6: Responsive Layouts (3/3 plans) -- completed 2026-04-08
+- [x] Phase 7: Accessibility (4/4 plans) -- completed 2026-04-09
+- [x] Phase 8: Internationalization (3/3 plans) -- completed 2026-04-09
+- [x] Phase 9: Team Invites (5/5 plans) -- completed 2026-04-11
+- [x] Phase 10: Payment Abstraction (4/4 plans) -- completed 2026-04-11
+- [x] Phase 11: Accessibility Gap Closure (2/2 plans) -- completed 2026-04-14
+- [x] Phase 12: i18n Hardcoded String Cleanup (3/3 plans) -- completed 2026-04-14
 
-## Phase Details
+Full details: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md)
 
-### Phase 6: Responsive Layouts
-**Goal**: Users on any device see a usable, properly laid-out interface with no content hidden behind sidebars or broken by viewport size
-**Depends on**: Phase 5 (v1.0 complete)
-**Requirements**: RESP-01, RESP-02, RESP-03, RESP-04, RESP-05, RESP-06
-**Success Criteria** (what must be TRUE):
-  1. User on desktop sees the sidebar alongside page content with no overlay or content obstruction
-  2. User on mobile can open and close the sidebar via hamburger menu, seeing a Sheet drawer that dismisses on navigation
-  3. User on tablet sees a collapsible icon-only sidebar that expands on interaction
-  4. User can browse data tables on mobile via a card-based layout without horizontal scrolling
-  5. All pages in both the customer app and admin dashboard render without horizontal overflow at 375px, 768px, and 1440px viewports
-**Plans:** 3 plans
-Plans:
-- [x] 06-01-PLAN.md — Three-tier responsive sidebar (desktop/tablet/mobile) with localStorage persistence
-- [x] 06-02-PLAN.md — Mobile card-based DataTable view with column priority metadata
-- [x] 06-03-PLAN.md — Page-level responsive audit and fixes across both apps
-**UI hint**: yes
-
-### Phase 7: Accessibility
-**Goal**: Users with disabilities can navigate and operate both applications using keyboard, screen readers, and assistive technology
-**Depends on**: Phase 6
-**Requirements**: A11Y-01, A11Y-02, A11Y-03, A11Y-04, A11Y-05, A11Y-06
-**Success Criteria** (what must be TRUE):
-  1. Every page uses semantic HTML landmarks (nav, main, aside) with a correct heading hierarchy (h1 through h3, no skipped levels)
-  2. User can Tab through all interactive elements on every page with a visible focus indicator, and Escape closes any open modal/sheet/dropdown
-  3. User pressing Tab on page load can activate a skip-to-content link that jumps focus to the main content area
-  4. Screen reader user hears meaningful announcements for toasts, loading spinners, and dynamic content changes via aria-live regions
-  5. All shared UI components pass vitest-axe automated accessibility checks with zero violations
-**Plans:** 4 plans
-Plans:
-- [x] 07-01-PLAN.md — Semantic landmarks, skip-to-content links, and route change focus management
-- [x] 07-02-PLAN.md — aria-live regions, FormMessage role="alert", and keyboard focus audit
-- [x] 07-03-PLAN.md — vitest-axe automated accessibility tests for shared UI components
-- [x] 07-04-PLAN.md — Gap closure: h1 heading hierarchy on auth pages
-**UI hint**: yes
-
-### Phase 8: Internationalization
-**Goal**: Both frontends render all UI strings from shared translation files, and adding a new language requires only JSON files
-**Depends on**: Phase 6
-**Requirements**: I18N-01, I18N-02, I18N-03, I18N-04
-**Success Criteria** (what must be TRUE):
-  1. A packages/i18n workspace package exists with pt-BR and en JSON translation files organized by namespace
-  2. Customer app (Next.js) renders all user-facing strings from translation files via next-intl, with no hardcoded English in JSX
-  3. Admin dashboard (Vite) renders all user-facing strings from translation files via react-i18next, with no hardcoded English in JSX
-  4. Developer can add a new language by creating JSON files in packages/i18n without modifying application code
-**Plans**: 3 plans
-Plans:
-- [x] 08-01-PLAN.md — i18n infrastructure: packages/i18n with en/pt-BR translations, next-intl + react-i18next providers
-- [x] 08-02-PLAN.md — Customer app string replacement with next-intl
-- [x] 08-03-PLAN.md — Admin dashboard string replacement with react-i18next
-
-**UI hint**: yes
-
-### Phase 9: Team Invites
-**Goal**: Organization admins can invite users to their team with role assignment, and invited users can accept via email link or shareable URL
-**Depends on**: Phase 8
-**Requirements**: INVT-01, INVT-02, INVT-03, INVT-04, INVT-05
-**Success Criteria** (what must be TRUE):
-  1. Org admin can enter an email and select a role (admin/member) to send an invitation from the tenant settings page
-  2. Invited user receives an email with a link that shows organization name, inviter, role, and accept/decline buttons
-  3. Org admin can generate a shareable invite link with a pre-assigned role that anyone with the link can use to join
-  4. Invited user (existing or new account) can accept an invite and immediately land in the organization with the correct role
-  5. Org admin can view all pending invitations and cancel or resend any invitation from a management page
-**Plans:** 5 plans
-Plans:
-- [x] 09-00-PLAN.md — Wave 0: Test scaffold for invitation lifecycle (invitation.test.ts with failing stubs)
-- [x] 09-01-PLAN.md — Backend invitation infrastructure: sendInvitationEmail callback with @internal email suppression, email template, i18n translations, Switch component
-- [x] 09-02-PLAN.md — CQRS commands/queries and API routes for invitation lifecycle with email/link mode support
-- [x] 09-03-PLAN.md — Settings page with Team tab: members list, pending invitations, invite dialog
-- [x] 09-04-PLAN.md — Invite accept page with 5 user states, login/signup redirect wiring, and signup auto-accept per D-08
-**UI hint**: yes
-
-### Phase 10: Payment Abstraction
-**Goal**: Billing module operates through a provider-agnostic interface, with Stripe and one Brazilian provider as concrete adapters
-**Depends on**: Phase 5 (v1.0 billing module)
-**Requirements**: PAY-01, PAY-02, PAY-03, PAY-04, PAY-05
-**Success Criteria** (what must be TRUE):
-  1. A PaymentProvider port interface exists covering customer management, subscriptions, one-time payments, checkout sessions, portal sessions, and webhook verification
-  2. All existing billing functionality works identically after Stripe code is refactored into a StripeAdapter implementing the PaymentProvider interface
-  3. Webhook events from any provider are normalized into unified domain events (subscription.created, payment.succeeded, etc.) before processing
-  4. A Brazilian payment provider adapter implements the PaymentProvider interface with support for its native payment methods
-  5. Switching the active payment provider requires only changing an environment variable at startup -- no code changes
-**Plans:** 4/4 plans complete
-Plans:
-- [x] 10-01-PLAN.md — PaymentProvider port interface, DB schema column renames, test scaffolds
-- [x] 10-02-PLAN.md — StripeAdapter extraction, billing module refactoring, webhook normalization
-- [x] 10-03-PLAN.md — PagarmeAdapter, provider factory env-based selection, conditional env validation
-
-### Phase 11: Accessibility Gap Closure
-**Goal**: Close the accessibility regressions v1.1 milestone audit found so A11Y-01, A11Y-04, and A11Y-05 are satisfied end-to-end across auth pages and the team invite dialog
-**Depends on**: Phase 9 (InviteDialog exists), Phase 7 (Form primitives exist)
-**Requirements**: A11Y-01, A11Y-04, A11Y-05
-**Gap Closure**: Closes audit gaps A11Y-01 (partial), A11Y-04 (partial), A11Y-05 (partial), integration GAP-3, Flow D
-**Success Criteria** (what must be TRUE):
-  1. Every auth page (login, signup, forgot password, reset password) renders an `<h1>` at the top of its Card — `CardTitle` no longer resolves to a generic `div` inside these pages
-  2. `apps/web/components/invite-dialog.tsx` uses shared `Form`/`FormField`/`FormItem`/`FormMessage` primitives — raw `<p className="text-sm text-destructive">` error paragraphs are removed
-  3. Submitting the invite dialog with an empty or invalid email announces the error to screen readers via `role="alert"` (verified through vitest-axe + manual screen reader check)
-  4. Heading hierarchy on auth pages passes automated vitest-axe checks for heading order (no skipped levels)
-**Plans:** 2/2 plans complete
-Plans:
-- [x] 11-01-PLAN.md — Invite accept page: replace 5 CardTitle usages with h1 (A11Y-01)
-- [x] 11-02-PLAN.md — InviteDialog: refactor to Form/FormField/FormMessage primitives with i18n schema factory (A11Y-04, A11Y-05)
-**UI hint**: yes
-
-### Phase 12: i18n Hardcoded String Cleanup
-**Goal**: Remove the hardcoded English strings the integration checker flagged so pt-BR users see a fully localized UI and I18N-01/I18N-02/I18N-03 are satisfied when Phase 8 is re-verified
-**Depends on**: Phase 8 (i18n infrastructure), Phase 9 (invite email template)
-**Requirements**: I18N-01, I18N-02, I18N-03, I18N-04, A11Y-03, INVT-02
-**Gap Closure**: Closes audit gaps I18N-01..04 (partial), integration GAP-1, GAP-2
-**Success Criteria** (what must be TRUE):
-  1. `packages/ui/src/components/skip-link.tsx` accepts a `label` prop and both app layouts pass a translated string — no hardcoded `"Skip to content"` literal remains
-  2. `apps/admin/src/lib/i18n.ts` registers the `invite` namespace alongside existing resources
-  3. `packages/modules/billing/src/templates/team-invite.tsx` renders all strings (heading, body, CTA button, footer) from `packages/i18n` based on a `locale` parameter — no hardcoded English strings
-  4. The `sendInvitationEmail` callback in `auth.ts` resolves the recipient locale (from invite record or inviter user) and passes it into the email template renderer
-  5. Pt-BR invitee receiving an invite email sees Portuguese copy, and pt-BR user tabbing to the skip link sees Portuguese label text in both apps
-**UI hint**: no
+</details>
 
 ## Progress
-
-**Execution Order:**
-Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10 -> 11 -> 12
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -160,10 +44,10 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10 -> 11 -> 12
 | 3. Billing & Background Jobs | v1.0 | 4/4 | Complete | 2026-04-07 |
 | 4. Frontend Applications | v1.0 | 3/3 | Complete | 2026-04-07 |
 | 5. Production Hardening | v1.0 | 2/2 | Complete | 2026-04-08 |
-| 6. Responsive Layouts | v1.1 | 0/3 | Planned | - |
-| 7. Accessibility | v1.1 | 3/4 | Executing | - |
-| 8. Internationalization | v1.1 | 0/0 | Not started | - |
-| 9. Team Invites | v1.1 | 0/5 | Planned | - |
-| 10. Payment Abstraction | v1.1 | 4/4 | Complete    | 2026-04-11 |
-| 11. Accessibility Gap Closure | v1.1 | 2/2 | Complete    | 2026-04-14 |
-| 12. i18n Hardcoded String Cleanup | v1.1 | 0/0 | Planned | - |
+| 6. Responsive Layouts | v1.1 | 3/3 | Complete | 2026-04-08 |
+| 7. Accessibility | v1.1 | 4/4 | Complete | 2026-04-09 |
+| 8. Internationalization | v1.1 | 3/3 | Complete | 2026-04-09 |
+| 9. Team Invites | v1.1 | 5/5 | Complete | 2026-04-11 |
+| 10. Payment Abstraction | v1.1 | 4/4 | Complete | 2026-04-11 |
+| 11. Accessibility Gap Closure | v1.1 | 2/2 | Complete | 2026-04-14 |
+| 12. i18n Hardcoded String Cleanup | v1.1 | 3/3 | Complete | 2026-04-14 |

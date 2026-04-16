@@ -2,16 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Polish & Extensibility
-status: executing
-stopped_at: Phase 12 context gathered
-last_updated: "2026-04-14T22:04:40.294Z"
-last_activity: 2026-04-14 -- Phase 12 planning complete
+status: Milestone v1.1 ready for close
+stopped_at: All v1.1 phases verified complete
+last_updated: "2026-04-16T11:30:13.882Z"
 progress:
   total_phases: 7
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 24
-  completed_plans: 21
-  percent: 88
+  completed_plans: 24
+  percent: 100
 ---
 
 # Project State
@@ -21,24 +20,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-08)
 
 **Core value:** Clone, configure, and start building a multitenant SaaS in minutes -- not weeks.
-**Current focus:** Phase 11 — a11y-gap-closure
+**Current focus:** v1.1 milestone complete -- ready for milestone close
 
 ## Current Position
 
-Phase: 12
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-04-14 -- Phase 12 planning complete
+Phase: 12 (i18n-string-cleanup) — COMPLETE
+All 7 phases complete, all 24 plans executed
+Status: Milestone v1.1 ready for close
 
-Progress: [████████████████░░░░] 80% (8/10 phases complete: v1.0 + 06 + 07 + 08)
+Progress: [████████████████████] 100% (12/12 phases complete: v1.0 + v1.1)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 29 (15 v1.0 + 3 v1.1)
+- Total plans completed: 39 (15 v1.0 + 24 v1.1)
 - Timeline: v1.0 shipped in 3 days (2026-04-05 to 2026-04-08)
-- v1.1: Phases 6-8 completed (2026-04-08 to 2026-04-09)
+- v1.1: Phases 6-12 completed (2026-04-08 to 2026-04-14)
 
 **Previous milestone (v1.0):**
 
@@ -65,10 +63,10 @@ None.
 
 ### Blockers/Concerns
 
-None.
+- Admin login role check bug: `organization.list()` doesn't return `role` field, so the login page's `hasOwnerRole` check always fails. Workaround: use `getFullOrganization()` per org (as auth-guard.tsx does). The login.tsx needs the same fix.
 
 ## Session Continuity
 
-Last session: 2026-04-14T09:27:00.382Z
-Stopped at: Phase 12 context gathered
-Next action: Discuss or plan Phase 9 (Team Invites)
+Last session: 2026-04-16T10:45:00.000Z
+Stopped at: All v1.1 phases verified complete
+Next action: /gsd-complete-milestone to archive v1.1

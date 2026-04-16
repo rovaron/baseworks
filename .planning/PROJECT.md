@@ -10,9 +10,9 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 
 ## Current State
 
-**Shipped:** v1.0 MVP (2026-04-08)
-**Codebase:** ~92K lines TypeScript across 428 files
-**Tech stack:** Bun + Elysia + Drizzle + PostgreSQL + BullMQ + Redis + Next.js 15 + Vite + React 19 + shadcn/ui + Tailwind 4 + better-auth + Stripe + Docker + pino
+**Shipped:** v1.1 Polish & Extensibility (2026-04-16)
+**Codebase:** ~16K lines TypeScript across apps/packages
+**Tech stack:** Bun + Elysia + Drizzle + PostgreSQL + BullMQ + Redis + Next.js 15 + Vite + React 19 + shadcn/ui + Tailwind 4 + better-auth + Stripe + Pagar.me + Docker + pino + next-intl + react-i18next
 
 **What's working:**
 - Config-driven module registry loads modules, routes commands/queries through CQRS, emits domain events
@@ -20,10 +20,14 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 - Full auth: email/password, OAuth (Google/GitHub), magic links, password reset, RBAC
 - Provider-agnostic billing: PaymentProvider port interface with Stripe and Pagar.me adapters, webhook normalization, env-based provider selection with startup validation
 - BullMQ workers with per-module job queues, transactional email via Resend + React Email
-- Next.js customer app with auth pages, billing management, tenant switching
+- Next.js customer app with auth pages, billing management, tenant switching, team settings
 - Vite admin dashboard with tenant/user management, billing overview, system health
 - Eden Treaty type-safe API client shared across both frontends
-- 18 shadcn components in shared UI package with Tailwind 4
+- 18+ shadcn components in shared UI package with Tailwind 4
+- Three-tier responsive layouts (mobile/tablet/desktop) with card-based mobile tables
+- Accessibility: semantic landmarks, skip links, keyboard navigation, aria-live, vitest-axe tests
+- i18n: shared packages/i18n with 280 keys, 5 namespaces, pt-BR + en, next-intl + react-i18next
+- Team invites: email/link modes, CQRS lifecycle, accept page with 5 user states
 - Docker multi-stage builds for API/worker/admin, Docker Compose orchestration
 - Vercel-ready Next.js deployment configuration
 - Health check endpoints with dependency status, structured pino logging with request tracing
@@ -50,24 +54,15 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 - ✓ Structured JSON logging via pino with request tracing — v1.0
 - ✓ Environment variable validation at startup with typed config — v1.0
 
+- ✓ Fully responsive layouts (mobile/tablet/desktop) with three-tier sidebar — v1.1
+- ✓ Accessibility — semantic landmarks, skip links, keyboard nav, aria-live, vitest-axe tests — v1.1
+- ✓ i18n infrastructure — shared packages/i18n, 280 keys, 5 namespaces, pt-BR + en — v1.1
+- ✓ Team/org invites — email/link modes, CQRS lifecycle, accept page, role assignment — v1.1
+- ✓ Payment provider abstraction — PaymentProvider port, StripeAdapter, PagarmeAdapter — v1.1
+
 ### Active
 
-- [ ] Fully responsive layouts (mobile/tablet/desktop) for both frontends; fix sidebar overlay
-- [ ] Accessibility (a11y) — keyboard nav, screen reader support, semantic HTML, ARIA (gap closure v1.1 — A11Y-01 invite page h1 and A11Y-04/05 InviteDialog Form primitives validated in Phase 11)
-- [ ] i18n infrastructure + pt-BR and en translations for both frontends
-- [ ] Team/org invites — invite-by-email, role assignment, invite links, accept/decline, expiration
-- [ ] Payment provider abstraction — port interface, Stripe adapter, one Brazilian provider adapter
-
-## Current Milestone: v1.1 Polish & Extensibility
-
-**Goal:** Make the starter kit production-ready for real users — responsive frontends, internationalized, accessible, with team collaboration and vendor-agnostic payments.
-
-**Target features:**
-- Fully responsive layouts for both frontends + sidebar fix
-- Accessibility (a11y) across both frontends
-- i18n infrastructure with pt-BR and en
-- Team/org invites with role assignment and invite links
-- Payment provider abstraction with Stripe + Brazilian provider adapters
+(No active requirements — define next milestone with `/gsd-new-milestone`)
 
 ### Out of Scope
 
@@ -77,9 +72,9 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 - Turborepo/Nx — keeping it simple with native Bun workspaces
 - Schema-per-tenant or DB-per-tenant — starting with shared DB, can migrate later
 - Landing page / marketing site — this is a starter kit, not a finished product
-- ~~Team/org invites~~ — moved to v1.1 Active
-- ~~i18n / internationalization~~ — moved to v1.1 Active
 - Real-time / WebSockets — Elysia supports it when needed later
+- Locale-based URL routing, language switcher UI, backend i18n — deferred to v1.2
+- Configurable invite expiration with auto-cleanup — deferred to v1.2
 
 ## Context
 
@@ -91,12 +86,14 @@ The frontend is split into two apps: a Next.js customer-facing app (deployable t
 
 v1.0 shipped in 3 days (2026-04-05 to 2026-04-08) across 116 commits and 5 phases (15 plans). All 49 v1 requirements validated.
 
+v1.1 shipped in 6 days (2026-04-08 to 2026-04-14) across 157 commits and 7 phases (24 plans). All 26 v1.1 requirements validated. Added +6,565 lines across 117 files.
+
 ## Constraints
 
 - **Runtime**: Bun — all packages must be Bun-compatible
 - **ORM**: Drizzle — no Prisma, no raw SQL for application code
 - **Auth**: better-auth — not NextAuth, not custom
-- **Payments**: Stripe only — no other payment providers
+- **Payments**: Stripe + Pagar.me via PaymentProvider port — env-based selection
 - **Database**: PostgreSQL — single shared instance with tenant isolation via tenant_id
 - **Queue**: BullMQ + Redis — no other job queue systems
 - **API client**: Eden Treaty — type-safe end-to-end with Elysia
@@ -118,6 +115,11 @@ v1.0 shipped in 3 days (2026-04-05 to 2026-04-08) across 116 commits and 5 phase
 | Session-derived tenant context | Tenant from session eliminates spoofable x-tenant-id header | ✓ Good — secure by default |
 | Stripe webhook idempotency table | Dedup table prevents duplicate event processing | ✓ Good — reliable webhook handling |
 | pino + request ID propagation | Structured logging with trace correlation from API to worker jobs | ✓ Good — production-ready observability |
+| Three-tier responsive breakpoints (mobile/tablet/desktop) | Distinct sidebar behavior per tier; tablet gets hover-expand without corrupting localStorage | ✓ Good — clean UX across all viewports |
+| next-intl for Next.js, react-i18next for Vite admin | Different SSR requirements; shared packages/i18n JSON source of truth | ✓ Good — each framework gets native i18n |
+| PaymentProvider port/adapter pattern | Vendor-agnostic billing; env-based provider selection at startup | ✓ Good — Stripe and Pagar.me adapters work identically |
+| better-auth sendInvitationEmail callback for invites | Hooks into org plugin invite flow; enqueues BullMQ email job with @internal suppression for link mode | ✓ Good — clean integration without custom auth tables |
+| Responsive before a11y, i18n before invites | a11y audits run on final responsive DOM; invite UI ships translated from day one | ✓ Good — avoided rework from incorrect sequencing |
 
 ## Evolution
 
@@ -137,4 +139,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-13 after Phase 11 (A11Y Gap Closure) complete — invite page h1 hierarchy and InviteDialog Form primitive refactor closed A11Y-01/A11Y-04/A11Y-05 audit gaps, verified via Chrome DevTools MCP live-DOM checks*
+*Last updated: 2026-04-16 after v1.1 milestone complete — responsive layouts, accessibility, i18n, team invites, payment abstraction all shipped*
