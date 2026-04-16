@@ -3,9 +3,16 @@ import { createRequestLogger } from "../../lib/logger";
 
 /**
  * Request tracing middleware.
- * Generates a unique request ID per request, creates a pino child logger,
- * logs request start/completion with method, path, status, and duration.
- * Sets X-Request-Id response header for client correlation.
+ *
+ * Generates a unique request ID per request (or reuses an incoming
+ * `X-Request-Id` from a load balancer), creates a pino child logger
+ * bound to that ID, and logs request completion with method, path,
+ * status, and duration. Sets `X-Request-Id` response header for
+ * client-side correlation and debugging.
+ *
+ * Uses `as: 'global'` to apply tracing to all routes regardless
+ * of plugin scope. Derives `requestId`, `log`, and `startTime`
+ * into the Elysia context for use by downstream handlers.
  */
 export const requestTraceMiddleware = new Elysia({ name: "request-trace" })
   .derive({ as: "global" }, ({ headers }) => {

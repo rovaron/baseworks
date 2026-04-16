@@ -2,8 +2,20 @@ import { Elysia } from "elysia";
 import { logger } from "../../lib/logger";
 
 /**
- * Global error middleware. Maps errors to consistent JSON responses.
- * Detailed errors are logged server-side; clients receive safe error codes.
+ * Global error middleware mapping application errors to consistent
+ * JSON responses.
+ *
+ * HTTP status mapping:
+ * - VALIDATION errors -> 400 with `VALIDATION_ERROR` code and details
+ * - NOT_FOUND errors -> 404 with `NOT_FOUND` code
+ * - "Unauthorized" / "Missing tenant context" -> 401 with `UNAUTHORIZED`
+ * - "No active tenant" -> 401 with `MISSING_TENANT_CONTEXT`
+ * - "Forbidden" -> 403 with `FORBIDDEN` code
+ * - All other errors -> 500 with `INTERNAL_ERROR` (no details exposed)
+ *
+ * Detailed error messages and stack traces are logged server-side
+ * via pino; clients receive only safe error codes. Uses `as: 'global'`
+ * to intercept errors from all routes regardless of plugin scope.
  */
 export const errorMiddleware = new Elysia({ name: "error-handler" }).onError(
   { as: "global" },
