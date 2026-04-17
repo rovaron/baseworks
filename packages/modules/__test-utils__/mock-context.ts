@@ -2,76 +2,63 @@ import { mock } from "bun:test";
 import type { HandlerContext } from "@baseworks/shared";
 
 /**
- * Create a mock database object with chainable query methods.
+ * Create a mock database object matching the ScopedDb chainable API.
  *
- * Pass expected return values for select/insert/update/delete chains.
- * Each chain method returns the mockDb itself for fluent chaining,
- * and the terminal await resolves to the provided return value.
+ * Each method returns a mock that chains to the next level.
+ * Override default resolved values via the `results` parameter.
+ *
+ * @param results - Optional overrides for default resolved values
+ * @returns Mock database with select/insert/update/delete chains
  */
-export function createMockDb(returns: {
+export function createMockDb(results?: {
   select?: any[];
-  insert?: any;
+  insert?: any[];
   update?: any;
   delete?: any;
-} = {}) {
-  const selectResult = returns.select ?? [];
-  const insertResult = returns.insert ?? undefined;
-  const updateResult = returns.update ?? undefined;
-  const deleteResult = returns.delete ?? undefined;
+}) {
+  const selectResult = results?.select ?? [];
+  const insertResult = results?.insert ?? [];
+  const updateResult = results?.update ?? {};
+  const deleteResult = results?.delete;
 
-  const db: any = {
-    select: mock(() => db._selectChain),
-    insert: mock(() => db._insertChain),
-    update: mock(() => db._updateChain),
-    delete: mock(() => db._deleteChain),
-
-    _selectChain: {
-      from: mock(() => db._selectChain),
-      where: mock(() => db._selectChain),
-      limit: mock(() => db._selectChain),
-      orderBy: mock(() => db._selectChain),
-      then: (resolve: (v: any) => void) => resolve(selectResult),
-    },
-
-    _insertChain: {
-      values: mock(() => db._insertChain),
-      returning: mock(() => db._insertChain),
-      onConflictDoNothing: mock(() => db._insertChain),
-      then: (resolve: (v: any) => void) => resolve(insertResult),
-    },
-
-    _updateChain: {
-      set: mock(() => db._updateChain),
-      where: mock(() => db._updateChain),
-      returning: mock(() => db._updateChain),
-      then: (resolve: (v: any) => void) => resolve(updateResult),
-    },
-
-    _deleteChain: {
-      where: mock(() => db._deleteChain),
-      returning: mock(() => db._deleteChain),
-      then: (resolve: (v: any) => void) => resolve(deleteResult),
-    },
+  return {
+    select: mock(() => ({
+      from: mock(() => ({
+        where: mock(() => ({
+          limit: mock(() => Promise.resolve(selectResult)),
+        })),
+      })),
+    })),
+    insert: mock(() => ({
+      values: mock(() => Promise.resolve(insertResult)),
+    })),
+    update: mock(() => ({
+      set: mock(() => Promise.resolve(updateResult)),
+    })),
+    delete: mock(() => Promise.resolve(deleteResult)),
+    tenantId: "test-tenant-id",
+    raw: {},
   };
-
-  return db;
 }
 
 /**
- * Create a mock HandlerContext for unit testing CQRS handlers.
+ * Create a fully typed HandlerContext with sensible test defaults.
+ *
+ * All fields are pre-populated with mock values. Pass `overrides`
+ * to customize specific fields per test.
+ *
+ * @param overrides - Optional partial HandlerContext to override defaults
+ * @returns Complete HandlerContext suitable for unit tests
  */
-export function createMockContext(overrides: {
-  tenantId?: string;
-  userId?: string;
-  db?: any;
-  emit?: any;
-  enqueue?: any;
-} = {}): HandlerContext {
+export function createMockContext(
+  overrides?: Partial<HandlerContext>,
+): HandlerContext {
   return {
-    tenantId: overrides.tenantId ?? "tenant_test_123",
-    userId: overrides.userId ?? "user_test_456",
-    db: overrides.db ?? createMockDb(),
-    emit: overrides.emit ?? mock(() => {}),
-    enqueue: overrides.enqueue ?? mock(() => Promise.resolve()),
+    tenantId: "test-tenant-id",
+    userId: "test-user-id",
+    db: createMockDb(),
+    emit: mock(() => {}),
+    enqueue: mock(() => Promise.resolve()),
+    ...overrides,
   };
 }

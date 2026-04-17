@@ -157,3 +157,55 @@ describe("scopedDb", () => {
     ]);
   });
 });
+
+describe("scopedDb edge cases", () => {
+  test("exposes raw property for unscoped access", () => {
+    // Create a minimal mock db to test structural properties
+    const mockDb = { select: () => {}, insert: () => {}, update: () => {}, delete: () => {} } as any;
+    const scoped = scopedDb(mockDb, "test-tenant");
+
+    // raw should be the original unscoped db instance
+    expect(scoped.raw).toBe(mockDb);
+  });
+
+  test("tenantId is accessible on the scoped db", () => {
+    const mockDb = {} as any;
+    const scoped = scopedDb(mockDb, "my-tenant-123");
+
+    expect(scoped.tenantId).toBe("my-tenant-123");
+  });
+
+  test("handles empty string tenantId without throwing", () => {
+    // scopedDb accepts any string -- empty string is a valid (if unusual) value.
+    // It will scope queries to tenantId="" which returns no rows in practice.
+    const mockDb = {} as any;
+    const scoped = scopedDb(mockDb, "");
+
+    expect(scoped.tenantId).toBe("");
+    expect(scoped.raw).toBe(mockDb);
+  });
+
+  test("different scoped instances have independent tenantId values", () => {
+    const mockDb = {} as any;
+    const scopedA = scopedDb(mockDb, "tenant-a");
+    const scopedB = scopedDb(mockDb, "tenant-b");
+
+    expect(scopedA.tenantId).toBe("tenant-a");
+    expect(scopedB.tenantId).toBe("tenant-b");
+    // Both share the same underlying db
+    expect(scopedA.raw).toBe(scopedB.raw);
+  });
+
+  test("select returns a thenable (query builder) when db is real", async () => {
+    if (!canConnect) {
+      console.warn("SKIPPED: PostgreSQL unavailable");
+      return;
+    }
+    const scoped = scopedDb(db, "nonexistent-tenant");
+    const results = await scoped.select(examples);
+
+    // A tenant with no data should return empty array, not crash
+    expect(Array.isArray(results)).toBe(true);
+    expect(results.length).toBe(0);
+  });
+});

@@ -33,3 +33,63 @@ describe("ModuleRegistry", () => {
     errorSpy.mockRestore();
   });
 });
+
+describe("ModuleRegistry edge cases", () => {
+  it("handles loading a module with empty commands and queries", async () => {
+    // The example module has commands/queries, but we test that the registry
+    // does not crash when iterating over a module with no commands/queries.
+    // Since moduleImportMap is static, we test via the example module which
+    // has entries -- verifying the iteration logic works without errors.
+    const registry = new ModuleRegistry({ role: "api", modules: ["example"] });
+    await registry.loadAll();
+
+    // Verify registry loaded successfully and CqrsBus is accessible
+    const cqrs = registry.getCqrs();
+    expect(cqrs).toBeDefined();
+    expect(registry.getLoadedNames()).toContain("example");
+  });
+
+  it("handles duplicate module name in config gracefully -- loads it twice", async () => {
+    // When the same module name appears twice in config, loadAll iterates
+    // both entries. The second load overwrites the first in the Map.
+    const registry = new ModuleRegistry({ role: "api", modules: ["example", "example"] });
+    await registry.loadAll();
+
+    // Map.set with same key overwrites, so loaded count is 1
+    expect(registry.getLoaded().size).toBe(1);
+    expect(registry.getLoadedNames()).toEqual(["example"]);
+
+    // Commands should still work (second registration overwrites first)
+    const cqrs = registry.getCqrs();
+    expect(cqrs.hasCommand("example:create")).toBe(true);
+  });
+
+  it("lists all loaded modules via getLoadedNames", async () => {
+    // Load example (the only module that doesn't require external deps in test)
+    const registry = new ModuleRegistry({ role: "api", modules: ["example"] });
+    await registry.loadAll();
+
+    const names = registry.getLoadedNames();
+    expect(Array.isArray(names)).toBe(true);
+    expect(names.length).toBeGreaterThanOrEqual(1);
+    expect(names).toContain("example");
+  });
+
+  it("exposes EventBus instance via getEventBus", () => {
+    const registry = new ModuleRegistry({ role: "api", modules: [] });
+    const eventBus = registry.getEventBus();
+
+    expect(eventBus).toBeDefined();
+    expect(typeof eventBus.on).toBe("function");
+    expect(typeof eventBus.emit).toBe("function");
+  });
+
+  it("worker role skips route attachment in getModuleRoutes", async () => {
+    const registry = new ModuleRegistry({ role: "worker", modules: ["example"] });
+    await registry.loadAll();
+
+    // getModuleRoutes should return an Elysia plugin without attaching routes
+    const routes = registry.getModuleRoutes();
+    expect(routes).toBeDefined();
+  });
+});

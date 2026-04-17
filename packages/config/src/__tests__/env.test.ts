@@ -52,3 +52,218 @@ describe("env validation", () => {
     expect(result.nodeEnv).toBe("test");
   });
 });
+
+describe("validatePaymentProviderEnv", () => {
+  const baseEnv = {
+    HOME: process.env.HOME,
+    PATH: process.env.PATH,
+    DATABASE_URL: "postgres://user:pass@localhost:5432/testdb",
+    BETTER_AUTH_SECRET: "a".repeat(32),
+  };
+
+  test("throws when PAYMENT_PROVIDER=pagarme without PAGARME_SECRET_KEY in non-test NODE_ENV", async () => {
+    const proc = Bun.spawn(
+      [
+        "bun",
+        "-e",
+        'import { validatePaymentProviderEnv } from "@baseworks/config"; validatePaymentProviderEnv(); console.log("OK")',
+      ],
+      {
+        env: {
+          ...baseEnv,
+          NODE_ENV: "development",
+          PAYMENT_PROVIDER: "pagarme",
+          // No PAGARME_SECRET_KEY
+        },
+        stdout: "pipe",
+        stderr: "pipe",
+        cwd: import.meta.dir + "/../../..",
+      },
+    );
+
+    const exitCode = await proc.exited;
+    const stderr = await new Response(proc.stderr).text();
+
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toContain("PAGARME_SECRET_KEY");
+  });
+
+  test("throws when PAYMENT_PROVIDER=stripe without STRIPE_SECRET_KEY in non-test NODE_ENV", async () => {
+    const proc = Bun.spawn(
+      [
+        "bun",
+        "-e",
+        'import { validatePaymentProviderEnv } from "@baseworks/config"; validatePaymentProviderEnv(); console.log("OK")',
+      ],
+      {
+        env: {
+          ...baseEnv,
+          NODE_ENV: "development",
+          PAYMENT_PROVIDER: "stripe",
+          // No STRIPE_SECRET_KEY
+        },
+        stdout: "pipe",
+        stderr: "pipe",
+        cwd: import.meta.dir + "/../../..",
+      },
+    );
+
+    const exitCode = await proc.exited;
+    const stderr = await new Response(proc.stderr).text();
+
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toContain("STRIPE_SECRET_KEY");
+  });
+
+  test("warns but does not throw in test NODE_ENV when keys are missing", async () => {
+    const proc = Bun.spawn(
+      [
+        "bun",
+        "-e",
+        'import { validatePaymentProviderEnv } from "@baseworks/config"; validatePaymentProviderEnv(); console.log("OK")',
+      ],
+      {
+        env: {
+          ...baseEnv,
+          NODE_ENV: "test",
+          PAYMENT_PROVIDER: "pagarme",
+          // No PAGARME_SECRET_KEY -- should warn, not throw
+        },
+        stdout: "pipe",
+        stderr: "pipe",
+        cwd: import.meta.dir + "/../../..",
+      },
+    );
+
+    const exitCode = await proc.exited;
+    const stdout = await new Response(proc.stdout).text();
+
+    expect(exitCode).toBe(0);
+    expect(stdout.trim()).toContain("OK");
+  });
+
+  test("passes when all required stripe keys present", async () => {
+    const proc = Bun.spawn(
+      [
+        "bun",
+        "-e",
+        'import { validatePaymentProviderEnv } from "@baseworks/config"; validatePaymentProviderEnv(); console.log("OK")',
+      ],
+      {
+        env: {
+          ...baseEnv,
+          NODE_ENV: "development",
+          PAYMENT_PROVIDER: "stripe",
+          STRIPE_SECRET_KEY: "sk_test_123",
+        },
+        stdout: "pipe",
+        stderr: "pipe",
+        cwd: import.meta.dir + "/../../..",
+      },
+    );
+
+    const exitCode = await proc.exited;
+    const stdout = await new Response(proc.stdout).text();
+
+    expect(exitCode).toBe(0);
+    expect(stdout.trim()).toContain("OK");
+  });
+});
+
+describe("assertRedisUrl", () => {
+  const baseEnv = {
+    HOME: process.env.HOME,
+    PATH: process.env.PATH,
+    DATABASE_URL: "postgres://user:pass@localhost:5432/testdb",
+    BETTER_AUTH_SECRET: "a".repeat(32),
+    NODE_ENV: "test",
+  };
+
+  test("throws for worker role without REDIS_URL", async () => {
+    const proc = Bun.spawn(
+      [
+        "bun",
+        "-e",
+        'import { assertRedisUrl } from "@baseworks/config"; assertRedisUrl("worker", undefined); console.log("OK")',
+      ],
+      {
+        env: { ...baseEnv },
+        stdout: "pipe",
+        stderr: "pipe",
+        cwd: import.meta.dir + "/../../..",
+      },
+    );
+
+    const exitCode = await proc.exited;
+    const stderr = await new Response(proc.stderr).text();
+
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toContain("REDIS_URL is required");
+  });
+
+  test("throws for all role without REDIS_URL", async () => {
+    const proc = Bun.spawn(
+      [
+        "bun",
+        "-e",
+        'import { assertRedisUrl } from "@baseworks/config"; assertRedisUrl("all", undefined); console.log("OK")',
+      ],
+      {
+        env: { ...baseEnv },
+        stdout: "pipe",
+        stderr: "pipe",
+        cwd: import.meta.dir + "/../../..",
+      },
+    );
+
+    const exitCode = await proc.exited;
+    const stderr = await new Response(proc.stderr).text();
+
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toContain("REDIS_URL is required");
+  });
+
+  test("does not throw for api role without REDIS_URL", async () => {
+    const proc = Bun.spawn(
+      [
+        "bun",
+        "-e",
+        'import { assertRedisUrl } from "@baseworks/config"; assertRedisUrl("api", undefined); console.log("OK")',
+      ],
+      {
+        env: { ...baseEnv },
+        stdout: "pipe",
+        stderr: "pipe",
+        cwd: import.meta.dir + "/../../..",
+      },
+    );
+
+    const exitCode = await proc.exited;
+    const stdout = await new Response(proc.stdout).text();
+
+    expect(exitCode).toBe(0);
+    expect(stdout.trim()).toContain("OK");
+  });
+
+  test("passes for any role when REDIS_URL present", async () => {
+    const proc = Bun.spawn(
+      [
+        "bun",
+        "-e",
+        'import { assertRedisUrl } from "@baseworks/config"; const url = assertRedisUrl("worker", "redis://localhost:6379"); console.log(url)',
+      ],
+      {
+        env: { ...baseEnv },
+        stdout: "pipe",
+        stderr: "pipe",
+        cwd: import.meta.dir + "/../../..",
+      },
+    );
+
+    const exitCode = await proc.exited;
+    const stdout = await new Response(proc.stdout).text();
+
+    expect(exitCode).toBe(0);
+    expect(stdout.trim()).toBe("redis://localhost:6379");
+  });
+});
