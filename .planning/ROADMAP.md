@@ -74,7 +74,7 @@ Plans:
   3. All 6 billing command handlers and 2 billing query handlers have unit tests
   4. Stripe adapter has conformance tests at parity with existing Pagar.me adapter test suite
   5. Scoped-db edge cases (cross-tenant prevention, empty tenant) and core infrastructure edge cases (registry, CQRS bus, event bus) are tested
-**Plans:** 5 plans
+**Plans:** 0/5 plans executed
 
 Plans:
 - [ ] 14-01-PLAN.md -- Test utilities (mock factories, assertion helpers) + create-tenant validation
@@ -114,5 +114,5 @@ Phases execute in numeric order: 13 -> 14 -> 15
 | 11. Accessibility Gap Closure | v1.1 | 2/2 | Complete | 2026-04-14 |
 | 12. i18n Hardcoded String Cleanup | v1.1 | 3/3 | Complete | 2026-04-14 |
 | 13. JSDoc Annotations | v1.2 | 4/4 | Complete    | 2026-04-16 |
-| 14. Unit Tests | v1.2 | 0/5 | Planned | - |
+| 14. Unit Tests | v1.2 | 0/5 | Planned    |  |
 | 15. Developer Documentation | v1.2 | 0/0 | Not started | - |
