@@ -7,6 +7,7 @@ import cors from "@elysiajs/cors";
 import swagger from "@elysiajs/swagger";
 import { requireRole, localeMiddleware } from "@baseworks/module-auth";
 import { registerBillingHooks } from "@baseworks/module-billing";
+import { registerExampleHooks } from "@baseworks/module-example";
 import { ModuleRegistry } from "./core/registry";
 import { tenantMiddleware } from "./core/middleware/tenant";
 import { errorMiddleware } from "./core/middleware/error";
@@ -32,6 +33,9 @@ await registry.loadAll();
 
 // Register billing hooks (auto-create Stripe customer on tenant.created)
 registerBillingHooks(registry.getEventBus());
+
+// Register example hooks (enqueue process-followup on example.created)
+registerExampleHooks(registry.getEventBus());
 
 // Get module routes for direct .use() chaining
 const authRoutes = registry.getAuthRoutes();

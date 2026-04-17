@@ -166,9 +166,12 @@
       "name": "@baseworks/module-example",
       "version": "0.0.1",
       "dependencies": {
+        "@baseworks/config": "workspace:*",
         "@baseworks/db": "workspace:*",
+        "@baseworks/queue": "workspace:*",
         "@baseworks/shared": "workspace:*",
         "@sinclair/typebox": "0.34.49",
+        "bullmq": "^5.0.0",
         "drizzle-orm": "^0.45.0",
         "elysia": "^1.4.0",
       },
