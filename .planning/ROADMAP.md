@@ -74,7 +74,7 @@ Plans:
   3. All 6 billing command handlers and 2 billing query handlers have unit tests
   4. Stripe adapter has conformance tests at parity with existing Pagar.me adapter test suite
   5. Scoped-db edge cases (cross-tenant prevention, empty tenant) and core infrastructure edge cases (registry, CQRS bus, event bus) are tested
-**Plans:** 6 plans (5 complete + 1 gap closure)
+**Plans:** 6/6 plans complete
 
 Plans:
 - [x] 14-01-PLAN.md -- Test utilities (mock factories, assertion helpers) + create-tenant validation
@@ -82,7 +82,7 @@ Plans:
 - [x] 14-03-PLAN.md -- Auth command handler tests (8 handlers) + old file cleanup
 - [x] 14-04-PLAN.md -- Auth query handler tests (6 handlers)
 - [x] 14-05-PLAN.md -- Billing handler tests (8 handlers) + Stripe adapter conformance
-- [ ] 14-06-PLAN.md -- Gap closure: fix assertResultOk/assertResultErr void-return bug (37 test failures)
+- [x] 14-06-PLAN.md -- Gap closure: fix assertResultOk/assertResultErr void-return bug (37 test failures)
 
 ### Phase 15: Developer Documentation
 **Goal**: A new developer can clone the repo, understand the architecture, run the project, add a module, and configure integrations by reading in-repo documentation alone
@@ -115,5 +115,5 @@ Phases execute in numeric order: 13 -> 14 -> 15
 | 11. Accessibility Gap Closure | v1.1 | 2/2 | Complete | 2026-04-14 |
 | 12. i18n Hardcoded String Cleanup | v1.1 | 3/3 | Complete | 2026-04-14 |
 | 13. JSDoc Annotations | v1.2 | 4/4 | Complete    | 2026-04-16 |
-| 14. Unit Tests | v1.2 | 5/6 | Gap closure   | 2026-04-17 |
+| 14. Unit Tests | v1.2 | 6/6 | Complete   | 2026-04-17 |
 | 15. Developer Documentation | v1.2 | 0/0 | Not started | - |
