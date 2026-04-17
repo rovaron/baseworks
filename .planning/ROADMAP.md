@@ -41,7 +41,7 @@ Full details: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md)
 **Milestone Goal:** Annotate the entire codebase with comprehensive JSDoc, increase test coverage with high-quality unit tests, and create in-repo developer documentation covering configuration, testing, and third-party integrations.
 
 - [x] **Phase 13: JSDoc Annotations** - Establish behavior contracts on all public APIs with standardized JSDoc and a style guide (completed 2026-04-16)
-- [ ] **Phase 14: Unit Tests** - Verify contracts with handler-level tests across auth, billing, core, and adapters
+- [x] **Phase 14: Unit Tests** - Verify contracts with handler-level tests across auth, billing, core, and adapters (completed 2026-04-17)
 - [ ] **Phase 15: Developer Documentation** - Create in-repo guides referencing the now-documented, now-tested codebase
 
 ## Phase Details
@@ -74,14 +74,14 @@ Plans:
   3. All 6 billing command handlers and 2 billing query handlers have unit tests
   4. Stripe adapter has conformance tests at parity with existing Pagar.me adapter test suite
   5. Scoped-db edge cases (cross-tenant prevention, empty tenant) and core infrastructure edge cases (registry, CQRS bus, event bus) are tested
-**Plans:** 0/5 plans executed
+**Plans:** 5/5 plans complete
 
 Plans:
-- [ ] 14-01-PLAN.md -- Test utilities (mock factories, assertion helpers) + create-tenant validation
-- [ ] 14-02-PLAN.md -- Core infrastructure, scoped-db, and config edge case tests
-- [ ] 14-03-PLAN.md -- Auth command handler tests (8 handlers) + old file cleanup
-- [ ] 14-04-PLAN.md -- Auth query handler tests (6 handlers)
-- [ ] 14-05-PLAN.md -- Billing handler tests (8 handlers) + Stripe adapter conformance
+- [x] 14-01-PLAN.md -- Test utilities (mock factories, assertion helpers) + create-tenant validation
+- [x] 14-02-PLAN.md -- Core infrastructure, scoped-db, and config edge case tests
+- [x] 14-03-PLAN.md -- Auth command handler tests (8 handlers) + old file cleanup
+- [x] 14-04-PLAN.md -- Auth query handler tests (6 handlers)
+- [x] 14-05-PLAN.md -- Billing handler tests (8 handlers) + Stripe adapter conformance
 
 ### Phase 15: Developer Documentation
 **Goal**: A new developer can clone the repo, understand the architecture, run the project, add a module, and configure integrations by reading in-repo documentation alone
@@ -114,5 +114,5 @@ Phases execute in numeric order: 13 -> 14 -> 15
 | 11. Accessibility Gap Closure | v1.1 | 2/2 | Complete | 2026-04-14 |
 | 12. i18n Hardcoded String Cleanup | v1.1 | 3/3 | Complete | 2026-04-14 |
 | 13. JSDoc Annotations | v1.2 | 4/4 | Complete    | 2026-04-16 |
-| 14. Unit Tests | v1.2 | 0/5 | Planned    |  |
+| 14. Unit Tests | v1.2 | 5/5 | Complete   | 2026-04-17 |
 | 15. Developer Documentation | v1.2 | 0/0 | Not started | - |
