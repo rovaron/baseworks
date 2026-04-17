@@ -40,6 +40,8 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 - Docker multi-stage builds for API/worker/admin, Docker Compose orchestration
 - Vercel-ready Next.js deployment configuration
 - Health check endpoints with dependency status, structured pino logging with request tracing
+- JSDoc annotations across all public APIs (Phase 13 complete)
+- Unit tests: 126 tests across 28 files covering CQRS handlers, core infrastructure, auth, billing, and adapters (Phase 14 complete)
 
 ## Requirements
 
@@ -152,4 +154,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-16 after v1.2 milestone started — Documentation & Quality*
+*Last updated: 2026-04-17 after Phase 14 (Unit Tests) complete — Documentation & Quality*
