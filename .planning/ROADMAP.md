@@ -115,5 +115,5 @@ Phases execute in numeric order: 13 -> 14 -> 15
 | 11. Accessibility Gap Closure | v1.1 | 2/2 | Complete | 2026-04-14 |
 | 12. i18n Hardcoded String Cleanup | v1.1 | 3/3 | Complete | 2026-04-14 |
 | 13. JSDoc Annotations | v1.2 | 4/4 | Complete    | 2026-04-16 |
-| 14. Unit Tests | v1.2 | 6/6 | Complete   | 2026-04-17 |
+| 14. Unit Tests | v1.2 | 6/6 | Complete    | 2026-04-17 |
 | 15. Developer Documentation | v1.2 | 0/0 | Not started | - |
