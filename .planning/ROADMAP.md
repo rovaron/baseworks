@@ -117,7 +117,12 @@ Plans:
   4. `docs/testing.md:39` distinguishes `ScopedDb.select(table)` (one-shot) from raw Drizzle chainable `select().from().where().limit()` so `createMockDb` description matches the shape it actually mocks (DOCS-05 WARN)
   5. `packages/modules/auth/src/__tests__/get-tenant.test.ts` uses the canonical `createMockContext` from `packages/modules/__test-utils__/mock-context.ts`, with its local `createMockCtx` helper removed (TEST-02 WARN)
 
-Plans: TBD (run `/gsd:plan-phase 16`)
+**Plans:** 3 plans
+
+Plans:
+- [ ] 16-01-PLAN.md -- DOCS-06 + DOCS-07 + DOCS-05 prose fixes (better-auth.md, billing.md, testing.md)
+- [ ] 16-02-PLAN.md -- DOCS-02 + DOCS-08 Mermaid + prose revisions (bullmq.md, architecture.md) — Option A: revise docs to match event-bus-hook live code
+- [ ] 16-03-PLAN.md -- TEST-02 convention fix (get-tenant.test.ts → canonical createMockContext)
 
 ## Progress
 
@@ -141,4 +146,4 @@ Phases execute in numeric order: 13 -> 14 -> 15 -> 16
 | 13. JSDoc Annotations | v1.2 | 4/4 | Complete    | 2026-04-16 |
 | 14. Unit Tests | v1.2 | 6/6 | Complete    | 2026-04-17 |
 | 15. Developer Documentation | v1.2 | 6/6 | Complete   | 2026-04-18 |
-| 16. v1.2 Content Drift Fixes | v1.2 | 0/0 | Pending | -- |
+| 16. v1.2 Content Drift Fixes | v1.2 | 0/3 | Pending | -- |
