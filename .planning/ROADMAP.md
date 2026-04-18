@@ -42,7 +42,7 @@ Full details: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md)
 
 - [x] **Phase 13: JSDoc Annotations** - Establish behavior contracts on all public APIs with standardized JSDoc and a style guide (completed 2026-04-16)
 - [x] **Phase 14: Unit Tests** - Verify contracts with handler-level tests across auth, billing, core, and adapters (completed 2026-04-17)
-- [ ] **Phase 15: Developer Documentation** - Create in-repo guides referencing the now-documented, now-tested codebase
+- [x] **Phase 15: Developer Documentation** - Create in-repo guides referencing the now-documented, now-tested codebase (completed 2026-04-18)
 
 ## Phase Details
 
@@ -94,14 +94,14 @@ Plans:
   3. An "Add a Module" step-by-step tutorial uses the example module as reference to create a new module from scratch
   4. Configuration and testing guides cover env vars, module config, provider selection, test runner split, mock patterns, and how to test commands/queries
   5. Integration docs for better-auth, Stripe/Pagar.me billing, BullMQ queues, and Resend/React Email each explain setup, customization, and extension points
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 
 Plans:
 - [x] 15-01-PLAN.md -- Info architecture + docs/README.md index (tone/citation/Mermaid contracts)
 - [x] 15-02-PLAN.md -- Extend example module (D-05): event emission, BullMQ job handler, Wave 0 tests
 - [x] 15-03-PLAN.md -- DOCS-01 Getting Started + DOCS-02 Architecture Overview (4 Mermaid diagrams)
 - [x] 15-04-PLAN.md -- DOCS-03 Add-a-Module tutorial + DOCS-04 Configuration + DOCS-05 Testing
-- [ ] 15-05-PLAN.md -- DOCS-06..09 Integration docs (better-auth, billing, BullMQ, email)
+- [x] 15-05-PLAN.md -- DOCS-06..09 Integration docs (better-auth, billing, BullMQ, email)
 
 ## Progress
 
@@ -124,4 +124,4 @@ Phases execute in numeric order: 13 -> 14 -> 15
 | 12. i18n Hardcoded String Cleanup | v1.1 | 3/3 | Complete | 2026-04-14 |
 | 13. JSDoc Annotations | v1.2 | 4/4 | Complete    | 2026-04-16 |
 | 14. Unit Tests | v1.2 | 6/6 | Complete    | 2026-04-17 |
-| 15. Developer Documentation | v1.2 | 4/5 | In Progress|  |
+| 15. Developer Documentation | v1.2 | 5/5 | Complete   | 2026-04-18 |
