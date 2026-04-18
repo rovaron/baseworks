@@ -42,6 +42,8 @@ A 200 response with a session cookie confirms the handler is reachable and the d
 
 `betterAuth(...)` is configured in `packages/modules/auth/src/auth.ts:58-177`. The config uses `drizzleAdapter(db, { provider: "pg" })` against `packages/db`, conditionally registers `socialProviders` based on env var presence, enables email/password with `minPasswordLength: 8`, and enables the `magicLink` and `organization` plugins. Sessions are database-backed (not JWT) so revocation propagates immediately; `expiresIn` is 7 days and `updateAge` refreshes the session every 24 hours. A `databaseHooks.user.create.after` hook auto-creates a personal organization (tenant) for every new user so every account belongs to at least one tenant from signup.
 
+The organization plugin's `sendInvitationEmail` callback supports two modes: `email` mode enqueues a `team-invite` job for Resend delivery, and `link` mode (detected via an `@internal` placeholder suffix on the invitation email) suppresses the enqueue so the inviter can share a copy-paste link instead. See `packages/modules/auth/src/auth.ts:90-123` for the branch and [email.md](./email.md) for the template that `team-invite` jobs render.
+
 The magic-link flow does not send email inline. The `sendMagicLink` callback enqueues onto `email:send` and returns; the worker process consumes the job, renders the template, and calls Resend:
 
 ```mermaid
