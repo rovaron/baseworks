@@ -94,13 +94,13 @@ Plans:
   3. An "Add a Module" step-by-step tutorial uses the example module as reference to create a new module from scratch
   4. Configuration and testing guides cover env vars, module config, provider selection, test runner split, mock patterns, and how to test commands/queries
   5. Integration docs for better-auth, Stripe/Pagar.me billing, BullMQ queues, and Resend/React Email each explain setup, customization, and extension points
-**Plans:** 3/5 plans executed
+**Plans:** 4/5 plans executed
 
 Plans:
 - [x] 15-01-PLAN.md -- Info architecture + docs/README.md index (tone/citation/Mermaid contracts)
 - [x] 15-02-PLAN.md -- Extend example module (D-05): event emission, BullMQ job handler, Wave 0 tests
 - [x] 15-03-PLAN.md -- DOCS-01 Getting Started + DOCS-02 Architecture Overview (4 Mermaid diagrams)
-- [ ] 15-04-PLAN.md -- DOCS-03 Add-a-Module tutorial + DOCS-04 Configuration + DOCS-05 Testing
+- [x] 15-04-PLAN.md -- DOCS-03 Add-a-Module tutorial + DOCS-04 Configuration + DOCS-05 Testing
 - [ ] 15-05-PLAN.md -- DOCS-06..09 Integration docs (better-auth, billing, BullMQ, email)
 
 ## Progress
@@ -124,4 +124,4 @@ Phases execute in numeric order: 13 -> 14 -> 15
 | 12. i18n Hardcoded String Cleanup | v1.1 | 3/3 | Complete | 2026-04-14 |
 | 13. JSDoc Annotations | v1.2 | 4/4 | Complete    | 2026-04-16 |
 | 14. Unit Tests | v1.2 | 6/6 | Complete    | 2026-04-17 |
-| 15. Developer Documentation | v1.2 | 3/5 | In Progress|  |
+| 15. Developer Documentation | v1.2 | 4/5 | In Progress|  |
