@@ -84,7 +84,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | JSDOC-05 | Phase 13 | Pending |
 | JSDOC-06 | Phase 13 | Pending |
 | TEST-01 | Phase 14 | Pending |
-| TEST-02 | Phase 14 | Pending |
+| TEST-02 | Phase 14 → Phase 16 | Pending (gap closure) |
 | TEST-03 | Phase 14 | Pending |
 | TEST-04 | Phase 14 | Pending |
 | TEST-05 | Phase 14 | Pending |
@@ -92,13 +92,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TEST-07 | Phase 14 | Pending |
 | TEST-08 | Phase 14 | Pending |
 | DOCS-01 | Phase 15 | Pending |
-| DOCS-02 | Phase 15 | Pending |
+| DOCS-02 | Phase 15 → Phase 16 | Pending (gap closure) |
 | DOCS-03 | Phase 15 | Pending |
 | DOCS-04 | Phase 15 | Pending |
-| DOCS-05 | Phase 15 | Pending |
-| DOCS-06 | Phase 15 | Pending |
-| DOCS-07 | Phase 15 | Pending |
-| DOCS-08 | Phase 15 | Pending |
+| DOCS-05 | Phase 15 → Phase 16 | Pending (gap closure) |
+| DOCS-06 | Phase 15 → Phase 16 | Pending (gap closure) |
+| DOCS-07 | Phase 15 → Phase 16 | Pending (gap closure) |
+| DOCS-08 | Phase 15 → Phase 16 | Pending (gap closure) |
 | DOCS-09 | Phase 15 | Pending |
 
 **Coverage:**
@@ -108,4 +108,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-04-16*
-*Last updated: 2026-04-16 after roadmap creation*
+*Last updated: 2026-04-18 — 6 requirements reassigned from Phase 15/14 to Phase 16 after v1.2 milestone audit flagged content drift*

@@ -43,6 +43,7 @@ Full details: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md)
 - [x] **Phase 13: JSDoc Annotations** - Establish behavior contracts on all public APIs with standardized JSDoc and a style guide (completed 2026-04-16)
 - [x] **Phase 14: Unit Tests** - Verify contracts with handler-level tests across auth, billing, core, and adapters (completed 2026-04-17)
 - [x] **Phase 15: Developer Documentation** - Create in-repo guides referencing the now-documented, now-tested codebase (completed 2026-04-18)
+- [ ] **Phase 16: v1.2 Content Drift Fixes** - Close 6 content-drift gaps (2 FAIL + 4 WARN) flagged by the v1.2 milestone audit
 
 ## Phase Details
 
@@ -104,10 +105,24 @@ Plans:
 - [x] 15-05-PLAN.md -- DOCS-06..09 Integration docs (better-auth, billing, BullMQ, email)
 - [x] 15-06-PLAN.md -- Gap closure: `scripts/validate-docs.ts` phase-close validator (Plan 15-05 Task 5 residual)
 
+### Phase 16: v1.2 Content Drift Fixes
+**Goal**: Eliminate content drift between v1.2 docs/tests and live code flagged by the v1.2 milestone audit -- every cited code symbol, path, and count matches reality; test convention is uniform across auth handlers
+**Depends on**: Phase 15
+**Requirements**: DOCS-02, DOCS-05, DOCS-06, DOCS-07, DOCS-08, TEST-02
+**Gap Closure**: Closes 6 integration gaps from `.planning/v1.2-MILESTONE-AUDIT.md` (2 FAIL + 4 WARN)
+**Success Criteria** (what must be TRUE):
+  1. `docs/integrations/better-auth.md:29` no longer claims the auth module is registered in `apps/api/src/worker.ts` (DOCS-06 FAIL)
+  2. `docs/integrations/bullmq.md` and `docs/architecture.md` describe the real enqueue path -- either revised to match the event-bus-hook pattern at `packages/modules/example/src/hooks/on-example-created.ts`, OR `ctx.enqueue` is wired into the `handlerCtx` derive at `apps/api/src/index.ts:104-118` so the documented API exists (DOCS-08 FAIL + DOCS-02 WARN; decision deferred to plan time)
+  3. `docs/integrations/billing.md:47` states PaymentProvider port has 13 members (12 methods + 1 readonly `name`), matching `mock-payment-provider.ts` JSDoc (DOCS-07 WARN)
+  4. `docs/testing.md:39` distinguishes `ScopedDb.select(table)` (one-shot) from raw Drizzle chainable `select().from().where().limit()` so `createMockDb` description matches the shape it actually mocks (DOCS-05 WARN)
+  5. `packages/modules/auth/src/__tests__/get-tenant.test.ts` uses the canonical `createMockContext` from `packages/modules/__test-utils__/mock-context.ts`, with its local `createMockCtx` helper removed (TEST-02 WARN)
+
+Plans: TBD (run `/gsd:plan-phase 16`)
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 13 -> 14 -> 15
+Phases execute in numeric order: 13 -> 14 -> 15 -> 16
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -126,3 +141,4 @@ Phases execute in numeric order: 13 -> 14 -> 15
 | 13. JSDoc Annotations | v1.2 | 4/4 | Complete    | 2026-04-16 |
 | 14. Unit Tests | v1.2 | 6/6 | Complete    | 2026-04-17 |
 | 15. Developer Documentation | v1.2 | 6/6 | Complete   | 2026-04-18 |
+| 16. v1.2 Content Drift Fixes | v1.2 | 0/0 | Pending | -- |
