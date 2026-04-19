@@ -202,3 +202,19 @@ None — this is a documentation-only plan with no new env vars, services, or ex
 *Phase: 16-v1-2-content-drift-fixes*
 *Plan: 01*
 *Completed: 2026-04-19*
+
+## Self-Check: PASSED
+
+**Files verified present on worktree branch `worktree-agent-a85fb00e`:**
+- `docs/integrations/better-auth.md` — FOUND
+- `docs/integrations/billing.md` — FOUND
+- `docs/testing.md` — FOUND
+- `.planning/phases/16-v1-2-content-drift-fixes/16-01-SUMMARY.md` — FOUND
+
+**Commits verified present on worktree branch `worktree-agent-a85fb00e`:**
+- `f0c93e5` — docs(16-01): correct better-auth.md module wire-up paragraph — FOUND
+- `066dabc` — docs(16-01): correct PaymentProvider member count in billing.md — FOUND
+- `8124788` — docs(16-01): disambiguate createMockDb shape in testing.md — FOUND
+- `d282616` — docs(16-01): complete v1.2 content-drift fixes plan (SUMMARY) — FOUND
+
+All plan verification invariants and the phase-close validator passed. Self-check complete.
