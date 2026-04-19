@@ -26,7 +26,7 @@ Full env reference: [configuration.md](../configuration.md).
 
 ### Module wire-up
 
-The exported `auth` instance in `packages/modules/auth/src/auth.ts::auth` is consumed by `packages/modules/auth/src/routes.ts`, which mounts it via `.mount(auth.handler)` — without a prefix, per the basePath gotcha below. The auth module is listed in the `modules` array in `apps/api/src/index.ts:27` and in the worker entrypoint `apps/api/src/worker.ts:23`. Registration happens automatically through `ModuleRegistry.loadAll()` — no separate wire-up call is required.
+The exported `auth` instance in `packages/modules/auth/src/auth.ts::auth` is consumed by `packages/modules/auth/src/routes.ts`, which mounts it via `.mount(auth.handler)` — without a prefix, per the basePath gotcha below. The auth module is listed in the `modules` array in `apps/api/src/index.ts:25-28` (API process only). The worker process (`apps/api/src/worker.ts:21-24`) loads `["example", "billing"]` — auth has no background jobs, so the worker does not register it. Registration happens automatically through `ModuleRegistry.loadAll()` — no separate wire-up call is required.
 
 ### Smoke test
 
