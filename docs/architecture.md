@@ -61,6 +61,7 @@ sequenceDiagram
   participant Cmd as defineCommand handler
   participant DB as scopedDb
   participant EB as TypedEventBus
+  participant Hook as Event-bus hook
   participant Q as BullMQ queue
 
   Route->>Bus: bus.execute("example:create", input, ctx)
@@ -68,9 +69,10 @@ sequenceDiagram
   Cmd->>DB: ctx.db.insert(table).values(...)
   DB-->>Cmd: Result row
   Cmd->>EB: ctx.emit("example.created", payload)
-  Cmd->>Q: ctx.enqueue("example:process-followup", payload)
   Cmd-->>Bus: ok(data)
   Bus-->>Route: Result<T>
+  EB->>Hook: on("example.created", listener)
+  Hook->>Q: queue.add("example:process-followup", payload)
 ```
 
 ### HandlerContext
@@ -88,9 +90,11 @@ export interface HandlerContext {
 }
 ```
 
+The `enqueue` field is declared optional and is NOT populated by the live API derive at `apps/api/src/index.ts:104-118` (only `tenantId`, `userId`, `db`, and `emit` are present at runtime). It is a reserved type slot for a future direct-enqueue pathway. Today, command handlers emit a domain event and a module-owned hook on the event bus performs the actual `queue.add(...)` — see `docs/integrations/bullmq.md` §"Wiring in Baseworks" and `packages/modules/example/src/hooks/on-example-created.ts` for the reference implementation.
+
 ### Queries vs commands
 
-`defineCommand` and `defineQuery` (both in `packages/shared/src/types/cqrs.ts`) return `Promise<Result<T>>` and share the same input-validation pipeline built on TypeBox. Commands may emit events through `ctx.emit` and enqueue jobs; queries have no side effects. `CqrsBus.execute` dispatches commands by namespaced key; `CqrsBus.query` dispatches queries.
+`defineCommand` and `defineQuery` (both in `packages/shared/src/types/cqrs.ts`) return `Promise<Result<T>>` and share the same input-validation pipeline built on TypeBox. Commands may emit events through `ctx.emit` and — indirectly, via an event-bus hook listening on that event — trigger BullMQ enqueues; queries have no side effects. `CqrsBus.execute` dispatches commands by namespaced key; `CqrsBus.query` dispatches queries.
 
 ## 3. Request lifecycle
 
@@ -104,7 +108,7 @@ flowchart TD
   LM --> CR[cors<br/>@elysiajs/cors]
   CR --> AR[auth routes<br/>better-auth .mount]
   AR --> TM[tenantMiddleware<br/>apps/api/src/core/middleware/tenant.ts]
-  TM --> DV[derive handlerCtx<br/>tenantId, userId, db, emit, enqueue]
+  TM --> DV[derive handlerCtx<br/>tenantId, userId, db, emit]
   DV --> MR[module routes]
   MR --> Bus[CqrsBus.execute / CqrsBus.query]
 ```
