@@ -67,15 +67,21 @@ Names are used verbatim as the BullMQ queue name AND as the job-map key in `Modu
 
 The worker process in `apps/api/src/worker.ts:32-77` iterates every loaded module's `def.jobs` and starts one `createWorker(...)` per entry. Each worker wraps the handler in a structured child logger so job starts, completions, and errors carry the queue name and job ID.
 
+The canonical dispatch path goes through a domain event, not a context method: the command emits an event via `ctx.emit(...)`, a module-owned hook (registered on the event bus at API startup) listens for that event and calls `queue.add(...)` on a lazily-constructed BullMQ queue. See `packages/modules/example/src/hooks/on-example-created.ts` for the reference implementation and `docs/add-a-module.md` §"Step 6" for the walkthrough.
+
 ```mermaid
 sequenceDiagram
   participant Cmd as Command handler
+  participant EB as TypedEventBus
+  participant Hook as Event-bus hook
   participant Q as BullMQ Queue
   participant Redis
   participant W as BullMQ Worker
   participant H as Job handler
 
-  Cmd->>Q: ctx.enqueue("example:process-followup", payload)
+  Cmd->>EB: ctx.emit("example.created", payload)
+  EB->>Hook: on("example.created", listener)
+  Hook->>Q: queue.add("example:process-followup", payload)
   Q->>Redis: persist job
   W->>Redis: poll / pop
   Redis-->>W: job
@@ -96,7 +102,7 @@ Cite `apps/api/src/worker.ts:32-77` for the worker entrypoint loop and `packages
 
 - **Sandboxed workers are broken on Bun.** BullMQ's sandboxed-processor mode (processor as a file path) does not work under the Bun runtime. All processors are declared inline as JavaScript functions in the main worker process — see `packages/queue/src/index.ts:32-38`. Do not pass a processor file path to `createWorker`.
 - **Redis connection sharing.** `getRedisConnection(redisUrl)` in `packages/queue/src/connection.ts` memoizes an `ioredis` instance per URL. Do not construct ad-hoc `new IORedis(...)` connections alongside it; let BullMQ use the shared connection so socket leaks do not accumulate across modules.
-- **`ctx.enqueue` is optional.** `HandlerContext.enqueue` is declared as `Promise<void> | undefined`. Test contexts receive a no-op via the mock factory; production command handlers invoke `await ctx.enqueue?.(...)` — the optional chaining preserves type safety if a future context skips queue wiring entirely.
+- **`HandlerContext.enqueue` is declared but not wired at runtime.** The type slot (`packages/shared/src/types/cqrs.ts:29-30`) is reserved for a future direct-enqueue pathway. Today the live API-process derive (`apps/api/src/index.ts:104-118`) populates only `tenantId`, `userId`, `db`, and `emit` — `enqueue` is undefined. `createMockContext` (test utility) provides a `mock(() => Promise.resolve())` stub for convenience, but production command handlers do NOT use the context's `enqueue` field. Enqueue via an event-bus hook instead (see the Mermaid diagram above and `docs/add-a-module.md` §"Step 6").
 - **Worker health check is independent of readiness.** The worker process starts a separate `Bun.serve` on `WORKER_HEALTH_PORT` (default 3001) for liveness probes (`apps/api/src/worker.ts:84-125`). A healthy Redis plus at least one registered worker returns `"status": "ok"`; Redis down or zero workers returns `"status": "degraded"`.
 
 ## Extending
@@ -116,8 +122,8 @@ Cite `apps/api/src/worker.ts:32-77` for the worker entrypoint loop and `packages
    },
    ```
 
-3. Ensure your module name is listed in the `modules` array in `apps/api/src/worker.ts:21-24` so the worker process loads it. No separate worker-registration call is required — `apps/api/src/worker.ts:32-77` iterates all `def.jobs` automatically on boot.
-4. Enqueue from a command handler: `await ctx.enqueue?.("yourmodule:action", payload)`. The enqueue flows through `HandlerContext.enqueue`, which `ModuleRegistry` wires to `createQueue(queueName, redisUrl).add(...)`.
+3. Ensure your module name is listed in the `modules` array in BOTH the API entrypoint (`apps/api/src/index.ts:25-28`) and the worker entrypoint (`apps/api/src/worker.ts:21-24`) so both processes load it. No separate worker-registration call is required — `apps/api/src/worker.ts:32-77` iterates all `def.jobs` automatically on boot.
+4. Emit a domain event from the command handler (`ctx.emit("yourmodule.something-happened", payload)`) and add a hook file under `packages/modules/<yourmodule>/src/hooks/` that listens on that event and calls `queue.add(...)` on a lazily-constructed BullMQ queue. Mirror `packages/modules/example/src/hooks/on-example-created.ts` — it memoizes the queue, falls back to a console log when `REDIS_URL` is absent, and swallows listener errors so a failed enqueue does NOT crash the originating command. Register the hook at API startup (call your `registerYourModuleHooks(registry.getEventBus())` alongside the existing `registerExampleHooks(...)` and `registerBillingHooks(...)` calls).
 5. If your job needs non-default BullMQ options (custom retention, custom attempts, scheduled delivery), construct the queue directly with `new Queue(...)` and your own `defaultJobOptions` instead of relying on the auto-created `createQueue` instance.
 
 ## Security
