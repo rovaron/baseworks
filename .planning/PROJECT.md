@@ -42,6 +42,7 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 - Health check endpoints with dependency status, structured pino logging with request tracing
 - JSDoc annotations across all public APIs (Phase 13 complete)
 - Unit tests: 126 tests across 28 files covering CQRS handlers, core infrastructure, auth, billing, and adapters (Phase 14 complete)
+- Developer documentation: configuration guides, testing guides, third-party integration docs (Phase 15 complete; content-drift corrections from the v1.2 milestone audit applied in Phase 16)
 
 ## Requirements
 
@@ -74,8 +75,8 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 ### Active
 
 - [x] Comprehensive JSDoc annotations across all source files — Validated in Phase 13: JSDoc Annotations
-- [ ] High-quality unit tests increasing coverage across the full stack
-- [ ] In-repo developer documentation (configuration, testing, third-party integrations)
+- [x] High-quality unit tests increasing coverage across the full stack — Validated in Phase 14: Unit Tests
+- [x] In-repo developer documentation (configuration, testing, third-party integrations) — Validated in Phase 15: Developer Documentation; content-drift gaps closed in Phase 16
 
 ### Out of Scope
 
@@ -154,4 +155,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-17 after Phase 14 (Unit Tests) complete — Documentation & Quality*
+*Last updated: 2026-04-19 after Phase 16 (v1.2 Content Drift Fixes) complete — Documentation & Quality*
