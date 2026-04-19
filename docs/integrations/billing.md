@@ -2,7 +2,7 @@
 
 ## Overview
 
-Baseworks supports Stripe and Pagar.me through a port-and-adapter pattern. The `PaymentProvider` port declares the full contract (14 methods); each adapter translates it to its SDK. A factory selects the adapter at runtime based on the `PAYMENT_PROVIDER` env var. Every command handler and the webhook route obtain their provider through `getPaymentProvider()`, never through an SDK import, which keeps the billing module provider-agnostic at the call site.
+Baseworks supports Stripe and Pagar.me through a port-and-adapter pattern. The `PaymentProvider` port declares the full contract (13 members: 12 methods plus one readonly `name` property); each adapter translates it to its SDK. A factory selects the adapter at runtime based on the `PAYMENT_PROVIDER` env var. Every command handler and the webhook route obtain their provider through `getPaymentProvider()`, never through an SDK import, which keeps the billing module provider-agnostic at the call site.
 
 ## Upstream Documentation
 
@@ -44,7 +44,7 @@ A `Result` JSON envelope with `success: true` and subscription data for the auth
 
 ### PaymentProvider port
 
-The port is declared in `packages/modules/billing/src/ports/payment-provider.ts:38-159`. It declares 14 methods grouped by concern: customer lifecycle (`createCustomer`), subscription lifecycle (`createSubscription`, `cancelSubscription`, `changeSubscription`, `getSubscription`), checkout (`createCheckoutSession`, `createOneTimePayment`), portal (`createPortalSession`), webhooks (`verifyWebhookSignature`, `normalizeEvent`), invoices (`getInvoices`), and an optional `reportUsage` for providers that support metered billing. Every adapter implements these as `implements PaymentProvider`, so the TypeScript compiler enforces that new adapters cover the full port.
+The port is declared in `packages/modules/billing/src/ports/payment-provider.ts:38-159`. It declares 13 members: 12 methods plus one readonly `name` property. Grouped by concern: provider identity (`name`), customer lifecycle (`createCustomer`), subscription lifecycle (`createSubscription`, `cancelSubscription`, `changeSubscription`, `getSubscription`), checkout (`createCheckoutSession`, `createOneTimePayment`), portal (`createPortalSession`), webhooks (`verifyWebhookSignature`, `normalizeEvent`), invoices (`getInvoices`), and an optional `reportUsage` for providers that support metered billing. Every adapter implements these as `implements PaymentProvider`, so the TypeScript compiler enforces that new adapters cover the full port. The test utility at `packages/modules/__test-utils__/mock-payment-provider.ts:5` documents the same count ("all 13 interface methods").
 
 ### Provider factory
 
@@ -104,7 +104,7 @@ Cite `packages/modules/billing/src/routes.ts:52-114` for the verbatim route impl
 
 The canonical example for adding a provider is how Pagar.me was added alongside Stripe. Repeat the same six steps for your target provider:
 
-1. Implement the `PaymentProvider` port in `packages/modules/billing/src/adapters/{provider}/{provider}-adapter.ts`. All 14 methods must be implemented — the TypeScript compiler enforces coverage via `implements PaymentProvider`. Reference: `packages/modules/billing/src/adapters/pagarme/pagarme-adapter.ts`.
+1. Implement the `PaymentProvider` port in `packages/modules/billing/src/adapters/{provider}/{provider}-adapter.ts`. All 13 members (12 methods plus the readonly `name` property) must be implemented — the TypeScript compiler enforces coverage via `implements PaymentProvider`. Reference: `packages/modules/billing/src/adapters/pagarme/pagarme-adapter.ts`.
 2. Implement a webhook mapper in `packages/modules/billing/src/adapters/{provider}/{provider}-webhook-mapper.ts`. The mapper normalizes provider-specific webhook payloads into the canonical `NormalizedEvent` shape. Reference: `pagarme-webhook-mapper.ts`.
 3. Add the provider name to the `PAYMENT_PROVIDER` Zod enum in `packages/config/src/env.ts:23`, and add `{PROVIDER}_SECRET_KEY` and `{PROVIDER}_WEBHOOK_SECRET` as optional strings.
 4. Extend `validatePaymentProviderEnv` in `packages/config/src/env.ts:49-84` with a new conditional branch mirroring the Stripe/Pagar.me branches — test mode warns, non-test throws.
