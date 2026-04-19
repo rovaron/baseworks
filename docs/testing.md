@@ -36,7 +36,9 @@ export function createMockContext(overrides?: Partial<HandlerContext>): HandlerC
 
 ### createMockDb
 
-`packages/modules/__test-utils__/mock-context.ts::createMockDb` returns a chainable stub matching the `ScopedDb` API — `select().from().where().limit()`, `insert().values()`, `update().set()`, and `delete()`. Override resolved values per method with the options object `{ insert, select, update, delete }`. Each returned mock function is a Bun `mock(...)`, so tests can assert call arguments with `toHaveBeenCalledWith`.
+`packages/modules/__test-utils__/mock-context.ts::createMockDb` returns a chainable stub matching the **raw Drizzle query-builder shape** — `select().from().where().limit()`, `insert().values()`, `update().set()`, and `delete()`. This is the shape handlers like `packages/modules/billing/src/commands/cancel-subscription.ts:29-33` use when they reach for chained Drizzle calls. Override resolved values per method with the options object `{ insert, select, update, delete }`. Each returned mock function is a Bun `mock(...)`, so tests can assert call arguments with `toHaveBeenCalledWith`.
+
+Note that `ScopedDb.select(table)` (declared in `packages/db/src/helpers/scoped-db.ts`, used by `packages/modules/example/src/queries/list-examples.ts:20` as `ctx.db.select(examples)`) is a different, one-shot shape: it takes a table and returns results directly, with no `.from().where().limit()` chain. When testing a handler that uses the one-shot form, override the mock's `select` to accept a table and return the rows directly, or replace `ctx.db` wholesale with a minimal object implementing just the one-shot call.
 
 ### assertResultOk / assertResultErr
 
