@@ -1,4 +1,5 @@
 import { describe, test, expect, mock, beforeEach } from "bun:test";
+import { createMockContext } from "../../../__test-utils__/mock-context";
 
 const mockGetFullOrganization = mock(() => Promise.resolve(null));
 
@@ -11,16 +12,6 @@ mock.module("../auth", () => ({
 }));
 
 const { getTenant } = await import("../queries/get-tenant");
-
-function createMockCtx(overrides: Record<string, unknown> = {}) {
-  return {
-    tenantId: "tenant-1",
-    userId: "user-1",
-    db: {},
-    emit: mock(() => {}),
-    ...overrides,
-  };
-}
 
 describe("getTenant", () => {
   beforeEach(() => {
@@ -38,7 +29,7 @@ describe("getTenant", () => {
 
     const result = await getTenant(
       { organizationId: "org-1" },
-      createMockCtx(),
+      createMockContext(),
     );
 
     expect(result.success).toBe(true);
@@ -56,7 +47,7 @@ describe("getTenant", () => {
 
     const result = await getTenant(
       { organizationId: "nonexistent" },
-      createMockCtx(),
+      createMockContext(),
     );
 
     expect(result.success).toBe(false);
@@ -72,7 +63,7 @@ describe("getTenant", () => {
 
     const result = await getTenant(
       { organizationId: "org-1" },
-      createMockCtx(),
+      createMockContext(),
     );
 
     expect(result.success).toBe(false);
