@@ -4,8 +4,8 @@ milestone: v1.2
 milestone_name: Documentation & Quality
 status: executing
 stopped_at: Session resumed, proceeding to execute Phase 16 (v1.2 Content Drift Fixes)
-last_updated: "2026-04-19T22:11:28.230Z"
-last_activity: 2026-04-19
+last_updated: "2026-04-20T10:55:00.000Z"
+last_activity: 2026-04-20
 progress:
   total_phases: 3
   completed_phases: 3
@@ -67,8 +67,14 @@ None.
 - Biome JSDoc formatting on multi-line `@example` blocks needs empirical validation (Phase 13)
 - PGlite + Drizzle schema push in tests needs validation before scaling (Phase 14)
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260420-a4t | Route packages/ui tests through vitest (eliminated 22 `document is not defined` failures from `bun test`) | 2026-04-20 | 1a00bfc | [260420-a4t-route-packages-ui-src-test-tsx-through-v](./quick/260420-a4t-route-packages-ui-src-test-tsx-through-v/) |
+
 ## Session Continuity
 
-Last session: 2026-04-19
-Stopped at: Session resumed, proceeding to execute Phase 16 (v1.2 Content Drift Fixes)
-Next action: /gsd:execute-phase 16 — 3 plans ready (16-01 docs fixes, 16-02 enqueue-path decision + fix, 16-03 auth test convention)
+Last session: 2026-04-20
+Stopped at: Completed quick task 260420-a4t (vitest wiring); v1.2 close paused pending /gsd:debug for auth-setup.test.ts and get-profile.test.ts
+Next action: /gsd:debug "auth-setup.test.ts Elysia mount path.length error" then /gsd:debug "get-profile.test.ts env loading at module load" then re-run /gsd:complete-milestone v1.2
