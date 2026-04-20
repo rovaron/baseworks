@@ -1,2 +1,10 @@
 [install]
 exact = true
+
+[test]
+# Bun 1.3.x does not support testPathIgnorePatterns / glob exclusion in bunfig.
+# UI tests (packages/ui/src/**/*.test.tsx) require jsdom and run under Vitest.
+# Exclusion is therefore implemented in the root package.json "test" script,
+# which enumerates the non-UI test roots as positional args to `bun test`,
+# then delegates packages/ui to `bun run test` (which invokes vitest run).
+# See package.json "scripts.test" for the orchestration.
