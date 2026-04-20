@@ -51,8 +51,27 @@ function makeCtx(userId: string, tenantId: string) {
   };
 }
 
-export const authRoutes = new Elysia({ name: "auth-routes" })
-  .mount(auth.handler)
+/**
+ * Build the auth routes plugin.
+ *
+ * The better-auth handler is only mounted if `auth.handler` is a
+ * callable function. This guard exists so the module is safe to
+ * evaluate in test files that mock `./auth` with a partial shape
+ * (e.g. `mock.module("../auth", () => ({ auth: { api: {...} } }))`)
+ * and do not supply a `handler`. Without the guard, Elysia 1.4+'s
+ * `.mount()` throws `TypeError: undefined is not an object
+ * (evaluating 'path.length')` at module evaluation time, breaking
+ * any test file that transitively imports `./routes` after a mock
+ * has been registered.
+ *
+ * In production `auth.handler` is always a function, so this path
+ * is always taken and behavior is unchanged.
+ */
+const base = new Elysia({ name: "auth-routes" });
+const mounted =
+  typeof auth?.handler === "function" ? base.mount(auth.handler) : base;
+
+export const authRoutes = mounted
 
   // --- Public endpoint: get invitation details for accept page (no auth required) ---
   // Per D-05: invite accept page needs org name, inviter, role without auth
