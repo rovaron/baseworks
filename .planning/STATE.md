@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Documentation & Quality
-status: executing
-stopped_at: Session resumed, proceeding to execute Phase 16 (v1.2 Content Drift Fixes)
-last_updated: "2026-04-20T10:55:00.000Z"
-last_activity: 2026-04-20
+status: shipped
+stopped_at: v1.2 milestone archived and tagged — ready for /gsd:new-milestone
+last_updated: "2026-04-21T12:00:00.000Z"
+last_activity: 2026-04-21
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 16
-  completed_plans: 16
+  total_phases: 4
+  completed_phases: 4
+  total_plans: 19
+  completed_plans: 19
   percent: 100
 ---
 
@@ -18,44 +18,38 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-16)
+See: .planning/PROJECT.md (updated 2026-04-21)
 
 **Core value:** Clone, configure, and start building a multitenant SaaS in minutes -- not weeks.
-**Current focus:** Phase 16 — v1-2-content-drift-fixes
+**Current focus:** Planning next milestone (v1.3)
 
 ## Current Position
 
-Phase: 16
-Plan: Not started
-Status: Executing Phase 16
-Last activity: 2026-04-19
+Milestone: v1.2 Documentation & Quality — SHIPPED 2026-04-21
+Tag: v1.2
+Last activity: 2026-04-21
 
-Progress: [██████████] 100%
+Progress: [██████████] 100% (4/4 phases, 19/19 plans)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 52 (15 v1.0 + 24 v1.1)
-- Timeline: v1.0 shipped in 3 days, v1.1 shipped in 6 days
-- v1.2 plans: 0 completed
+- Total plans completed: 71 (15 v1.0 + 24 v1.1 + 19 v1.2) + 3 quick tasks during v1.2 close
+- Timeline: v1.0 shipped in 3 days, v1.1 shipped in 6 days, v1.2 shipped in 6 days
 
-**Previous milestone (v1.1):**
+**Previous milestone (v1.2):**
 
-- 24 plans, 7 phases, 6 days
-- 157 commits, 26 requirements validated
+- 19 plans, 4 phases (13-16), 6 days
+- 115 commits, 23/23 requirements validated
+- +5,908 / −312 lines across 114 files
+- Milestone-close work: 1 quick task + 2 debug sessions resolved before tagging
 
 ## Accumulated Context
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- [v1.2 research]: JSDoc before tests before docs -- strict dependency chain
-- [v1.2 research]: Two test runners -- bun test for non-DOM, Vitest for React components
-- [v1.2 research]: Minimal stack additions: PGlite, ioredis-mock, vitest coverage-v8
-- [Phase 15]: Phase-close docs validator exists at scripts/validate-docs.ts; enforces forbidden-import, secret-shape, and Mermaid floor invariants
+Decisions are logged in PROJECT.md Key Decisions table (updated at v1.2 close with 7 new entries covering JSDoc style, two-runner test orchestration, lazy handler deps for mock.module, Elysia mount guard, validate-docs.ts contract, and Phase 16 docs-first content-drift strategy).
 
 ### Pending Todos
 
@@ -63,9 +57,10 @@ None.
 
 ### Blockers/Concerns
 
-- Admin login role check bug: `organization.list()` doesn't return `role` field -- workaround exists via `getFullOrganization()`
-- Biome JSDoc formatting on multi-line `@example` blocks needs empirical validation (Phase 13)
-- PGlite + Drizzle schema push in tests needs validation before scaling (Phase 14)
+None open at milestone close. Prior concerns resolved:
+- Admin login role check bug (workaround via `getFullOrganization()`) — still valid as documented workaround
+- Biome JSDoc formatting on multi-line `@example` blocks — empirically validated across Phase 13
+- PGlite + Drizzle schema push in tests — validated across Phase 14
 
 ### Quick Tasks Completed
 
@@ -75,6 +70,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-20
-Stopped at: Completed quick task 260420-a4t (vitest wiring); v1.2 close paused pending /gsd:debug for auth-setup.test.ts and get-profile.test.ts
-Next action: /gsd:debug "auth-setup.test.ts Elysia mount path.length error" then /gsd:debug "get-profile.test.ts env loading at module load" then re-run /gsd:complete-milestone v1.2
+Last session: 2026-04-21
+Stopped at: v1.2 milestone archived and tagged — all close-workflow gates passed
+Next action: `/gsd:new-milestone` to scope v1.3
