@@ -1,291 +1,303 @@
-# Stack Research: v1.2 Documentation & Quality
+# Stack Research: v1.3 Observability & Operations
 
-**Domain:** JSDoc annotations, test coverage, developer documentation for TypeScript monorepo
-**Researched:** 2026-04-16
-**Confidence:** HIGH
-
-**Scope:** This document covers ONLY new stack additions for v1.2 Documentation & Quality. The existing stack (Bun, Elysia, Drizzle, Next.js 15, Vite, React 19, shadcn/ui, Tailwind 4, better-auth, Stripe, Pagar.me, BullMQ, pino, Biome, bun test, Vitest, etc.) is validated and unchanged.
-
----
-
-## New Stack Additions
-
-### 1. JSDoc / TSDoc Annotation Tooling
-
-**Strategy:** Use standard JSDoc syntax (not TSDoc-specific tags) because TypeDoc, TypeScript, and all major editors support JSDoc natively. Since this is a TypeScript codebase, omit type annotations from JSDoc comments -- TypeScript's type system provides that. Focus JSDoc on `@param` descriptions, `@returns` descriptions, `@throws`, `@example`, and module/function purpose documentation.
-
-**Why JSDoc over TSDoc syntax:**
-- TypeDoc supports both JSDoc and TSDoc tags, with JSDoc being the more widely understood format
-- TypeScript's own compiler understands JSDoc comments and surfaces them in hover tooltips
-- TSDoc's stricter spec adds marginal value when you already have TypeScript types -- the descriptions are the same
-- No need for `eslint-plugin-tsdoc` dependency; JSDoc is the pragmatic choice
-
-**No JSDoc linting tool needed.** Biome does not yet support JSDoc validation rules (as of 2026). Adding `eslint-plugin-jsdoc` would require reintroducing ESLint alongside Biome, creating a dual-linter setup. This is not worth the complexity. Instead, enforce JSDoc quality through:
-- Code review conventions (documented in the developer guide)
-- TypeDoc build step that will surface broken references and missing exports
-- TypeScript's own `@param` tooltip rendering as visual feedback during development
-
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| (none)     | --      | JSDoc authoring | No tooling additions needed. Use standard JSDoc in `.ts` files. TypeScript + editor IntelliSense handles display. |
+**Domain:** Observability (errors, metrics, traces, logs) + ops tooling for a Bun/Elysia/BullMQ monorepo
+**Researched:** 2026-04-21
+**Confidence:** HIGH for Bun/OTEL/Sentry/bull-board baseline; MEDIUM for exact Docker image tags (verify at pin-time); HIGH for what to avoid
+**Scope:** Additions/changes only. All v1.2 baseline stack (Bun 1.1+, Elysia 1.1+, Drizzle, postgres.js, BullMQ 5, ioredis 5, pino 9, better-auth 1.2, Next.js 15, Vite 6, shadcn, Tailwind 4, Zod, @t3-oss/env-core) is taken as given and NOT re-researched.
 
 ---
 
-### 2. Documentation Generation
+## Executive Decision
 
-**Strategy:** Use TypeDoc to generate API reference documentation from JSDoc comments and TypeScript type signatures. TypeDoc is the only mature, actively maintained documentation generator for TypeScript. Configure it in monorepo "packages" mode to produce unified docs across all workspace packages.
-
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| typedoc | ^0.28 | API docs from TSDoc/JSDoc + types | The standard TypeScript documentation generator. Reads JSDoc comments + TS type signatures. Outputs HTML or JSON. Supports monorepo workspaces via `entryPointStrategy: "packages"`. Actively maintained, TS 5.0-5.8+ compatible. |
-| typedoc-plugin-markdown | ^4.0 | Markdown output | Generates Markdown instead of HTML. Better for in-repo docs that live alongside code. Can be committed to `docs/api/` and read on GitHub directly. |
-
-**Monorepo configuration (typedoc.json at root):**
-```json
-{
-  "entryPointStrategy": "packages",
-  "entryPoints": [
-    "packages/shared",
-    "packages/db",
-    "packages/config",
-    "packages/queue",
-    "packages/ui",
-    "packages/api-client",
-    "packages/modules/auth",
-    "packages/modules/billing"
-  ],
-  "out": "docs/api",
-  "packageOptions": {
-    "entryPoints": ["src/index.ts"]
-  },
-  "plugin": ["typedoc-plugin-markdown"],
-  "excludePrivate": true,
-  "excludeInternal": true
-}
-```
-
-**What NOT to use for docs:**
-- **Docusaurus / VitePress / Nextra** -- Full static site generators are overkill for in-repo developer documentation. The milestone scope is "in-repo docs," not a documentation website. Plain Markdown files in `docs/` plus TypeDoc-generated API reference is sufficient.
-- **Storybook** -- Out of scope for this milestone. Would be valuable for UI component documentation but adds significant build infrastructure.
-- **api-extractor (@microsoft/api-extractor)** -- Designed for published npm packages with .d.ts rollup. Baseworks is a monorepo starter kit, not a published library. Unnecessary complexity.
+| Decision | Choice | Reason |
+|----------|--------|--------|
+| OTEL SDK | `@opentelemetry/sdk-node` (NOT `@opentelemetry/sdk-trace-web` or custom-per-runtime) | Bun implements enough of `node:*` to run the Node SDK. Community posts (Feb 2026) confirm it works with programmatic init. |
+| OTEL init style | Programmatic, NOT `--require`/`-r` | Bun's module loader does not respect Node's `--require` for auto-instrumentation hooks. Must call `sdk.start()` before any instrumented module is imported. |
+| OTEL exporter | OTLP **HTTP/protobuf** (`@opentelemetry/exporter-*-otlp-proto`) | gRPC exporter (`@grpc/grpc-js`) has native-addon quirks under Bun. HTTP/protobuf is the documented Bun path in every 2026 write-up. |
+| Sentry SDK | `@sentry/bun` (NOT `@sentry/node`) | First-class Bun SDK; `@sentry/profiling-node` native addon does not run in Bun. |
+| GlitchTip adapter | Same `@sentry/bun` client — DSN swap only | GlitchTip 6 (Feb 2026) implements Sentry wire protocol; no second SDK required. |
+| BullMQ instrumentation | `@appsignal/opentelemetry-instrumentation-bullmq` | Jennifer's original package is minimally maintained; AppSignal fork is the actively developed successor called out in OTEL community docs. |
+| Job monitor | `@bull-board/elysia` (7.x) + `@bull-board/api` + `@bull-board/ui` | Native Elysia adapter exists — no custom mount needed. Mount behind admin RBAC middleware. |
+| Metrics | OTEL SDK metrics only — NO `prom-client` | OTEL `MeterProvider` produces OTLP metrics; collector converts to Prometheus remote-write or scrape. Adding `prom-client` would be double-booking. |
+| AsyncLocalStorage | Bun native `node:async_hooks` | Implemented in Bun, supports `run`/`enterWith`/`snapshot`. Caveat: avoid NAPI addons inside ALS scopes (known Bun issue). |
+| Log shipping | OTEL Logs via `@opentelemetry/instrumentation-pino` + collector | Promtail EOL March 2026. Pino instrumentation injects trace_id/span_id and emits to collector which routes to Loki. Alloy as fallback if not using collector. |
+| Local dev stack | Grafana Alloy OR OTEL Collector Contrib as the single ingress, fanning to Prometheus / Tempo / Loki / Grafana | One collector per compose file — simpler than three agents. |
 
 ---
 
-### 3. Test Coverage Reporting
+## Recommended Stack
 
-**Strategy:** Use Bun's built-in coverage reporter for backend tests and Vitest's v8 coverage provider for frontend/UI tests. Both output LCOV format for unified reporting.
+### New Core Packages
 
-#### Backend Coverage (bun test)
+| Package | Version | Purpose | Bun Compat | Plug-in Point |
+|---------|---------|---------|------------|---------------|
+| `@opentelemetry/api` | ^1.9.0 | Tracing/metrics/context API surface used by app code | HIGH — pure JS, no native deps | Import in every module that creates custom spans; CQRS dispatcher wraps command/query in `tracer.startActiveSpan` |
+| `@opentelemetry/sdk-node` | ^0.215.0 | Aggregate SDK: `NodeSDK` bootstrap for traces + metrics + logs | HIGH — runs under Bun with programmatic init (verified in community posts Feb 2026) | `apps/api/src/telemetry/bootstrap.ts` — first import before Elysia |
+| `@opentelemetry/resources` | ^1.30.0 | Resource attributes (service.name, service.version) | HIGH | `bootstrap.ts` |
+| `@opentelemetry/semantic-conventions` | ^1.30.0 | Standard attribute keys | HIGH | Wherever attributes are set |
+| `@opentelemetry/sdk-trace-node` | ^1.30.0 | Node-targeted tracer provider (used by sdk-node internally; pin explicitly for span processors) | HIGH | `bootstrap.ts` |
+| `@opentelemetry/sdk-metrics` | ^1.30.0 | `MeterProvider`, `PeriodicExportingMetricReader` | HIGH | `bootstrap.ts`; MetricsProvider port Grafana adapter uses it |
+| `@opentelemetry/sdk-logs` | ^0.215.0 | `LoggerProvider` for OTLP logs | HIGH | `bootstrap.ts` when log-via-OTLP mode is selected |
+| `@opentelemetry/exporter-trace-otlp-proto` | ^0.215.0 | OTLP/HTTP+protobuf trace exporter | HIGH — pure fetch, no gRPC | `bootstrap.ts` |
+| `@opentelemetry/exporter-metrics-otlp-proto` | ^0.215.0 | OTLP/HTTP+protobuf metrics exporter | HIGH | `bootstrap.ts` |
+| `@opentelemetry/exporter-logs-otlp-proto` | ^0.215.0 | OTLP/HTTP+protobuf logs exporter | HIGH | `bootstrap.ts` |
+| `@opentelemetry/auto-instrumentations-node` | ^0.60.0 | Bundle of HTTP/pg/ioredis/http/graphql/etc. auto-instrumentations | MEDIUM — most subset works under Bun; disable any that fail with `getNodeAutoInstrumentations({ '@opentelemetry/instrumentation-xxx': { enabled: false } })` | `bootstrap.ts` — preferred over hand-picking each one |
+| `@opentelemetry/instrumentation-pg` | ^0.56.0 | postgres driver instrumentation (auto-injected via auto-instrumentations-node, but postgres.js may need patch — see pitfalls) | MEDIUM | Included in bundle |
+| `@opentelemetry/instrumentation-ioredis` | ^0.58.0 | ioredis instrumentation — covers BullMQ Redis ops at the driver level | HIGH | Included in bundle |
+| `@opentelemetry/instrumentation-pino` | ^0.47.0 | Injects trace_id/span_id into pino log records + optional OTLP log emission | HIGH | Included in bundle; pair with `@opentelemetry/sdk-logs` for full log export |
+| `@opentelemetry/instrumentation-http` | ^0.58.0 | Node `http`/`https` client spans (outbound HTTP from app) | HIGH | Included in bundle |
+| `@appsignal/opentelemetry-instrumentation-bullmq` | ^0.7.x (verify exact at install) | BullMQ Worker/Queue span creation + context propagation across enqueue→process boundary | MEDIUM — pure JS wrapping BullMQ hooks, expected to work; smoke-test in Phase 0 | Register manually alongside auto-instrumentations |
+| `@sentry/bun` | ^10.32+ | Error tracking: errors, unhandled rejections, breadcrumbs, performance | HIGH — first-party Bun SDK | `apps/api/src/telemetry/sentry.ts`, ErrorTracker Sentry + GlitchTip adapters share this client |
+| `@bull-board/api` | ^7.0.0 | Core bull-board API | HIGH | Workers server (or API process) registers queues |
+| `@bull-board/elysia` | ^7.0.0 | Native Elysia server adapter for bull-board | HIGH — published 2026-04 | Mount at `/admin/queues` behind admin RBAC; or in admin-dashboard-backend process |
+| `@bull-board/ui` | ^7.0.0 | Pre-built UI bundle served by the Elysia adapter | HIGH | Auto-served by elysia adapter |
 
-Bun's test runner has native coverage support via `--coverage` flag. It supports `text` and `lcov` reporters, configurable through CLI flags or `bunfig.toml`.
+### Supporting Libraries
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| (bun built-in) | -- | Backend test coverage | `bun test --coverage --coverage-reporter=lcov` outputs lcov.info. Zero dependencies. Already part of the runtime. |
+| Library | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| `node:async_hooks` (built-in) | — | `AsyncLocalStorage` for request-scoped correlation context | Request middleware enters ALS scope with `{ correlationId, tenantId, userId, traceId }`; scope propagates into async handlers and BullMQ enqueue calls |
+| `nanoid` | ^5.0+ (already installed) | Correlation ID generation when no `x-request-id` / `traceparent` is provided | Reuse existing dependency — do not add `uuid` |
 
-**bunfig.toml configuration:**
-```toml
-[test]
-coverage = true
-coverageReporter = ["text", "lcov"]
-coverageDir = "coverage"
-```
+### Docker Images — `docker-compose.observability.yml`
 
-#### Frontend Coverage (Vitest)
+| Image | Pinned Tag | Purpose | Notes |
+|-------|-----------|---------|-------|
+| `otel/opentelemetry-collector-contrib` | `0.127.0` (or latest 0.150.0 — pin at implementation time) | Single ingress for OTLP traces/metrics/logs, fans out to Tempo/Prometheus/Loki | Contrib flavor needed for Loki + Prometheus remote-write exporters |
+| `grafana/tempo` | `2.10.4` | Trace storage (OTLP ingest) | v2.8+ changed default http-listen-port to 3200 — update any hard-coded configs |
+| `prom/prometheus` | `v3.10.0` (or latest `v3` tag) | Metrics storage, scraping + remote-write receiver | Prefer `-distroless` variant for production compose; `v3` for dev |
+| `grafana/loki` | `3.7.1` | Log storage (OTLP ingest via collector, no Promtail) | Single-binary mode via `-config.file` is fine for dev |
+| `grafana/grafana` | `12.4.3` (or `13.0.1` if stable feedback received) | Dashboards, alerting | Starting v12.4.0, `grafana/grafana-oss` repo is frozen; use `grafana/grafana` |
+| `grafana/alloy` | latest stable | Optional replacement for OTEL Collector Contrib if teams prefer Grafana-native agent | Promtail EOL 2026-03-02; Alloy is the migration target — but the OTEL collector is vendor-neutral and is the default recommendation |
 
-Vitest supports v8 and istanbul coverage providers. Use v8 -- it is faster (10% overhead vs 300% for istanbul) and since Vitest 3.2.0 uses AST-based remapping that produces accuracy identical to istanbul.
+Pre-provisioned Grafana datasources + dashboards are shipped as JSON in `infra/grafana/provisioning/`.
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| @vitest/coverage-v8 | ^4.0 | UI component test coverage | v8 provider for Vitest. Fastest option. AST-based remapping since v3.2.0 gives istanbul-equivalent accuracy. Zero-config with Vitest. |
+### Development Tools
 
-**Vitest config addition (packages/ui/vitest.config.ts):**
-```typescript
-export default defineConfig({
-  test: {
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'lcov'],
-      reportsDirectory: './coverage',
-      include: ['src/**/*.{ts,tsx}'],
-      exclude: ['src/**/*.test.{ts,tsx}', 'src/test-setup.ts']
-    }
-  }
-})
-```
-
-**What NOT to use:**
-- **istanbul / @vitest/coverage-istanbul** -- v8 is faster and now equally accurate. Istanbul adds 300% overhead.
-- **nyc** -- Legacy CLI wrapper for istanbul. Replaced by native coverage in modern test runners.
-- **c8** -- Standalone v8 coverage CLI. Redundant when both bun test and Vitest have built-in v8 coverage.
-- **codecov / coveralls** -- Cloud coverage tracking services. Not needed for an in-repo starter kit. If CI reporting is wanted later, the LCOV output is compatible.
-
----
-
-### 4. Testing Utilities for Existing Stack
-
-#### Database Testing with PGlite
-
-**Strategy:** Use `@electric-sql/pglite` for database-dependent unit tests. PGlite is a WASM build of PostgreSQL that runs entirely in-process -- no Docker, no external database, instant startup. Combined with Drizzle ORM, it provides real PostgreSQL semantics in tests.
-
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| @electric-sql/pglite | ^0.4 | In-memory PostgreSQL for tests | WASM PostgreSQL -- real Postgres semantics without Docker. 3MB gzipped. Instant startup. Native Drizzle integration via `drizzle-orm/pglite`. Ideal for testing tenant-scoped queries, CQRS handlers, and migration correctness. |
-
-**Test helper pattern:**
-```typescript
-import { PGlite } from '@electric-sql/pglite';
-import { drizzle } from 'drizzle-orm/pglite';
-import * as schema from '@baseworks/db/schema';
-
-export async function createTestDb() {
-  const client = new PGlite();
-  const db = drizzle(client, { schema });
-  // Run migrations or push schema
-  return { db, client };
-}
-```
-
-**Why PGlite over alternatives:**
-- **SQLite (better-sqlite3)**: Different SQL dialect. Baseworks uses PostgreSQL-specific features (JSONB, gen_random_uuid()). Testing with SQLite would miss real bugs.
-- **Testcontainers**: Requires Docker. Slower startup (~2-5s per container). PGlite starts in ~50ms.
-- **Mocking Drizzle directly**: Fragile. Mocks drift from real behavior. PGlite gives real PostgreSQL execution.
-
-#### BullMQ Testing
-
-**Strategy:** Test job processors in isolation by extracting processor functions and testing them with mocked dependencies. For queue integration, use `ioredis-mock` to avoid requiring Redis in the test environment.
-
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| ioredis-mock | ^8.0 | Mock Redis for BullMQ tests | In-memory Redis mock compatible with ioredis API. Avoids requiring real Redis for unit tests. Use for testing queue add/processing logic without infrastructure. |
-
-**Testing pattern for BullMQ:**
-```typescript
-// Extract processor logic into pure functions
-export async function processEmailJob(data: EmailJobData, deps: { resend: ResendClient }) {
-  // Business logic here -- testable without BullMQ
-}
-
-// Test the processor directly
-it('sends email with correct template', async () => {
-  const mockResend = { emails: { send: mock(() => ({ id: 'test' })) } };
-  await processEmailJob({ to: 'a@b.com', template: 'welcome' }, { resend: mockResend });
-  expect(mockResend.emails.send).toHaveBeenCalledWith(expect.objectContaining({ to: 'a@b.com' }));
-});
-```
-
-#### Elysia Testing
-
-**No new libraries needed.** Elysia provides built-in testing via `app.handle()` which accepts Web Standard Request objects and returns Response. Eden Treaty can also be passed an Elysia instance directly for type-safe testing without network requests. Both approaches work with `bun test` out of the box.
-
-#### better-auth Testing
-
-**No new libraries needed.** better-auth handlers are testable through the Elysia app's `handle()` method. Mock the database layer (via PGlite) and test auth flows as HTTP request/response cycles.
+| Tool | Purpose | Notes |
+|------|---------|-------|
+| Bun `--inspect` + OTEL dev exporter | Local trace inspection | `OTEL_TRACES_EXPORTER=console` during unit development to debug span shape without running the stack |
+| `bull-board` standalone (same packages) | Local queue inspection outside admin | Optional — `apps/api` `/admin/queues` mount covers the use case |
 
 ---
 
-## Installation (v1.2 additions only)
+## Installation
 
 ```bash
-# Documentation generation (root dev dependency)
-bun add -D typedoc typedoc-plugin-markdown
+# Backend (apps/api) — telemetry bootstrap + instrumentations
+bun add \
+  @opentelemetry/api@^1.9 \
+  @opentelemetry/sdk-node@^0.215 \
+  @opentelemetry/sdk-trace-node@^1.30 \
+  @opentelemetry/sdk-metrics@^1.30 \
+  @opentelemetry/sdk-logs@^0.215 \
+  @opentelemetry/resources@^1.30 \
+  @opentelemetry/semantic-conventions@^1.30 \
+  @opentelemetry/exporter-trace-otlp-proto@^0.215 \
+  @opentelemetry/exporter-metrics-otlp-proto@^0.215 \
+  @opentelemetry/exporter-logs-otlp-proto@^0.215 \
+  @opentelemetry/auto-instrumentations-node@^0.60 \
+  @appsignal/opentelemetry-instrumentation-bullmq
 
-# Frontend test coverage (packages/ui)
-cd packages/ui && bun add -D @vitest/coverage-v8
+# Error tracking
+bun add @sentry/bun
 
-# Database testing (root dev dependency -- used across packages)
-bun add -D @electric-sql/pglite
+# Job monitor (can live in apps/api OR a dedicated admin backend package)
+bun add @bull-board/api @bull-board/elysia @bull-board/ui
 
-# BullMQ testing (root dev dependency)
-bun add -D ioredis-mock
+# NO new dev dependencies required. Existing bun test / vitest stack is sufficient.
 ```
 
-**Backend coverage (bun test) requires no installation** -- built into Bun runtime.
-
----
-
-## Root package.json Script Additions
-
-```json
-{
-  "scripts": {
-    "test": "bun test",
-    "test:coverage": "bun test --coverage --coverage-reporter=lcov",
-    "test:ui": "cd packages/ui && bun vitest run",
-    "test:ui:coverage": "cd packages/ui && bun vitest run --coverage",
-    "docs:api": "typedoc"
-  }
-}
-```
+All packages resolve under Bun workspaces without additional config.
 
 ---
 
 ## Alternatives Considered
 
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| Doc generator | TypeDoc | api-extractor | api-extractor is for published npm packages with .d.ts rollup. Baseworks is a monorepo, not a library. |
-| Doc generator | TypeDoc | Docusaurus/VitePress | Full static site generators. Overkill for in-repo docs. Adds build complexity. |
-| Doc output | typedoc-plugin-markdown | TypeDoc HTML | Markdown is readable on GitHub, diffable in PRs, and lives in-repo. HTML requires hosting. |
-| JSDoc linting | None (conventions) | eslint-plugin-jsdoc | Would require reintroducing ESLint alongside Biome. Dual-linter complexity not worth it. |
-| Comment standard | JSDoc | TSDoc | JSDoc is universally supported. TSDoc adds marginal value in a TypeScript project where types are already explicit. |
-| Backend coverage | Bun built-in | c8 / nyc | Redundant. Bun has native v8 coverage with LCOV output. |
-| Frontend coverage | @vitest/coverage-v8 | @vitest/coverage-istanbul | v8 is 30x faster. Since Vitest 3.2.0, accuracy is equivalent to istanbul via AST remapping. |
-| DB testing | PGlite | Testcontainers | Docker required, 2-5s startup. PGlite is in-process WASM Postgres, ~50ms startup. |
-| DB testing | PGlite | SQLite (better-sqlite3) | Different SQL dialect. Would miss PostgreSQL-specific bugs (JSONB, UUID, etc.). |
-| DB testing | PGlite | Mocking Drizzle | Fragile mocks that drift from real DB behavior. PGlite executes real SQL. |
-| Redis mocking | ioredis-mock | Testcontainers Redis | Simpler for unit tests. No Docker needed. Real Redis only needed for integration tests. |
-| Component docs | None (defer) | Storybook | Significant infrastructure. Out of scope for v1.2. Worth considering in a future milestone. |
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| `@opentelemetry/sdk-node` | `@opentelemetry/sdk-trace-base` + hand-wired providers | Only if auto-instrumentations cause crashes under Bun and we need surgical control. Default is auto. |
+| OTLP HTTP/protobuf exporter | OTLP HTTP/JSON (`exporter-*-otlp-http`) | Slightly slower but human-debuggable on wire. Use temporarily for collector troubleshooting. |
+| OTLP HTTP/protobuf exporter | OTLP gRPC (`exporter-*-otlp-grpc` + `@grpc/grpc-js`) | DO NOT use. `@grpc/grpc-js` has native-addon edge cases under Bun; no benefit at our scale. |
+| `@sentry/bun` | `@sentry/node` | Never. Profiling addon fails; use `@sentry/bun` unconditionally. |
+| `@appsignal/opentelemetry-instrumentation-bullmq` | `@jenniferplusplus/opentelemetry-instrumentation-bullmq` (original) | Only to cross-check span shape. Original is minimally maintained per OTEL-contrib docs. |
+| `@bull-board/elysia` | Hand-rolling Express adapter behind Elysia proxy | Never — native adapter exists. |
+| OTEL metrics SDK | `prom-client` + `/metrics` scrape endpoint | Only if a specific dashboard requires a metric that OTEL cannot express. Default: do not mix. |
+| OTEL Collector Contrib | Grafana Alloy | If team is Grafana-stack-only AND wants one binary that owns both shipping + config-via-Grafana-Cloud. Alloy is a vendor-neutral OTEL distribution — functionally equivalent for our needs. |
+| `pino` + `@opentelemetry/instrumentation-pino` | `pino-opentelemetry-transport` | Transport approach runs in a Pino worker thread. Prefer the instrumentation approach so trace_id injection happens in the main thread and OTLP log export is controlled by the same SDK as traces/metrics. |
+| GlitchTip via `@sentry/bun` + DSN swap | Dedicated GlitchTip SDK | There is no separate SDK — DSN swap is the intended path. |
 
 ---
 
-## What NOT to Add for v1.2
+## What NOT to Use
 
-| Technology | Why Not | Use Instead |
-|------------|---------|-------------|
-| eslint-plugin-jsdoc | Reintroduces ESLint alongside Biome; dual-linter complexity | Code review conventions + TypeDoc build validation |
-| eslint-plugin-tsdoc | Same ESLint problem. TSDoc standard adds marginal value over JSDoc | Standard JSDoc syntax |
-| Docusaurus / VitePress / Nextra | Overkill for in-repo docs. Adds build pipeline, hosting requirement | Markdown files in `docs/` + TypeDoc-generated API reference |
-| Storybook | Major infrastructure addition. Not in milestone scope | Defer to future milestone |
-| @vitest/coverage-istanbul | 30x slower than v8. No accuracy advantage since Vitest 3.2.0 | @vitest/coverage-v8 |
-| nyc / c8 | Legacy coverage CLIs. Both Bun and Vitest have built-in coverage | Native coverage in test runners |
-| codecov / coveralls | Cloud services. Not needed for a starter kit | Local LCOV files. Add cloud reporting in CI if desired later |
-| Testcontainers | Docker overhead for unit tests | PGlite for DB tests, ioredis-mock for Redis tests |
-| better-sqlite3 | Wrong SQL dialect for PostgreSQL testing | PGlite (real PostgreSQL semantics) |
-| api-extractor | Designed for published packages, not monorepo internal docs | TypeDoc |
-| @snaplet/seed | Listed in original stack but adds complexity for seeding. Test data factories can be simple functions | Manual test factory helpers using PGlite |
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| `@sentry/node` in apps/api | Profiling is a native addon, fails under Bun; Sentry docs explicitly route Bun users elsewhere | `@sentry/bun` |
+| `@sentry/profiling-node` | Does not load under Bun (tracked in oven-sh/bun#19230) | Skip profiling, or rely on OTEL spans for perf insight |
+| `@grpc/grpc-js` + OTLP gRPC exporter | Native-dep quirks under Bun, no throughput benefit at this scale | OTLP HTTP/protobuf |
+| `prom-client` | Would duplicate metrics pipeline — we already have OTEL metrics + collector | OTEL `@opentelemetry/sdk-metrics` |
+| `winston` / `bunyan` | pino is already the canonical logger across the codebase | pino (already installed) |
+| OTEL `--require` / `-r` bootstrap | Bun does not honor Node's require hook for auto-instrumentation | Programmatic `sdk.start()` as first import |
+| `promtail` | EOL 2026-03-02, no future updates | OTEL Collector Contrib OR Grafana Alloy |
+| `newrelic` / `dd-trace` / `elastic-apm-node` full-fat vendor agents | Pull in vendor-specific native addons, break Bun, defeat port/adapter pattern | OTEL SDK + collector; route to vendor via collector exporter if needed |
+| `express` / `koa` adapters for bull-board | We use Elysia | `@bull-board/elysia` |
+| `opentracing` / `jaeger-client-node` | Superseded by OpenTelemetry since 2022 | OpenTelemetry |
+| Custom UUID lib for correlation IDs | `nanoid` already installed | `nanoid` |
 
 ---
 
-## Version Compatibility (v1.2 additions)
+## Stack Patterns by Variant
 
-| New Package | Compatible With | Notes |
-|-------------|-----------------|-------|
-| typedoc ^0.28 | TypeScript 5.0-5.8+ | Reads tsconfig.json directly. Monorepo mode via `entryPointStrategy: "packages"` |
-| typedoc-plugin-markdown ^4.0 | typedoc ^0.28 | Must match typedoc major version |
-| @vitest/coverage-v8 ^4.0 | Vitest ^4.0 | Must match Vitest version. Currently installed: Vitest 4.1.3 |
-| @electric-sql/pglite ^0.4 | Bun 1.0+, drizzle-orm 0.36+ | Use `drizzle-orm/pglite` adapter. WASM-based, no native dependencies |
-| ioredis-mock ^8.0 | ioredis 5.x, BullMQ 5.x | Drop-in replacement for ioredis in test context |
+**If fork user opts for Sentry SaaS (ErrorTracker = "sentry"):**
+- Set `SENTRY_DSN` to Sentry-hosted DSN. No further changes — `@sentry/bun` handles it.
+
+**If fork user opts for self-hosted GlitchTip (ErrorTracker = "glitchtip"):**
+- Set `SENTRY_DSN` to GlitchTip DSN. Same SDK, same code path.
+- Disable Sentry-only features the adapter exposes (no Session Replay, no full Distributed Tracing visualization inside Sentry UI — tracing goes to Tempo instead).
+
+**If fork user opts for no external error tracker (ErrorTracker = "pino-sink" / "noop"):**
+- Skip `@sentry/bun` init. ErrorTracker adapter writes errors to pino at `level: error` with structured fields. Zero external dependency.
+
+**If fork user opts for OTEL off (MetricsProvider = "noop", Tracer = "noop"):**
+- `NodeSDK` is not started. `@opentelemetry/api` no-op providers take over by default. Cost: near-zero overhead when off.
+
+**If running under Node instead of Bun (future-proofing):**
+- Replace `@sentry/bun` with `@sentry/node` + optional `@sentry/profiling-node`. Everything else is identical. The port/adapter pattern already encapsulates this.
+
+---
+
+## Version Compatibility
+
+| Package A | Compatible With | Notes |
+|-----------|-----------------|-------|
+| `@opentelemetry/sdk-node@0.215` | `@opentelemetry/api@^1.9` | SDK peer-depends on 1.9+; lock to avoid 2.x jump |
+| `@opentelemetry/auto-instrumentations-node@0.60` | `@opentelemetry/sdk-node@0.21x` | Keep SDK + auto-instrumentations on matching minor release cadence |
+| `@appsignal/opentelemetry-instrumentation-bullmq` | BullMQ 2.x–5.x | We are on BullMQ 5 — supported |
+| `@sentry/bun@10.x` | Bun 1.1+ | Matches our runtime floor |
+| `@bull-board/elysia@7.0.0` | `@bull-board/api@7.0.0`, Elysia 1.x | Major versions must match across `@bull-board/*` packages |
+| Grafana 12.4+ | Tempo 2.8+, Loki 3.x, Prometheus 3.x | All 2026 versions interoperate cleanly |
+| OTEL Collector Contrib 0.127+ | OTLP/HTTP protobuf from our exporters | HTTP/protobuf stable since 2024 |
+| Bun `node:async_hooks` | `AsyncLocalStorage` + context propagation | Avoid NAPI addon calls inside ALS scope (oven-sh/bun#13638) |
+
+---
+
+## Environment Schema Additions (@t3-oss/env-core)
+
+Extend the existing backend env schema in `apps/api/src/env.ts`:
+
+```ts
+// Error tracking
+ERROR_TRACKER: z.enum(["sentry", "glitchtip", "pino-sink", "noop"]).default("noop"),
+SENTRY_DSN: z.string().url().optional(),               // required when ERROR_TRACKER in ("sentry","glitchtip")
+SENTRY_ENVIRONMENT: z.string().default("development"),
+SENTRY_RELEASE: z.string().optional(),                 // CI sets to git sha
+SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0.1),
+
+// OTEL tracing + metrics
+OTEL_ENABLED: z.coerce.boolean().default(false),
+OTEL_SERVICE_NAME: z.string().default("baseworks-api"),
+OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().default("http://localhost:4318"),
+OTEL_EXPORTER_OTLP_HEADERS: z.string().optional(),     // k=v,k=v — e.g., auth token for SaaS collectors
+OTEL_TRACES_SAMPLER: z.enum(["always_on","always_off","parentbased_always_on","traceidratio","parentbased_traceidratio"]).default("parentbased_traceidratio"),
+OTEL_TRACES_SAMPLER_ARG: z.coerce.number().min(0).max(1).default(0.1),
+OTEL_METRICS_ENABLED: z.coerce.boolean().default(false),
+OTEL_LOGS_ENABLED: z.coerce.boolean().default(false),
+
+// Job monitor
+BULL_BOARD_ENABLED: z.coerce.boolean().default(true),  // toggle mount; RBAC check still applies
+BULL_BOARD_BASE_PATH: z.string().default("/admin/queues"),
+```
+
+Add a cross-field refine so `SENTRY_DSN` is required when `ERROR_TRACKER` selects Sentry or GlitchTip. Mirror the OTEL env names from the spec exactly (`OTEL_EXPORTER_OTLP_ENDPOINT` etc.) — those are standard and the SDK picks some up automatically.
+
+Worker process (`apps/api/src/worker.ts`) reuses the same schema — must read the identical OTEL config so trace context propagates and job spans land in the same service graph (distinct `OTEL_SERVICE_NAME=baseworks-worker`).
+
+---
+
+## Bun Compatibility Scorecard
+
+| Concern | Status | Workaround |
+|---------|--------|-----------|
+| `AsyncLocalStorage` | NATIVE — supported in `node:async_hooks` | None |
+| `@opentelemetry/sdk-node` boot | WORKS with programmatic init | Do not use `--require`; import and `sdk.start()` as the very first statement in the entrypoint |
+| OTLP HTTP/protobuf exporter | WORKS | None |
+| OTLP gRPC exporter | AVOID | Use HTTP/protobuf instead |
+| `@opentelemetry/auto-instrumentations-node` | WORKS for HTTP, pg, ioredis, pino | Disable any instrumentation that errors via `getNodeAutoInstrumentations({ '<name>': { enabled: false } })`. Smoke-test each in Phase 0. |
+| `@opentelemetry/instrumentation-pg` + postgres.js | PARTIAL — this package instruments `pg`; postgres.js is a different driver | Rely on manual Drizzle spans in the Tracer port adapter (wrap query execution in `tracer.startActiveSpan`) OR evaluate `@opentelemetry/instrumentation-postgres` alternatives at implementation time. Flag for phase-level deep research. |
+| `@sentry/bun` | FIRST-CLASS | None |
+| `@sentry/profiling-node` | BROKEN under Bun | Do not install; skip profiling |
+| `@appsignal/opentelemetry-instrumentation-bullmq` | EXPECTED TO WORK (pure-JS hook wrapping) | Smoke-test in Phase 0; if it fails, fall back to manual span creation inside CQRS job dispatcher |
+| `@bull-board/elysia` | WORKS (2026-04 release targets Elysia + Bun) | None |
+| Bun single-file executable (`bun build --compile`) | BREAKS OTEL auto-instrumentation + Sentry auto-instrumentation | Do not use `--compile` for the production API image. Current Docker strategy runs `bun run src/index.ts` which is correct. |
+| NAPI addon inside `AsyncLocalStorage.run()` | KNOWN BUN BUG (oven-sh/bun#13638) | None of our planned deps are NAPI addons; do not add one later without re-testing |
+
+---
+
+## Integration Points
+
+| Code path | Package inserted | Why |
+|-----------|------------------|-----|
+| `apps/api/src/index.ts` — line 1 | `./telemetry/bootstrap` import | Must run before Elysia, Drizzle, BullMQ are imported |
+| `apps/api/src/telemetry/bootstrap.ts` | `NodeSDK` from `@opentelemetry/sdk-node` | Configures exporters + samplers + resource + instrumentations |
+| `apps/api/src/telemetry/sentry.ts` | `@sentry/bun` | Called from bootstrap when `ERROR_TRACKER=sentry|glitchtip` |
+| `apps/api/src/middleware/request-context.ts` (new) | `AsyncLocalStorage` | Enters scope per Elysia request; stores correlationId + tenantId + userId + active span |
+| `apps/api/src/core/cqrs/dispatcher.ts` | `@opentelemetry/api` + ErrorTracker port | Wraps each command/query in an active span; on error, calls ErrorTracker.capture |
+| `packages/db` — query wrapper | `@opentelemetry/api` | Manual spans for Drizzle operations (postgres.js driver — see pitfalls) with SQL statement as attribute |
+| `apps/api/src/worker.ts` | `NodeSDK` init (worker flavor) + `@appsignal/opentelemetry-instrumentation-bullmq` | Worker trace context continues from enqueue span |
+| `apps/api/src/modules/<job>/handler.ts` | BullMQ instrumentation auto-wraps | Plus app-level spans inside job handlers |
+| `apps/api/src/admin/bull-board.ts` (new) | `@bull-board/elysia` | Mounted under admin RBAC guard |
+| `apps/admin/src/pages/jobs.tsx` | iframe/link to `/admin/queues` | Simpler than re-embedding the UI inside the React admin |
+| `apps/api/src/routes/health.ts` | Pure code changes; no new dep | Reuse Drizzle ping + ioredis ping + BullMQ queue depth |
+| `infra/observability/docker-compose.observability.yml` | Images listed above | Local dev stack |
+| `infra/observability/otel-collector.yml` | — | OTLP HTTP receiver → Tempo/Prometheus-RW/Loki exporters |
+| `infra/grafana/provisioning/*` | — | Pre-built dashboards + Tempo/Prometheus/Loki datasources |
+| `docs/runbooks/*.md` | — | On-call playbooks (no deps) |
 
 ---
 
 ## Sources
 
-- [TypeDoc official site](https://typedoc.org/) -- Version 0.28.17, TypeScript 5.0-5.8 support, monorepo packages mode
-- [TypeDoc GitHub releases](https://github.com/TypeStrong/typedoc/releases) -- Latest version verification
-- [TypeDoc input options](https://typedoc.org/documents/Options.Input.html) -- entryPointStrategy: "packages" for monorepos
-- [Bun test coverage docs](https://bun.com/docs/test/coverage) -- Built-in --coverage flag, LCOV reporter
-- [Vitest coverage guide](https://vitest.dev/guide/coverage) -- v8 vs istanbul, AST-based remapping since v3.2.0
-- [Elysia unit testing docs](https://elysiajs.com/patterns/unit-test) -- app.handle() for HTTP testing without network
-- [Eden Treaty unit testing](https://elysiajs.com/eden/treaty/unit-test) -- Pass Elysia instance directly to Eden
-- [PGlite npm package](https://www.npmjs.com/package/@electric-sql/pglite) -- v0.4.4, WASM PostgreSQL for testing
-- [Drizzle + PGlite integration](https://orm.drizzle.team/docs/connect-pglite) -- Official Drizzle adapter for PGlite
-- [BullMQ unit testing guide](https://oneuptime.com/blog/post/2026-01-21-bullmq-unit-testing/view) -- Processor extraction pattern
-- [Biome JSDoc discussion](https://github.com/biomejs/biome/discussions/741) -- JSDoc formatter/linting not yet implemented
-- [Biome 2026 roadmap](https://biomejs.dev/blog/roadmap-2026/) -- JSDoc not on roadmap
-- [eslint-plugin-jsdoc npm](https://www.npmjs.com/package/eslint-plugin-jsdoc) -- v62+, TypeScript recommended config available (but requires ESLint)
-- [TypeScript JSDoc reference](https://www.typescriptlang.org/docs/handbook/jsdoc-supported-types.html) -- Supported JSDoc tags in TS
+- Bun `node:async_hooks` reference — https://bun.com/reference/node/async_hooks/AsyncLocalStorage — HIGH (official)
+- Bun + Elysia + OTEL integration guide (Feb 2026) — https://oneuptime.com/blog/post/2026-02-06-instrument-bun-elysiajs-opentelemetry/view — MEDIUM (community)
+- OTEL Bun bootstrap without `--require` (Feb 2026) — https://oneuptime.com/blog/post/2026-02-06-opentelemetry-bun-without-nodejs-require-flag/view — MEDIUM (community)
+- Sentry Bun docs — https://docs.sentry.io/platforms/javascript/guides/bun/ — HIGH (official)
+- `@sentry/profiling-node` Bun incompat — https://github.com/oven-sh/bun/issues/19230 — HIGH
+- `@bull-board/elysia` npm (v7.0.0, 2026-04) — https://www.npmjs.com/package/@bull-board/elysia — HIGH
+- `@bull-board/api` npm (v7.0.0) — https://www.npmjs.com/package/@bull-board/api — HIGH
+- `@opentelemetry/sdk-node` npm (v0.215.0, 2026-04) — https://www.npmjs.com/package/@opentelemetry/sdk-node — HIGH
+- `@opentelemetry/auto-instrumentations-node` npm — https://www.npmjs.com/package/@opentelemetry/auto-instrumentations-node — HIGH
+- `@opentelemetry/instrumentation-pg` npm — https://www.npmjs.com/package/@opentelemetry/instrumentation-pg — HIGH
+- `@opentelemetry/instrumentation-ioredis` npm — https://www.npmjs.com/package/@opentelemetry/instrumentation-ioredis — HIGH
+- AppSignal BullMQ OTEL instrumentation — https://github.com/appsignal/opentelemetry-instrumentation-bullmq — MEDIUM
+- Pino + OTEL (instrumentation vs transport) — https://www.npmjs.com/package/@opentelemetry/instrumentation-pino — HIGH
+- Grafana Tempo 2.8/2.10 release notes — https://grafana.com/docs/tempo/latest/release-notes/ — HIGH
+- Grafana Loki 3.7.1 release — https://github.com/grafana/loki/releases/tag/v3.7.1 — HIGH
+- Prometheus 3.10.0 release — https://github.com/prometheus/prometheus/releases/tag/v3.10.0 — HIGH
+- Grafana 12.4.3/13.0.1 (Apr 2026) — https://github.com/grafana/grafana/releases — HIGH
+- OTEL Collector Contrib Docker — https://hub.docker.com/r/otel/opentelemetry-collector-contrib — HIGH
+- GlitchTip Sentry SDK compat — https://glitchtip.com/sdkdocs/ — HIGH
+- Promtail EOL + Alloy migration — https://grafana.com/docs/alloy/latest/set-up/migrate/from-promtail/ — HIGH
+- `node:async_hooks` + NAPI bug — https://github.com/oven-sh/bun/issues/13638 — MEDIUM (known issue, not blocking our deps)
 
 ---
-*Stack research for: Baseworks v1.2 Documentation & Quality*
-*Researched: 2026-04-16*
+
+## Confidence Summary
+
+| Area | Confidence | Notes |
+|------|------------|-------|
+| OTEL package set + versions | HIGH | Verified via npm (Apr 2026) |
+| Bun compatibility of OTEL SDK | HIGH | Multiple 2026 community guides + OTEL docs confirming programmatic-init path |
+| `@sentry/bun` as correct SDK | HIGH | Official Sentry docs + Bun ecosystem guide |
+| GlitchTip DSN-swap compat | HIGH | GlitchTip docs explicit |
+| `@bull-board/elysia` readiness | HIGH | Published 2026-04, native Elysia adapter |
+| BullMQ OTEL instrumentation | MEDIUM | Two packages exist; AppSignal fork is the maintained one but smoke-test in Phase 0 |
+| postgres.js vs `instrumentation-pg` | MEDIUM — flag for phase-research | `instrumentation-pg` targets `pg`; postgres.js is different. Plan a manual Drizzle tracing wrapper as the reliable path |
+| Grafana stack image tags | MEDIUM | Versions verified, but pin at implementation time — image tags rev weekly |
+| AsyncLocalStorage under Bun | HIGH | Native, documented, avoid NAPI-in-scope |
+| Env schema extensions | HIGH | Standard OTEL env var names + project conventions |
+
+---
+
+*Stack research for: v1.3 Observability & Operations — additions only*
+*Researched: 2026-04-21*
