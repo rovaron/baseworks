@@ -71,7 +71,31 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 
 ### Active
 
-(None yet — v1.3 scope to be defined via `/gsd:new-milestone`)
+**Milestone v1.3: Observability & Operations**
+
+**Goal:** Ship production-grade observability and ops tooling so operators running Baseworks can detect, diagnose, and resolve incidents without SSHing into boxes or grep-ing logs.
+
+**Architecture:** Port + adapters (matching the billing `PaymentProvider` pattern). Fork users pick backends via env var.
+
+**Target features:**
+
+- Error tracking via `ErrorTracker` port with Sentry + GlitchTip + Pino-sink adapters
+- Metrics via OTEL `MetricsProvider` port (counters, histograms, p50/p95/p99, DB pool, job throughput)
+- Distributed tracing — full OTEL spans across API → Drizzle → BullMQ enqueue → worker, context propagation, CQRS dispatch spans
+- Structured request/event logging upgrade — AsyncLocalStorage context carrier, correlation IDs propagated to worker jobs
+- Admin job monitor (bull-board embedded in admin dashboard, RBAC-gated)
+- Health dashboard upgrade (queue depth, worker heartbeat, DB lag, recent errors, per-module status)
+- Runbooks + alert playbook — `docs/runbooks/` + pre-built Grafana alert YAML + Sentry alert config templates
+- Local dev observability stack — `docker-compose.observability.yml` (Prometheus + Tempo + Loki + Grafana)
+
+**Adapter matrix:**
+
+| Port | Adapters shipped |
+|------|------------------|
+| `ErrorTracker` | Sentry, GlitchTip, Pino-sink/noop |
+| `MetricsProvider` + `Tracer` | OTEL → self-hosted Grafana stack, Noop (off) |
+
+**Key context:** Forward-looking — no specific past incidents driving scope. Must remain Bun-compatible (OTEL SDK for Node must work under Bun). Augments existing pino logging, does not replace it. Alert *wiring* is templates + runbooks, not a full in-app alert pipeline (deferred to v1.4+ if demand emerges).
 
 ### Out of Scope
 
@@ -156,4 +180,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-21 after v1.2 Documentation & Quality milestone shipped*
+*Last updated: 2026-04-21 after v1.3 Observability & Operations milestone started*
