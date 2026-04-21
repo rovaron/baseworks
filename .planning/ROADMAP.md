@@ -5,6 +5,7 @@
 - ✅ **v1.0 MVP** -- Phases 1-5 (shipped 2026-04-08)
 - ✅ **v1.1 Polish & Extensibility** -- Phases 6-12 (shipped 2026-04-16)
 - ✅ **v1.2 Documentation & Quality** -- Phases 13-16 (shipped 2026-04-21)
+- 🚧 **v1.3 Observability & Operations** -- Phases 17-23 (started 2026-04-21)
 
 ## Phases
 
@@ -48,9 +49,17 @@ Full details: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md)
 
 </details>
 
-### Next Milestone
+### Active Milestone: v1.3 Observability & Operations
 
-To scope the next milestone (v1.3), run `/gsd:new-milestone`.
+- [ ] Phase 17: Observability Ports & OTEL Bootstrap (0/0 plans)
+- [ ] Phase 18: Error Tracking Adapters (0/0 plans)
+- [ ] Phase 19: Context, Logging & HTTP/CQRS Tracing (0/0 plans)
+- [ ] Phase 20: BullMQ Trace Propagation (0/0 plans)
+- [ ] Phase 21: OTEL Adapters + Grafana Observability Stack (0/0 plans)
+- [ ] Phase 22: Admin Ops Tooling (0/0 plans)
+- [ ] Phase 23: Runbooks, Alert Templates & Observability Docs (0/0 plans)
+
+Full details: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md)
 
 ## Progress
 
@@ -72,3 +81,10 @@ To scope the next milestone (v1.3), run `/gsd:new-milestone`.
 | 14. Unit Tests | v1.2 | 6/6 | Complete | 2026-04-17 |
 | 15. Developer Documentation | v1.2 | 6/6 | Complete | 2026-04-18 |
 | 16. v1.2 Content Drift Fixes | v1.2 | 3/3 | Complete | 2026-04-19 |
+| 17. Observability Ports & OTEL Bootstrap | v1.3 | 0/0 | Not started | - |
+| 18. Error Tracking Adapters | v1.3 | 0/0 | Not started | - |
+| 19. Context, Logging & HTTP/CQRS Tracing | v1.3 | 0/0 | Not started | - |
+| 20. BullMQ Trace Propagation | v1.3 | 0/0 | Not started | - |
+| 21. OTEL Adapters + Grafana Observability Stack | v1.3 | 0/0 | Not started | - |
+| 22. Admin Ops Tooling | v1.3 | 0/0 | Not started | - |
+| 23. Runbooks, Alert Templates & Observability Docs | v1.3 | 0/0 | Not started | - |

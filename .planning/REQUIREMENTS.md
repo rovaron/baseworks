@@ -90,44 +90,56 @@ Explicitly excluded. Documented to prevent scope creep.
 
 ## Traceability
 
-Which phases cover which requirements. Populated during roadmap creation.
+Which phases cover which requirements. Populated during roadmap creation (2026-04-21).
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| OBS-01 | Phase — | Pending |
-| OBS-02 | Phase — | Pending |
-| OBS-03 | Phase — | Pending |
-| OBS-04 | Phase — | Pending |
-| ERR-01 | Phase — | Pending |
-| ERR-02 | Phase — | Pending |
-| ERR-03 | Phase — | Pending |
-| ERR-04 | Phase — | Pending |
-| CTX-01 | Phase — | Pending |
-| CTX-02 | Phase — | Pending |
-| CTX-03 | Phase — | Pending |
-| CTX-04 | Phase — | Pending |
-| TRC-01 | Phase — | Pending |
-| TRC-02 | Phase — | Pending |
-| TRC-03 | Phase — | Pending |
-| MET-01 | Phase — | Pending |
-| MET-02 | Phase — | Pending |
-| MET-03 | Phase — | Pending |
-| OPS-01 | Phase — | Pending |
-| OPS-02 | Phase — | Pending |
-| OPS-03 | Phase — | Pending |
-| OPS-04 | Phase — | Pending |
-| DOC-01 | Phase — | Pending |
-| DOC-02 | Phase — | Pending |
-| DOC-03 | Phase — | Pending |
-| DOC-04 | Phase — | Pending |
-| EXT-01 | Phase — | Pending |
-| EXT-02 | Phase — | Pending |
+| OBS-01 | Phase 17 | Pending |
+| OBS-02 | Phase 17 | Pending |
+| OBS-03 | Phase 17 | Pending |
+| OBS-04 | Phase 17 | Pending |
+| ERR-01 | Phase 18 | Pending |
+| ERR-02 | Phase 18 | Pending |
+| ERR-03 | Phase 18 | Pending |
+| ERR-04 | Phase 18 | Pending |
+| CTX-01 | Phase 19 | Pending |
+| CTX-02 | Phase 19 | Pending |
+| CTX-03 | Phase 19 | Pending |
+| CTX-04 | Phase 20 | Pending |
+| TRC-01 | Phase 19 | Pending |
+| TRC-02 | Phase 19 | Pending |
+| TRC-03 | Phase 20 | Pending |
+| MET-01 | Phase 21 | Pending |
+| MET-02 | Phase 21 | Pending |
+| MET-03 | Phase 21 | Pending |
+| OPS-01 | Phase 22 | Pending |
+| OPS-02 | Phase 22 | Pending |
+| OPS-03 | Phase 22 | Pending |
+| OPS-04 | Phase 22 | Pending |
+| DOC-01 | Phase 21 | Pending |
+| DOC-02 | Phase 21 | Pending |
+| DOC-03 | Phase 23 | Pending |
+| DOC-04 | Phase 23 | Pending |
+| EXT-01 | Phase 18 | Pending |
+| EXT-02 | Phase 22 | Pending |
 
 **Coverage:**
 - v1.3 requirements: 28 total
-- Mapped to phases: 0 (pending roadmap creation)
-- Unmapped: 28 ⚠️
+- Mapped to phases: 28 ✓
+- Unmapped: 0
+
+**Phase distribution:**
+
+| Phase | Requirements | Count |
+|-------|--------------|-------|
+| 17 | OBS-01, OBS-02, OBS-03, OBS-04 | 4 |
+| 18 | ERR-01, ERR-02, ERR-03, ERR-04, EXT-01 | 5 |
+| 19 | CTX-01, CTX-02, CTX-03, TRC-01, TRC-02 | 5 |
+| 20 | CTX-04, TRC-03 | 2 |
+| 21 | MET-01, MET-02, MET-03, DOC-01, DOC-02 | 5 |
+| 22 | OPS-01, OPS-02, OPS-03, OPS-04, EXT-02 | 5 |
+| 23 | DOC-03, DOC-04 | 2 |
 
 ---
 *Requirements defined: 2026-04-21*
-*Last updated: 2026-04-21 after initial definition*
+*Last updated: 2026-04-21 after roadmap creation — traceability populated*
