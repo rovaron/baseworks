@@ -8,20 +8,11 @@ A production-grade monorepo starter kit for SaaS and freelance projects. Provide
 
 Clone, configure, and start building a multitenant SaaS in minutes — not weeks.
 
-## Current Milestone: v1.2 Documentation & Quality
-
-**Goal:** Annotate the entire codebase with comprehensive JSDoc, increase test coverage with high-quality unit tests, and create in-repo developer documentation covering configuration, testing, and third-party integrations.
-
-**Target features:**
-- Comprehensive JSDoc annotations across all source files (backend, frontend, shared packages)
-- High-quality unit tests increasing coverage across the full stack
-- In-repo developer documentation: configuration guides, testing guides, third-party integration docs
-
 ## Current State
 
-**Shipped:** v1.1 Polish & Extensibility (2026-04-16)
-**Codebase:** ~16K lines TypeScript across apps/packages
-**Tech stack:** Bun + Elysia + Drizzle + PostgreSQL + BullMQ + Redis + Next.js 15 + Vite + React 19 + shadcn/ui + Tailwind 4 + better-auth + Stripe + Pagar.me + Docker + pino + next-intl + react-i18next
+**Shipped:** v1.2 Documentation & Quality (2026-04-21)
+**Codebase:** ~20K lines TypeScript across apps/packages
+**Tech stack:** Bun + Elysia + Drizzle + PostgreSQL + BullMQ + Redis + Next.js 15 + Vite + React 19 + shadcn/ui + Tailwind 4 + better-auth + Stripe + Pagar.me + Docker + pino + next-intl + react-i18next + Vitest (jsdom)
 
 **What's working:**
 - Config-driven module registry loads modules, routes commands/queries through CQRS, emits domain events
@@ -40,9 +31,11 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 - Docker multi-stage builds for API/worker/admin, Docker Compose orchestration
 - Vercel-ready Next.js deployment configuration
 - Health check endpoints with dependency status, structured pino logging with request tracing
-- JSDoc annotations across all public APIs (Phase 13 complete)
-- Unit tests: 126 tests across 28 files covering CQRS handlers, core infrastructure, auth, billing, and adapters (Phase 14 complete)
-- Developer documentation: configuration guides, testing guides, third-party integration docs (Phase 15 complete; content-drift corrections from the v1.2 milestone audit applied in Phase 16)
+- Comprehensive JSDoc annotations across every exported API (packages/shared, packages/db, auth, billing, example module, core infrastructure) with a canonical style guide at `docs/jsdoc-style-guide.md`
+- Unit test coverage for every CQRS handler — 8 auth commands + 6 auth queries + 6 billing commands + 2 billing queries, Stripe adapter conformance at parity with Pagar.me, scoped-db edge cases, core infrastructure tests (56/56 auth tests + 21/21 UI tests passing)
+- Two-runner test orchestration via root `bun run test` — `bun test` for non-DOM + `vitest run` for React component a11y tests under jsdom
+- In-repo developer documentation — Getting Started, Architecture Overview (4 Mermaid diagrams), Add-a-Module tutorial, Configuration + Testing guides, and integration docs for better-auth, Stripe/Pagar.me, BullMQ, Resend/React Email (11 pages under `docs/`)
+- `scripts/validate-docs.ts` phase-close validator enforcing forbidden-import, secret-shape, and Mermaid floor invariants
 
 ## Requirements
 
@@ -72,11 +65,13 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 - ✓ Team/org invites — email/link modes, CQRS lifecycle, accept page, role assignment — v1.1
 - ✓ Payment provider abstraction — PaymentProvider port, StripeAdapter, PagarmeAdapter — v1.1
 
+- ✓ Comprehensive JSDoc annotations across all source files — v1.2 (Phase 13)
+- ✓ High-quality unit tests increasing coverage across the full stack — v1.2 (Phase 14; 56/56 auth + 21/21 UI passing at close)
+- ✓ In-repo developer documentation (configuration, testing, third-party integrations) — v1.2 (Phase 15; content-drift gaps closed in Phase 16)
+
 ### Active
 
-- [x] Comprehensive JSDoc annotations across all source files — Validated in Phase 13: JSDoc Annotations
-- [x] High-quality unit tests increasing coverage across the full stack — Validated in Phase 14: Unit Tests
-- [x] In-repo developer documentation (configuration, testing, third-party integrations) — Validated in Phase 15: Developer Documentation; content-drift gaps closed in Phase 16
+(None yet — v1.3 scope to be defined via `/gsd:new-milestone`)
 
 ### Out of Scope
 
@@ -87,8 +82,8 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 - Schema-per-tenant or DB-per-tenant — starting with shared DB, can migrate later
 - Landing page / marketing site — this is a starter kit, not a finished product
 - Real-time / WebSockets — Elysia supports it when needed later
-- Locale-based URL routing, language switcher UI, backend i18n — deferred to v1.2
-- Configurable invite expiration with auto-cleanup — deferred to v1.2
+- Locale-based URL routing, language switcher UI, backend i18n — v1.2 did not pursue these; revisit for v1.3+ if demand emerges
+- Configurable invite expiration with auto-cleanup — v1.2 did not pursue these; revisit for v1.3+ if demand emerges
 
 ## Context
 
@@ -102,7 +97,7 @@ v1.0 shipped in 3 days (2026-04-05 to 2026-04-08) across 116 commits and 5 phase
 
 v1.1 shipped in 6 days (2026-04-08 to 2026-04-14) across 157 commits and 7 phases (24 plans). All 26 v1.1 requirements validated. Added +6,565 lines across 117 files.
 
-Phase 13 complete (2026-04-16) — JSDoc style guide + annotations across all 53 exported files (shared, db, auth, billing, example, core infrastructure). 14 @example blocks, 6 requirements validated.
+v1.2 shipped in 6 days (2026-04-16 to 2026-04-21) across 115 commits and 4 phases (19 plans). All 23 v1.2 requirements validated. Added +5,908 lines across 114 files. Milestone-close work surfaced and fixed three test-infrastructure bugs (Elysia `.mount()` guard against partial mocks, `get-profile` lazy dep resolution for `mock.module()`, `packages/ui` tests routed through Vitest+jsdom), leaving the suite at 56/56 auth + 21/21 UI passing at close.
 
 ## Constraints
 
@@ -136,6 +131,12 @@ Phase 13 complete (2026-04-16) — JSDoc style guide + annotations across all 53
 | PaymentProvider port/adapter pattern | Vendor-agnostic billing; env-based provider selection at startup | ✓ Good — Stripe and Pagar.me adapters work identically |
 | better-auth sendInvitationEmail callback for invites | Hooks into org plugin invite flow; enqueues BullMQ email job with @internal suppression for link mode | ✓ Good — clean integration without custom auth tables |
 | Responsive before a11y, i18n before invites | a11y audits run on final responsive DOM; invite UI ships translated from day one | ✓ Good — avoided rework from incorrect sequencing |
+| JSDoc style guide before volume annotation (v1.2) | A single canonical template prevents divergent JSDoc dialects across modules | ✓ Good — 53 exported files annotated consistently, 14 @example blocks |
+| Two-runner test orchestration: `bun test` + `vitest run` (v1.2) | Bun's test runner has no DOM; UI a11y tests need jsdom. Wiring both via root `bun run test` keeps one command, two environments | ✓ Good — eliminated 22 `ReferenceError: document` failures |
+| Resolve handler deps lazily via `await import()` when mock pollution is possible (v1.2) | Bun's `mock.module()` updates the registry but does not re-run already-evaluated modules. Handlers that capture deps at module-load time are immune to late mocks. Lazy resolution honors later `mock.module()` calls | ✓ Good — `get-profile` test pollution fixed, pattern now matches 4 billing-module callsites |
+| Guard Elysia `.mount()` against partial test mocks (v1.2) | 13 sibling test files register `mock.module("../auth", ...)` with no `.handler`. Guarding the mount site is cheaper than fixing every mock | ✓ Good — zero production impact; tests deterministic |
+| `scripts/validate-docs.ts` as phase-close contract (v1.2) | Docs drift is impossible to catch by eyeball at scale; a structural validator makes the contract enforceable | ✓ Good — content-drift audit before Phase 16 produced a concrete punch list |
+| Phase 16 content-drift fixes (docs-first over code-first) | Chose Option A: revise docs to match live `event-bus-hook` enqueue path rather than retrofit `ctx.enqueue`. Lower risk, preserves the working pattern | ✓ Good — 6 audit gaps closed, no new code paths introduced |
 
 ## Evolution
 
@@ -155,4 +156,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-19 after Phase 16 (v1.2 Content Drift Fixes) complete — Documentation & Quality*
+*Last updated: 2026-04-21 after v1.2 Documentation & Quality milestone shipped*

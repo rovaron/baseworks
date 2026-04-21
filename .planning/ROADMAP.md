@@ -4,12 +4,12 @@
 
 - ✅ **v1.0 MVP** -- Phases 1-5 (shipped 2026-04-08)
 - ✅ **v1.1 Polish & Extensibility** -- Phases 6-12 (shipped 2026-04-16)
-- 🚧 **v1.2 Documentation & Quality** -- Phases 13-15 (in progress)
+- ✅ **v1.2 Documentation & Quality** -- Phases 13-16 (shipped 2026-04-21)
 
 ## Phases
 
 <details>
-<summary>v1.0 MVP (Phases 1-5) -- SHIPPED 2026-04-08</summary>
+<summary>✅ v1.0 MVP (Phases 1-5) -- SHIPPED 2026-04-08</summary>
 
 - [x] Phase 1: Foundation & Core Infrastructure (3/3 plans) -- completed 2026-04-06
 - [x] Phase 2: Auth & Multitenancy (3/3 plans) -- completed 2026-04-06
@@ -22,7 +22,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 </details>
 
 <details>
-<summary>v1.1 Polish & Extensibility (Phases 6-12) -- SHIPPED 2026-04-16</summary>
+<summary>✅ v1.1 Polish & Extensibility (Phases 6-12) -- SHIPPED 2026-04-16</summary>
 
 - [x] Phase 6: Responsive Layouts (3/3 plans) -- completed 2026-04-08
 - [x] Phase 7: Accessibility (4/4 plans) -- completed 2026-04-09
@@ -36,98 +36,23 @@ Full details: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md)
 
 </details>
 
-### 🚧 v1.2 Documentation & Quality (In Progress)
+<details>
+<summary>✅ v1.2 Documentation & Quality (Phases 13-16) -- SHIPPED 2026-04-21</summary>
 
-**Milestone Goal:** Annotate the entire codebase with comprehensive JSDoc, increase test coverage with high-quality unit tests, and create in-repo developer documentation covering configuration, testing, and third-party integrations.
+- [x] Phase 13: JSDoc Annotations (4/4 plans) -- completed 2026-04-16
+- [x] Phase 14: Unit Tests (6/6 plans) -- completed 2026-04-17
+- [x] Phase 15: Developer Documentation (6/6 plans) -- completed 2026-04-18
+- [x] Phase 16: v1.2 Content Drift Fixes (3/3 plans) -- completed 2026-04-19
 
-- [x] **Phase 13: JSDoc Annotations** - Establish behavior contracts on all public APIs with standardized JSDoc and a style guide (completed 2026-04-16)
-- [x] **Phase 14: Unit Tests** - Verify contracts with handler-level tests across auth, billing, core, and adapters (completed 2026-04-17)
-- [x] **Phase 15: Developer Documentation** - Create in-repo guides referencing the now-documented, now-tested codebase (completed 2026-04-18)
-- [x] **Phase 16: v1.2 Content Drift Fixes** - Close 6 content-drift gaps (2 FAIL + 4 WARN) flagged by the v1.2 milestone audit (completed 2026-04-19)
+Full details: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md)
 
-## Phase Details
+</details>
 
-### Phase 13: JSDoc Annotations
-**Goal**: Every exported function, type, and handler has standardized JSDoc that documents intent and contracts -- not restating TypeScript signatures
-**Depends on**: Phase 12 (v1.1 complete)
-**Requirements**: JSDOC-01, JSDOC-02, JSDOC-03, JSDOC-04, JSDOC-05, JSDOC-06
-**Success Criteria** (what must be TRUE):
-  1. A JSDoc style guide exists with good/bad examples and Biome compatibility is validated
-  2. All exported types, interfaces, and schemas in packages/shared, packages/db, and module ports have JSDoc describing purpose and constraints
-  3. All CQRS command and query handlers have standardized JSDoc documenting purpose, params, returns, and (for commands) events emitted
-  4. Core infrastructure methods (CqrsBus, EventBus, ModuleRegistry, middleware) have method-level JSDoc
-  5. At least 10 key functions have `@example` blocks demonstrating usage
-**Plans:** 4/4 plans complete
+### Next Milestone
 
-Plans:
-- [x] 13-01-PLAN.md -- Style guide + packages/shared + packages/db annotations
-- [x] 13-02-PLAN.md -- Auth module handlers and supporting files
-- [x] 13-03-PLAN.md -- Billing module + example module annotations
-- [x] 13-04-PLAN.md -- Core infrastructure (CqrsBus, EventBus, Registry, middleware)
-
-### Phase 14: Unit Tests
-**Goal**: CQRS handlers and core infrastructure have unit tests that verify behavior contracts, with test runner boundaries documented and test utilities established
-**Depends on**: Phase 13
-**Requirements**: TEST-01, TEST-02, TEST-03, TEST-04, TEST-05, TEST-06, TEST-07, TEST-08
-**Success Criteria** (what must be TRUE):
-  1. All 8 auth command handlers have unit tests verifying success paths and error cases
-  2. All 6 auth query handlers have unit tests verifying data retrieval and not-found cases
-  3. All 6 billing command handlers and 2 billing query handlers have unit tests
-  4. Stripe adapter has conformance tests at parity with existing Pagar.me adapter test suite
-  5. Scoped-db edge cases (cross-tenant prevention, empty tenant) and core infrastructure edge cases (registry, CQRS bus, event bus) are tested
-**Plans:** 6/6 plans complete
-
-Plans:
-- [x] 14-01-PLAN.md -- Test utilities (mock factories, assertion helpers) + create-tenant validation
-- [x] 14-02-PLAN.md -- Core infrastructure, scoped-db, and config edge case tests
-- [x] 14-03-PLAN.md -- Auth command handler tests (8 handlers) + old file cleanup
-- [x] 14-04-PLAN.md -- Auth query handler tests (6 handlers)
-- [x] 14-05-PLAN.md -- Billing handler tests (8 handlers) + Stripe adapter conformance
-- [x] 14-06-PLAN.md -- Gap closure: fix assertResultOk/assertResultErr void-return bug (37 test failures)
-
-### Phase 15: Developer Documentation
-**Goal**: A new developer can clone the repo, understand the architecture, run the project, add a module, and configure integrations by reading in-repo documentation alone
-**Depends on**: Phase 14
-**Requirements**: DOCS-01, DOCS-02, DOCS-03, DOCS-04, DOCS-05, DOCS-06, DOCS-07, DOCS-08, DOCS-09
-**Success Criteria** (what must be TRUE):
-  1. A Getting Started guide walks through prerequisites, install, env setup, dev server, and running tests
-  2. An Architecture Overview with Mermaid diagrams explains the module system, CQRS flow, request lifecycle, and tenant scoping
-  3. An "Add a Module" step-by-step tutorial uses the example module as reference to create a new module from scratch
-  4. Configuration and testing guides cover env vars, module config, provider selection, test runner split, mock patterns, and how to test commands/queries
-  5. Integration docs for better-auth, Stripe/Pagar.me billing, BullMQ queues, and Resend/React Email each explain setup, customization, and extension points
-**Plans:** 6/6 plans complete
-
-Plans:
-- [x] 15-01-PLAN.md -- Info architecture + docs/README.md index (tone/citation/Mermaid contracts)
-- [x] 15-02-PLAN.md -- Extend example module (D-05): event emission, BullMQ job handler, Wave 0 tests
-- [x] 15-03-PLAN.md -- DOCS-01 Getting Started + DOCS-02 Architecture Overview (4 Mermaid diagrams)
-- [x] 15-04-PLAN.md -- DOCS-03 Add-a-Module tutorial + DOCS-04 Configuration + DOCS-05 Testing
-- [x] 15-05-PLAN.md -- DOCS-06..09 Integration docs (better-auth, billing, BullMQ, email)
-- [x] 15-06-PLAN.md -- Gap closure: `scripts/validate-docs.ts` phase-close validator (Plan 15-05 Task 5 residual)
-
-### Phase 16: v1.2 Content Drift Fixes
-**Goal**: Eliminate content drift between v1.2 docs/tests and live code flagged by the v1.2 milestone audit -- every cited code symbol, path, and count matches reality; test convention is uniform across auth handlers
-**Depends on**: Phase 15
-**Requirements**: DOCS-02, DOCS-05, DOCS-06, DOCS-07, DOCS-08, TEST-02
-**Gap Closure**: Closes 6 integration gaps from `.planning/v1.2-MILESTONE-AUDIT.md` (2 FAIL + 4 WARN)
-**Success Criteria** (what must be TRUE):
-  1. `docs/integrations/better-auth.md:29` no longer claims the auth module is registered in `apps/api/src/worker.ts` (DOCS-06 FAIL)
-  2. `docs/integrations/bullmq.md` and `docs/architecture.md` describe the real enqueue path -- either revised to match the event-bus-hook pattern at `packages/modules/example/src/hooks/on-example-created.ts`, OR `ctx.enqueue` is wired into the `handlerCtx` derive at `apps/api/src/index.ts:104-118` so the documented API exists (DOCS-08 FAIL + DOCS-02 WARN; decision deferred to plan time)
-  3. `docs/integrations/billing.md:47` states PaymentProvider port has 13 members (12 methods + 1 readonly `name`), matching `mock-payment-provider.ts` JSDoc (DOCS-07 WARN)
-  4. `docs/testing.md:39` distinguishes `ScopedDb.select(table)` (one-shot) from raw Drizzle chainable `select().from().where().limit()` so `createMockDb` description matches the shape it actually mocks (DOCS-05 WARN)
-  5. `packages/modules/auth/src/__tests__/get-tenant.test.ts` uses the canonical `createMockContext` from `packages/modules/__test-utils__/mock-context.ts`, with its local `createMockCtx` helper removed (TEST-02 WARN)
-
-**Plans:** 3/3 plans complete
-
-Plans:
-- [x] 16-01-PLAN.md -- DOCS-06 + DOCS-07 + DOCS-05 prose fixes (better-auth.md, billing.md, testing.md)
-- [x] 16-02-PLAN.md -- DOCS-02 + DOCS-08 Mermaid + prose revisions (bullmq.md, architecture.md) — Option A: revise docs to match event-bus-hook live code
-- [x] 16-03-PLAN.md -- TEST-02 convention fix (get-tenant.test.ts → canonical createMockContext)
+To scope the next milestone (v1.3), run `/gsd:new-milestone`.
 
 ## Progress
-
-**Execution Order:**
-Phases execute in numeric order: 13 -> 14 -> 15 -> 16
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -143,7 +68,7 @@ Phases execute in numeric order: 13 -> 14 -> 15 -> 16
 | 10. Payment Abstraction | v1.1 | 4/4 | Complete | 2026-04-11 |
 | 11. Accessibility Gap Closure | v1.1 | 2/2 | Complete | 2026-04-14 |
 | 12. i18n Hardcoded String Cleanup | v1.1 | 3/3 | Complete | 2026-04-14 |
-| 13. JSDoc Annotations | v1.2 | 4/4 | Complete    | 2026-04-16 |
-| 14. Unit Tests | v1.2 | 6/6 | Complete    | 2026-04-17 |
-| 15. Developer Documentation | v1.2 | 6/6 | Complete   | 2026-04-18 |
-| 16. v1.2 Content Drift Fixes | v1.2 | 3/3 | Complete    | 2026-04-19 |
+| 13. JSDoc Annotations | v1.2 | 4/4 | Complete | 2026-04-16 |
+| 14. Unit Tests | v1.2 | 6/6 | Complete | 2026-04-17 |
+| 15. Developer Documentation | v1.2 | 6/6 | Complete | 2026-04-18 |
+| 16. v1.2 Content Drift Fixes | v1.2 | 3/3 | Complete | 2026-04-19 |

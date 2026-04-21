@@ -1,5 +1,32 @@
 # Milestones
 
+## v1.2 Documentation & Quality (Shipped: 2026-04-21)
+
+**Phases completed:** 4 phases (13-16), 19 plans
+
+**Stats:**
+- Files modified: 114
+- Lines changed: +5,908 / −312
+- Git commits: 115 (22e7738 → ef2fcaa range)
+- Timeline: 6 days (2026-04-16 → 2026-04-21)
+- Requirements: 23/23 v1.2 requirements validated
+- Test files: 43 total, 56/56 auth tests + 21/21 UI tests passing at close
+
+**Key accomplishments:**
+
+- JSDoc style guide (`docs/jsdoc-style-guide.md`) + comprehensive annotations across packages/shared, packages/db, auth module (8 commands + 6 queries), billing module (6 commands + 2 queries), example module, and core infrastructure (CqrsBus, EventBus, ModuleRegistry, middleware) — every exported symbol documents intent and contracts, not TypeScript signatures
+- Unit test coverage for every CQRS handler — 8 auth commands + 6 auth queries + 6 billing commands + 2 billing queries, plus Stripe adapter conformance tests at parity with Pagar.me, scoped-db cross-tenant prevention, and core infrastructure edge cases
+- Canonical `createMockContext` helper at `packages/modules/__test-utils__/mock-context.ts` — unified test convention across auth handlers
+- In-repo developer documentation — Getting Started, Architecture Overview (4 Mermaid diagrams), Add-a-Module tutorial, Configuration + Testing guides, and integration docs for better-auth, Stripe/Pagar.me, BullMQ, Resend/React Email (11 doc pages total)
+- Example module extended (D-05) — event emission + BullMQ job handler + Wave 0 tests, serving as the canonical "how to build a module" reference
+- `scripts/validate-docs.ts` phase-close validator — enforces forbidden-import, secret-shape, and Mermaid floor invariants to prevent docs drift
+- Phase 16 content-drift cleanup — closed 6 audit gaps (2 FAIL + 4 WARN) so every cited symbol / path / count matches live code
+- Milestone-close bug fixes — guarded Elysia `.mount()` against partial test mocks (`auth-setup-elysia-mount`); resolved `get-profile` deps lazily so `mock.module()` from later test files is honored (`get-profile-test-pollution`); routed `packages/ui` tests through Vitest+jsdom eliminating 22 `ReferenceError: document` failures (quick task 260420-a4t)
+
+**Known deferred items at close:** 0 (all open artifacts resolved during close workflow)
+
+---
+
 ## v1.1 Polish & Extensibility (Shipped: 2026-04-16)
 
 **Phases completed:** 7 phases, 24 plans, 33 tasks

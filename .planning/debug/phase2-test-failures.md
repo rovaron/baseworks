@@ -1,13 +1,14 @@
 ---
-status: awaiting_human_verify
+status: resolved
 trigger: "10 tests fail across 2 test files after Phase 2 changed tenant middleware from x-tenant-id header to session-based auth."
 created: 2026-04-06T00:00:00Z
 updated: 2026-04-06T00:00:00Z
+resolved: 2026-04-06T00:00:00Z
 ---
 
 ## Current Focus
 
-hypothesis: TWO distinct root causes confirmed — see Evidence
+hypothesis: TWO distinct root causes confirmed — see Evidence (resolved; see Resolution section below — `bun test` 83 pass / 0 fail)
 test: All evidence gathered from code reading and test runs
 expecting: Fixes to both test files will resolve all 9 failures (count revised from 10 to 9)
 next_action: Fix both issues
