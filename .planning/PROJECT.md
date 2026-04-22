@@ -69,6 +69,8 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 - ✓ High-quality unit tests increasing coverage across the full stack — v1.2 (Phase 14; 56/56 auth + 21/21 UI passing at close)
 - ✓ In-repo developer documentation (configuration, testing, third-party integrations) — v1.2 (Phase 15; content-drift gaps closed in Phase 16)
 
+- ✓ Observability ports (Tracer / MetricsProvider / ErrorTracker) with Noop adapters + env-selected factory + OTEL NodeSDK bootstrapped line-1 in apps/api entrypoints — v1.3 (Phase 17; OBS-01..04)
+
 ### Active
 
 **Milestone v1.3: Observability & Operations**
@@ -161,6 +163,8 @@ v1.2 shipped in 6 days (2026-04-16 to 2026-04-21) across 115 commits and 4 phase
 | Guard Elysia `.mount()` against partial test mocks (v1.2) | 13 sibling test files register `mock.module("../auth", ...)` with no `.handler`. Guarding the mount site is cheaper than fixing every mock | ✓ Good — zero production impact; tests deterministic |
 | `scripts/validate-docs.ts` as phase-close contract (v1.2) | Docs drift is impossible to catch by eyeball at scale; a structural validator makes the contract enforceable | ✓ Good — content-drift audit before Phase 16 produced a concrete punch list |
 | Phase 16 content-drift fixes (docs-first over code-first) | Chose Option A: revise docs to match live `event-bus-hook` enqueue path rather than retrofit `ctx.enqueue`. Lower risk, preserves the working pattern | ✓ Good — 6 audit gaps closed, no new code paths introduced |
+| Phase 17 OTEL bootstrap: `NodeSDK` without `traceExporter` + dynamic `await import("@baseworks/config")` after `sdk.start()` (v1.3) | Zero-exporter keeps default-noop posture (T-17-03 noop egress); dynamic import preserves D-06 — config load must not run before OTEL patches require/import | ✓ Good — subprocess smoke tests confirm `otel-selftest: ok` with zero outbound traffic; all 4 instrumentation subtests pass |
+| Phase 17 `INSTANCE_ROLE` strict `'api' \| 'worker'` union, default 'api' (v1.3) | Two-role model matches Baseworks deployment reality; dropping the speculative 'all' role avoids a leaky abstraction ahead of real need | ✓ Good — role-branched instrumentation matrix cleanly gates HTTP to api only |
 
 ## Evolution
 
@@ -180,4 +184,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-21 after v1.3 Observability & Operations milestone started*
+*Last updated: 2026-04-22 after Phase 17 (Observability Ports & OTEL Bootstrap) completed — OBS-01..04 satisfied*
