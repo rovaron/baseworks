@@ -19,6 +19,8 @@
       "@baseworks/shared/*": ["./packages/shared/src/*"],
       "@baseworks/config": ["./packages/config/src"],
       "@baseworks/config/*": ["./packages/config/src/*"],
+      "@baseworks/observability": ["./packages/observability/src"],
+      "@baseworks/observability/*": ["./packages/observability/src/*"],
       "@baseworks/module-*": ["./packages/modules/*/src"],
       "@baseworks/ui": ["./packages/ui/src"],
       "@baseworks/ui/*": ["./packages/ui/src/*"],
