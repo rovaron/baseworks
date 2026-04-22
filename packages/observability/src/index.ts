@@ -18,3 +18,16 @@ export type {
   CaptureScope,
 } from "./ports/error-tracker";
 export { NoopErrorTracker } from "./adapters/noop/noop-error-tracker";
+
+// Env-selected singleton factories (Plan 17-02).
+export {
+  getTracer,
+  setTracer,
+  resetTracer,
+  getMetrics,
+  setMetrics,
+  resetMetrics,
+  getErrorTracker,
+  setErrorTracker,
+  resetErrorTracker,
+} from "./factory";
