@@ -1,3 +1,4 @@
+import "./telemetry";
 import { env, assertRedisUrl, validatePaymentProviderEnv } from "@baseworks/config";
 import { createDb } from "@baseworks/db";
 import { createWorker, closeConnection } from "@baseworks/queue";
