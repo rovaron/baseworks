@@ -25,6 +25,14 @@ const serverSchema = {
   STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
   PAGARME_SECRET_KEY: z.string().min(1).optional(),
   PAGARME_WEBHOOK_SECRET: z.string().min(1).optional(),
+  // Observability adapter ports (Phase 17 / OBS-04 / D-07).
+  // All default to "noop" — Phase 17 ships noop-only; Phase 18 widens
+  // ERROR_TRACKER to include pino/sentry/glitchtip + adds SENTRY_DSN/GLITCHTIP_DSN;
+  // Phase 21 widens TRACER and METRICS_PROVIDER to include "otel" + adds
+  // OTEL_EXPORTER_OTLP_ENDPOINT.
+  TRACER: z.enum(["noop"]).optional().default("noop"),
+  METRICS_PROVIDER: z.enum(["noop"]).optional().default("noop"),
+  ERROR_TRACKER: z.enum(["noop"]).optional().default("noop"),
   RESEND_API_KEY: z.string().min(1).optional(),
   WEB_URL: z.string().url().default("http://localhost:3000"),
   ADMIN_URL: z.string().url().default("http://localhost:5173"),
@@ -80,6 +88,48 @@ export function validatePaymentProviderEnv(): void {
           "Set STRIPE_SECRET_KEY in your environment.",
       );
     }
+  }
+}
+
+/**
+ * Validate that the required observability secrets are present for the
+ * currently-selected adapter. Must be called at startup (after `sdk.start()`
+ * per D-06) to prevent runtime crashes on first observability operation.
+ *
+ * Phase 17 ships with all three ports defaulting to "noop" — no required
+ * keys, so this function effectively does nothing today. Phase 18 fills in
+ * the SENTRY_DSN / GLITCHTIP_DSN branches for ERROR_TRACKER. Phase 21 fills
+ * in the OTEL_EXPORTER_OTLP_ENDPOINT branches for TRACER + METRICS_PROVIDER.
+ *
+ * Mirrors validatePaymentProviderEnv() — same crash-hard discipline, same
+ * per-adapter switch shape (D-08, D-09).
+ *
+ * @throws Error if a selected adapter is missing its required env keys
+ */
+export function validateObservabilityEnv(): void {
+  // ERROR_TRACKER branch — Phase 17 only supports "noop", which has no required keys.
+  // Phase 18 will add: case "pino": (no-op), case "sentry": require SENTRY_DSN, etc.
+  switch (env.ERROR_TRACKER ?? "noop") {
+    case "noop":
+      break;
+    // Phase 18 inserts pino/sentry/glitchtip cases here.
+    // default arm intentionally omitted — Zod enum already rejects unknown values
+    // at env-import time, mirroring validatePaymentProviderEnv() which trusts
+    // its enum-typed PAYMENT_PROVIDER for the same reason.
+  }
+
+  // TRACER branch — Phase 17 noop only.
+  switch (env.TRACER ?? "noop") {
+    case "noop":
+      break;
+    // Phase 21 inserts case "otel": require OTEL_EXPORTER_OTLP_ENDPOINT.
+  }
+
+  // METRICS_PROVIDER branch — Phase 17 noop only.
+  switch (env.METRICS_PROVIDER ?? "noop") {
+    case "noop":
+      break;
+    // Phase 21 inserts case "otel": require OTEL_EXPORTER_OTLP_ENDPOINT.
   }
 }
 
