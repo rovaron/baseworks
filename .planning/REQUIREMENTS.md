@@ -9,10 +9,10 @@
 
 ### OBS — Observability Ports & Bootstrap
 
-- [ ] **OBS-01**: Operator can use a typed `ErrorTracker` port with a Noop adapter that mirrors the GlitchTip API surface (capture exception/message/breadcrumb/context) and is factory-selected at startup by `@t3-oss/env-core` config
-- [ ] **OBS-02**: Operator can use a typed `MetricsProvider` port (counter/histogram/gauge) with a Noop adapter, factory-selected at startup
-- [ ] **OBS-03**: Operator can use a typed `Tracer` port (startSpan/withSpan/inject/extract) with a Noop adapter, factory-selected at startup
-- [ ] **OBS-04**: Operator sees the OTEL SDK bootstrapped as the first-imports in `apps/api` and `apps/worker` entrypoints (programmatic `NodeSDK`, no `--require`), with a Bun smoke-test gate in CI verifying each auto-instrumentation loads without crashing
+- [x] **OBS-01**: Operator can use a typed `ErrorTracker` port with a Noop adapter that mirrors the GlitchTip API surface (capture exception/message/breadcrumb/context) and is factory-selected at startup by `@t3-oss/env-core` config
+- [x] **OBS-02**: Operator can use a typed `MetricsProvider` port (counter/histogram/gauge) with a Noop adapter, factory-selected at startup
+- [x] **OBS-03**: Operator can use a typed `Tracer` port (startSpan/withSpan/inject/extract) with a Noop adapter, factory-selected at startup
+- [x] **OBS-04**: Operator sees the OTEL SDK bootstrapped as the first-imports in `apps/api` and `apps/worker` entrypoints (programmatic `NodeSDK`, no `--require`), with a Bun smoke-test gate in CI verifying each auto-instrumentation loads without crashing
 
 ### ERR — Error Tracking
 
@@ -94,10 +94,10 @@ Which phases cover which requirements. Populated during roadmap creation (2026-0
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| OBS-01 | Phase 17 | Pending |
-| OBS-02 | Phase 17 | Pending |
-| OBS-03 | Phase 17 | Pending |
-| OBS-04 | Phase 17 | Pending |
+| OBS-01 | Phase 17 | Satisfied (2026-04-22) |
+| OBS-02 | Phase 17 | Satisfied (2026-04-22) |
+| OBS-03 | Phase 17 | Satisfied (2026-04-22) |
+| OBS-04 | Phase 17 | Satisfied (2026-04-22) |
 | ERR-01 | Phase 18 | Pending |
 | ERR-02 | Phase 18 | Pending |
 | ERR-03 | Phase 18 | Pending |
