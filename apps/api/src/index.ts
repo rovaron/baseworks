@@ -1,3 +1,4 @@
+import "./telemetry";
 import { env, validatePaymentProviderEnv } from "@baseworks/config";
 import { createDb, scopedDb } from "@baseworks/db";
 import type { HandlerContext } from "@baseworks/shared";
