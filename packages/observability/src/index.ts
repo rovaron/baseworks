@@ -5,3 +5,7 @@ export type { Attributes, TraceCarrier, LogLevel } from "./ports/types";
 // Tracer port + Noop adapter (Task 17-01-01).
 export type { Tracer, Span, SpanOptions } from "./ports/tracer";
 export { NoopTracer } from "./adapters/noop/noop-tracer";
+
+// MetricsProvider port + Noop adapter (Task 17-01-02).
+export type { MetricsProvider, Counter, Histogram, Gauge } from "./ports/metrics";
+export { NoopMetricsProvider } from "./adapters/noop/noop-metrics";
