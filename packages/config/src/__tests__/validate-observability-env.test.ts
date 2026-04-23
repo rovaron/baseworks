@@ -103,6 +103,201 @@ describe("validateObservabilityEnv (OBS-04 / D-07 / D-09)", () => {
   // process?" — which is the boot smoke test's job, not this file's.
 });
 
+describe("validateObservabilityEnv ERROR_TRACKER crash-hard (Phase 18 / D-09)", () => {
+  test("throws when ERROR_TRACKER=sentry without SENTRY_DSN in production", async () => {
+    const proc = Bun.spawn(
+      [
+        "bun",
+        "-e",
+        'import { validateObservabilityEnv } from "@baseworks/config"; validateObservabilityEnv(); console.log("OK")',
+      ],
+      {
+        env: {
+          ...baseEnv,
+          NODE_ENV: "production",
+          ERROR_TRACKER: "sentry",
+          // No SENTRY_DSN
+        },
+        stdout: "pipe",
+        stderr: "pipe",
+        cwd: import.meta.dir + "/../../..",
+      },
+    );
+
+    const exitCode = await proc.exited;
+    const stderr = await new Response(proc.stderr).text();
+
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toContain("SENTRY_DSN is required when ERROR_TRACKER=sentry");
+  });
+
+  test("throws when ERROR_TRACKER=glitchtip without GLITCHTIP_DSN in production", async () => {
+    const proc = Bun.spawn(
+      [
+        "bun",
+        "-e",
+        'import { validateObservabilityEnv } from "@baseworks/config"; validateObservabilityEnv(); console.log("OK")',
+      ],
+      {
+        env: {
+          ...baseEnv,
+          NODE_ENV: "production",
+          ERROR_TRACKER: "glitchtip",
+          // No GLITCHTIP_DSN
+        },
+        stdout: "pipe",
+        stderr: "pipe",
+        cwd: import.meta.dir + "/../../..",
+      },
+    );
+
+    const exitCode = await proc.exited;
+    const stderr = await new Response(proc.stderr).text();
+
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toContain(
+      "GLITCHTIP_DSN is required when ERROR_TRACKER=glitchtip",
+    );
+  });
+
+  test("does not throw when ERROR_TRACKER=pino (no required env)", async () => {
+    const proc = Bun.spawn(
+      [
+        "bun",
+        "-e",
+        'import { validateObservabilityEnv } from "@baseworks/config"; validateObservabilityEnv(); console.log("OK")',
+      ],
+      {
+        env: {
+          ...baseEnv,
+          NODE_ENV: "production",
+          ERROR_TRACKER: "pino",
+        },
+        stdout: "pipe",
+        stderr: "pipe",
+        cwd: import.meta.dir + "/../../..",
+      },
+    );
+
+    const exitCode = await proc.exited;
+    const stdout = await new Response(proc.stdout).text();
+
+    expect(exitCode).toBe(0);
+    expect(stdout.trim()).toContain("OK");
+  });
+
+  test("does not throw when ERROR_TRACKER=noop (existing behavior preserved)", async () => {
+    const proc = Bun.spawn(
+      [
+        "bun",
+        "-e",
+        'import { validateObservabilityEnv } from "@baseworks/config"; validateObservabilityEnv(); console.log("OK")',
+      ],
+      {
+        env: {
+          ...baseEnv,
+          NODE_ENV: "production",
+          ERROR_TRACKER: "noop",
+        },
+        stdout: "pipe",
+        stderr: "pipe",
+        cwd: import.meta.dir + "/../../..",
+      },
+    );
+
+    const exitCode = await proc.exited;
+    const stdout = await new Response(proc.stdout).text();
+
+    expect(exitCode).toBe(0);
+    expect(stdout.trim()).toContain("OK");
+  });
+
+  test("warns but does not throw when ERROR_TRACKER=sentry missing DSN in NODE_ENV=test", async () => {
+    const proc = Bun.spawn(
+      [
+        "bun",
+        "-e",
+        'import { validateObservabilityEnv } from "@baseworks/config"; validateObservabilityEnv(); console.log("OK")',
+      ],
+      {
+        env: {
+          ...baseEnv,
+          NODE_ENV: "test",
+          ERROR_TRACKER: "sentry",
+          // No SENTRY_DSN
+        },
+        stdout: "pipe",
+        stderr: "pipe",
+        cwd: import.meta.dir + "/../../..",
+      },
+    );
+
+    const exitCode = await proc.exited;
+    const stdout = await new Response(proc.stdout).text();
+    const stderr = await new Response(proc.stderr).text();
+
+    expect(exitCode).toBe(0);
+    expect(stdout.trim()).toContain("OK");
+    expect(stderr).toContain("[env] WARNING: SENTRY_DSN is not set");
+  });
+
+  test("warns but does not throw when ERROR_TRACKER=glitchtip missing DSN in NODE_ENV=test", async () => {
+    const proc = Bun.spawn(
+      [
+        "bun",
+        "-e",
+        'import { validateObservabilityEnv } from "@baseworks/config"; validateObservabilityEnv(); console.log("OK")',
+      ],
+      {
+        env: {
+          ...baseEnv,
+          NODE_ENV: "test",
+          ERROR_TRACKER: "glitchtip",
+          // No GLITCHTIP_DSN
+        },
+        stdout: "pipe",
+        stderr: "pipe",
+        cwd: import.meta.dir + "/../../..",
+      },
+    );
+
+    const exitCode = await proc.exited;
+    const stdout = await new Response(proc.stdout).text();
+    const stderr = await new Response(proc.stderr).text();
+
+    expect(exitCode).toBe(0);
+    expect(stdout.trim()).toContain("OK");
+    expect(stderr).toContain("[env] WARNING: GLITCHTIP_DSN is not set");
+  });
+
+  test("does not throw when ERROR_TRACKER=sentry with SENTRY_DSN set in production", async () => {
+    const proc = Bun.spawn(
+      [
+        "bun",
+        "-e",
+        'import { validateObservabilityEnv } from "@baseworks/config"; validateObservabilityEnv(); console.log("OK")',
+      ],
+      {
+        env: {
+          ...baseEnv,
+          NODE_ENV: "production",
+          ERROR_TRACKER: "sentry",
+          SENTRY_DSN: "https://public@sentry.example.com/1",
+        },
+        stdout: "pipe",
+        stderr: "pipe",
+        cwd: import.meta.dir + "/../../..",
+      },
+    );
+
+    const exitCode = await proc.exited;
+    const stdout = await new Response(proc.stdout).text();
+
+    expect(exitCode).toBe(0);
+    expect(stdout.trim()).toContain("OK");
+  });
+});
+
 describe("ERROR_TRACKER enum widening (Phase 18 / D-06)", () => {
   test("accepts ERROR_TRACKER=pino", async () => {
     const proc = Bun.spawn(
