@@ -4,6 +4,8 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "dependencies": {
+    "@baseworks/i18n": "workspace:*",
+    "@baseworks/observability": "workspace:*",
     "bullmq": "^5.0.0",
     "ioredis": "^5.4.0"
   }
