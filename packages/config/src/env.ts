@@ -104,10 +104,10 @@ export function validatePaymentProviderEnv(): void {
  * currently-selected adapter. Must be called at startup (after `sdk.start()`
  * per D-06) to prevent runtime crashes on first observability operation.
  *
- * Phase 17 ships with all three ports defaulting to "noop" — no required
- * keys, so this function effectively does nothing today. Phase 18 fills in
- * the SENTRY_DSN / GLITCHTIP_DSN branches for ERROR_TRACKER. Phase 21 fills
- * in the OTEL_EXPORTER_OTLP_ENDPOINT branches for TRACER + METRICS_PROVIDER.
+ * Phase 18 filled in the pino/sentry/glitchtip branches for ERROR_TRACKER —
+ * sentry and glitchtip throw when their DSN is missing (crash-hard per D-09).
+ * Phase 21 fills in the OTEL_EXPORTER_OTLP_ENDPOINT branches for TRACER +
+ * METRICS_PROVIDER.
  *
  * Mirrors validatePaymentProviderEnv() — same crash-hard discipline, same
  * per-adapter switch shape (D-08, D-09).
@@ -115,12 +115,45 @@ export function validatePaymentProviderEnv(): void {
  * @throws Error if a selected adapter is missing its required env keys
  */
 export function validateObservabilityEnv(): void {
-  // ERROR_TRACKER branch — Phase 17 only supports "noop", which has no required keys.
-  // Phase 18 will add: case "pino": (no-op), case "sentry": require SENTRY_DSN, etc.
-  switch (env.ERROR_TRACKER ?? "noop") {
+  // Test environments are allowed to boot without real observability DSNs so
+  // downstream packages can be imported by the test runner. Production and
+  // development must have the active adapter's DSN set.
+  const isTest = env.NODE_ENV === "test";
+
+  // ERROR_TRACKER branch — Phase 18 fills pino/sentry/glitchtip (D-09).
+  switch (env.ERROR_TRACKER ?? "pino") {
     case "noop":
+    case "pino":
+      // No required env vars for these adapters.
       break;
-    // Phase 18 inserts pino/sentry/glitchtip cases here.
+    case "sentry":
+      if (!env.SENTRY_DSN) {
+        if (isTest) {
+          console.warn(
+            "[env] WARNING: SENTRY_DSN is not set (NODE_ENV=test).",
+          );
+        } else {
+          throw new Error(
+            "SENTRY_DSN is required when ERROR_TRACKER=sentry. " +
+              "Set SENTRY_DSN in your environment.",
+          );
+        }
+      }
+      break;
+    case "glitchtip":
+      if (!env.GLITCHTIP_DSN) {
+        if (isTest) {
+          console.warn(
+            "[env] WARNING: GLITCHTIP_DSN is not set (NODE_ENV=test).",
+          );
+        } else {
+          throw new Error(
+            "GLITCHTIP_DSN is required when ERROR_TRACKER=glitchtip. " +
+              "Set GLITCHTIP_DSN in your environment.",
+          );
+        }
+      }
+      break;
     // default arm intentionally omitted — Zod enum already rejects unknown values
     // at env-import time, mirroring validatePaymentProviderEnv() which trusts
     // its enum-typed PAYMENT_PROVIDER for the same reason.
