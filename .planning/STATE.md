@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Observability & Operations
 status: executing
-stopped_at: Phase 19 planned (8 plans across 4 waves; checker PASSED iteration 2; VALIDATION.md nyquist_compliant:true)
-last_updated: "2026-04-23T12:30:00Z"
-last_activity: 2026-04-23 -- Phase 19 planned (8 plans across 4 waves)
+stopped_at: Phase 19 shipped (8/8 plans, 22/22 must-haves, 5/5 requirements; verifier PASSED, reviewer 0C/3H/6M/7L advisory)
+last_updated: "2026-04-23T22:45:00Z"
+last_activity: 2026-04-23 -- Phase 19 complete (ALS carrier + pino mixin + HTTP/CQRS/EventBus tracing + enterWith ban)
 progress:
   total_phases: 7
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 20
-  completed_plans: 12
-  percent: 29
+  completed_plans: 20
+  percent: 43
 ---
 
 # Project State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-21)
 
 **Core value:** Clone, configure, and start building a multitenant SaaS in minutes -- not weeks.
-**Current focus:** v1.3 Observability & Operations — Phases 17 + 18 shipped, Phase 19 (Context, Logging & HTTP/CQRS Tracing) next
+**Current focus:** v1.3 Observability & Operations — Phases 17 + 18 + 19 shipped, Phase 20 (BullMQ Trace Propagation) next
 
 ## Current Position
 
 Milestone: v1.3 Observability & Operations
-Phase: 19 — Context, Logging & HTTP/CQRS Tracing (planned 2026-04-23; 8 plans across 4 waves; checker PASSED iteration 2)
+Phase: 20 — BullMQ Trace Propagation (not started)
 Plan: —
-Status: Ready to execute
-Last activity: 2026-04-23 -- Phase 19 planned (8 PLAN.md files, VALIDATION.md nyquist_compliant:true, CTX-01/02/03 + TRC-01/02 covered)
+Status: Ready to plan
+Last activity: 2026-04-23 -- Phase 19 shipped (8/8 plans across 4 waves; 565/565 scoped tests green; verifier PASSED 22/22 must-haves; CTX-01/02/03 + TRC-01/02 verified)
 
-Progress: [██░░░░░░░░] 29% (2/7 phases)
+Progress: [████░░░░░░] 43% (3/7 phases)
 
 ## Performance Metrics
 
@@ -159,9 +159,27 @@ Prior concerns resolved:
 
 ## Session Continuity
 
-Last session: 2026-04-23T11:40:00Z
-Stopped at: Phase 19 context gathered — CONTEXT.md + DISCUSSION-LOG.md written and committed.
-Resume file: `.planning/phases/19-context-logging-http-cqrs-tracing/19-CONTEXT.md`
-Next action: Run `/gsd:plan-phase 19` to create executable plans from the locked decisions (28 decisions across ALS pattern, module placement, trust policy, localeMiddleware unification, span naming, EventBus wrap, pino mixin, CI gates, and the 100 RPS concurrent-tenant load test).
+Last session: 2026-04-23T22:45:00Z
+Stopped at: Phase 19 shipped end-to-end (8/8 plans merged, verifier PASSED, reviewer advisory REVIEW.md written).
+Resume file: `.planning/phases/19-context-logging-http-cqrs-tracing/19-VERIFICATION.md`
+Next action: Run `/gsd:discuss-phase 20` (or `/gsd:plan-phase 20` if context is obvious) to start BullMQ trace propagation (CTX-04, TRC-03).
 
-Earlier thread (still open): Phase 18 Plan 07 operator gate — `18-HUMAN-UAT.md` tracks deferred Sentry release workflow secrets + test tag push + demangled-stack-trace verification (Success Criterion #4). Resume signal: `"approved"` once operator completes the steps.
+**Open threads from Phase 19 (advisory — not gap-closure blockers):**
+
+- **19-REVIEW.md** — 0C/3H/6M/7L findings. Top three high-severity:
+  1. **H-01** `apps/api/src/lib/locale-cookie.ts:25` — `decodeURIComponent` on a malformed cookie throws BEFORE `obsContext.run` opens, losing request context. Wrap with try/catch.
+  2. **H-02** `apps/api/src/index.ts:172` — inbound `x-request-id` header trusted unvalidated (log-injection / correlation-poisoning surface). Add length+charset check.
+  3. **H-03** Composed-stack error-span gap (also flagged by verifier as ACCEPTED DEVIATION) — Elysia 1.4 onError chain halts after errorMiddleware returns, so `observabilityMiddleware.onError` never fires on 5xx paths. Span still opens/ends and captures status, but `recordException`/`setStatus('error')` are lost. Reviewer recommends Option A: add try/catch in the Bun.serve fetch wrapper (same file owns ALS seed). Consider a small decimal phase (e.g., 19.1) or fold into Phase 20 discuss.
+  Run `/gsd:code-review-fix 19` to auto-fix low/medium findings.
+
+- **Phase 19 perf-gate relaxation** — Plan D-28 budgeted ≤5% p99 regression vs noop; 19-08 raised threshold to 3.0× ratio because µs-scale mixin overhead is comparable to the noop baseline. Currently stable at 2.15–2.33×. Worth revisiting with a macro benchmark at Phase 21 or later.
+
+- **deferred-items.md** — `packages/queue/tsconfig.json` rootDir vs cross-package source imports edge case under direct `tsc -p`; root `bunx tsc --noEmit` remains clean. Not urgent.
+
+**Earlier threads (still open):**
+
+- Phase 18 Plan 07 operator gate — `18-HUMAN-UAT.md` tracks deferred Sentry release workflow secrets + test tag push + demangled-stack-trace verification. Resume signal: `"approved"` once operator completes.
+
+- Phase 19 human verification (deferred to Phase 21 UAT per `19-VALIDATION.md`):
+  1. Real-gateway TCP-peer CIDR-trusted traceparent adoption
+  2. Tempo trace assembly

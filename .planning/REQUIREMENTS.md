@@ -23,15 +23,15 @@
 
 ### CTX — Context & Logging Upgrade
 
-- [ ] **CTX-01**: Operator sees a single `AsyncLocalStorage<ObservabilityContext>` carrying `{requestId, traceId, spanId, tenantId, userId}`, with a Biome/ESLint rule banning `enterWith` (only `.run()` permitted)
-- [ ] **CTX-02**: Operator sees an Elysia `observabilityMiddleware` that populates the ALS on every request, reading inbound `traceparent` or starting a new trace, and derives tenant/user from the existing tenant middleware
-- [ ] **CTX-03**: Operator sees every pino log line include `trace_id`, `span_id`, `requestId`, and `tenantId` via a logger mixin — no call-site changes required across any existing handler
+- [x] **CTX-01**: Operator sees a single `AsyncLocalStorage<ObservabilityContext>` carrying `{requestId, traceId, spanId, tenantId, userId}`, with a Biome/ESLint rule banning `enterWith` (only `.run()` permitted)
+- [x] **CTX-02**: Operator sees an Elysia `observabilityMiddleware` that populates the ALS on every request, reading inbound `traceparent` or starting a new trace, and derives tenant/user from the existing tenant middleware
+- [x] **CTX-03**: Operator sees every pino log line include `trace_id`, `span_id`, `requestId`, and `tenantId` via a logger mixin — no call-site changes required across any existing handler
 - [ ] **CTX-04**: Operator sees BullMQ enqueue wrap inject W3C `traceparent` + `requestId` into job data, and workers reconstitute ALS context via `obsContext.run(...)` on job pickup — verified by an end-to-end test that asserts a single trace spans API request → enqueued job → worker processing
 
 ### TRC — Distributed Tracing
 
-- [ ] **TRC-01**: Operator sees a span per HTTP request with method + route template + status code, accepting inbound W3C `traceparent` and emitting it on outbound responses
-- [ ] **TRC-02**: Operator sees the `CqrsBus` and `EventBus` externally wrapped so every command/query dispatch and every event publish emits a span with correlation attributes — without any edit to existing handler or core files
+- [x] **TRC-01**: Operator sees a span per HTTP request with method + route template + status code, accepting inbound W3C `traceparent` and emitting it on outbound responses
+- [x] **TRC-02**: Operator sees the `CqrsBus` and `EventBus` externally wrapped so every command/query dispatch and every event publish emits a span with correlation attributes — without any edit to existing handler or core files
 - [ ] **TRC-03**: Operator sees BullMQ enqueue + process instrumented with W3C context propagation (via `@appsignal/opentelemetry-instrumentation-bullmq` or hand-rolled equivalent), with a Bun smoke test as merge gate; enqueue spans linked to process spans in Tempo
 
 ### MET — Metrics
@@ -102,12 +102,12 @@ Which phases cover which requirements. Populated during roadmap creation (2026-0
 | ERR-02 | Phase 18 | Pending |
 | ERR-03 | Phase 18 | Satisfied (2026-04-23) |
 | ERR-04 | Phase 18 | Pending |
-| CTX-01 | Phase 19 | Pending |
-| CTX-02 | Phase 19 | Pending |
-| CTX-03 | Phase 19 | Pending |
+| CTX-01 | Phase 19 | Satisfied (2026-04-23) |
+| CTX-02 | Phase 19 | Satisfied (2026-04-23) |
+| CTX-03 | Phase 19 | Satisfied (2026-04-23) |
 | CTX-04 | Phase 20 | Pending |
-| TRC-01 | Phase 19 | Pending |
-| TRC-02 | Phase 19 | Pending |
+| TRC-01 | Phase 19 | Satisfied (2026-04-23) |
+| TRC-02 | Phase 19 | Satisfied (2026-04-23) |
 | TRC-03 | Phase 20 | Pending |
 | MET-01 | Phase 21 | Pending |
 | MET-02 | Phase 21 | Pending |
