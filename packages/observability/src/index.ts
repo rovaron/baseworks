@@ -45,3 +45,7 @@ export type { BusLike } from "./wrappers/wrap-cqrs-bus";
 
 // Pino-sink adapter (Phase 18 / ERR-03 / D-07).
 export { PinoErrorTracker } from "./adapters/pino/pino-error-tracker";
+
+// Sentry/GlitchTip adapter (Phase 18 / ERR-01 / ERR-02 / D-05).
+export { SentryErrorTracker } from "./adapters/sentry/sentry-error-tracker";
+export type { SentryErrorTrackerOptions } from "./adapters/sentry/sentry-error-tracker";

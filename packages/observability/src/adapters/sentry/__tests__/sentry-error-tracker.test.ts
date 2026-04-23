@@ -99,23 +99,23 @@ describe("SentryErrorTracker", () => {
 
 describe("buildInitOptions", () => {
   test("sendDefaultPii is hard-coded to false", () => {
-    const opts = buildInitOptions({ dsn: TEST_DSN });
+    const opts = buildInitOptions({ dsn: TEST_DSN })!;
     expect(opts.sendDefaultPii).toBe(false);
   });
 
   test("defaultIntegrations is false (A1 resolution)", () => {
-    const opts = buildInitOptions({ dsn: TEST_DSN });
+    const opts = buildInitOptions({ dsn: TEST_DSN })!;
     expect(opts.defaultIntegrations).toBe(false);
   });
 
   test("integrations has exactly 4 safe integrations (Option C)", () => {
-    const opts = buildInitOptions({ dsn: TEST_DSN });
+    const opts = buildInitOptions({ dsn: TEST_DSN })!;
     expect(Array.isArray(opts.integrations)).toBe(true);
     expect((opts.integrations as unknown[]).length).toBe(4);
   });
 
   test("beforeSend strips PII", () => {
-    const opts = buildInitOptions({ dsn: TEST_DSN });
+    const opts = buildInitOptions({ dsn: TEST_DSN })!;
     // biome-ignore lint/suspicious/noExplicitAny: Sentry's beforeSend hook signature is permissive by design
     const out = (opts.beforeSend as any)(
       { extra: { password: "hunter2" } },
@@ -126,7 +126,7 @@ describe("buildInitOptions", () => {
 
   test("passes transport through unchanged", () => {
     const h = makeTestTransport();
-    const opts = buildInitOptions({ dsn: TEST_DSN, transport: h.transport });
+    const opts = buildInitOptions({ dsn: TEST_DSN, transport: h.transport })!;
     expect(opts.transport).toBe(h.transport);
   });
 });
