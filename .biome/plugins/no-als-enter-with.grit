@@ -1,0 +1,24 @@
+// Ban AsyncLocalStorage#enterWith per CTX-01 / Phase 19 (Plan 19-08 / D-24).
+//
+// Rule id (cited in the B5 red-path assertion): no-async-local-storage-enterWith
+//
+// Primary gate. Belt-and-suspenders via scripts/lint-no-enterwith.sh (D-25)
+// and scripts/__tests__/enterwith-ban.test.ts (D-26). A single `.enterWith(`
+// call on an AsyncLocalStorage instance pins the ALS context on the current
+// async resource WITHOUT opening a fresh frame — this causes cross-request
+// bleed under concurrent load (Pitfall 1). The supported pattern is
+// `.run(store, fn)` which opens a fresh scoped frame per request.
+//
+// Reads are unaffected — `.getStore()`, `.exit(fn)`, and `.disable()` are all
+// permitted. Only `.enterWith(` is banned.
+//
+// If a future exception arises, document it explicitly: add the file path to
+// scripts/lint-no-enterwith.sh ALLOWLIST, add a biome-ignore comment here,
+// AND justify in the commit message + SUMMARY.md.
+`$obj.enterWith($args)` where {
+  register_diagnostic(
+    span = $obj,
+    message = "AsyncLocalStorage.enterWith is banned (CTX-01). Use .run(store, fn) instead — see packages/observability/src/context.ts mutator helpers (setTenantContext, setSpan, setLocale). [no-async-local-storage-enterWith]",
+    severity = "error"
+  )
+}
