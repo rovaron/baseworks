@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Observability & Operations
 status: executing
-stopped_at: Phase 18 plan 01 complete
-last_updated: "2026-04-23T08:51:41.000Z"
-last_activity: 2026-04-23 -- Phase 18 Plan 01 (config bootstrap + sentry install) complete
+stopped_at: Phase 18 plan 02 complete
+last_updated: "2026-04-23T08:58:00.000Z"
+last_activity: 2026-04-23 -- Phase 18 Plan 02 (PII scrubber utility) complete
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 12
-  completed_plans: 6
-  percent: 50
+  completed_plans: 7
+  percent: 58
 ---
 
 # Project State
@@ -27,11 +27,11 @@ See: .planning/PROJECT.md (updated 2026-04-21)
 
 Milestone: v1.3 Observability & Operations
 Phase: 18 — Error Tracking Adapters (executing)
-Plan: 18-01 (config bootstrap + sentry install) — complete
-Status: Plan 02 next (wave 1 sequential, same file contention)
-Last activity: 2026-04-23 -- Phase 18 Plan 01 complete
+Plan: 18-02 (PII scrubber utility) — complete
+Status: Plan 03 next (wave 1 sequential, same file contention on packages/observability/src/index.ts)
+Last activity: 2026-04-23 -- Phase 18 Plan 02 complete
 
-Progress: [█░░░░░░░░░] 14% (1/7 phases, 1/7 plans in Phase 18)
+Progress: [██░░░░░░░░] 28% (1/7 phases, 2/7 plans in Phase 18)
 
 ## Performance Metrics
 
@@ -56,6 +56,12 @@ Decisions are logged in PROJECT.md Key Decisions table (updated at v1.2 close wi
 **Phase 18 Plan 01 (2026-04-23):**
 - Added `@sentry/core ^10.49.0` as explicit observability dependency to resolve A2 concern — `createTransport` was not reachable as transitive-only of `@sentry/bun`. Still zero direct `@sentry/node` references per CLAUDE.md Bun-only constraint.
 - Widened `ERROR_TRACKER` default from `'noop'` to `'pino'` per CONTEXT D-06 (pino-sink adapter becomes the default for meaningful local-dev error visibility without Sentry keys).
+
+**Phase 18 Plan 02 (2026-04-23):**
+- Shipped pure `scrubPii(event)` function at `packages/observability/src/lib/scrub-pii.ts` — 17-key denylist (case-insensitive, recursive), 5 regex patterns (email, CPF, CNPJ, Stripe sk_, Bearer), webhook-route rule dropping `request.data` on `/api/webhooks/**`, `OBS_PII_DENY_EXTRA_KEYS` additive env extension.
+- 13 PII conformance fixtures at `packages/observability/src/adapters/__tests__/pii-fixtures.ts` ready for Plan 18-05 conformance test.
+- Pattern: module-init `DENY_SET` IIFE reads env once; tests use dynamic `await import("../scrub-pii?t=" + Date.now())` after `mock.module("@baseworks/config", ...)` to force fresh module evaluation (cache-bust query string is critical — without it, the pre-evaluated DENY_SET would not pick up the mocked env).
+- Auto-fixed two fixture spec bugs (Rule 1): `stripe-webhook-body-in-extra` dropped `"4242"` from shouldNotAppear (card_last4 is not a deny key nor regex match); `better-auth-session-nested-deep` moved `"u-1"` to shouldNotAppear (D-13's recursive-deny wipes the entire `session` subtree wholesale).
 
 ### v1.3 Roadmap Summary
 
@@ -100,6 +106,6 @@ Prior concerns resolved:
 
 ## Session Continuity
 
-Last session: 2026-04-23T08:51:41.000Z
-Stopped at: Phase 18 Plan 01 complete (config bootstrap + sentry install)
-Next action: Execute Phase 18 Plan 02 (PII scrubber utility) — wave 1 sequential continues. Plans 01, 02, 03 all modify packages/observability/src/index.ts so they run sequentially.
+Last session: 2026-04-23T08:58:00.000Z
+Stopped at: Phase 18 Plan 02 complete (PII scrubber utility)
+Next action: Execute Phase 18 Plan 03 (ErrorTracker factory wiring) — wave 1 sequential continues. Plan 03 modifies packages/observability/src/factory.ts and packages/observability/src/index.ts (same-file contention with Plans 01 and 02 already resolved).
