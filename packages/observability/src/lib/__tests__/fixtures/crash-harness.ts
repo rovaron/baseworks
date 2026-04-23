@@ -48,6 +48,18 @@ class RecordingTracker implements ErrorTracker {
 
 installGlobalErrorHandlers(new RecordingTracker());
 
+// Keep the event loop alive long enough for async handlers (captureException
+// + flush) to resolve. Bun's default unhandledRejection handling does NOT
+// crash the process, so without this the process naturally exits with code 0
+// before `process.exit(1)` inside the handler runs.
+const keepAlive = setInterval(() => {}, 1_000);
+// Safety net: if the handler somehow does not fire within 5s, fail loudly.
+setTimeout(() => {
+  clearInterval(keepAlive);
+  process.stdout.write("harness timeout — handler did not fire\n");
+  process.exit(2);
+}, 5_000);
+
 if (mode === "uncaught") {
   setTimeout(() => {
     throw new Error("boom");

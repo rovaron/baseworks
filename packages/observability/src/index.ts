@@ -35,3 +35,6 @@ export {
 // PII scrubber (Phase 18 / ERR-04 / D-12).
 export { scrubPii, DEFAULT_DENY_KEYS } from "./lib/scrub-pii";
 export type { PiiEvent } from "./lib/scrub-pii";
+
+// Global error handlers (Phase 18 / D-02).
+export { installGlobalErrorHandlers } from "./lib/install-global-error-handlers";

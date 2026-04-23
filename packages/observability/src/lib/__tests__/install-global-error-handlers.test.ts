@@ -62,8 +62,11 @@ describe("installGlobalErrorHandlers — in-process", () => {
 });
 
 describe("installGlobalErrorHandlers — subprocess crash", () => {
-  const harness = new URL("./fixtures/crash-harness.ts", import.meta.url)
-    .pathname;
+  // Bun.fileURLToPath handles platform path differences (Windows strips the
+  // leading slash Bun.spawn would otherwise reject as "Module not found").
+  const harness = Bun.fileURLToPath(
+    new URL("./fixtures/crash-harness.ts", import.meta.url),
+  );
 
   test("uncaughtException triggers captureException + flush(2000) + exit 1", async () => {
     const proc = Bun.spawn(["bun", "run", harness, "uncaught", "ok"], {
