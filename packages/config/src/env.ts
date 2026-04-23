@@ -1,4 +1,5 @@
 import { createEnv } from "@t3-oss/env-core";
+import ipaddr from "ipaddr.js";
 import { z } from "zod";
 
 /**
@@ -41,6 +42,11 @@ const serverSchema = {
   RELEASE: z.string().optional(),
   SENTRY_ENVIRONMENT: z.string().optional(),
   OBS_PII_DENY_EXTRA_KEYS: z.string().optional(),
+  // Phase 19 D-07/D-08 — inbound traceparent trust policy.
+  // Default undefined → never-trust (fresh server-side trace). CIDR syntax
+  // validated crash-hard by validateObservabilityEnv() at startup.
+  OBS_TRUST_TRACEPARENT_FROM: z.string().optional(),
+  OBS_TRUST_TRACEPARENT_HEADER: z.string().optional(),
   RESEND_API_KEY: z.string().min(1).optional(),
   WEB_URL: z.string().url().default("http://localhost:3000"),
   ADMIN_URL: z.string().url().default("http://localhost:5173"),
@@ -171,6 +177,56 @@ export function validateObservabilityEnv(): void {
     case "noop":
       break;
     // Phase 21 inserts case "otel": require OTEL_EXPORTER_OTLP_ENDPOINT.
+  }
+
+  // Phase 19 D-08 — CIDR syntax validation for inbound traceparent trust policy.
+  // Crash-hard on malformed syntax; empty/unset is allowed (default never-trust
+  // per D-07). Mirrors ERROR_TRACKER isTest soft-warn discipline above.
+  //
+  // NOTE: ipaddr.js v2 is LENIENT about short-form IPv4 — e.g., "10.0/8" is
+  // parsed as "0.0.0.10/8", and "10/8" as "0.0.0.10/8". That silent rewrite
+  // would be catastrophic for a trust allow-list: an operator typing
+  // "10.0/8" intending the 10.0.0.0 private range would unknowingly trust
+  // only 0.0.0.10. We enforce canonical form by requiring a full 4-octet
+  // IPv4 literal (three dots) when `ipaddr` classifies the entry as IPv4.
+  // IPv6 short-form ("::1", "fd00::") is allowed because those are the
+  // RFC 5952 canonical notations and ipaddr.js rejects IPv6 strings
+  // without colons (e.g., "fd00/8" throws).
+  if (env.OBS_TRUST_TRACEPARENT_FROM) {
+    const cidrs = env.OBS_TRUST_TRACEPARENT_FROM.split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    for (const cidr of cidrs) {
+      const reportInvalid = (): void => {
+        const msg =
+          `Invalid CIDR in OBS_TRUST_TRACEPARENT_FROM: "${cidr}". ` +
+          `Expected IPv4 (e.g., 10.0.0.0/8) or IPv6 (e.g., ::1/128) notation.`;
+        if (isTest) {
+          console.warn(`[env] WARNING: ${msg}`);
+        } else {
+          throw new Error(msg);
+        }
+      };
+
+      let parsed: ReturnType<typeof ipaddr.parseCIDR> | undefined;
+      try {
+        parsed = ipaddr.parseCIDR(cidr);
+      } catch {
+        reportInvalid();
+        continue;
+      }
+
+      // Reject non-canonical short-form IPv4 (ipaddr.js leniency bug-guard).
+      // A canonical IPv4 literal has exactly three dots (four octets).
+      const [addr] = parsed;
+      if (addr.kind() === "ipv4") {
+        const hostPart = cidr.split("/")[0] ?? "";
+        const dotCount = (hostPart.match(/\./g) ?? []).length;
+        if (dotCount !== 3) {
+          reportInvalid();
+        }
+      }
+    }
   }
 }
 
