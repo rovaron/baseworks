@@ -897,27 +897,27 @@ jobs:
 
 **If any claim is wrong:** update adapter/test code; no structural change. All 6 assumptions have concrete verification paths listed.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **`@sentry/bun` integration re-export surface (A1 Option C)**
    - What we know: `@sentry/bun` re-exports extensively from `@sentry/core` and `@sentry/node`.
    - What's unclear: whether `dedupeIntegration` etc. are re-exported by name, or if we need `import { dedupeIntegration } from '@sentry/core'`.
-   - Recommendation: Plan author runs `bun repl` or greps `node_modules/@sentry/bun` after install; uses whichever import works. Trivial difference.
+   - RESOLVED: Adapter imports the 4 Option-C integrations from `@sentry/bun` by default (`inboundFiltersIntegration`, `dedupeIntegration`, `linkedErrorsIntegration`, `functionToStringIntegration`). Plan 05 Task 1's action block specifies the runtime probe: `bun -e 'import { ... } from "@sentry/bun"; console.log(...)'`. If any symbol is `undefined`, the implementer switches THAT integration's import to `@sentry/node` (transitive dep) but keeps `Sentry.init` / `captureException` / etc. on `@sentry/bun`. Plan 05 acceptance criterion already grep-asserts that any `@sentry/node` import is integration-only. Firm decision: import from `@sentry/bun` first, fall back per-symbol to `@sentry/node` on `undefined`. No try/catch fallback.
 
 2. **Next.js 15 server-side source-map upload mechanics**
    - What we know: `productionBrowserSourceMaps` publishes maps to the public — don't use it. Next.js emits some server maps into `.next/` by default.
    - What's unclear: exact file layout of Next.js server maps (are they `.map` files next to `.js`? named differently?). `@sentry/nextjs`'s official integration handles this automatically but pulls in a wrapper config we may not want.
-   - Recommendation: Phase 18 plan explicitly researches this, with fallback to "upload api + worker + admin only in Phase 18; add web-server-side in a follow-up quick task" if the mechanics are messier than hoped.
+   - RESOLVED: Drop `apps/web/.next` from the Phase 18 release.yml upload loop. The Next.js 15 server source-map emission surface is not stable enough to upload blindly — without `@sentry/nextjs`'s wrapper, `.next/server/**/*.map` presence depends on Turbopack vs webpack, minification flags, and route-type (RSC vs route handler). Phase 18 uploads api + worker + admin maps only (three of four apps); `apps/web` server-side source-map upload is explicitly deferred to a follow-up task. Plan 07 Task 1 drops `apps/web/.next` from the for-loop and adds an inline comment + TODO reference. This preserves Pitfall-5 discipline (no browser maps) and avoids silent no-op uploads.
 
 3. **Elysia route-template extraction in `onError` context**
    - What we know: Context has no documented `route` property.
    - What's unclear: whether Elysia 1.x exposes `route.template` or similar as an internal field (read source at plan time).
-   - Recommendation: Default to dropping the `route` tag (A3 Option 1). Revisit in Phase 19 where middleware has the route in scope.
+   - RESOLVED: Default to dropping the `route` tag (A3 Option 1). Revisit in Phase 19 where middleware has the route in scope. Plan 06 Task on `app.onError` uses `{ tags: { method, code } }` only; no route-template field.
 
 4. **GlitchTip 6 compatibility with `sentry-cli@3.4.0`**
    - What we know: GlitchTip 6 (Feb 2026) supports Sentry wire protocol; earlier versions had source-map-upload redirect-follow bugs.
    - What's unclear: whether `sentry-cli@3.4.0` specifically works against GlitchTip 6's endpoint.
-   - Recommendation: CONTEXT says "works against both" — trust it for Phase 18. If Success Criterion #4 test fails against GlitchTip, file a follow-up.
+   - RESOLVED: Trust CONTEXT's "works against both" claim for Phase 18. Verified downstream by Success Criterion #4's manual post-deploy check (Plan 07 Task 2 Part C). If the demangled-stack-trace check fails against GlitchTip specifically, file a follow-up — Sentry/GlitchTip wire-protocol drift is an upstream issue, not a Phase 18 code change.
 
 ## Environment Availability
 

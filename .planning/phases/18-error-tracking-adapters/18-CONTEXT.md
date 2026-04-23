@@ -196,6 +196,7 @@ None — no todos were surfaced against Phase 18 at discussion time.
 <deferred>
 ## Deferred Ideas
 
+- **apps/web server-side source-map upload** (added 2026-04-22 during plan revision — RESEARCH Open Question 2 RESOLVED). Phase 18's release.yml uploads source maps for apps/api, apps/api worker bundle, and apps/admin only. Next.js 15's server-side `.map` emission surface is not stable without `@sentry/nextjs`'s wrapper (Turbopack vs webpack vs RSC route-type affect output). Follow-up quick task: either adopt `@sentry/nextjs` + its build integration, or explicitly configure `apps/web/next.config.ts` to emit server source maps + extend release.yml with an `apps/web/.next` upload step. Pitfall 5 discipline (`productionBrowserSourceMaps = false`) remains in force regardless.
 - **PR-time CI** (lint / typecheck / unit test on pull request) — a separate future phase. EXT-01 only asks for the release-tag source-map upload; a broader `ci.yml` is out of scope for Phase 18.
 - **Elysia beforeHandle breadcrumbs** — Phase 19 wires them once ALS is available. Route params in breadcrumbs before ALS land carries PII-leak risk that isn't worth a temporary solution.
 - **Property-based PII fuzzing with fast-check** — follow-up enhancement to `error-tracker-conformance.test.ts`. The 12–15 hand-crafted fixtures cover the documented leak vectors; fast-check could catch shapes humans miss but adds a test-only dependency.
