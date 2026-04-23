@@ -1,5 +1,5 @@
 import "./telemetry";
-import { env, validatePaymentProviderEnv } from "@baseworks/config";
+import { env, validatePaymentProviderEnv, validateObservabilityEnv } from "@baseworks/config";
 import { createDb, scopedDb } from "@baseworks/db";
 import type { HandlerContext } from "@baseworks/shared";
 import { Elysia } from "elysia";
@@ -15,6 +15,11 @@ import { errorMiddleware } from "./core/middleware/error";
 import { requestTraceMiddleware } from "./core/middleware/request-trace";
 import { adminRoutes } from "./routes/admin";
 import { logger } from "./lib/logger";
+import {
+  getErrorTracker,
+  installGlobalErrorHandlers,
+  wrapCqrsBus,
+} from "@baseworks/observability";
 
 // Create database instance
 const db = createDb(env.DATABASE_URL);
@@ -22,6 +27,10 @@ const db = createDb(env.DATABASE_URL);
 // Validate payment provider env vars at startup (T-10-09)
 // Prevents starting with PAYMENT_PROVIDER=pagarme but no PAGARME_SECRET_KEY
 validatePaymentProviderEnv();
+// Phase 18 — crash-hard on missing DSN for the selected ERROR_TRACKER (D-09).
+validateObservabilityEnv();
+// Phase 18 D-02 — register global uncaughtException + unhandledRejection handlers.
+installGlobalErrorHandlers(getErrorTracker());
 
 // Create module registry -- auth module loaded alongside example
 const registry = new ModuleRegistry({
@@ -31,6 +40,10 @@ const registry = new ModuleRegistry({
 
 // Load all configured modules
 await registry.loadAll();
+
+// Phase 18 D-01 — wrap the CqrsBus so thrown handler exceptions are captured.
+// External wrapper; zero edits to apps/api/src/core/cqrs.ts (D-01 invariant).
+wrapCqrsBus(registry.getCqrs(), getErrorTracker());
 
 // Register billing hooks (auto-create Stripe customer on tenant.created)
 registerBillingHooks(registry.getEventBus());

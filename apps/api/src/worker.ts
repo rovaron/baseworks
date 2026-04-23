@@ -1,10 +1,15 @@
 import "./telemetry";
-import { env, assertRedisUrl, validatePaymentProviderEnv } from "@baseworks/config";
+import { env, assertRedisUrl, validatePaymentProviderEnv, validateObservabilityEnv } from "@baseworks/config";
 import { createDb } from "@baseworks/db";
 import { createWorker, closeConnection } from "@baseworks/queue";
 import type { Worker } from "bullmq";
 import { ModuleRegistry } from "./core/registry";
 import { logger } from "./lib/logger";
+import {
+  getErrorTracker,
+  installGlobalErrorHandlers,
+  wrapCqrsBus,
+} from "@baseworks/observability";
 
 // Validate environment at startup (crashes on missing/invalid vars)
 const _env = env;
@@ -14,6 +19,10 @@ const redisUrl = assertRedisUrl(env.INSTANCE_ROLE, env.REDIS_URL);
 
 // Validate payment provider env vars at startup (T-10-09)
 validatePaymentProviderEnv();
+// Phase 18 — crash-hard on missing DSN for the selected ERROR_TRACKER (D-09).
+validateObservabilityEnv();
+// Phase 18 D-02 — register global uncaughtException + unhandledRejection handlers.
+installGlobalErrorHandlers(getErrorTracker());
 
 // Create database instance
 const db = createDb(env.DATABASE_URL);
@@ -26,6 +35,10 @@ const registry = new ModuleRegistry({
 
 // Load all configured modules
 await registry.loadAll();
+
+// Phase 18 D-01 — wrap the CqrsBus so thrown handler exceptions are captured.
+// External wrapper; zero edits to apps/api/src/core/cqrs.ts (D-01 invariant).
+wrapCqrsBus(registry.getCqrs(), getErrorTracker());
 
 // Start BullMQ Workers for all module-registered jobs
 const workers: Worker[] = [];
@@ -59,6 +72,13 @@ for (const [name, def] of registry.getLoaded()) {
           { job: job?.id, queue: jobDef.queue, err: String(err) },
           "Job failed",
         );
+        // Phase 18 D-04 — capture via ErrorTracker port. Single call site (this
+        // loop) covers every module's jobs. Inner try/catch at line 45 stays
+        // log-only to avoid double-reporting.
+        getErrorTracker().captureException(err, {
+          tags: { queue: jobDef.queue },
+          extra: { jobId: job?.id, jobName },
+        });
       });
 
       worker.on("completed", (job) => {
