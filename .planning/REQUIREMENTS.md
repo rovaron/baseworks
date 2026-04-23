@@ -18,7 +18,7 @@
 
 - [ ] **ERR-01**: Operator can enable Sentry error capture via `SENTRY_DSN` env var; the Sentry adapter uses `@sentry/bun`, captures uncaught exceptions + CQRS handler errors + BullMQ job failures, and uploads source maps on release tag
 - [ ] **ERR-02**: Operator can point the same adapter at GlitchTip via DSN swap; adapter-conformance test proves parity with Sentry
-- [ ] **ERR-03**: Operator sees the Pino-sink Error fallback adapter active when no DSN is configured, writing errors to pino at ERROR level without any external dependency
+- [x] **ERR-03**: Operator sees the Pino-sink Error fallback adapter active when no DSN is configured, writing errors to pino at ERROR level without any external dependency
 - [ ] **ERR-04**: Operator sees errors reported with context (tenant_id, user_id, request_id, command/query name) and with webhook/auth/payment payloads scrubbed — verified by an adapter-conformance test that feeds known-PII fixtures and asserts they are redacted
 
 ### CTX — Context & Logging Upgrade
@@ -100,7 +100,7 @@ Which phases cover which requirements. Populated during roadmap creation (2026-0
 | OBS-04 | Phase 17 | Satisfied (2026-04-22) |
 | ERR-01 | Phase 18 | Pending |
 | ERR-02 | Phase 18 | Pending |
-| ERR-03 | Phase 18 | Pending |
+| ERR-03 | Phase 18 | Satisfied (2026-04-23) |
 | ERR-04 | Phase 18 | Pending |
 | CTX-01 | Phase 19 | Pending |
 | CTX-02 | Phase 19 | Pending |
