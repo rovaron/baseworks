@@ -10,7 +10,7 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 
 ## Current State
 
-**Shipped:** v1.2 Documentation & Quality (2026-04-21)
+**Shipped:** v1.2 Documentation & Quality (2026-04-21). v1.3 in progress — Phase 17 (OTEL bootstrap + ports) complete 2026-04-22; Phase 18 (Error Tracking Adapters) complete 2026-04-23.
 **Codebase:** ~20K lines TypeScript across apps/packages
 **Tech stack:** Bun + Elysia + Drizzle + PostgreSQL + BullMQ + Redis + Next.js 15 + Vite + React 19 + shadcn/ui + Tailwind 4 + better-auth + Stripe + Pagar.me + Docker + pino + next-intl + react-i18next + Vitest (jsdom)
 
@@ -70,6 +70,7 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 - ✓ In-repo developer documentation (configuration, testing, third-party integrations) — v1.2 (Phase 15; content-drift gaps closed in Phase 16)
 
 - ✓ Observability ports (Tracer / MetricsProvider / ErrorTracker) with Noop adapters + env-selected factory + OTEL NodeSDK bootstrapped line-1 in apps/api entrypoints — v1.3 (Phase 17; OBS-01..04)
+- ✓ Error tracking adapters: Sentry + GlitchTip (single class via `kind` tag) + pino-sink default fallback, with `scrubPii()` PII redaction (denylist + regex + webhook-route rule), global handlers (`uncaughtException`/`unhandledRejection`), `wrapCqrsBus()` throws-only capture, worker.on('failed') BullMQ capture, Elysia errorMiddleware A4 single-onError enrichment, and tag-push source-map upload workflow — v1.3 (Phase 18; ERR-01..04, EXT-01 — EXT-01 operator gate deferred to 18-HUMAN-UAT.md)
 
 ### Active
 
