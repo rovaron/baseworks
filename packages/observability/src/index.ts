@@ -49,3 +49,13 @@ export { PinoErrorTracker } from "./adapters/pino/pino-error-tracker";
 // Sentry/GlitchTip adapter (Phase 18 / ERR-01 / ERR-02 / D-05).
 export { SentryErrorTracker } from "./adapters/sentry/sentry-error-tracker";
 export type { SentryErrorTrackerOptions } from "./adapters/sentry/sentry-error-tracker";
+
+// ObservabilityContext ALS + mutators (Phase 19 / CTX-01 / D-06).
+export {
+  obsContext,
+  getObsContext,
+  setTenantContext,
+  setSpan,
+  setLocale,
+} from "./context";
+export type { ObservabilityContext } from "./context";

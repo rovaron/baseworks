@@ -141,6 +141,7 @@
         "@baseworks/config": "workspace:*",
         "@baseworks/db": "workspace:*",
         "@baseworks/i18n": "workspace:*",
+        "@baseworks/observability": "workspace:*",
         "@baseworks/queue": "workspace:*",
         "@baseworks/shared": "workspace:*",
         "@sinclair/typebox": "0.34.49",
@@ -188,6 +189,7 @@
       "name": "@baseworks/observability",
       "version": "0.0.1",
       "dependencies": {
+        "@baseworks/i18n": "workspace:*",
         "@opentelemetry/api": "^1.9.1",
         "@opentelemetry/auto-instrumentations-node": "^0.73.0",
         "@opentelemetry/resources": "^2.7.0",
