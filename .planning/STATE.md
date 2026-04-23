@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Observability & Operations
 status: executing
-stopped_at: Phase 18 Plan 07 file-authoring complete (release workflow + .gitignore); Task 2 human-action checkpoint pending operator (GitHub secrets + demangled stack-trace verification)
-last_updated: "2026-04-23T10:10:00Z"
-last_activity: 2026-04-23 -- Phase 18 Plan 07 file-authoring complete (CHECKPOINT: operator action pending)
+stopped_at: Phase 18 complete (7/7 plans; verifier passed 4/4 must-haves; EXT-01 operator gate deferred to 18-HUMAN-UAT.md)
+last_updated: "2026-04-23T11:20:00Z"
+last_activity: 2026-04-23 -- Phase 18 complete; ready for Phase 19
 progress:
-  total_phases: 2
-  completed_phases: 1
-  total_plans: 13
-  completed_plans: 13
-  percent: 100
+  total_phases: 7
+  completed_phases: 2
+  total_plans: 12
+  completed_plans: 12
+  percent: 29
 ---
 
 # Project State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-21)
 
 **Core value:** Clone, configure, and start building a multitenant SaaS in minutes -- not weeks.
-**Current focus:** v1.3 Observability & Operations — Phase 17 shipped, Phase 18 (Error Tracking Adapters) next
+**Current focus:** v1.3 Observability & Operations — Phases 17 + 18 shipped, Phase 19 (Context, Logging & HTTP/CQRS Tracing) next
 
 ## Current Position
 
 Milestone: v1.3 Observability & Operations
-Phase: 18 — Error Tracking Adapters (file-authoring complete; operator checkpoint pending)
-Plan: 18-07 (release workflow — `.github/workflows/release.yml` + .gitignore; Task 1 complete; Task 2 is a `checkpoint:human-action` awaiting operator — three GitHub secrets (SENTRY_AUTH_TOKEN, SENTRY_ORG, SENTRY_PROJECT), a test tag push, a deliberate-failure endpoint deployment, and demangled-stack-trace verification (Success Criterion #4))
-Status: All Phase 18 file authoring complete (Plans 01–07). Operator action blocks Phase 18 closure and EXT-01 validation.
-Last activity: 2026-04-23 -- Phase 18 Plan 07 file-authoring complete (CHECKPOINT pending operator)
+Phase: 18 — Error Tracking Adapters (complete 2026-04-23; EXT-01 operator gate deferred to 18-HUMAN-UAT.md)
+Plan: —
+Status: Ready to discuss Phase 19
+Last activity: 2026-04-23 -- Phase 18 complete (verifier: 4/4 must-haves pass; EXT-01 PARTIAL — workflow file in place, operator secrets+demangled-trace verification deferred)
 
-Progress: [██████████] 100% file-authoring (1/7 phases, 7/7 plans in Phase 18); Phase 18 closure blocked on operator checkpoint
+Progress: [██░░░░░░░░] 29% (2/7 phases)
 
 ## Performance Metrics
 
