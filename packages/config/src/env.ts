@@ -26,13 +26,21 @@ const serverSchema = {
   PAGARME_SECRET_KEY: z.string().min(1).optional(),
   PAGARME_WEBHOOK_SECRET: z.string().min(1).optional(),
   // Observability adapter ports (Phase 17 / OBS-04 / D-07).
-  // All default to "noop" — Phase 17 ships noop-only; Phase 18 widens
-  // ERROR_TRACKER to include pino/sentry/glitchtip + adds SENTRY_DSN/GLITCHTIP_DSN;
+  // Phase 18 widens ERROR_TRACKER to include pino/sentry/glitchtip + adds
+  // SENTRY_DSN/GLITCHTIP_DSN/RELEASE/SENTRY_ENVIRONMENT/OBS_PII_DENY_EXTRA_KEYS;
   // Phase 21 widens TRACER and METRICS_PROVIDER to include "otel" + adds
   // OTEL_EXPORTER_OTLP_ENDPOINT.
   TRACER: z.enum(["noop"]).optional().default("noop"),
   METRICS_PROVIDER: z.enum(["noop"]).optional().default("noop"),
-  ERROR_TRACKER: z.enum(["noop"]).optional().default("noop"),
+  ERROR_TRACKER: z
+    .enum(["noop", "pino", "sentry", "glitchtip"])
+    .optional()
+    .default("pino"),
+  SENTRY_DSN: z.string().url().optional(),
+  GLITCHTIP_DSN: z.string().url().optional(),
+  RELEASE: z.string().optional(),
+  SENTRY_ENVIRONMENT: z.string().optional(),
+  OBS_PII_DENY_EXTRA_KEYS: z.string().optional(),
   RESEND_API_KEY: z.string().min(1).optional(),
   WEB_URL: z.string().url().default("http://localhost:3000"),
   ADMIN_URL: z.string().url().default("http://localhost:5173"),
