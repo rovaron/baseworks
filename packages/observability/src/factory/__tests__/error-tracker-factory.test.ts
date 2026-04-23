@@ -35,11 +35,10 @@ describe("error tracker factory (OBS-01)", () => {
     else process.env.ERROR_TRACKER = origErrorTracker;
   });
 
-  test("returns NoopErrorTracker when ERROR_TRACKER is unset (Phase 17 default — Phase 18 changes default to 'pino')", () => {
+  test("returns PinoErrorTracker when ERROR_TRACKER is unset (Phase 18 default per D-06 — widened from noop)", () => {
     delete process.env.ERROR_TRACKER;
     const t = getErrorTracker();
-    expect(t).toBeInstanceOf(NoopErrorTracker);
-    expect(t.name).toBe("noop");
+    expect(t.name).toBe("pino");
   });
 
   test("returns the same singleton across calls", () => {
@@ -64,13 +63,78 @@ describe("error tracker factory (OBS-01)", () => {
   });
 
   test("getErrorTracker() throws on unknown ERROR_TRACKER value", () => {
-    process.env.ERROR_TRACKER = "sentry";
-    expect(() => getErrorTracker()).toThrow(/Phase 17 supports only 'noop'/);
-    expect(() => getErrorTracker()).toThrow(/sentry/);
+    // Phase 18 valid values: noop, pino, sentry, glitchtip. Use a value that
+    // cannot be mistaken for a real adapter across phases.
+    process.env.ERROR_TRACKER = "banana";
+    expect(() => getErrorTracker()).toThrow(/Unknown ERROR_TRACKER/);
+    expect(() => getErrorTracker()).toThrow(/banana/);
   });
 
   test("returns NoopErrorTracker when ERROR_TRACKER='noop' explicitly", () => {
     process.env.ERROR_TRACKER = "noop";
     expect(getErrorTracker()).toBeInstanceOf(NoopErrorTracker);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 18 — extended switch: pino, sentry, glitchtip (D-05, D-06, D-09)
+// ---------------------------------------------------------------------------
+
+describe("getErrorTracker — Phase 18 adapters", () => {
+  const origEnv = { ...process.env };
+
+  beforeEach(() => {
+    resetErrorTracker();
+    delete process.env.ERROR_TRACKER;
+    delete process.env.SENTRY_DSN;
+    delete process.env.GLITCHTIP_DSN;
+  });
+
+  afterEach(() => {
+    process.env = { ...origEnv };
+    resetErrorTracker();
+  });
+
+  test("default when ERROR_TRACKER unset is 'pino' (D-06)", () => {
+    const tracker = getErrorTracker();
+    expect(tracker.name).toBe("pino");
+  });
+
+  test("ERROR_TRACKER=noop returns Noop adapter (backcompat)", () => {
+    process.env.ERROR_TRACKER = "noop";
+    expect(getErrorTracker().name).toBe("noop");
+  });
+
+  test("ERROR_TRACKER=pino returns Pino adapter", () => {
+    process.env.ERROR_TRACKER = "pino";
+    expect(getErrorTracker().name).toBe("pino");
+  });
+
+  test("ERROR_TRACKER=sentry + SENTRY_DSN returns Sentry adapter", () => {
+    process.env.ERROR_TRACKER = "sentry";
+    process.env.SENTRY_DSN = "http://public@example.com/1";
+    expect(getErrorTracker().name).toBe("sentry");
+  });
+
+  test("ERROR_TRACKER=glitchtip + GLITCHTIP_DSN returns GlitchTip adapter", () => {
+    process.env.ERROR_TRACKER = "glitchtip";
+    process.env.GLITCHTIP_DSN = "http://public@example.com/1";
+    expect(getErrorTracker().name).toBe("glitchtip");
+  });
+
+  test("ERROR_TRACKER=sentry without SENTRY_DSN throws", () => {
+    process.env.ERROR_TRACKER = "sentry";
+    expect(() => getErrorTracker()).toThrow(/SENTRY_DSN/);
+  });
+
+  test("ERROR_TRACKER=glitchtip without GLITCHTIP_DSN throws", () => {
+    process.env.ERROR_TRACKER = "glitchtip";
+    expect(() => getErrorTracker()).toThrow(/GLITCHTIP_DSN/);
+  });
+
+  test("Unknown ERROR_TRACKER throws with supported-list message", () => {
+    process.env.ERROR_TRACKER = "kiwi";
+    expect(() => getErrorTracker()).toThrow(/Unknown ERROR_TRACKER/);
+    expect(() => getErrorTracker()).toThrow(/noop.*pino.*sentry.*glitchtip/);
   });
 });
