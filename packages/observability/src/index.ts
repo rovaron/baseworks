@@ -59,3 +59,7 @@ export {
   setLocale,
 } from "./context";
 export type { ObservabilityContext } from "./context";
+
+// EventBus wrapper (Phase 19 / TRC-02 / D-15 / D-16 — no edits to core/event-bus.ts).
+export { wrapEventBus } from "./wrappers/wrap-event-bus";
+export type { EventBusLike } from "./wrappers/wrap-event-bus";
