@@ -38,3 +38,7 @@ export type { PiiEvent } from "./lib/scrub-pii";
 
 // Global error handlers (Phase 18 / D-02).
 export { installGlobalErrorHandlers } from "./lib/install-global-error-handlers";
+
+// CqrsBus wrapper (Phase 18 / D-01 — no edits to core/cqrs.ts).
+export { wrapCqrsBus } from "./wrappers/wrap-cqrs-bus";
+export type { BusLike } from "./wrappers/wrap-cqrs-bus";
