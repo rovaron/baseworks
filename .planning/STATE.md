@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Observability & Operations
 status: executing
-stopped_at: Phase 18 Plan 06 complete (apps/api wire-up — 4 capture boundaries wired end-to-end)
-last_updated: "2026-04-23T09:51:42Z"
-last_activity: 2026-04-23 -- Phase 18 Plan 06 complete
+stopped_at: Phase 18 Plan 07 file-authoring complete (release workflow + .gitignore); Task 2 human-action checkpoint pending operator (GitHub secrets + demangled stack-trace verification)
+last_updated: "2026-04-23T10:10:00Z"
+last_activity: 2026-04-23 -- Phase 18 Plan 07 file-authoring complete (CHECKPOINT: operator action pending)
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 13
-  completed_plans: 12
-  percent: 92
+  completed_plans: 13
+  percent: 100
 ---
 
 # Project State
@@ -26,12 +26,12 @@ See: .planning/PROJECT.md (updated 2026-04-21)
 ## Current Position
 
 Milestone: v1.3 Observability & Operations
-Phase: 18 — Error Tracking Adapters (executing)
-Plan: 18-06 (apps/api wire-up — four capture boundaries wired end-to-end: D-01 wrapCqrsBus, D-02 installGlobalErrorHandlers, D-03/A4 errorMiddleware extension, D-04 worker.on('failed') one-liner + test — ERR-01, ERR-04) — complete
-Status: Wave 3 in progress. Plan 06 complete; Plan 07 (release workflow + docs) still unblocked and can run next/parallel.
-Last activity: 2026-04-23 -- Phase 18 Plan 06 complete
+Phase: 18 — Error Tracking Adapters (file-authoring complete; operator checkpoint pending)
+Plan: 18-07 (release workflow — `.github/workflows/release.yml` + .gitignore; Task 1 complete; Task 2 is a `checkpoint:human-action` awaiting operator — three GitHub secrets (SENTRY_AUTH_TOKEN, SENTRY_ORG, SENTRY_PROJECT), a test tag push, a deliberate-failure endpoint deployment, and demangled-stack-trace verification (Success Criterion #4))
+Status: All Phase 18 file authoring complete (Plans 01–07). Operator action blocks Phase 18 closure and EXT-01 validation.
+Last activity: 2026-04-23 -- Phase 18 Plan 07 file-authoring complete (CHECKPOINT pending operator)
 
-Progress: [█████████░] 86% (1/7 phases, 6/7 plans in Phase 18)
+Progress: [██████████] 100% file-authoring (1/7 phases, 7/7 plans in Phase 18); Phase 18 closure blocked on operator checkpoint
 
 ## Performance Metrics
 
@@ -93,6 +93,16 @@ Decisions are logged in PROJECT.md Key Decisions table (updated at v1.2 close wi
 - Auto-fixed one deviation (Rule 3): initial comment in error.ts literally contained `request.route does not exist on Elysia Context`, which tripped the A3 acceptance grep. Rephrased to "the matched-route template is NOT available on Elysia's Context at onError time" — same meaning, no forbidden token. Fix folded into Task 1 commit.
 - 3 commits: `b7e3afa` (Task 1 — errorMiddleware extension), `fb94746` (Task 2 — entrypoint wiring), `f044f97` (Task 3 — worker-failed-capture test). All 63 apps/api tests pass (60 prior + 3 new); telemetry-line1.test.ts gate still green (line-1 invariant T-18-40 preserved).
 
+**Phase 18 Plan 07 (2026-04-23):**
+
+- Shipped the repo's first GitHub Actions workflow at `.github/workflows/release.yml` (104 lines). Narrowly scoped per D-16: one job (`upload-sourcemaps`), one trigger (`push.tags: ['v*.*.*']`), zero test/lint/typecheck/deploy jobs. Builds apps/api + worker bundle + apps/admin with `bun build --sourcemap=external` (Debug ID variant — no `//# sourceMappingURL` comment, Pitfall 5 browser-leak prevention), then iterates through the three output dirs with `bun x sentry-cli sourcemaps inject` + `upload --release=$RELEASE --org=$SENTRY_ORG --project=$SENTRY_PROJECT`.
+- Single-source RELEASE discipline (Pitfall 6 / D-19): `git rev-parse --short HEAD` runs exactly once at the top of the workflow; the value flows to every `bun build --define process.env.RELEASE=...` AND every `sentry-cli --release=$RELEASE` AND the runtime `Sentry.init({ release })` via env.
+- apps/web INTENTIONALLY deferred from this workflow (RESEARCH Open Question 2 RESOLVED) — Next.js 15 server-side `.map` emission is not stable without `@sentry/nextjs`'s wrapper; blind `.next/` upload would silently no-op. Follow-up task tracked in CONTEXT.md Deferred Ideas. Pitfall 5 discipline (no public browser source maps) stays in force regardless.
+- `.gitignore` gained `.next/` defensively — this workflow does not build apps/web but `bun run dev:web` / `build:web` locally would produce it.
+- One Rule-1 auto-fix caught pre-commit: initial comment literal contained the forbidden `productionBrowserSourceMaps` token (violated `<done>` grep); rephrased to "Next.js browser-source-maps flag" — same meaning, passes grep.
+- Task 2 is a `checkpoint:human-action` (not automatable): operator creates Sentry auth token with `project:releases` + `project:write` scopes, adds 3 GitHub repo secrets (SENTRY_AUTH_TOKEN, SENTRY_ORG, SENTRY_PROJECT), pushes test tag, deploys to staging, verifies demangled stack trace for a deliberate-failure endpoint (Success Criterion #4), and asserts no public `.map` files served (Part F). Resume signal: `"approved"`.
+- One commit: `b7748df` (feat/18-07 — workflow + .gitignore atomic).
+
 **Phase 18 Plan 05 (2026-04-23):**
 
 - Shipped `SentryErrorTracker` at `packages/observability/src/adapters/sentry/sentry-error-tracker.ts` (149 lines) — single class serving BOTH Sentry and GlitchTip targets via `kind: 'sentry' | 'glitchtip'` tag (D-05). Completes ERR-01 (Sentry capture) and ERR-02 (GlitchTip parity) by structural identity — same code path processes both backends. Port methods delegate thinly to `@sentry/bun` top-level functions; `withScope` bridges port `ErrorTrackerScope` → Sentry `Scope` one-to-one; `setTenant` maps to `setTag('tenantId', value)`.
@@ -149,6 +159,6 @@ Prior concerns resolved:
 
 ## Session Continuity
 
-Last session: 2026-04-23T09:51:42Z
-Stopped at: Phase 18 Plan 06 complete (apps/api wire-up — four capture boundaries wired end-to-end)
-Next action: Wave 3 in progress. Plan 07 (release-workflow CI + Phase 18 phase-level docs — EXT-01) is the last remaining Phase 18 plan. After Plan 07, Phase 18 closes (ERR-01..04, EXT-01 complete) and Phase 19 (Context, Logging & HTTP/CQRS Tracing — CTX-01..03, TRC-01..02) becomes the next phase target.
+Last session: 2026-04-23T10:10:00Z
+Stopped at: Phase 18 Plan 07 file-authoring complete (CHECKPOINT:human-action pending operator — three GitHub repo secrets + test tag push + demangled-stack-trace verification for Success Criterion #4).
+Next action: Operator performs Task 2 Parts A–G (see `.planning/phases/18-error-tracking-adapters/18-07-SUMMARY.md` §Required User Setup). Resume signal on completion: `"approved"`. Once the checkpoint resolves, Phase 18 closes (ERR-01..04, EXT-01 all satisfied) and Phase 19 (Context, Logging & HTTP/CQRS Tracing — CTX-01..03, TRC-01..02) becomes the next phase target.
