@@ -1,4 +1,5 @@
 import { Elysia } from "elysia";
+import { getErrorTracker } from "@baseworks/observability";
 import { logger } from "../../lib/logger";
 
 /**
@@ -19,13 +20,24 @@ import { logger } from "../../lib/logger";
  */
 export const errorMiddleware = new Elysia({ name: "error-handler" }).onError(
   { as: "global" },
-  ({ code, error, set }) => {
+  ({ code, error, set, request }) => {
     // Extract message safely (some Elysia error types may not have .message)
     const errMsg = "message" in error ? (error as Error).message : String(error);
     const errStack = "stack" in error ? (error as Error).stack : undefined;
 
     // Log all errors server-side
     logger.error({ code, message: errMsg, stack: errStack }, "Request error");
+
+    // Phase 18 D-03 — capture via ErrorTracker port.
+    // A3 resolution: the matched-route template is NOT available on Elysia's
+    // Context at onError time. Tag method+code (cardinality-safe); send the
+    // concrete path via extra (not a metric dimension — Pitfall 4). Phase 19
+    // adds the route template via middleware that has access to Elysia's
+    // internal routing state.
+    getErrorTracker().captureException(error, {
+      tags: { method: request.method, code: String(code) },
+      extra: { path: new URL(request.url).pathname },
+    });
 
     switch (code) {
       case "VALIDATION":
