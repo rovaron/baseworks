@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Observability & Operations
 status: executing
-stopped_at: Phase 18 Plan 04 complete (pino-sink ErrorTracker adapter)
-last_updated: "2026-04-23T09:23:04.000Z"
-last_activity: 2026-04-23 -- Phase 18 Plan 04 complete
+stopped_at: Phase 18 Plan 05 complete (sentry adapter + cross-adapter conformance + factory extension)
+last_updated: "2026-04-23T09:39:23.000Z"
+last_activity: 2026-04-23 -- Phase 18 Plan 05 complete
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 12
-  completed_plans: 10
-  percent: 83
+  completed_plans: 11
+  percent: 92
 ---
 
 # Project State
@@ -27,11 +27,11 @@ See: .planning/PROJECT.md (updated 2026-04-21)
 
 Milestone: v1.3 Observability & Operations
 Phase: 18 — Error Tracking Adapters (executing)
-Plan: 18-04 (pino-sink ErrorTracker adapter — ERR-03 default when ERROR_TRACKER unset or =pino) — complete
-Status: Wave 2 in progress. Plan 04 complete. Plans 05 (sentry adapter + conformance), 07 (docs) still unblocked. Plan 06 (apps/api wire-up) remains gated on Plan 05.
-Last activity: 2026-04-23 -- Phase 18 Plan 04 complete
+Plan: 18-05 (SentryErrorTracker + cross-adapter conformance + factory extension — ERR-01, ERR-02, ERR-04) — complete
+Status: Wave 2 complete. Plan 05 ships the last adapter. Plan 06 (apps/api wire-up) now unblocked for Wave 3; Plan 07 (release workflow + docs) still unblocked and parallel with 06.
+Last activity: 2026-04-23 -- Phase 18 Plan 05 complete
 
-Progress: [████░░░░░░] 43% (1/7 phases, 4/7 plans in Phase 18)
+Progress: [████████░░] 71% (1/7 phases, 5/7 plans in Phase 18)
 
 ## Performance Metrics
 
@@ -82,6 +82,19 @@ Decisions are logged in PROJECT.md Key Decisions table (updated at v1.2 close wi
 - Pattern: fake pino logger for adapter tests — `pino({ level: 'debug' }, customStream)` where `customStream.write(chunk)` parses JSON into an array for assertions. No stdout touched during tests. Generic-parameter cast `as unknown as Logger` bridges `Logger<never, boolean>` return to `Logger<string, boolean>` ctor param.
 - TDD RED→GREEN gate passed: `9481f61` test → `2e8ccf0` feat. 12 new tests (31 expects); full observability suite 121/121 pass, zero regressions; tsc --noEmit clean.
 
+**Phase 18 Plan 05 (2026-04-23):**
+
+- Shipped `SentryErrorTracker` at `packages/observability/src/adapters/sentry/sentry-error-tracker.ts` (149 lines) — single class serving BOTH Sentry and GlitchTip targets via `kind: 'sentry' | 'glitchtip'` tag (D-05). Completes ERR-01 (Sentry capture) and ERR-02 (GlitchTip parity) by structural identity — same code path processes both backends. Port methods delegate thinly to `@sentry/bun` top-level functions; `withScope` bridges port `ErrorTrackerScope` → Sentry `Scope` one-to-one; `setTenant` maps to `setTag('tenantId', value)`.
+- Shipped `buildInitOptions` pure helper at `packages/observability/src/adapters/sentry/init-options.ts` codifying A1 Option C: `defaultIntegrations: false` + `sendDefaultPii: false` (hard-coded literal, no env path per T-18-29) + `beforeSend`/`beforeBreadcrumb` both running `scrubPii` (defense-in-depth per D-12) + a curated 4-integration safe list (`inboundFilters`, `dedupe`, `linkedErrors`, `functionToString`). Cuts every default that would auto-capture request bodies (T-18-26) or double-register global handlers (T-18-27).
+- Shipped cross-adapter PII conformance test at `packages/observability/src/adapters/__tests__/error-tracker-conformance.test.ts` — 39 tests (13 PII_FIXTURES × 3 adapters: pino, sentry via makeTestTransport, noop). Every `shouldNotAppear` substring is asserted absent AND every `shouldSurvive` substring is asserted present in the emitted output per adapter. This is the ERR-04 gate.
+- Extended `getErrorTracker()` switch in `packages/observability/src/factory.ts` with 3 new cases (pino / sentry / glitchtip), widened default from `'noop'` to `'pino'` per D-06. Factory throws with DSN env var name when selected adapter's DSN is missing (D-09 crash-hard). Invariant preserved: no `@baseworks/config` import; `process.env` read directly; pino ESM-imported at top-of-file per CLAUDE.md (no `require`).
+- Fixed latent adapter bug (Rule 1): `SentryErrorTracker.captureException(err, scope)` was passing port `CaptureScope` directly to `Sentry.captureException` as `CaptureContext`, but Sentry's `CaptureContext` has no `tenantId` field — every production error with a tenantId was silently dropping that dimension. Fix: destructure `tenantId` from CaptureScope, merge into tags map (mirrors `withScope`'s `setTenant → setTag('tenantId', value ?? '')`). Surfaced by `tenantId-positive-case` conformance fixture.
+- Pattern: `afterEach(async () => { await Sentry.close(100); })` is MANDATORY for every describe that constructs SentryErrorTracker. The Sentry hub is a process-global side effect; 12 init calls in the unit test + 13 in the conformance test would accumulate integrations/transport state without close() (T-18-32 mitigation).
+- Pattern: DSN `http://public@example.com/1` in every test — RFC 2606 reserved domain, guaranteed non-routable. `grep "sentry.io|glitchtip.io" packages/observability/src/adapters/sentry/__tests__/` returns nothing (T-18-30).
+- Pattern: `Transport` type imported from `@sentry/core`, not `@sentry/bun` — `@sentry/bun` does not re-export the type. `@sentry/core` has been an explicit dep since Plan 01.
+- TDD RED→GREEN gates: Task 1 `a5f993f` test → `2d7e115` feat; Task 2 `ef1437d` combined (conformance test + adapter fix land together — GREEN requires both); Task 3 `19a0d90` test → `dee7667` feat.
+- 59 new tests (12 unit + 39 conformance + 8 factory); full observability suite 180/180 pass (303 expects); tsc --noEmit clean.
+
 ### v1.3 Roadmap Summary
 
 7 phases derived from 28 requirements across 8 categories (OBS/ERR/CTX/TRC/MET/OPS/DOC/EXT):
@@ -125,6 +138,6 @@ Prior concerns resolved:
 
 ## Session Continuity
 
-Last session: 2026-04-23T09:23:04.000Z
-Stopped at: Phase 18 Plan 04 complete (pino-sink ErrorTracker adapter)
-Next action: Wave 2 in progress. Plan 05 (Sentry adapter + 13-fixture PII conformance test against both pino and sentry adapters) and Plan 07 (docs) still unblocked. Plan 06 (apps/api wire-up — constructs PinoErrorTracker from env-selected factory, wires installGlobalErrorHandlers + wrapCqrsBus + app.onError + worker.on('failed')) is gated on Plan 05 and will run in Wave 3.
+Last session: 2026-04-23T09:39:23.000Z
+Stopped at: Phase 18 Plan 05 complete (Sentry adapter + cross-adapter conformance + factory extension)
+Next action: Wave 2 COMPLETE. Wave 3 now unblocked. Plan 06 (apps/api wire-up — constructs env-selected tracker via getErrorTracker() which now dispatches all 4 adapters, calls installGlobalErrorHandlers, applies wrapCqrsBus after registry.loadAll, extends worker.on('failed') with captureException, extends errorMiddleware.onError with capture) and Plan 07 (release-workflow CI + phase docs) can run in parallel.
