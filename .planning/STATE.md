@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Observability & Operations
 status: executing
-stopped_at: Phase 18 context gathered
-last_updated: "2026-04-23T03:41:04.489Z"
-last_activity: 2026-04-23 -- Phase 18 planning complete
+stopped_at: Phase 18 plan 01 complete
+last_updated: "2026-04-23T08:51:41.000Z"
+last_activity: 2026-04-23 -- Phase 18 Plan 01 (config bootstrap + sentry install) complete
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 12
-  completed_plans: 5
-  percent: 42
+  completed_plans: 6
+  percent: 50
 ---
 
 # Project State
@@ -26,12 +26,12 @@ See: .planning/PROJECT.md (updated 2026-04-21)
 ## Current Position
 
 Milestone: v1.3 Observability & Operations
-Phase: 17 — Observability Ports & OTEL Bootstrap (complete 2026-04-22)
-Plan: —
-Status: Ready to execute
-Last activity: 2026-04-23 -- Phase 18 planning complete
+Phase: 18 — Error Tracking Adapters (executing)
+Plan: 18-01 (config bootstrap + sentry install) — complete
+Status: Plan 02 next (wave 1 sequential, same file contention)
+Last activity: 2026-04-23 -- Phase 18 Plan 01 complete
 
-Progress: [█░░░░░░░░░] 14% (1/7 phases)
+Progress: [█░░░░░░░░░] 14% (1/7 phases, 1/7 plans in Phase 18)
 
 ## Performance Metrics
 
@@ -52,6 +52,10 @@ Progress: [█░░░░░░░░░] 14% (1/7 phases)
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table (updated at v1.2 close with 7 new entries covering JSDoc style, two-runner test orchestration, lazy handler deps for mock.module, Elysia mount guard, validate-docs.ts contract, and Phase 16 docs-first content-drift strategy).
+
+**Phase 18 Plan 01 (2026-04-23):**
+- Added `@sentry/core ^10.49.0` as explicit observability dependency to resolve A2 concern — `createTransport` was not reachable as transitive-only of `@sentry/bun`. Still zero direct `@sentry/node` references per CLAUDE.md Bun-only constraint.
+- Widened `ERROR_TRACKER` default from `'noop'` to `'pino'` per CONTEXT D-06 (pino-sink adapter becomes the default for meaningful local-dev error visibility without Sentry keys).
 
 ### v1.3 Roadmap Summary
 
@@ -96,6 +100,6 @@ Prior concerns resolved:
 
 ## Session Continuity
 
-Last session: 2026-04-22T10:08:14.705Z
-Stopped at: Phase 18 context gathered
-Next action: `/gsd:discuss-phase 18` to gather Phase 18 context (Error Tracking Adapters — 5 requirements: ERR-01..04, EXT-01)
+Last session: 2026-04-23T08:51:41.000Z
+Stopped at: Phase 18 Plan 01 complete (config bootstrap + sentry install)
+Next action: Execute Phase 18 Plan 02 (PII scrubber utility) — wave 1 sequential continues. Plans 01, 02, 03 all modify packages/observability/src/index.ts so they run sequentially.
