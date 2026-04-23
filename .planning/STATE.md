@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Observability & Operations
 status: executing
-stopped_at: Phase 18 plan 02 complete
-last_updated: "2026-04-23T08:58:00.000Z"
-last_activity: 2026-04-23 -- Phase 18 Plan 02 (PII scrubber utility) complete
+stopped_at: Phase 18 plan 03 complete
+last_updated: "2026-04-23T09:11:40.000Z"
+last_activity: 2026-04-23 -- Phase 18 Plan 03 (error capture utilities) complete
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 12
-  completed_plans: 7
-  percent: 58
+  completed_plans: 8
+  percent: 67
 ---
 
 # Project State
@@ -27,11 +27,11 @@ See: .planning/PROJECT.md (updated 2026-04-21)
 
 Milestone: v1.3 Observability & Operations
 Phase: 18 — Error Tracking Adapters (executing)
-Plan: 18-02 (PII scrubber utility) — complete
-Status: Plan 03 next (wave 1 sequential, same file contention on packages/observability/src/index.ts)
-Last activity: 2026-04-23 -- Phase 18 Plan 02 complete
+Plan: 18-03 (error capture utilities: installGlobalErrorHandlers + wrapCqrsBus + makeTestTransport) — complete
+Status: Wave 1 complete (Plans 01, 02, 03 done). Wave 2 next — Plans 04 (pino adapter), 05 (sentry adapter), 07 (conformance + docs) unblocked
+Last activity: 2026-04-23 -- Phase 18 Plan 03 complete
 
-Progress: [██░░░░░░░░] 28% (1/7 phases, 2/7 plans in Phase 18)
+Progress: [███░░░░░░░] 33% (1/7 phases, 3/7 plans in Phase 18)
 
 ## Performance Metrics
 
@@ -62,6 +62,13 @@ Decisions are logged in PROJECT.md Key Decisions table (updated at v1.2 close wi
 - 13 PII conformance fixtures at `packages/observability/src/adapters/__tests__/pii-fixtures.ts` ready for Plan 18-05 conformance test.
 - Pattern: module-init `DENY_SET` IIFE reads env once; tests use dynamic `await import("../scrub-pii?t=" + Date.now())` after `mock.module("@baseworks/config", ...)` to force fresh module evaluation (cache-bust query string is critical — without it, the pre-evaluated DENY_SET would not pick up the mocked env).
 - Auto-fixed two fixture spec bugs (Rule 1): `stripe-webhook-body-in-extra` dropped `"4242"` from shouldNotAppear (card_last4 is not a deny key nor regex match); `better-auth-session-nested-deep` moved `"u-1"` to shouldNotAppear (D-13's recursive-deny wipes the entire `session` subtree wholesale).
+
+**Phase 18 Plan 03 (2026-04-23):**
+- Shipped `installGlobalErrorHandlers(tracker)` at `packages/observability/src/lib/install-global-error-handlers.ts` — WeakSet idempotence guard, 2000ms bounded flush, inner try/catch guarantees `process.exit(1)` even when tracker throws. Exports added to barrel alongside Plan 01/02 exports.
+- Shipped `wrapCqrsBus(bus, tracker)` at `packages/observability/src/wrappers/wrap-cqrs-bus.ts` — external wrapper (zero edits to `apps/api/src/core/cqrs.ts`, D-01 invariant preserved). A5 invariant: Result.err returns pass through untouched; only thrown exceptions trigger captureException. Rethrow via bare `throw err` preserves identity (`caught === original`).
+- Shipped `makeTestTransport()` at `packages/observability/src/adapters/sentry/__tests__/test-transport.ts` — uses `createTransport` from `@sentry/core` (A2 resolution; no pre-built mock-transport export exists in the Bun Sentry SDK). NOT exported from barrel (T-18-13 threat mitigation — test-only code).
+- Pattern: subprocess crash tests need `setInterval(() => {}, 1_000)` keep-alive in the fixture — Bun default unhandledRejection is non-fatal, event loop drains before async handler's `process.exit(1)` fires. Also: `Bun.fileURLToPath(new URL(...))` is required on Windows because `.pathname` returns `/C:/...` which Bun.spawn rejects as module not found.
+- TDD RED→GREEN gates both passed: Task 1 (`473c60b` test → `7427580` feat), Task 2 (`53dfd81` test → `80a0fd5` feat).
 
 ### v1.3 Roadmap Summary
 
@@ -106,6 +113,6 @@ Prior concerns resolved:
 
 ## Session Continuity
 
-Last session: 2026-04-23T08:58:00.000Z
-Stopped at: Phase 18 Plan 02 complete (PII scrubber utility)
-Next action: Execute Phase 18 Plan 03 (ErrorTracker factory wiring) — wave 1 sequential continues. Plan 03 modifies packages/observability/src/factory.ts and packages/observability/src/index.ts (same-file contention with Plans 01 and 02 already resolved).
+Last session: 2026-04-23T09:11:40.000Z
+Stopped at: Phase 18 Plan 03 complete (error capture utilities)
+Next action: Wave 1 complete. Execute Phase 18 Wave 2 — Plan 04 (pino-sink adapter), Plan 05 (Sentry adapter + conformance test), Plan 07 (docs). Plan 06 (apps/api wire-up) depends on Plans 03 and 04; runs in Wave 3.

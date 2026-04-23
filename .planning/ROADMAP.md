@@ -52,7 +52,7 @@ Full details: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md)
 ### Active Milestone: v1.3 Observability & Operations
 
 - [x] Phase 17: Observability Ports & OTEL Bootstrap (5/5 plans) -- completed 2026-04-22
-- [ ] Phase 18: Error Tracking Adapters (2/7 plans)
+- [ ] Phase 18: Error Tracking Adapters (3/7 plans)
 - [ ] Phase 19: Context, Logging & HTTP/CQRS Tracing (0/0 plans)
 - [ ] Phase 20: BullMQ Trace Propagation (0/0 plans)
 - [ ] Phase 21: OTEL Adapters + Grafana Observability Stack (0/0 plans)
