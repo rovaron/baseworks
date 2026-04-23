@@ -7,8 +7,10 @@ import { ModuleRegistry } from "./core/registry";
 import { logger } from "./lib/logger";
 import {
   getErrorTracker,
+  getTracer,
   installGlobalErrorHandlers,
   wrapCqrsBus,
+  wrapEventBus,
 } from "@baseworks/observability";
 
 // Validate environment at startup (crashes on missing/invalid vars)
@@ -39,6 +41,9 @@ await registry.loadAll();
 // Phase 18 D-01 — wrap the CqrsBus so thrown handler exceptions are captured.
 // External wrapper; zero edits to apps/api/src/core/cqrs.ts (D-01 invariant).
 wrapCqrsBus(registry.getCqrs(), getErrorTracker());
+// Phase 19 D-16 — wrap the EventBus so emit/on get producer/consumer spans.
+// External wrapper; zero edits to apps/api/src/core/event-bus.ts (TRC-02 invariant).
+wrapEventBus(registry.getEventBus(), getTracer());
 
 // Start BullMQ Workers for all module-registered jobs
 const workers: Worker[] = [];
