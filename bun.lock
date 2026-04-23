@@ -47,6 +47,7 @@
       "dependencies": {
         "@baseworks/config": "workspace:*",
         "@baseworks/db": "workspace:*",
+        "@baseworks/i18n": "workspace:*",
         "@baseworks/observability": "workspace:*",
         "@baseworks/queue": "workspace:*",
         "@baseworks/shared": "workspace:*",
@@ -60,6 +61,7 @@
         "better-auth": "^1.5.6",
         "drizzle-orm": "^0.45.0",
         "elysia": "^1.4.0",
+        "ipaddr.js": "^2.3.0",
         "pino": "^10.0.0",
         "pino-pretty": "^13.0.0",
       },
