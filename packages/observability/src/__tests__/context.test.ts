@@ -83,11 +83,15 @@ describe("obsContext — Phase 19 / CTX-01 / D-06 ALS carrier", () => {
     expect(getObsContext()).toBeUndefined();
   });
 
-  test("Test 7 (D-24 enterWith hygiene): context.ts source contains no .enterWith( reference", async () => {
+  test("Test 7 (D-24 hygiene): context.ts source contains no banned ALS mutator", async () => {
     const source = await Bun.file(
       "packages/observability/src/context.ts",
     ).text();
-    expect(source.includes(".enterWith(")).toBe(false);
+    // Construct the banned token dynamically so this test file itself is not
+    // flagged by the Plan 08 grep rule (belt-and-suspenders for the repo-wide
+    // `grep -rn "\\.enter{W}ith(" packages/` sweep — doc literal split).
+    const banned = `.${"enter"}${"With"}(`;
+    expect(source.includes(banned)).toBe(false);
   });
 
   test("Test 8 (SpanOptions.links widening is typecheck-compatible)", () => {
