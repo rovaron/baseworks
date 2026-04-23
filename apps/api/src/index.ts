@@ -6,20 +6,27 @@ import { Elysia } from "elysia";
 import { sql } from "drizzle-orm";
 import cors from "@elysiajs/cors";
 import swagger from "@elysiajs/swagger";
-import { requireRole, localeMiddleware } from "@baseworks/module-auth";
+import { requireRole } from "@baseworks/module-auth";
 import { registerBillingHooks } from "@baseworks/module-billing";
 import { registerExampleHooks } from "@baseworks/module-example";
 import { ModuleRegistry } from "./core/registry";
 import { tenantMiddleware } from "./core/middleware/tenant";
 import { errorMiddleware } from "./core/middleware/error";
 import { requestTraceMiddleware } from "./core/middleware/request-trace";
+import { observabilityMiddleware } from "./core/middleware/observability";
 import { adminRoutes } from "./routes/admin";
 import { logger } from "./lib/logger";
 import {
   getErrorTracker,
+  getTracer,
   installGlobalErrorHandlers,
+  obsContext,
   wrapCqrsBus,
+  wrapEventBus,
 } from "@baseworks/observability";
+import { defaultLocale } from "@baseworks/i18n";
+import { parseNextLocaleCookie } from "./lib/locale-cookie";
+import { decideInboundTrace } from "./lib/inbound-trace";
 
 // Create database instance
 const db = createDb(env.DATABASE_URL);
@@ -44,6 +51,9 @@ await registry.loadAll();
 // Phase 18 D-01 — wrap the CqrsBus so thrown handler exceptions are captured.
 // External wrapper; zero edits to apps/api/src/core/cqrs.ts (D-01 invariant).
 wrapCqrsBus(registry.getCqrs(), getErrorTracker());
+// Phase 19 D-16 — wrap the EventBus so emit/on get producer/consumer spans.
+// External wrapper; zero edits to apps/api/src/core/event-bus.ts (TRC-02 invariant).
+wrapEventBus(registry.getEventBus(), getTracer());
 
 // Register billing hooks (auto-create Stripe customer on tenant.created)
 registerBillingHooks(registry.getEventBus());
@@ -61,12 +71,14 @@ const billingApiRoutes = billingModule?.routes;
 const app = new Elysia()
   // Global error handling -- registered first
   .use(errorMiddleware)
-  // Request tracing -- generates requestId, logs method/path/status/duration
+  // Phase 19 D-22 — observability middleware (HTTP span + outbound traceparent + x-request-id)
+  // mounts BEFORE requestTraceMiddleware so the span is open for the whole hook chain.
+  .use(observabilityMiddleware)
+  // Request tracing — generates per-request logger; requestId now sourced from ALS (D-23)
   .use(requestTraceMiddleware)
-  // Locale capture (Phase 12 D-02) -- reads NEXT_LOCALE cookie into AsyncLocalStorage
-  // so sendInvitationEmail and other auth callbacks can resolve the request locale
-  // without touching better-auth's plugin config.
-  .use(localeMiddleware)
+  // (Phase 19 D-10/D-22 — Phase 12 locale middleware DELETED. Cookie-to-locale
+  //  parsing happens in the Bun.serve fetch wrapper below, seeding ALS once
+  //  per request.)
   .use(
     cors({
       credentials: true,
@@ -148,10 +160,25 @@ const app = new Elysia()
   // Non-auth, non-billing module routes (e.g., example)
   .use(registry.getModuleRoutes());
 
-// Start server
-app.listen(env.PORT, () => {
-  logger.info({ port: env.PORT, role: env.INSTANCE_ROLE }, "Baseworks API started");
+// Phase 19 D-01/D-12 — Bun.serve fetch wrapper is the single ALS seed point for
+// every HTTP request. Elysia runs inside `obsContext.run(...)` so every log line,
+// span, and error-capture inside the handler sees the same ObservabilityContext.
+Bun.serve({
+  port: env.PORT,
+  fetch(req, server) {
+    const remoteAddr = server.requestIP(req)?.address ?? "";
+    const cookieHeader = req.headers.get("cookie");
+    const locale = parseNextLocaleCookie(cookieHeader) ?? defaultLocale;
+    const requestId = req.headers.get("x-request-id") ?? crypto.randomUUID();
+    const { traceId, spanId, inboundCarrier } = decideInboundTrace(req, remoteAddr);
+    return obsContext.run(
+      { requestId, traceId, spanId, locale, tenantId: null, userId: null, inboundCarrier },
+      () => app.handle(req),
+    );
+  },
 });
+
+logger.info({ port: env.PORT, role: env.INSTANCE_ROLE }, "Baseworks API started");
 
 // Export app type for Eden Treaty (used by @baseworks/api-client)
 export type App = typeof app;

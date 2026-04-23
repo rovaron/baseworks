@@ -1,29 +1,34 @@
 import { Elysia } from "elysia";
+import { getObsContext } from "@baseworks/observability";
 import { createRequestLogger } from "../../lib/logger";
 
 /**
  * Request tracing middleware.
  *
- * Generates a unique request ID per request (or reuses an incoming
- * `X-Request-Id` from a load balancer), creates a pino child logger
- * bound to that ID, and logs request completion with method, path,
- * status, and duration. Sets `X-Request-Id` response header for
- * client-side correlation and debugging.
+ * Phase 19 D-23 — requestId now comes from the unified observability ALS
+ * (seeded by the Bun.serve fetch wrapper in apps/api/src/index.ts). The
+ * response-header writer has moved to observabilityMiddleware to enforce a
+ * single-writer invariant across the middleware stack; this middleware only
+ * derives `requestId`, `log`, and `startTime` into the Elysia context and
+ * emits the request-completion log line on response.
  *
- * Uses `as: 'global'` to apply tracing to all routes regardless
- * of plugin scope. Derives `requestId`, `log`, and `startTime`
- * into the Elysia context for use by downstream handlers.
+ * Uses `as: 'global'` to apply tracing to all routes regardless of plugin
+ * scope. The completion log line automatically includes trace/tenant/user
+ * fields via the pino mixin (Phase 19 D-19) — no explicit requestId needed
+ * in the log payload.
+ *
+ * Defensive fallback: when invoked outside any `obsContext.run(...)` frame
+ * (unusual — e.g., misconfigured test harness), the derive returns
+ * `requestId: "unknown"` so downstream handlers never see undefined.
  */
 export const requestTraceMiddleware = new Elysia({ name: "request-trace" })
-  .derive({ as: "global" }, ({ headers }) => {
-    // Use incoming X-Request-Id if present (from load balancer), otherwise generate
-    const requestId = headers["x-request-id"] || crypto.randomUUID();
+  .derive({ as: "global" }, () => {
+    const requestId = getObsContext()?.requestId ?? "unknown";
     const log = createRequestLogger(requestId);
     const startTime = performance.now();
-
     return { requestId, log, startTime };
   })
-  .onAfterResponse({ as: "global" }, ({ request, set, requestId, log, startTime }) => {
+  .onAfterResponse({ as: "global" }, ({ request, set, log, startTime }) => {
     const duration = Math.round(performance.now() - (startTime as number));
     const url = new URL(request.url);
 
@@ -36,9 +41,5 @@ export const requestTraceMiddleware = new Elysia({ name: "request-trace" })
       },
       "request completed",
     );
-
-    // Set response header for client correlation
-    if (set && typeof set === "object" && "headers" in set) {
-      (set.headers as Record<string, string>)["x-request-id"] = requestId as string;
-    }
+    // D-23: response-header writer DELETED (single writer is observabilityMiddleware).
   });
