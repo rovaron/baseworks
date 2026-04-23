@@ -1,0 +1,111 @@
+name: Release — upload source maps
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  upload-sourcemaps:
+    name: Build + upload source maps to Sentry
+    runs-on: ubuntu-latest
+    # Required GitHub repo secrets (configured manually by the operator):
+    #   SENTRY_AUTH_TOKEN  — Sentry auth token with project:releases + project:write scopes
+    #   SENTRY_ORG         — Sentry/GlitchTip organization slug
+    #   SENTRY_PROJECT     — Sentry/GlitchTip project slug
+    env:
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+      SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # Required for git rev-parse --short HEAD to resolve at the tagged commit (D-19)
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Compute RELEASE (short git SHA)
+        id: rel
+        # D-19: single source of truth — the short git SHA is the release identifier
+        # at build-define time, runtime (via env.RELEASE), and sentry-cli --release upload.
+        run: echo "release=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build apps/api (+ worker bundle) with external source maps
+        env:
+          RELEASE: ${{ steps.rel.outputs.release }}
+        # --sourcemap=external emits a .map file carrying an embedded Debug ID and
+        # does NOT insert a //# sourceMappingURL comment into the bundle (Pitfall 5 —
+        # Debug ID variant: maps are keyed by embedded ID, not filename, so they are
+        # never pointed-to by publicly served .js files).
+        # --define bakes $RELEASE into the bundle at build time so the runtime
+        # Sentry.init({ release }) reads the SAME short SHA even if the deploy env
+        # forgets to set it (Pitfall 6 / D-19 single-source discipline).
+        run: |
+          bun build apps/api/src/index.ts  \
+            --outdir apps/api/dist         \
+            --target bun                   \
+            --sourcemap=external           \
+            --define "process.env.RELEASE=\"$RELEASE\""
+          bun build apps/api/src/worker.ts \
+            --outdir apps/api/dist/worker  \
+            --target bun                   \
+            --sourcemap=external           \
+            --define "process.env.RELEASE=\"$RELEASE\""
+
+      - name: Build apps/admin (Vite)
+        env:
+          VITE_RELEASE: ${{ steps.rel.outputs.release }}
+        # Vite emits .map files next to each .js in apps/admin/dist by default for
+        # production builds when configured; the upload step below will skip any
+        # dir that ends up without .map files.
+        run: bun --cwd apps/admin run build
+
+      # NOTE (Phase 18 / RESEARCH Open Question 2 RESOLVED / D-18 scope trim):
+      # apps/web (Next.js 15) is INTENTIONALLY NOT built or uploaded in this workflow.
+      # Next.js 15 server-side .map emission surface is not stable without
+      # @sentry/nextjs's wrapper (Turbopack vs webpack vs RSC route-type all affect
+      # whether .map files are actually produced). Blindly uploading .next/ would
+      # silently no-op in most configurations.
+      # The Next.js browser-source-maps flag in apps/web/next.config.ts stays
+      # FALSE (Pitfall 5 discipline preserved — public .map files are never shipped
+      # to browsers, regardless of this workflow's coverage of apps/web).
+      # Follow-up task (not Phase 18): either adopt @sentry/nextjs or explicitly
+      # configure next.config.ts to emit server maps + extend this workflow.
+      # Tracked in CONTEXT.md Deferred Ideas.
+
+      - name: Upload source maps to Sentry (api + worker + admin — web deferred)
+        env:
+          RELEASE: ${{ steps.rel.outputs.release }}
+        # Debug ID variant: sentry-cli injects Debug IDs into bundles + maps, then
+        # uploads the JS/map pairs keyed by ID (not filename). Works identically
+        # against Sentry and GlitchTip (shared wire protocol per STACK.md).
+        # The `if [ -d "$DIR" ]` guard lets a failed build step not abort the loop —
+        # any missing output is logged as a WARNING and the loop continues.
+        run: |
+          for DIR in apps/api/dist apps/api/dist/worker apps/admin/dist; do
+            echo "=== Processing $DIR ==="
+            if [ -d "$DIR" ]; then
+              bun x sentry-cli sourcemaps inject "$DIR"
+              bun x sentry-cli sourcemaps upload \
+                --release="$RELEASE"            \
+                --org="$SENTRY_ORG"             \
+                --project="$SENTRY_PROJECT"     \
+                "$DIR"
+            else
+              echo "WARNING: $DIR not found — build step did not produce output. Skipping."
+            fi
+          done
+
+      - name: Summary
+        env:
+          RELEASE: ${{ steps.rel.outputs.release }}
+        run: |
+          echo "RELEASE=$RELEASE uploaded for apps: api, api-worker, admin (web deferred — see Upload step comment)."
+          echo "Runtime Sentry.init must read env.RELEASE=$RELEASE to match the uploaded maps."
