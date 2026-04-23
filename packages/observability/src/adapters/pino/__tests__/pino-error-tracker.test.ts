@@ -17,7 +17,7 @@
  * - flush always resolves true (with and without timeout)
  */
 import { beforeEach, describe, expect, test } from "bun:test";
-import { pino } from "pino";
+import { type Logger, pino } from "pino";
 import type { Breadcrumb } from "../../../ports/error-tracker";
 import { PinoErrorTracker } from "../pino-error-tracker";
 
@@ -27,7 +27,7 @@ interface FakeLogged {
   [key: string]: unknown;
 }
 
-function makeFakeLogger(): { logger: ReturnType<typeof pino>; logged: FakeLogged[] } {
+function makeFakeLogger(): { logger: Logger; logged: FakeLogged[] } {
   const logged: FakeLogged[] = [];
   const stream = {
     write(chunk: string) {
@@ -38,7 +38,14 @@ function makeFakeLogger(): { logger: ReturnType<typeof pino>; logged: FakeLogged
       }
     },
   };
-  const logger = pino({ level: "debug" }, stream as unknown as NodeJS.WritableStream);
+  // Cast pino()'s default `Logger<never, boolean>` to the ctor's `Logger`
+  // default (`Logger<string, boolean>`) — the adapter only calls the
+  // standard log methods (error/warn/info/debug/fatal), which are identical
+  // across both generic instantiations.
+  const logger = pino(
+    { level: "debug" },
+    stream as unknown as NodeJS.WritableStream,
+  ) as unknown as Logger;
   return { logger, logged };
 }
 
@@ -101,12 +108,18 @@ describe("PinoErrorTracker", () => {
   });
 
   test("captureMessage level mapping", () => {
+    // Port LogLevel vocabulary is `"warning"` (Sentry-native), not pino's
+    // `"warn"`. The adapter bridges to the pino method `.warn` internally.
+    // This test pins the mapping: fatal→60, error→50, warning→40, info→30,
+    // debug→20, default→info(30).
+    tracker.captureMessage("hi-fatal", "fatal");
     tracker.captureMessage("hi-error", "error");
-    tracker.captureMessage("hi-warn", "warn");
+    tracker.captureMessage("hi-warn", "warning");
     tracker.captureMessage("hi-info", "info");
     tracker.captureMessage("hi-debug", "debug");
     tracker.captureMessage("hi-default");
     const levels = fake.logged.map((e) => e.level);
+    expect(levels).toContain(60);
     expect(levels).toContain(50);
     expect(levels).toContain(40);
     expect(levels).toContain(30);
@@ -193,7 +206,7 @@ describe("PinoErrorTracker", () => {
     const throwingLogger = pino(
       { level: "debug" },
       throwingStream as unknown as NodeJS.WritableStream,
-    );
+    ) as unknown as Logger;
     const throwingTracker = new PinoErrorTracker(throwingLogger);
     expect(await throwingTracker.flush()).toBe(true);
     expect(await throwingTracker.flush(500)).toBe(true);
