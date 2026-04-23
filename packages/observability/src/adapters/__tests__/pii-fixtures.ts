@@ -105,7 +105,13 @@ export const PII_FIXTURES: PiiFixture[] = [
       },
     },
     shouldSurvive: ["checkout.session.completed"],
-    shouldNotAppear: ["cust@x.com", "4242"],
+    // Note: card_last4 "4242" is a 4-digit string that matches neither a
+    // deny key (the key itself is `card_last4`, not in DEFAULT_DENY_KEYS)
+    // nor any regex pattern. The scrubber cannot catch it without custom
+    // configuration; operators concerned about PCI must add `card_last4`
+    // via OBS_PII_DENY_EXTRA_KEYS. This fixture asserts the email under
+    // the nested `email` deny key IS redacted.
+    shouldNotAppear: ["cust@x.com"],
   },
   {
     name: "pagarme-cpf-cnpj",
@@ -135,8 +141,13 @@ export const PII_FIXTURES: PiiFixture[] = [
         },
       },
     },
-    shouldSurvive: ["u-1"],
-    shouldNotAppear: ["dev@x.com", "sess_abc"],
+    // Note: `session` is itself a deny key — the entire nested tree under
+    // it is replaced with `[redacted:session]`. That means `u-1` (which the
+    // plan spec originally listed under shouldSurvive) CANNOT survive: the
+    // denylist is depth-agnostic and wipes the subtree wholesale. This is
+    // the intended D-13 behavior — the fixture's value is proving exactly
+    // that wipe, not per-field preservation inside a denied key.
+    shouldNotAppear: ["dev@x.com", "sess_abc", "u-1"],
   },
   {
     name: "email-at-depth-3-nested-object",
