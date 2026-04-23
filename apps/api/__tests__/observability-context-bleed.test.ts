@@ -25,9 +25,9 @@
  *           bounds flake/hang scenarios).
  *
  * Test-file self-flag discipline note: this file does NOT contain the
- * `.enterWith(` banned token — no dynamic tokens needed here (grep gate
- * scoped check in scripts/__tests__/enterwith-ban.test.ts covers this file
- * as part of the repo-wide sweep).
+ * banned-method literal token. No dynamic-token construction needed here
+ * (grep gate scoped check in scripts/__tests__/enterwith-ban.test.ts covers
+ * this file as part of the repo-wide sweep).
  */
 
 import { describe, expect, test } from "bun:test";
