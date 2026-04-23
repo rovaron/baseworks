@@ -7,9 +7,11 @@
   "types": "./src/index.ts",
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
-    "@opentelemetry/sdk-node": "^0.215.0",
     "@opentelemetry/auto-instrumentations-node": "^0.73.0",
     "@opentelemetry/resources": "^2.7.0",
-    "@opentelemetry/semantic-conventions": "^1.40.0"
+    "@opentelemetry/sdk-node": "^0.215.0",
+    "@opentelemetry/semantic-conventions": "^1.40.0",
+    "@sentry/bun": "^10.49.0",
+    "@sentry/core": "^10.49.0"
   }
 }
