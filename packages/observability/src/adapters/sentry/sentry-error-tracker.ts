@@ -74,15 +74,30 @@ export class SentryErrorTracker implements ErrorTracker {
   }
 
   /**
-   * Capture an exception. Delegates to `Sentry.captureException`. The
-   * scope argument is forwarded to Sentry's CaptureContext shape — Sentry
-   * accepts partial overrides (extra, tags, user, etc.) inline.
+   * Capture an exception. Delegates to `Sentry.captureException`. Port
+   * `CaptureScope.tenantId` has no Sentry-native equivalent, so it is
+   * translated to a `tenantId` tag (mirrors the withScope mapping). All
+   * other fields (extra, tags, user) pass through to Sentry's CaptureContext
+   * shape directly — Sentry accepts partial overrides inline.
    *
    * @param err - Error instance or arbitrary thrown value
    * @param scope - Optional inline scope overrides for this capture
    */
   captureException(err: unknown, scope?: CaptureScope): void {
-    Sentry.captureException(err, scope as Sentry.CaptureContext | undefined);
+    if (!scope) {
+      Sentry.captureException(err);
+      return;
+    }
+    const { tenantId, tags, ...rest } = scope;
+    const mergedTags =
+      tenantId !== undefined && tenantId !== null
+        ? { ...(tags ?? {}), tenantId: String(tenantId) }
+        : tags;
+    const ctx: Sentry.CaptureContext = {
+      ...(rest as Sentry.CaptureContext),
+      ...(mergedTags ? { tags: mergedTags } : {}),
+    };
+    Sentry.captureException(err, ctx);
   }
 
   /**
