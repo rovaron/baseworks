@@ -57,6 +57,13 @@ export interface SpanOptions {
   attributes?: Attributes;
   /** Span kind — maps to OTEL's `SpanKind` enum on Phase 21 adapters. */
   kind?: "internal" | "server" | "client" | "producer" | "consumer";
+  /**
+   * Optional pre-attached OTEL Links — used by Phase 19 observabilityMiddleware
+   * (D-07) to attach an untrusted inbound `traceparent` as a non-parent
+   * correlation. Noop tracer ignores; Phase 21 OtelTracer maps to the OTEL
+   * Link API at `startSpan` time.
+   */
+  links?: Array<{ traceId: string; spanId: string }>;
 }
 
 /**
