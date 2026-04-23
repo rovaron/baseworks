@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Observability & Operations
 status: executing
-stopped_at: Phase 18 Plan 05 complete (sentry adapter + cross-adapter conformance + factory extension)
-last_updated: "2026-04-23T09:39:23.000Z"
-last_activity: 2026-04-23 -- Phase 18 Plan 05 complete
+stopped_at: Phase 18 Plan 06 complete (apps/api wire-up — 4 capture boundaries wired end-to-end)
+last_updated: "2026-04-23T09:51:42Z"
+last_activity: 2026-04-23 -- Phase 18 Plan 06 complete
 progress:
   total_phases: 2
   completed_phases: 1
-  total_plans: 12
-  completed_plans: 11
+  total_plans: 13
+  completed_plans: 12
   percent: 92
 ---
 
@@ -27,11 +27,11 @@ See: .planning/PROJECT.md (updated 2026-04-21)
 
 Milestone: v1.3 Observability & Operations
 Phase: 18 — Error Tracking Adapters (executing)
-Plan: 18-05 (SentryErrorTracker + cross-adapter conformance + factory extension — ERR-01, ERR-02, ERR-04) — complete
-Status: Wave 2 complete. Plan 05 ships the last adapter. Plan 06 (apps/api wire-up) now unblocked for Wave 3; Plan 07 (release workflow + docs) still unblocked and parallel with 06.
-Last activity: 2026-04-23 -- Phase 18 Plan 05 complete
+Plan: 18-06 (apps/api wire-up — four capture boundaries wired end-to-end: D-01 wrapCqrsBus, D-02 installGlobalErrorHandlers, D-03/A4 errorMiddleware extension, D-04 worker.on('failed') one-liner + test — ERR-01, ERR-04) — complete
+Status: Wave 3 in progress. Plan 06 complete; Plan 07 (release workflow + docs) still unblocked and can run next/parallel.
+Last activity: 2026-04-23 -- Phase 18 Plan 06 complete
 
-Progress: [████████░░] 71% (1/7 phases, 5/7 plans in Phase 18)
+Progress: [█████████░] 86% (1/7 phases, 6/7 plans in Phase 18)
 
 ## Performance Metrics
 
@@ -81,6 +81,17 @@ Decisions are logged in PROJECT.md Key Decisions table (updated at v1.2 close wi
 - Pattern: closure-scoped `withScope` — setters `setUser/setTag/setExtra/setTenant` write to a local `{ tags: {}, extra: {} }` object captured by arrow functions; acceptance grep `this.(tags|user|tenantId|extra)\s*=` returns empty. Concurrent `Promise.all([withScope(), withScope()])` + a subsequent unscoped `captureException` leak-nothing is the Pitfall 4 regression guard test.
 - Pattern: fake pino logger for adapter tests — `pino({ level: 'debug' }, customStream)` where `customStream.write(chunk)` parses JSON into an array for assertions. No stdout touched during tests. Generic-parameter cast `as unknown as Logger` bridges `Logger<never, boolean>` return to `Logger<string, boolean>` ctor param.
 - TDD RED→GREEN gate passed: `9481f61` test → `2e8ccf0` feat. 12 new tests (31 expects); full observability suite 121/121 pass, zero regressions; tsc --noEmit clean.
+
+**Phase 18 Plan 06 (2026-04-23):**
+
+- Wired the Phase 18 capture pipeline into four boundary sites in `apps/api`: (1) `apps/api/src/core/middleware/error.ts` — extended the existing `errorMiddleware.onError` callback with `getErrorTracker().captureException(error, { tags: { method: request.method, code: String(code) }, extra: { path: new URL(request.url).pathname } })` BEFORE the status-mapping switch (D-03, A4 invariant preserved: `grep -c '.onError('` returns 1); (2) + (3) `apps/api/src/index.ts` + `apps/api/src/worker.ts` — added `validateObservabilityEnv()` (D-09) + `installGlobalErrorHandlers(getErrorTracker())` (D-02) immediately after `validatePaymentProviderEnv()`, and `wrapCqrsBus(registry.getCqrs(), getErrorTracker())` (D-01) immediately after `await registry.loadAll()`; (4) `apps/api/src/worker.ts` line 70 — extended the existing `worker.on('failed', ...)` handler with a one-line `getErrorTracker().captureException(err, { tags: { queue: jobDef.queue }, extra: { jobId: job?.id, jobName } })` (D-04).
+- D-01 invariant preserved end-to-end: `git diff apps/api/src/core/cqrs.ts apps/api/src/core/event-bus.ts` across all Phase 18 commits produces zero lines. The CqrsBus wrap happens externally at registry boot time via `wrapCqrsBus(registry.getCqrs(), tracker)` — the same bus instance the rest of the application reads.
+- A3 enforcement: `request.route` is absent from Elysia Context at onError time, so the errorMiddleware uses `request.method` (cardinality-safe: ~7 values) + `String(code)` (Elysia closed set) on tags; the concrete URL path goes to `extra` (not a metric dimension, per Pitfall 4). Phase 19 will add matched-route-template extraction via a separate middleware.
+- A4 enforcement: the captureException call was added INSIDE the existing `errorMiddleware.onError(...)` callback, NOT as a separate `.onError` plugin. Single on-error site preserved byte-for-byte.
+- D-04 discipline: only ONE captureException call in worker.ts — inside `worker.on('failed', ...)`. The inner try/catch at lines 58-65 (around `jobLog.error({ err: String(err) }, "Job handler error"); throw err;`) remains log-only. Adding capture there would double-report every job failure. Test 3 in `worker-failed-capture.test.ts` enforces this as a cross-file-state regression guard.
+- Shipped `apps/api/src/__tests__/worker-failed-capture.test.ts` — 3 tests, 9 expects: (1) D-04 call shape with jobId/jobName extras, (2) undefined-job graceful handling, (3) cross-file-state guard that reads worker.ts source via `Bun.file` and asserts `getErrorTracker` + `captureException` absent from the inner try/catch region. Pattern: lockstep-mirror-function — the test's `onFailed()` helper replicates the worker.on('failed') body verbatim, providing a stable unit-testable surface without booting real BullMQ/Redis.
+- Auto-fixed one deviation (Rule 3): initial comment in error.ts literally contained `request.route does not exist on Elysia Context`, which tripped the A3 acceptance grep. Rephrased to "the matched-route template is NOT available on Elysia's Context at onError time" — same meaning, no forbidden token. Fix folded into Task 1 commit.
+- 3 commits: `b7e3afa` (Task 1 — errorMiddleware extension), `fb94746` (Task 2 — entrypoint wiring), `f044f97` (Task 3 — worker-failed-capture test). All 63 apps/api tests pass (60 prior + 3 new); telemetry-line1.test.ts gate still green (line-1 invariant T-18-40 preserved).
 
 **Phase 18 Plan 05 (2026-04-23):**
 
@@ -138,6 +149,6 @@ Prior concerns resolved:
 
 ## Session Continuity
 
-Last session: 2026-04-23T09:39:23.000Z
-Stopped at: Phase 18 Plan 05 complete (Sentry adapter + cross-adapter conformance + factory extension)
-Next action: Wave 2 COMPLETE. Wave 3 now unblocked. Plan 06 (apps/api wire-up — constructs env-selected tracker via getErrorTracker() which now dispatches all 4 adapters, calls installGlobalErrorHandlers, applies wrapCqrsBus after registry.loadAll, extends worker.on('failed') with captureException, extends errorMiddleware.onError with capture) and Plan 07 (release-workflow CI + phase docs) can run in parallel.
+Last session: 2026-04-23T09:51:42Z
+Stopped at: Phase 18 Plan 06 complete (apps/api wire-up — four capture boundaries wired end-to-end)
+Next action: Wave 3 in progress. Plan 07 (release-workflow CI + Phase 18 phase-level docs — EXT-01) is the last remaining Phase 18 plan. After Plan 07, Phase 18 closes (ERR-01..04, EXT-01 complete) and Phase 19 (Context, Logging & HTTP/CQRS Tracing — CTX-01..03, TRC-01..02) becomes the next phase target.
