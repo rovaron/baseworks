@@ -1,5 +1,6 @@
 import { Elysia } from "elysia";
 import { auth } from "@baseworks/module-auth";
+import { setTenantContext } from "@baseworks/observability";
 
 /**
  * Tenant context middleware. Derives tenantId from the authenticated
@@ -65,6 +66,12 @@ export const tenantMiddleware = new Elysia({ name: "tenant-context" }).derive(
     if (!tenantId) {
       throw new Error("No active tenant");
     }
+
+    // Phase 19 D-04 — publish session-derived tenant/user into the unified
+    // observability ALS so logs, spans, and wrapCqrsBus error capture all see
+    // a single source of truth. Mutates the existing frame in place (no new
+    // run() — forbidden by CTX-01).
+    setTenantContext({ tenantId, userId: session.user.id });
 
     return {
       tenantId,
