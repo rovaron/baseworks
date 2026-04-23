@@ -7,6 +7,14 @@ import {
   mock,
 } from "bun:test";
 import { Elysia } from "elysia";
+
+// Set t3-env-required vars before the @baseworks/observability barrel loads
+// (which transitively imports @baseworks/config via scrub-pii.ts). Bun hoists
+// `import` statements, so these assignments must happen via a side-effect
+// import BEFORE the barrel import runs. Without them, t3-env throws at
+// module init. See 19-01 deferred-items.md for context.
+import "./_env-setup";
+
 import {
   obsContext,
   resetTracer,
