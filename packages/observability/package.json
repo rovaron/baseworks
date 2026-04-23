@@ -12,6 +12,7 @@
     "@opentelemetry/sdk-node": "^0.215.0",
     "@opentelemetry/semantic-conventions": "^1.40.0",
     "@sentry/bun": "^10.49.0",
-    "@sentry/core": "^10.49.0"
+    "@sentry/core": "^10.49.0",
+    "pino": "^10.0.0"
   }
 }
