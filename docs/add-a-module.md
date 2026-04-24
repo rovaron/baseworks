@@ -83,8 +83,8 @@ export default {
   commands: { "example:create": createExample },
   queries: { "example:list": listExamples },
   jobs: {
-    "example:process-followup": {
-      queue: "example:process-followup",
+    "example-process-followup": {
+      queue: "example-process-followup",
       handler: processFollowup,
     },
   },

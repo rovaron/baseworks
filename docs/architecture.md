@@ -72,7 +72,7 @@ sequenceDiagram
   Cmd-->>Bus: ok(data)
   Bus-->>Route: Result<T>
   EB->>Hook: on("example.created", listener)
-  Hook->>Q: queue.add("example:process-followup", payload)
+  Hook->>Q: queue.add("example-process-followup", payload)
 ```
 
 ### HandlerContext

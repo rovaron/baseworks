@@ -97,7 +97,7 @@ describe("registerExampleHooks", () => {
     envRef.REDIS_URL = "redis://test:6379";
   });
 
-  test("enqueues example:process-followup when example.created fires", async () => {
+  test("enqueues example-process-followup when example.created fires", async () => {
     envRef.REDIS_URL = "redis://test:6379";
     const bus = makeEventBus();
     registerExampleHooks(bus);
@@ -106,7 +106,7 @@ describe("registerExampleHooks", () => {
 
     expect(mockAdd).toHaveBeenCalledTimes(1);
     expect(mockAdd).toHaveBeenCalledWith(
-      "example:process-followup",
+      "example-process-followup",
       { exampleId: "ex-1", tenantId: "t-1" },
     );
   });

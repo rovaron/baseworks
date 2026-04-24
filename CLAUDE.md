@@ -65,7 +65,7 @@ A production-grade monorepo starter kit for SaaS and freelance projects. It prov
 | ioredis | ^5.4+ | Redis client | Required by BullMQ. Also useful for caching and rate limiting. | HIGH |
 | Redis | 7+ | Queue backend & cache | Required for BullMQ. Also serves as session store, rate limiter, and cache layer. | HIGH |
 - BullMQ works with Bun as of Bun 1.0+ (uses ioredis under the hood)
-- Create named queues per module (e.g., `billing:sync-subscription`, `email:send`)
+- Create named queues per module (e.g., `billing:sync-subscription`, `email-send`)
 - Use BullMQ's `Worker` class in a separate entrypoint (`bun run worker`)
 - Use BullMQ Board or bull-monitor for admin dashboard job monitoring
 ### Payments

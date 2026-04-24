@@ -2,7 +2,7 @@
 
 ## Overview
 
-better-auth provides email/password authentication, OAuth providers, magic-link sign-in, and an organization plugin that powers Baseworks' multitenancy. Configuration lives in `packages/modules/auth/src/auth.ts`. Sessions are database-backed via the Drizzle adapter so revocation is immediate. The magic-link and password-reset flows enqueue a job to the `email:send` BullMQ queue rather than calling Resend inline.
+better-auth provides email/password authentication, OAuth providers, magic-link sign-in, and an organization plugin that powers Baseworks' multitenancy. Configuration lives in `packages/modules/auth/src/auth.ts`. Sessions are database-backed via the Drizzle adapter so revocation is immediate. The magic-link and password-reset flows enqueue a job to the `email-send` BullMQ queue rather than calling Resend inline.
 
 ## Upstream Documentation
 
@@ -44,14 +44,14 @@ A 200 response with a session cookie confirms the handler is reachable and the d
 
 The organization plugin's `sendInvitationEmail` callback supports two modes: `email` mode enqueues a `team-invite` job for Resend delivery, and `link` mode (detected via an `@internal` placeholder suffix on the invitation email) suppresses the enqueue so the inviter can share a copy-paste link instead. See `packages/modules/auth/src/auth.ts:90-123` for the branch and [email.md](./email.md) for the template that `team-invite` jobs render.
 
-The magic-link flow does not send email inline. The `sendMagicLink` callback enqueues onto `email:send` and returns; the worker process consumes the job, renders the template, and calls Resend:
+The magic-link flow does not send email inline. The `sendMagicLink` callback enqueues onto `email-send` and returns; the worker process consumes the job, renders the template, and calls Resend:
 
 ```mermaid
 sequenceDiagram
   participant Client
   participant Route as /api/auth/magic-link/request
   participant Auth as better-auth magicLink plugin
-  participant Queue as email:send BullMQ queue
+  participant Queue as email-send BullMQ queue
   participant Worker as sendEmail worker
   participant Resend
 

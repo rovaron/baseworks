@@ -109,7 +109,7 @@ async function resolveTeamInvite(data: {
 /**
  * Send a transactional email via Resend and React Email.
  *
- * Processes email:send BullMQ queue jobs. Resolves the template
+ * Processes email-send BullMQ queue jobs. Resolves the template
  * by name, renders it with React Email, and sends via Resend.
  * Skips sending gracefully when RESEND_API_KEY is not configured
  * (dev/test environments).
@@ -119,7 +119,7 @@ async function resolveTeamInvite(data: {
  * @returns void
  * @throws Error if the template name is unknown
  *
- * Per D-19/D-21: Processes email:send queue jobs.
+ * Per D-19/D-21: Processes email-send queue jobs.
  * Per T-03-17: Graceful degradation without RESEND_API_KEY.
  * Per T-03-14: Templates receive minimal data -- no secrets.
  * Per Phase 12 D-05/D-09/D-10: team-invite resolves i18n at

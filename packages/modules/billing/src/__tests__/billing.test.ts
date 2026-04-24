@@ -90,9 +90,9 @@ describe("Billing Module Definition", () => {
 
   test("module has expected job keys", () => {
     const jobKeys = Object.keys(billingModule.jobs);
-    expect(jobKeys).toContain("billing:process-webhook");
-    expect(jobKeys).toContain("billing:sync-usage");
-    expect(jobKeys).toContain("email:send");
+    expect(jobKeys).toContain("billing-process-webhook");
+    expect(jobKeys).toContain("billing-sync-usage");
+    expect(jobKeys).toContain("email-send");
   });
 
   test("module has events array with expected events", () => {

@@ -8,7 +8,7 @@ import type { CommandHandler, QueryHandler } from "./cqrs";
  * Worker instances for each queue.
  */
 export interface JobDefinition {
-  /** BullMQ queue name, conventionally `module:action` (e.g., `email:send`). */
+  /** BullMQ queue name, conventionally `module:action` (e.g., `email-send`). */
   queue: string;
   /** Async function that processes the job payload. */
   handler: (data: unknown) => Promise<void>;

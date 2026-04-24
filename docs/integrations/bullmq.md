@@ -57,9 +57,9 @@ Callers can construct a `Queue` directly with their own `defaultJobOptions` when
 
 Every queue name follows `module:action`. Current queues in the repo:
 
-- `email:send` — auth and billing modules enqueue here; the billing module's `sendEmail` worker drains it.
-- `billing:process-webhook` — the billing webhook route enqueues normalized events for async processing.
-- `example:process-followup` — the example module's demonstration queue.
+- `email-send` — auth and billing modules enqueue here; the billing module's `sendEmail` worker drains it.
+- `billing-process-webhook` — the billing webhook route enqueues normalized events for async processing.
+- `example-process-followup` — the example module's demonstration queue.
 
 Names are used verbatim as the BullMQ queue name AND as the job-map key in `ModuleDefinition.jobs`. Keeping them identical makes the wiring greppable from any call site.
 
@@ -81,7 +81,7 @@ sequenceDiagram
 
   Cmd->>EB: ctx.emit("example.created", payload)
   EB->>Hook: on("example.created", listener)
-  Hook->>Q: queue.add("example:process-followup", payload)
+  Hook->>Q: queue.add("example-process-followup", payload)
   Q->>Redis: persist job
   W->>Redis: poll / pop
   Redis-->>W: job
@@ -138,6 +138,6 @@ Bull Board and bull-monitor are optional dashboards for queue visibility. Neithe
 
 ## Next steps
 
-- [Email integration](./email.md) — the `email:send` queue and its `sendEmail` dispatcher.
-- [Billing integration](./billing.md) — the `billing:process-webhook` queue and the webhook-enqueue route.
+- [Email integration](./email.md) — the `email-send` queue and its `sendEmail` dispatcher.
+- [Billing integration](./billing.md) — the `billing-process-webhook` queue and the webhook-enqueue route.
 - [Add a module](../add-a-module.md) — where module-level jobs are declared in `ModuleDefinition.jobs`.

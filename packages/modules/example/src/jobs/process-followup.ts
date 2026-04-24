@@ -22,6 +22,6 @@ export async function processFollowup(data: unknown): Promise<void> {
   // deferred to keep the tutorial focused on module wiring, not business logic.
   // biome-ignore lint/suspicious/noConsole: demo handler; worker runtime has no shared logger in this package
   console.log(
-    `[example:process-followup] tenantId=${payload.tenantId} exampleId=${payload.exampleId}`,
+    `[example-process-followup] tenantId=${payload.tenantId} exampleId=${payload.exampleId}`,
   );
 }

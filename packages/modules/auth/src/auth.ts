@@ -15,7 +15,7 @@ import { getLocale } from "./locale-context";
 let emailQueue: Queue | null = null;
 function getEmailQueue(): Queue | null {
   if (!emailQueue && env.REDIS_URL) {
-    emailQueue = createQueue("email:send", env.REDIS_URL);
+    emailQueue = createQueue("email-send", env.REDIS_URL);
   }
   return emailQueue;
 }

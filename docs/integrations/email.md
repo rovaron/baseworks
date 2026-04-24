@@ -2,7 +2,7 @@
 
 ## Overview
 
-Baseworks sends transactional email through Resend using React Email templates. A single dispatcher job (`packages/modules/billing/src/jobs/send-email.ts`) routes a template name to a React Email component, renders it to HTML with `@react-email/components`, and calls `resend.emails.send(...)`. Every caller — auth password resets, magic links, team invitations, billing notifications — enqueues onto the `email:send` BullMQ queue rather than calling Resend inline. The dispatcher gracefully skips sending when `RESEND_API_KEY` is absent so development and tests work without a real key.
+Baseworks sends transactional email through Resend using React Email templates. A single dispatcher job (`packages/modules/billing/src/jobs/send-email.ts`) routes a template name to a React Email component, renders it to HTML with `@react-email/components`, and calls `resend.emails.send(...)`. Every caller — auth password resets, magic links, team invitations, billing notifications — enqueues onto the `email-send` BullMQ queue rather than calling Resend inline. The dispatcher gracefully skips sending when `RESEND_API_KEY` is absent so development and tests work without a real key.
 
 ## Upstream Documentation
 
@@ -17,11 +17,11 @@ Baseworks sends transactional email through Resend using React Email templates. 
 | Env var | Required | Purpose |
 | --- | --- | --- |
 | `RESEND_API_KEY` | no | Resend API key. When absent, the dispatcher logs and returns without throwing (dev and test). Production deployments must set this for users to receive email. |
-| `REDIS_URL` | yes (for enqueuing) | Required for the `email:send` queue. Without Redis, callers fall back to stdout logs rather than enqueuing. |
+| `REDIS_URL` | yes (for enqueuing) | Required for the `email-send` queue. Without Redis, callers fall back to stdout logs rather than enqueuing. |
 
 ### Module wire-up
 
-The dispatcher lives in the billing module at `packages/modules/billing/src/jobs/send-email.ts` and is registered in the billing `ModuleDefinition.jobs` map under the `email:send` queue. The worker entrypoint (`apps/api/src/worker.ts:32-77`) auto-starts a BullMQ worker for `email:send` as part of the normal module-job iteration. Callers — auth, billing, any future module — enqueue via `queue.add("{template-name}", { to, template, data })` and the job crosses the app ↔ Redis boundary into the worker process.
+The dispatcher lives in the billing module at `packages/modules/billing/src/jobs/send-email.ts` and is registered in the billing `ModuleDefinition.jobs` map under the `email-send` queue. The worker entrypoint (`apps/api/src/worker.ts:32-77`) auto-starts a BullMQ worker for `email-send` as part of the normal module-job iteration. Callers — auth, billing, any future module — enqueue via `queue.add("{template-name}", { to, template, data })` and the job crosses the app ↔ Redis boundary into the worker process.
 
 ### Smoke test
 
@@ -33,7 +33,7 @@ curl -X POST http://localhost:3000/api/auth/forget-password \
   -d '{"email":"test@example.com"}'
 ```
 
-The worker logs `Job started` for `email:send` and then either calls Resend (when `RESEND_API_KEY` is set) or logs `[EMAIL] Skipping send (no RESEND_API_KEY)` and returns — see `packages/modules/billing/src/jobs/send-email.ts:135-138` for the graceful-skip branch.
+The worker logs `Job started` for `email-send` and then either calls Resend (when `RESEND_API_KEY` is set) or logs `[EMAIL] Skipping send (no RESEND_API_KEY)` and returns — see `packages/modules/billing/src/jobs/send-email.ts:135-138` for the graceful-skip branch.
 
 ## Wiring in Baseworks
 
@@ -61,7 +61,7 @@ The `magic-link` entry reuses the `PasswordResetEmail` component with an aliased
 ```mermaid
 sequenceDiagram
   participant Caller as Command handler / auth callback
-  participant Q as email:send queue
+  participant Q as email-send queue
   participant Redis
   participant W as sendEmail worker
   participant Tmpl as React Email component
@@ -133,6 +133,6 @@ If the template needs localized strings, follow the team-invite pattern: extend 
 
 ## Next steps
 
-- [BullMQ integration](./bullmq.md) — the `email:send` queue uses the standard BullMQ `createQueue` / `createWorker` conventions.
+- [BullMQ integration](./bullmq.md) — the `email-send` queue uses the standard BullMQ `createQueue` / `createWorker` conventions.
 - [better-auth integration](./better-auth.md) — auth's `sendResetPassword`, `sendMagicLink`, and `sendInvitationEmail` callbacks are the primary enqueue call sites.
-- [Add a module](../add-a-module.md) — new modules can enqueue emails the same way using the `email:send` queue.
+- [Add a module](../add-a-module.md) — new modules can enqueue emails the same way using the `email-send` queue.

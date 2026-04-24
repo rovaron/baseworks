@@ -11,7 +11,7 @@ const RecordUsageInput = Type.Object({
  * Record a metered usage event for the current tenant.
  *
  * Inserts a usage record into the usage_records table with
- * `syncedToProvider = false`. The `billing:sync-usage` scheduled
+ * `syncedToProvider = false`. The `billing-sync-usage` scheduled
  * job picks up unsynced records and reports them to the payment
  * provider.
  *

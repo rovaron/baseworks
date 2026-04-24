@@ -5,7 +5,7 @@ import { usageRecords, billingCustomers } from "../schema";
 import { getPaymentProvider } from "../provider-factory";
 import pino from "pino";
 
-const logger = pino({ name: "billing:sync-usage" });
+const logger = pino({ name: "billing-sync-usage" });
 
 /**
  * Synchronize recorded usage events to the payment provider.

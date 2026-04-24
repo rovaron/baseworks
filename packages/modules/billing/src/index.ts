@@ -22,7 +22,7 @@ export { registerBillingHooks } from "./hooks/on-tenant-created";
  * Routes: /api/billing/webhooks (Stripe webhook endpoint)
  * Commands: checkout, cancel, change, one-time payment, portal session
  * Queries: subscription status, billing history
- * Jobs: billing:process-webhook (async webhook event processing)
+ * Jobs: billing-process-webhook (async webhook event processing)
  * Events: subscription.created, subscription.cancelled, payment.succeeded, payment.failed
  */
 export default {
@@ -41,16 +41,16 @@ export default {
     "billing:get-billing-history": getBillingHistory,
   },
   jobs: {
-    "billing:process-webhook": {
-      queue: "billing:process-webhook",
+    "billing-process-webhook": {
+      queue: "billing-process-webhook",
       handler: processWebhook,
     },
-    "billing:sync-usage": {
-      queue: "billing:sync-usage",
+    "billing-sync-usage": {
+      queue: "billing-sync-usage",
       handler: syncUsage,
     },
-    "email:send": {
-      queue: "email:send",
+    "email-send": {
+      queue: "email-send",
       handler: sendEmail,
     },
   },

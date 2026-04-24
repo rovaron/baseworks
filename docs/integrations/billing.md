@@ -67,7 +67,7 @@ sequenceDiagram
   participant Route as POST /api/billing/webhooks
   participant Provider as PaymentProvider (adapter)
   participant DB as scopedDb / unscoped-db
-  participant Queue as billing:process-webhook
+  participant Queue as billing-process-webhook
   participant Worker as processWebhook job
 
   Stripe->>Route: POST raw body + signature header
@@ -123,5 +123,5 @@ No existing call site in the billing module needs to change — every command an
 ## Next steps
 
 - [better-auth integration](./better-auth.md) — billing hooks into the `tenant.created` event emitted by the auth module.
-- [BullMQ integration](./bullmq.md) — `billing:process-webhook` is a standard BullMQ queue using the shared `createQueue` helper.
+- [BullMQ integration](./bullmq.md) — `billing-process-webhook` is a standard BullMQ queue using the shared `createQueue` helper.
 - [Testing](../testing.md) — adapter conformance test pattern and the `mock.module` approach for handlers that import external SDKs.

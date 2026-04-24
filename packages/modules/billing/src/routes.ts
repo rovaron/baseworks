@@ -41,7 +41,7 @@ let webhookQueue: Queue | null = null;
 
 function getWebhookQueue(): Queue | null {
   if (!webhookQueue && env.REDIS_URL) {
-    webhookQueue = new Queue("billing:process-webhook", {
+    webhookQueue = new Queue("billing-process-webhook", {
       connection: { url: env.REDIS_URL },
     });
   }
