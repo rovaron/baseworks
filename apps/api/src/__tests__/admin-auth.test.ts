@@ -3,6 +3,7 @@ import { Elysia } from "elysia";
 import { createDb } from "@baseworks/db";
 import { sql } from "drizzle-orm";
 import { adminRoutes } from "../routes/admin";
+import { errorMiddleware } from "../core/middleware/error";
 
 /**
  * Integration tests verifying that requireRole("owner") protects all admin routes.
@@ -40,8 +41,10 @@ beforeAll(async () => {
     await db.execute(sql`SELECT 1`);
     canConnect = true;
 
-    // Mount admin routes on a minimal Elysia app (same as production structure)
-    app = new Elysia().use(adminRoutes);
+    // Mount admin routes on a minimal Elysia app with the global error handler,
+    // so thrown "Unauthorized" / "Forbidden" from tenant.ts + requireRole are
+    // mapped to 401/403 (matches production middleware composition).
+    app = new Elysia().use(errorMiddleware).use(adminRoutes);
   } catch (e) {
     console.warn(
       "PostgreSQL unavailable -- admin auth tests will be skipped:",
