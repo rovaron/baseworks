@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Observability & Operations
 status: executing
-stopped_at: Phase 19 shipped (8/8 plans, 22/22 must-haves, 5/5 requirements; verifier PASSED, reviewer 0C/3H/6M/7L advisory)
-last_updated: "2026-04-23T22:45:00Z"
-last_activity: 2026-04-23 -- Phase 19 complete (ALS carrier + pino mixin + HTTP/CQRS/EventBus tracing + enterWith ban)
+stopped_at: Phase 19 shipped end-to-end (8/8 plans merged, verifier PASSED, reviewer advisory REVIEW.md written).
+last_updated: "2026-04-25T21:42:11.957Z"
+last_activity: 2026-04-25 -- Phase 20 planning complete
 progress:
-  total_phases: 7
+  total_phases: 4
   completed_phases: 3
-  total_plans: 20
+  total_plans: 23
   completed_plans: 20
-  percent: 43
+  percent: 87
 ---
 
 # Project State
@@ -28,8 +28,8 @@ See: .planning/PROJECT.md (updated 2026-04-21)
 Milestone: v1.3 Observability & Operations
 Phase: 20 — BullMQ Trace Propagation (not started)
 Plan: —
-Status: Ready to plan
-Last activity: 2026-04-23 -- Phase 19 shipped (8/8 plans across 4 waves; 565/565 scoped tests green; verifier PASSED 22/22 must-haves; CTX-01/02/03 + TRC-01/02 verified)
+Status: Ready to execute
+Last activity: 2026-04-25 -- Phase 20 planning complete
 
 Progress: [████░░░░░░] 43% (3/7 phases)
 
