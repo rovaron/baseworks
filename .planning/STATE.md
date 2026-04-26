@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Observability & Operations
-status: executing
-stopped_at: Phase 20.1 context gathered
-last_updated: "2026-04-26T21:47:32.186Z"
+status: verifying
+stopped_at: Completed 20.1-03-PLAN.md
+last_updated: "2026-04-26T22:01:16.979Z"
 last_activity: 2026-04-26
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 27
-  completed_plans: 26
-  percent: 96
+  completed_plans: 27
+  percent: 100
 ---
 
 # Project State
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-04-21)
 Milestone: v1.3 Observability & Operations
 Phase: 20.1 (close-v13-milestone-gaps) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-26
 
-Progress: [██████████] 96%
+Progress: [██████████] 100%
 
 ### Roadmap Evolution
 
@@ -129,6 +129,10 @@ Decisions are logged in PROJECT.md Key Decisions table (updated at v1.2 close wi
 - [Phase 20.1 Plan 03]: inboundCarrier?: field on ObservabilityContext left in place per CONTEXT.md `<deferred>` (Claude's Discretion default). The Bun.serve seed no longer populates it; type-side removal is a future cleanup.
 - [Phase 20.1 Plan 03]: Pattern — atomic signature trim. Function signature change + every call-site update + env-var schema removal + dependent test updates land in ONE commit so tsc stays green at every boundary. Used to remove `decideInboundTrace`'s `remoteAddr` arg + `inboundCarrier` return field across 8 files in a single `e16843d` refactor commit.
 - [Phase 20.1 Plan 03]: Pattern — context.with(otelCtx, () => obsContext.run(seed, fn)). OTel ambient context wraps the ALS seed at the Bun.serve fetch boundary; downstream tracer.startSpan and propagation.inject naturally inherit the request's traceId without adapter-specific wiring. Works whether the Tracer port is Noop or wired to a real OTel SDK exporter.
+- [Phase ?]: [Phase 20.1 Plan 04]: H-01 closed — locale-cookie decodeURIComponent wrapped in try/catch (D-16); malformed NEXT_LOCALE cookies fall through to defaultLocale instead of throwing URIError before obsContext.run opens.
+- [Phase ?]: [Phase 20.1 Plan 04]: H-02 closed — new readRequestId helper validates inbound x-request-id against ^[A-Za-z0-9_-]{1,128}$ (D-17); invalid values fall through to crypto.randomUUID(). Defends log-injection / correlation-poisoning / cardinality.
+- [Phase ?]: [Phase 20.1 Plan 04]: H-03 closed — try/catch around app.handle in Bun.serve fetch wrapper now invokes recordException + setStatus(ERROR) on the active OTel span (D-18); Phase 19 ACCEPTED DEVIATION resolved via Option A from 19-REVIEW.md.
+- [Phase ?]: [Phase 20.1 Plan 04]: Pattern — duck-typed Request stand-in for tests. When Bun's strict Headers constructor rejects an attack vector (newline in header value), expose the helper through a structural type { headers: { get(name): string | null } } so tests can drive vectors the upstream gate already rejects.
 
 ### v1.3 Roadmap Summary
 
@@ -150,6 +154,7 @@ Decisions are logged in PROJECT.md Key Decisions table (updated at v1.2 close wi
 | Phase 20.1 P01 | 25min | 4 tasks | 6 files |
 | Phase 20.1 P02 | 50min | 3 tasks | 9 files |
 | Phase 20.1 P03 | 11min | 3 tasks | 8 files |
+| Phase 20.1 P04 | 8min | 5 tasks | 11 files |
 
 ### Pending Todos
 
@@ -176,7 +181,7 @@ Prior concerns resolved:
 
 ## Session Continuity
 
-Last session: 2026-04-26T21:47:32.171Z
+Last session: 2026-04-26T22:00:45.261Z
 Stopped at: Completed 20.1-03-PLAN.md
 Resume file: None
 Next action: Execute Plan 20.1-04 (Phase 19 review fixes — H-01 locale-cookie try/catch, H-02 x-request-id validation, H-03 composed-stack error-span gap try/catch, ROADMAP.md SC#5 amendment). Plan 04 layers onto Plan 03's `context.with(otelCtx, () => obsContext.run(seed, fn))` wrapper structure in apps/api/src/index.ts.
