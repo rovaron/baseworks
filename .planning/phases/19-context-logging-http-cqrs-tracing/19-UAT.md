@@ -3,7 +3,7 @@ status: complete
 phase: 19-context-logging-http-cqrs-tracing
 source: [19-01-SUMMARY.md, 19-02-SUMMARY.md, 19-03-SUMMARY.md, 19-04-SUMMARY.md, 19-05-SUMMARY.md, 19-06-SUMMARY.md, 19-07-SUMMARY.md, 19-08-SUMMARY.md]
 started: 2026-04-24T09:14:47Z
-updated: 2026-04-24T10:35:00Z
+updated: 2026-04-26T14:53:00Z
 ---
 
 ## Current Test
@@ -96,12 +96,21 @@ notes: |
 
 ### 8. tenantMiddleware publishes tenantId/userId to ALS after auth
 expected: Authenticate and hit a tenant-scoped endpoint. Log shows tenantId/userId as non-null matching the session.
-result: skipped
-reason: |
-  Requires full auth flow (register user → create org → sign in → hit
-  /api/examples or similar). Out of quick UAT scope. Covered by the
-  automated tenant-als-publish.test.ts (6 tests, all pass) which mocks the
-  session and asserts setTenantContext is called with correct payload.
+result: pass
+notes: |
+  Verified live 2026-04-26 during v1.3 milestone-wide UAT:
+    1. POST /api/auth/sign-up/email → user nX0kVjRwXZqGqifx8kxN6uxukxGXSU8d
+    2. POST /api/auth/organization/create → org qrsJLGpkacR1N2YYSXqNqRV8oDKnHUOr
+    3. GET /api/billing/subscription with session cookie
+  Server log emitted "request completed" with:
+    tenantId: "qrsJLGpkacR1N2YYSXqNqRV8oDKnHUOr"
+    userId:   "nX0kVjRwXZqGqifx8kxN6uxukxGXSU8d"
+    requestId, traceId, spanId all populated
+  Both ALS fields non-null and matching the active session — middleware
+  publishes correctly via setTenantContext after better-auth resolves session.
+  Two log lines emitted (CQRS handler invocation + request completion) both
+  carrying identical context, also validating Test 7 (CQRS handler logs
+  inherit ALS context) end-to-end.
 
 ### 9. Full-suite regression guard (automated)
 expected: bun test scripts/ apps/api/ packages/observability/ packages/queue/ → all green.
@@ -132,10 +141,10 @@ notes: |
 ## Summary
 
 total: 9
-passed: 8
+passed: 9
 issues: 0
 pending: 0
-skipped: 1
+skipped: 0
 blocked: 0
 
 ## Remediations applied during UAT
@@ -155,6 +164,6 @@ captured opportunistically.
 
 ## Gaps
 
-[none — all Phase 19 observable deliverables verified; Test 8 skipped as
-out-of-quick-UAT-scope, covered by tenant-als-publish.test.ts automated
-suite]
+[none — all Phase 19 observable deliverables verified end-to-end including
+Test 8 (live tenantMiddleware ALS publish, completed 2026-04-26 during v1.3
+milestone UAT)]
