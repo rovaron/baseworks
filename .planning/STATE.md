@@ -4,14 +4,14 @@ milestone: v1.3
 milestone_name: Observability & Operations
 status: executing
 stopped_at: Phase 20.1 context gathered
-last_updated: "2026-04-26T17:11:19.400Z"
+last_updated: "2026-04-26T21:05:19.304Z"
 last_activity: 2026-04-26
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 23
-  completed_plans: 23
-  percent: 100
+  total_plans: 27
+  completed_plans: 24
+  percent: 89
 ---
 
 # Project State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-21)
 
 **Core value:** Clone, configure, and start building a multitenant SaaS in minutes -- not weeks.
-**Current focus:** Phase 20 — BullMQ Trace Propagation
+**Current focus:** Phase 20.1 — close-v13-milestone-gaps
 
 ## Current Position
 
 Milestone: v1.3 Observability & Operations
-Phase: 20.1 (INSERTED — urgent cleanup from milestone UAT)
-Plan: Not started
-Status: In progress (4/8 phases complete; 20.1, 21, 22, 23 pending)
+Phase: 20.1 (close-v13-milestone-gaps) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
 Last activity: 2026-04-26
 
-Progress: [█████░░░░░] 50% (4/8 phases)
+Progress: [█████████░] 89%
 
 ### Roadmap Evolution
 
@@ -119,6 +119,9 @@ Decisions are logged in PROJECT.md Key Decisions table (updated at v1.2 close wi
 - Pattern: `Transport` type imported from `@sentry/core`, not `@sentry/bun` — `@sentry/bun` does not re-export the type. `@sentry/core` has been an explicit dep since Plan 01.
 - TDD RED→GREEN gates: Task 1 `a5f993f` test → `2d7e115` feat; Task 2 `ef1437d` combined (conformance test + adapter fix land together — GREEN requires both); Task 3 `19a0d90` test → `dee7667` feat.
 - 59 new tests (12 unit + 39 conformance + 8 factory); full observability suite 180/180 pass (303 expects); tsc --noEmit clean.
+- [Phase ?]: Phase 20.1 Plan 01: drizzle.config.ts paths normalized so bun run db:migrate works from any cwd (auto-fix Rule 1)
+- [Phase ?]: Phase 20.1 Plan 01: D-02 reset step home = docs/getting-started.md (canonical onboarding doc; neither apps/api/README.md nor repo-root README.md exists)
+- [Phase ?]: Phase 20.1 Plan 01: migration history reset to single 0000_red_lester.sql baseline; 0001_rename_stripe_to_provider.sql deleted per D-04 (starter-kit fork model — historical rename SQL intentionally lost)
 
 ### v1.3 Roadmap Summary
 
@@ -137,6 +140,7 @@ Decisions are logged in PROJECT.md Key Decisions table (updated at v1.2 close wi
 **Coverage:** 28/28 v1.3 requirements mapped to exactly one phase (no orphans, no duplicates).
 
 **Deferred (not v1.3 scope):** TRC-future-01 (postgres.js DB spans), MET-future-01 (Prometheus scrape endpoint), MET-future-02 (histogram exemplars), ALT-future-01 (in-app alert router).
+| Phase 20.1 P01 | 25min | 4 tasks | 6 files |
 
 ### Pending Todos
 
@@ -163,9 +167,9 @@ Prior concerns resolved:
 
 ## Session Continuity
 
-Last session: 2026-04-26T17:11:19.390Z
+Last session: 2026-04-26T21:04:54.121Z
 Stopped at: Phase 20.1 context gathered
-Resume file: .planning/phases/20.1-close-v13-milestone-gaps/20.1-CONTEXT.md
+Resume file: None
 Next action: Run `/gsd:discuss-phase 20` (or `/gsd:plan-phase 20` if context is obvious) to start BullMQ trace propagation (CTX-04, TRC-03).
 
 **Open threads from Phase 19 (advisory — not gap-closure blockers):**
