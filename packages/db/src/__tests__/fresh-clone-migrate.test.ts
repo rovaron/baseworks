@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import { createDb } from "../connection";
+import postgres from "postgres";
+import { drizzle } from "drizzle-orm/postgres-js";
 import { sql } from "drizzle-orm";
 
 /**
@@ -13,6 +14,10 @@ import { sql } from "drizzle-orm";
  *
  * Skip discipline: when PostgreSQL is unavailable the test is SKIPPED (not
  * failed) — same pattern as connection.test.ts and scoped-db.test.ts.
+ *
+ * Connection-lifecycle discipline: every `postgres()` client is `.end()`'d
+ * before exit so afterAll's `DROP DATABASE` is not blocked by lingering
+ * connections to the scratch DB.
  */
 
 const ADMIN_DB_URL =
@@ -21,12 +26,39 @@ const SCRATCH_DB_NAME = "baseworks_migrate_test";
 const scratchUrl = ADMIN_DB_URL.replace(/\/[^/?]+(\?|$)/, `/${SCRATCH_DB_NAME}$1`);
 
 async function isPostgresAvailable(): Promise<boolean> {
+  const client = postgres(ADMIN_DB_URL, { max: 1 });
   try {
-    const db = createDb(ADMIN_DB_URL);
-    await db.execute(sql`SELECT 1`);
+    await client`SELECT 1`;
     return true;
   } catch {
     return false;
+  } finally {
+    await client.end({ timeout: 1 });
+  }
+}
+
+async function dropScratchDatabase(): Promise<void> {
+  const admin = postgres(ADMIN_DB_URL, { max: 1 });
+  try {
+    // Terminate any lingering connections to the scratch DB before dropping.
+    await admin`
+      SELECT pg_terminate_backend(pid)
+        FROM pg_stat_activity
+       WHERE datname = ${SCRATCH_DB_NAME}
+         AND pid <> pg_backend_pid()
+    `;
+    await admin.unsafe(`DROP DATABASE IF EXISTS ${SCRATCH_DB_NAME}`);
+  } finally {
+    await admin.end({ timeout: 1 });
+  }
+}
+
+async function createScratchDatabase(): Promise<void> {
+  const admin = postgres(ADMIN_DB_URL, { max: 1 });
+  try {
+    await admin.unsafe(`CREATE DATABASE ${SCRATCH_DB_NAME}`);
+  } finally {
+    await admin.end({ timeout: 1 });
   }
 }
 
@@ -36,15 +68,13 @@ describe("fresh-clone migration baseline (Phase 20.1 D-03)", () => {
   beforeAll(async () => {
     canConnect = await isPostgresAvailable();
     if (!canConnect) return;
-    const admin = createDb(ADMIN_DB_URL);
-    await admin.execute(sql.raw(`DROP DATABASE IF EXISTS ${SCRATCH_DB_NAME}`));
-    await admin.execute(sql.raw(`CREATE DATABASE ${SCRATCH_DB_NAME}`));
+    await dropScratchDatabase();
+    await createScratchDatabase();
   });
 
   afterAll(async () => {
     if (!canConnect) return;
-    const admin = createDb(ADMIN_DB_URL);
-    await admin.execute(sql.raw(`DROP DATABASE IF EXISTS ${SCRATCH_DB_NAME}`));
+    await dropScratchDatabase();
   });
 
   test(
@@ -66,25 +96,30 @@ describe("fresh-clone migration baseline (Phase 20.1 D-03)", () => {
       const stderr = await new Response(proc.stderr).text();
       expect(exitCode, `db:migrate stderr: ${stderr}`).toBe(0);
 
-      const db = createDb(scratchUrl);
-      const tables = (await db.execute(sql`
-        SELECT table_name FROM information_schema.tables
-         WHERE table_schema = 'public'
-         ORDER BY table_name
-      `)) as Array<{ table_name: string }>;
-      const names = tables.map((r) => r.table_name);
-      expect(names).toContain("billing_customers");
-      expect(names).toContain("user");
-      expect(names).toContain("session");
-      expect(names).toContain("examples");
+      const client = postgres(scratchUrl, { max: 1 });
+      try {
+        const db = drizzle(client);
+        const tables = (await db.execute(sql`
+          SELECT table_name FROM information_schema.tables
+           WHERE table_schema = 'public'
+           ORDER BY table_name
+        `)) as Array<{ table_name: string }>;
+        const names = tables.map((r) => r.table_name);
+        expect(names).toContain("billing_customers");
+        expect(names).toContain("user");
+        expect(names).toContain("session");
+        expect(names).toContain("examples");
 
-      const cols = (await db.execute(sql`
-        SELECT column_name FROM information_schema.columns
-         WHERE table_name = 'billing_customers'
-      `)) as Array<{ column_name: string }>;
-      const colNames = cols.map((r) => r.column_name);
-      expect(colNames).toContain("provider_customer_id");
-      expect(colNames).not.toContain("stripe_customer_id");
+        const cols = (await db.execute(sql`
+          SELECT column_name FROM information_schema.columns
+           WHERE table_name = 'billing_customers'
+        `)) as Array<{ column_name: string }>;
+        const colNames = cols.map((r) => r.column_name);
+        expect(colNames).toContain("provider_customer_id");
+        expect(colNames).not.toContain("stripe_customer_id");
+      } finally {
+        await client.end({ timeout: 1 });
+      }
     },
     60_000,
   );
