@@ -32,6 +32,7 @@ import {
   context,
   ROOT_CONTEXT,
   type SpanContext,
+  SpanStatusCode,
   TraceFlags,
   trace,
 } from "@opentelemetry/api";
@@ -191,10 +192,28 @@ Bun.serve({
       isRemote: false,
     };
     const otelCtxWithReqSpan = trace.setSpanContext(ROOT_CONTEXT, reqSpanCtx);
+    // Phase 20.1 D-18 / H-03 — try/catch around app.handle so 5xx paths in the
+    // composed Elysia stack annotate the active OTel span with recordException +
+    // setStatus(ERROR). Without this, errorMiddleware halts Elysia's onError
+    // chain before observabilityMiddleware.onError fires, leaving HTTP 5xx
+    // spans visible as green in Tempo. Pattern adapted from
+    // packages/observability/src/wrappers/wrap-queue.ts:85-97. Re-throw
+    // preserves Elysia's existing 500-response chain.
     return context.with(otelCtxWithReqSpan, () =>
       obsContext.run(
         { requestId, traceId, spanId, locale, tenantId: null, userId: null },
-        () => app.handle(req),
+        async () => {
+          try {
+            return await app.handle(req);
+          } catch (err) {
+            const active = trace.getActiveSpan();
+            if (active) {
+              active.recordException(err as Error);
+              active.setStatus({ code: SpanStatusCode.ERROR });
+            }
+            throw err;
+          }
+        },
       ),
     );
   },
