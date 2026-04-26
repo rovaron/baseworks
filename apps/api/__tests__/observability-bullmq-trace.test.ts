@@ -200,6 +200,15 @@ describe("Phase 20 D-08 — single-trace API → worker (SC#2 trace-data level)"
     expect(typeof consumerLog?.traceId).toBe("string");
     expect(producerLog?.traceId).toBe(consumerLog?.traceId);
 
+    // D-14 (Phase 20.1) — producer log, worker log, AND extracted carrier all
+    // carry T_PRODUCER. Lock-in regression gate on the in-process simulation
+    // harness (NOT a production RED gate — production verification is the
+    // manual `bun run dev` UAT for SC#3).
+    expect(producerLog?.traceId).toBe(T_PRODUCER);
+    expect(consumerLog?.traceId).toBe(T_PRODUCER);
+    const carrierTp = recordedData._otel?.traceparent as string;
+    expect(carrierTp).toMatch(new RegExp(`^00-${T_PRODUCER}-[0-9a-f]{16}-[0-9a-f]{2}$`));
+
     // CTX-04: requestId / tenantId / userId round-trip via carrier.
     expect(producerLog?.requestId).toBe(R_PRODUCER);
     expect(consumerLog?.requestId).toBe(R_PRODUCER);
