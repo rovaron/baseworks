@@ -45,6 +45,7 @@ const ALLOWED = new Set<string>([
   "packages/observability/src/context.ts", // D-06 — the canonical store + mutators
   "packages/observability/src/wrappers/wrap-cqrs-bus.ts", // D-17 — ALS-derived span attrs
   "packages/observability/src/wrappers/wrap-event-bus.ts", // D-15/D-16 — ALS-derived span attrs
+  "packages/observability/src/wrappers/wrap-queue.ts", // Phase 20 D-02 — producer carrier inject from ALS
   "packages/queue/src/index.ts", // D-05 — central createWorker seeds
 ]);
 
