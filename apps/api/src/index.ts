@@ -27,6 +27,7 @@ import {
 import { defaultLocale } from "@baseworks/i18n";
 import { parseNextLocaleCookie } from "./lib/locale-cookie";
 import { decideInboundTrace } from "./lib/inbound-trace";
+import { readRequestId } from "./lib/request-id";
 import {
   context,
   ROOT_CONTEXT,
@@ -181,7 +182,7 @@ Bun.serve({
   fetch(req) {
     const cookieHeader = req.headers.get("cookie");
     const locale = parseNextLocaleCookie(cookieHeader) ?? defaultLocale;
-    const requestId = req.headers.get("x-request-id") ?? crypto.randomUUID();
+    const requestId = readRequestId(req);
     const { traceId, spanId } = decideInboundTrace(req);
     const reqSpanCtx: SpanContext = {
       traceId,

@@ -17,6 +17,24 @@ function reqWith(headers: Record<string, string>): Request {
   return new Request("http://localhost/", { headers });
 }
 
+/**
+ * Some attack vectors (e.g., a raw newline in the header value) are rejected
+ * by Bun's strict Headers constructor before they reach our helper, so we
+ * cannot construct a real `Request` carrying them. The helper, however, is
+ * defined against the structural surface `{ headers: { get(name): string | null } }`
+ * so we can exercise the validation path with a duck-typed Request stand-in
+ * that returns the raw attacker-controlled string from `headers.get`.
+ */
+function reqWithRawHeader(name: string, raw: string): Request {
+  return {
+    headers: {
+      get(n: string): string | null {
+        return n.toLowerCase() === name.toLowerCase() ? raw : null;
+      },
+    },
+  } as unknown as Request;
+}
+
 describe("readRequestId — Phase 20.1 D-17 / H-02 validation", () => {
   test("valid id (alnum + _ + -) is preserved", () => {
     expect(readRequestId(reqWith({ "x-request-id": "abc-123_XYZ" }))).toBe(
@@ -30,8 +48,12 @@ describe("readRequestId — Phase 20.1 D-17 / H-02 validation", () => {
   });
 
   test("id with newline is rejected; falls through to fresh UUID", () => {
+    // Bun's strict Headers constructor rejects newlines in header values, so
+    // we pass a duck-typed Request that returns the raw attacker-controlled
+    // string from headers.get — exercising the validator's CRLF defense
+    // independent of any upstream Headers normalization.
     const result = readRequestId(
-      reqWith({ "x-request-id": "foo\n[CRITICAL] fake" }),
+      reqWithRawHeader("x-request-id", "foo\n[CRITICAL] fake"),
     );
     expect(result).toMatch(UUID_RE);
   });
