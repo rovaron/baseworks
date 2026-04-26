@@ -9,6 +9,8 @@ import {
   type SpanContext,
 } from "@opentelemetry/api";
 import { W3CTraceContextPropagator } from "@opentelemetry/core";
+import { BasicTracerProvider } from "@opentelemetry/sdk-trace-base";
+import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import {
   obsContext,
   getObsContext,
@@ -35,11 +37,29 @@ import { wrapProcessorWithAls } from "../index";
  * grep-verify the registration block.
  */
 
+// Plan 20-02 Rule 3 deviation: register an in-memory BasicTracerProvider +
+// AsyncLocalStorageContextManager so:
+//   1. `trace.getTracer().startSpan()` returns spans with valid (non-zero)
+//      SpanContexts (otherwise the OTEL JS API returns a NoopTracer whose spans
+//      have INVALID_SPAN_CONTEXT (all zeros), which W3CTraceContextPropagator
+//      silently skips during inject — making `_otel.traceparent` empty).
+//   2. `context.with(parentCtx, () => tracer.startSpan(...))` activates the
+//      parent context so the new span inherits the parent's traceId. Without a
+//      ContextManager, `context.with` is a no-op — and consumer-side parent
+//      inheritance (D-05 + D-10) breaks.
+// Plan 20-01 RED-phase tests didn't surface this because they crashed at module
+// load before propagation ever ran.
+const __tracerProvider = new BasicTracerProvider();
+const __ctxManager = new AsyncLocalStorageContextManager();
 beforeAll(() => {
   propagation.setGlobalPropagator(new W3CTraceContextPropagator());
+  trace.setGlobalTracerProvider(__tracerProvider);
+  context.setGlobalContextManager(__ctxManager);
 });
 afterAll(() => {
   propagation.disable();
+  trace.disable();
+  context.disable();
 });
 
 const fakeJob = (data: Record<string, unknown> = {}, attemptsMade = 0) =>

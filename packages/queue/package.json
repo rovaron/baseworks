@@ -8,6 +8,8 @@
     "@baseworks/observability": "workspace:*",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/core": "^2.7.0",
+    "@opentelemetry/context-async-hooks": "^2.7.0",
+    "@opentelemetry/sdk-trace-base": "^2.7.0",
     "@opentelemetry/semantic-conventions": "^1.40.0",
     "bullmq": "^5.0.0",
     "ioredis": "^5.4.0"

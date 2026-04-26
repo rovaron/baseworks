@@ -14,6 +14,8 @@ import {
   type Span,
 } from "@opentelemetry/api";
 import { W3CTraceContextPropagator } from "@opentelemetry/core";
+import { BasicTracerProvider } from "@opentelemetry/sdk-trace-base";
+import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { wrapProcessorWithAls, createWorker } from "../index";
 import type { WorkerConfig } from "../types";
 
@@ -34,11 +36,24 @@ const fakeJob = (data: any = {}) => ({
 }) as any;
 
 describe("wrapProcessorWithAls — D-05 seed invariants", () => {
+  // Plan 20-02 Rule 3 deviation: register an in-memory BasicTracerProvider +
+  // AsyncLocalStorageContextManager so trace.getTracer().startSpan returns
+  // valid (non-zero) SpanContexts AND context.with(parentCtx, fn) actually
+  // activates the parent context for span-parent inheritance. Without these,
+  // the OTEL JS API returns NoopTracer + a no-op ContextManager, which breaks
+  // both Phase 19 fresh-fallback assertions (Tests 4/12) and Phase 20 carrier
+  // extract assertions (Tests 10/11).
+  const __tracerProvider = new BasicTracerProvider();
+  const __ctxManager = new AsyncLocalStorageContextManager();
   beforeAll(() => {
     propagation.setGlobalPropagator(new W3CTraceContextPropagator());
+    trace.setGlobalTracerProvider(__tracerProvider);
+    context.setGlobalContextManager(__ctxManager);
   });
   afterAll(() => {
     propagation.disable();
+    trace.disable();
+    context.disable();
   });
 
   test("Test 1: processor runs inside obsContext.run frame (inner frame exists)", async () => {

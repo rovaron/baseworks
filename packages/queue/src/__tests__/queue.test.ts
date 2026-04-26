@@ -31,6 +31,16 @@ mock.module("bullmq", () => ({
       this.opts = opts;
       mockQueueInstances.push(this);
     }
+    // Phase 20: createQueue now wraps via wrapQueue which binds queue.add /
+    // queue.addBulk. Stub them on the mock so wrapQueue's `.bind(queue)` calls
+    // resolve. The unit tests in this file only check Queue config (name + opts),
+    // not enqueue behavior — so simple no-op async stubs suffice.
+    async add(_name: string, _data: any, _opts?: any) {
+      return { id: "mock-job", name: _name, data: _data };
+    }
+    async addBulk(_jobs: Array<{ name: string; data: any; opts?: any }>) {
+      return _jobs.map((j, i) => ({ id: `mock-bulk-${i}`, name: j.name, data: j.data }));
+    }
   },
   Worker: class MockWorker {
     name: string;
