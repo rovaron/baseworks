@@ -38,4 +38,34 @@ describe("parseNextLocaleCookie", () => {
     // check sees the canonical value.
     expect(parseNextLocaleCookie("NEXT_LOCALE=pt%2DBR")).toBe("pt-BR");
   });
+
+  /**
+   * Phase 20.1 D-16 / H-01 — malformed cookie hardening.
+   *
+   * 19-REVIEW.md H-01: a crafted `NEXT_LOCALE=%ZZ` cookie throws URIError
+   * inside `decodeURIComponent` BEFORE `obsContext.run` opens, losing the
+   * request frame and producing a context-less 500. The fix wraps the
+   * decode in try/catch so the parser falls through to `null` and the
+   * caller (apps/api/src/index.ts) selects `defaultLocale`.
+   */
+  describe("D-16 / H-01 malformed-cookie hardening", () => {
+    test("malformed cookie value (stray %ZZ) returns null instead of throwing", () => {
+      expect(() => parseNextLocaleCookie("NEXT_LOCALE=%ZZ")).not.toThrow();
+      expect(parseNextLocaleCookie("NEXT_LOCALE=%ZZ")).toBeNull();
+    });
+
+    test("unpaired % returns null instead of throwing", () => {
+      expect(() => parseNextLocaleCookie("NEXT_LOCALE=foo%")).not.toThrow();
+      expect(parseNextLocaleCookie("NEXT_LOCALE=foo%")).toBeNull();
+    });
+
+    test("malformed cookie embedded among valid cookies returns null instead of throwing", () => {
+      expect(() =>
+        parseNextLocaleCookie("foo=bar; NEXT_LOCALE=%E0%A4; other=x"),
+      ).not.toThrow();
+      expect(
+        parseNextLocaleCookie("foo=bar; NEXT_LOCALE=%E0%A4; other=x"),
+      ).toBeNull();
+    });
+  });
 });
