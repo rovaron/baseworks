@@ -1,14 +1,20 @@
 ---
-status: partial
+status: testing
 phase: 18-error-tracking-adapters
 source: [18-07-SUMMARY.md]
 started: 2026-04-23T11:16:48Z
-updated: 2026-04-23T11:16:48Z
+updated: 2026-04-26T00:00:00Z
 ---
 
 ## Current Test
 
-[awaiting operator — deferred by user during execute-phase]
+number: 1
+name: Sentry auth token + GitHub repo secrets configured
+expected: |
+  Sentry dashboard has an auth token with `project:releases` + `project:write` scopes;
+  GitHub repo has `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` secrets.
+  `gh secret list` shows all three.
+awaiting: user response
 
 ## Tests
 
