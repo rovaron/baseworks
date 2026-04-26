@@ -35,19 +35,19 @@ import { decideInboundTrace } from "../src/lib/inbound-trace";
 /**
  * In-process equivalent of the canonical Bun.serve fetch wrapper in
  * apps/api/src/index.ts. Re-declared here so tests are boot-free.
+ *
+ * Phase 20.1 D-12: decideInboundTrace is now a thin parse-or-fresh helper
+ * (no CIDR / no trusted header), so the second `remoteAddr` argument is
+ * gone. The helper signature in this test mirrors the production wrapper.
  */
 async function handleReq(
   req: Request,
-  remoteAddr: string,
   app: Elysia,
 ): Promise<Response> {
   const cookieHeader = req.headers.get("cookie");
   const locale = parseNextLocaleCookie(cookieHeader) ?? defaultLocale;
   const requestId = req.headers.get("x-request-id") ?? crypto.randomUUID();
-  const { traceId, spanId, inboundCarrier } = decideInboundTrace(
-    req,
-    remoteAddr,
-  );
+  const { traceId, spanId } = decideInboundTrace(req);
   const seed: ObservabilityContext = {
     requestId,
     traceId,
@@ -55,7 +55,6 @@ async function handleReq(
     locale,
     tenantId: null,
     userId: null,
-    inboundCarrier,
   };
   return obsContext.run(seed, () => app.handle(req));
 }
@@ -71,7 +70,6 @@ function buildProbeApp(): Elysia {
       locale: ctx?.locale ?? null,
       tenantId: ctx?.tenantId ?? null,
       userId: ctx?.userId ?? null,
-      inboundTraceparent: ctx?.inboundCarrier?.traceparent ?? null,
     };
   });
 }
@@ -82,7 +80,7 @@ describe("Bun.serve fetch wrapper + ALS seed (Plan 06 Task 1)", () => {
     const req = new Request("http://localhost/snapshot", {
       headers: { "x-request-id": "seed-1" },
     });
-    const res = await handleReq(req, "10.1.1.1", app);
+    const res = await handleReq(req, app);
     expect(res.status).toBe(200);
     const body = (await res.json()) as { requestId: string | null };
     expect(body.requestId).toBe("seed-1");
@@ -94,7 +92,6 @@ describe("Bun.serve fetch wrapper + ALS seed (Plan 06 Task 1)", () => {
       new Request("http://localhost/snapshot", {
         headers: { "x-request-id": "rA" },
       }),
-      "10.1.1.1",
       app,
     );
     const body1 = (await res1.json()) as { requestId: string };
@@ -102,7 +99,6 @@ describe("Bun.serve fetch wrapper + ALS seed (Plan 06 Task 1)", () => {
       new Request("http://localhost/snapshot", {
         headers: { "x-request-id": "rB" },
       }),
-      "10.1.1.1",
       app,
     );
     const body2 = (await res2.json()) as { requestId: string };
@@ -120,7 +116,6 @@ describe("Bun.serve fetch wrapper + ALS seed (Plan 06 Task 1)", () => {
           new Request("http://localhost/snapshot", {
             headers: { "x-request-id": `rc-${i}` },
           }),
-          "10.1.1.1",
           app,
         ),
       ),
@@ -142,7 +137,6 @@ describe("Bun.serve fetch wrapper + ALS seed (Plan 06 Task 1)", () => {
       new Request("http://localhost/snapshot", {
         headers: { cookie: "NEXT_LOCALE=pt-BR" },
       }),
-      "10.1.1.1",
       app,
     );
     const body = (await res.json()) as { locale: string };
@@ -153,14 +147,13 @@ describe("Bun.serve fetch wrapper + ALS seed (Plan 06 Task 1)", () => {
     const app = buildProbeApp();
     const res = await handleReq(
       new Request("http://localhost/snapshot"),
-      "10.1.1.1",
       app,
     );
     const body = (await res.json()) as { locale: string };
     expect(body.locale).toBe(defaultLocale);
   });
 
-  test("Test 6 (D-07): untrusted inbound traceparent → fresh server-side trace; carrier preserves inbound", async () => {
+  test("Test 6 (Phase 20.1 D-12): well-formed inbound traceparent is adopted", async () => {
     const app = buildProbeApp();
     const inboundTp =
       "00-aabbccddeeff00112233445566778899-1122334455667788-01";
@@ -168,18 +161,12 @@ describe("Bun.serve fetch wrapper + ALS seed (Plan 06 Task 1)", () => {
       new Request("http://localhost/snapshot", {
         headers: { traceparent: inboundTp },
       }),
-      "10.1.1.1",
       app,
     );
-    const body = (await res.json()) as {
-      traceId: string;
-      inboundTraceparent: string | null;
-    };
-    // Fresh server-side trace (32 hex) that does NOT equal the inbound traceId
-    expect(body.traceId).toMatch(/^[0-9a-f]{32}$/);
-    expect(body.traceId).not.toBe("aabbccddeeff00112233445566778899");
-    // Inbound carrier preserves the original traceparent for Phase 21 OTEL Link
-    expect(body.inboundTraceparent).toBe(inboundTp);
+    const body = (await res.json()) as { traceId: string };
+    // Phase 20.1 D-12 dropped the CIDR/header trust gate; any well-formed
+    // inbound traceparent is now adopted by default.
+    expect(body.traceId).toBe("aabbccddeeff00112233445566778899");
   });
 
   test("Test 7: x-request-id header is honored as ALS seed source", async () => {
@@ -188,7 +175,6 @@ describe("Bun.serve fetch wrapper + ALS seed (Plan 06 Task 1)", () => {
       new Request("http://localhost/snapshot", {
         headers: { "x-request-id": "upstream-id" },
       }),
-      "10.1.1.1",
       app,
     );
     const body = (await res.json()) as { requestId: string };
@@ -238,7 +224,6 @@ describe("Bun.serve fetch wrapper + ALS seed (Plan 06 Task 1)", () => {
     });
     const res = await handleReq(
       new Request("http://localhost/probe"),
-      "10.1.1.1",
       app,
     );
     const body = (await res.json()) as {

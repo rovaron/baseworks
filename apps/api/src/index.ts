@@ -178,12 +178,11 @@ const app = new Elysia()
 // obsContext.traceId end-to-end (producer span, BullMQ carrier, worker log line).
 Bun.serve({
   port: env.PORT,
-  fetch(req, server) {
-    const remoteAddr = server.requestIP(req)?.address ?? "";
+  fetch(req) {
     const cookieHeader = req.headers.get("cookie");
     const locale = parseNextLocaleCookie(cookieHeader) ?? defaultLocale;
     const requestId = req.headers.get("x-request-id") ?? crypto.randomUUID();
-    const { traceId, spanId, inboundCarrier } = decideInboundTrace(req, remoteAddr);
+    const { traceId, spanId } = decideInboundTrace(req);
     const reqSpanCtx: SpanContext = {
       traceId,
       spanId,
@@ -193,7 +192,7 @@ Bun.serve({
     const otelCtxWithReqSpan = trace.setSpanContext(ROOT_CONTEXT, reqSpanCtx);
     return context.with(otelCtxWithReqSpan, () =>
       obsContext.run(
-        { requestId, traceId, spanId, locale, tenantId: null, userId: null, inboundCarrier },
+        { requestId, traceId, spanId, locale, tenantId: null, userId: null },
         () => app.handle(req),
       ),
     );

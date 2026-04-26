@@ -106,7 +106,7 @@ revised: 2026-04-23
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| Operator fork behavior when `OBS_TRUST_TRACEPARENT_FROM` is set to a non-loopback CIDR behind a real gateway | CTX-02 | Requires a real upstream proxy (Cloudflare / Nginx / API gateway) to inject `traceparent`; unit tests cover CIDR parsing + trust decision but not the end-to-end gateway path | 1. Configure `OBS_TRUST_TRACEPARENT_FROM=10.0.0.0/8` in staging env. 2. Curl via a gateway at `10.x.x.x` with a crafted `traceparent`. 3. Confirm Tempo/collector shows the inbound traceId as the parent on the server span. |
+| Operator fork behavior when `OBS_TRUST_TRACEPARENT_FROM` is set to a non-loopback CIDR behind a real gateway | CTX-02 | resolved-by-removal in Phase 20.1 D-12 — the CIDR trust gate (and both `OBS_TRUST_TRACEPARENT_FROM` / `OBS_TRUST_TRACEPARENT_HEADER` env vars) was deleted; v1.3 adopts OTel's default "always honor inbound traceparent" posture. Production trust hardening is a deferred concern per `.planning/phases/20.1-close-v13-milestone-gaps/20.1-CONTEXT.md`. | n/a — verification deleted with the feature. |
 | Tempo/Grafana-side trace assembly of HTTP → CQRS → EventBus child spans | TRC-01, TRC-02 | Noop tracer by default; real OTEL adapter ships in Phase 21. Visual assembly verified there, not here. | Deferred to Phase 21 UAT. |
 
 ---
