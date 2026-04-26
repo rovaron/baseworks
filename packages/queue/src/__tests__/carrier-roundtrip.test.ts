@@ -5,10 +5,10 @@ import {
   context,
   ROOT_CONTEXT,
   SpanKind,
+  createTraceState,
   type SpanContext,
 } from "@opentelemetry/api";
 import { W3CTraceContextPropagator } from "@opentelemetry/core";
-import { createTraceState } from "@opentelemetry/core";
 import {
   obsContext,
   getObsContext,
