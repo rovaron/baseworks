@@ -66,3 +66,9 @@ TBD — investigation steps in priority order:
 
 - `2026-04-26-repair-drizzle-migration-journal-inconsistency.md` — applying migration 0001 may cause column-mismatch errors instead of this TypeError, depending on root cause.
 - This todo discovered while running v1.3 milestone observability UAT — see `.planning/phases/18-error-tracking-adapters/18-HUMAN-UAT.md` and `.planning/phases/19-context-logging-http-cqrs-tracing/19-UAT.md`.
+
+---
+
+## Closure (2026-04-26 — Phase 20.1)
+
+Closed in Phase 20.1 Plan 02 (billing-typeerror). D-07 hypothesis EXCLUDED by D-05 probe; actual root cause was 7 ctx.db handlers misusing `scopedDb.select()`. User-authorized Option A applied across all 7 sites. API regression test `apps/api/__tests__/billing-subscription.test.ts` boots a fresh tenant and asserts HTTP 200 + `{ status: "inactive", hasSubscription: false, ... }` body shape. SC#2 closed. See `.planning/phases/20.1-close-v13-milestone-gaps/20.1-02-SUMMARY.md`.

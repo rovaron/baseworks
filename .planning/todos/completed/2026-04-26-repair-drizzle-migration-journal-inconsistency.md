@@ -46,3 +46,9 @@ TBD — pick one of:
 - Lowest effort, highest tech-debt.
 
 Option 2 is probably the right call for a starter-kit repo where forkers expect `bun run db:migrate` to "just work" on a fresh clone. The historical migration record has limited value in a fork-and-customize template.
+
+---
+
+## Closure (2026-04-26 — Phase 20.1)
+
+Closed in Phase 20.1 Plan 01 (migration-baseline). Migration history reset to a single fresh `0000_red_lester.sql` baseline; `0001_rename_stripe_to_provider.sql` deleted per D-04 (starter-kit fork model — historical rename SQL intentionally lost). `drizzle.config.ts` paths normalized so `bun run db:migrate` works from any cwd. SC#1 closed; CI-grade migration regression test in place. See `.planning/phases/20.1-close-v13-milestone-gaps/20.1-01-SUMMARY.md`.

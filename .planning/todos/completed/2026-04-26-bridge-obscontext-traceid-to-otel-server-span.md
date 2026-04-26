@@ -108,3 +108,9 @@ In `apps/api/__tests__/observability-bullmq-trace.test.ts` (or a new test):
 - Phase 20 human UAT: `.planning/phases/20-bullmq-trace-propagation/20-HUMAN-UAT.md` (test #2 marks this as a known boundary gap)
 - Phase 19 obsContext design: `.planning/phases/19-context-logging-http-cqrs-tracing/19-CONTEXT.md`
 - Phase 21 will ship the Tempo stack which makes this less painful operationally — but the duality remains worth fixing.
+
+---
+
+## Closure (2026-04-26 — Phase 20.1)
+
+Closed in Phase 20.1 Plan 03 (obscontext-otel-bridge). Bridge direction is the inverse of the original framing per D-10/D-11: there is no `instrumentation-http`-created server span to read from, so the fix flows obsContext → OTel context. A synthetic OTel `SpanContext` is built at the Bun.serve fetch boundary and the existing `obsContext.run(...)` is wrapped in `context.with(otelCtxWithReqSpan, ...)`. CIDR-based `OBS_TRUST_TRACEPARENT_FROM` trust gate dropped per D-12 (always-trust default). `apps/api/__tests__/observability-bullmq-trace.test.ts` extended with the producer-log / consumer-log / carrier-traceparent equality assertion. SC#3 closed. See `.planning/phases/20.1-close-v13-milestone-gaps/20.1-03-SUMMARY.md`.
