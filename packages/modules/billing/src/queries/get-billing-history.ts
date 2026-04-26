@@ -2,7 +2,6 @@ import { Type } from "@sinclair/typebox";
 import { defineQuery, ok, err } from "@baseworks/shared";
 import { billingCustomers } from "../schema";
 import { getPaymentProvider } from "../provider-factory";
-import { eq } from "drizzle-orm";
 
 const GetBillingHistoryInput = Type.Object({
   limit: Type.Optional(Type.Number({ minimum: 1, maximum: 100, default: 10 })),
@@ -27,11 +26,9 @@ export const getBillingHistory = defineQuery(
   GetBillingHistoryInput,
   async (input, ctx) => {
     try {
-      const [customer] = await ctx.db
-        .select()
-        .from(billingCustomers)
-        .where(eq(billingCustomers.tenantId, ctx.tenantId))
-        .limit(1);
+      // Phase 20.1 Plan 02 — Option A: scopedDb.select(table) auto-injects
+      // the tenantId predicate.
+      const [customer] = await ctx.db.select(billingCustomers).limit(1);
 
       if (!customer) {
         return ok({ invoices: [] });

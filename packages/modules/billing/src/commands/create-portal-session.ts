@@ -2,7 +2,6 @@ import { Type } from "@sinclair/typebox";
 import { defineCommand, ok, err } from "@baseworks/shared";
 import { billingCustomers } from "../schema";
 import { getPaymentProvider } from "../provider-factory";
-import { eq } from "drizzle-orm";
 
 const CreatePortalSessionInput = Type.Object({
   returnUrl: Type.String(),
@@ -29,11 +28,9 @@ export const createPortalSession = defineCommand(
   CreatePortalSessionInput,
   async (input, ctx) => {
     try {
-      const [customer] = await ctx.db
-        .select()
-        .from(billingCustomers)
-        .where(eq(billingCustomers.tenantId, ctx.tenantId))
-        .limit(1);
+      // Phase 20.1 Plan 02 — Option A: scopedDb.select(table) auto-injects
+      // the tenantId predicate.
+      const [customer] = await ctx.db.select(billingCustomers).limit(1);
 
       if (!customer) {
         return err("BILLING_NOT_CONFIGURED");

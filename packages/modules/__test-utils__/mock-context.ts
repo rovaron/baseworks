@@ -21,14 +21,33 @@ export function createMockDb(results?: {
   const updateResult = results?.update ?? {};
   const deleteResult = results?.delete;
 
-  return {
-    select: mock(() => ({
+  // Phase 20.1 Plan 02 — `select` mock supports BOTH the post-Option-A shape
+  // `scoped.select(table).limit(n)` (the canonical scopedDb API) AND the
+  // legacy raw-Drizzle chain `db.select().from(t).where(p).limit(n)` for any
+  // module that still uses raw db access. The returned thenable resolves to
+  // `selectResult` for `await` AND exposes `.limit`, `.from`, etc., that
+  // also resolve to the same `selectResult`.
+  const buildSelectThenable = () => {
+    const thenableResult: any = {
+      then: (
+        onFulfilled?: (value: any[]) => unknown,
+        onRejected?: (reason: unknown) => unknown,
+      ) => Promise.resolve(selectResult).then(onFulfilled, onRejected),
+      limit: mock(() => Promise.resolve(selectResult)),
       from: mock(() => ({
         where: mock(() => ({
           limit: mock(() => Promise.resolve(selectResult)),
         })),
       })),
-    })),
+      where: mock(() => ({
+        limit: mock(() => Promise.resolve(selectResult)),
+      })),
+    };
+    return thenableResult;
+  };
+
+  return {
+    select: mock(() => buildSelectThenable()),
     insert: mock(() => ({
       values: mock(() => Promise.resolve(insertResult)),
     })),
