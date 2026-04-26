@@ -3,6 +3,16 @@ import { defineQuery, ok } from "@baseworks/shared";
 import { billingCustomers } from "../schema";
 import { eq } from "drizzle-orm";
 
+// Phase 20.1 D-05 probe — confirms whether `billingCustomers` is `undefined` at
+// module-eval time due to workspace import-resolution timing on the `../schema`
+// re-export indirection. Removed in Task 3 together with the D-07 inline-import
+// fix.
+console.log(
+  "[billing/get-subscription-status] billingCustomers loaded:",
+  typeof billingCustomers,
+  !!billingCustomers,
+);
+
 const GetSubscriptionStatusInput = Type.Object({});
 
 /**
