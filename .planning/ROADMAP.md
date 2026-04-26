@@ -55,6 +55,7 @@ Full details: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md)
 - [x] Phase 18: Error Tracking Adapters (7/7 plans) -- completed 2026-04-23 (EXT-01 operator gate deferred to 18-HUMAN-UAT.md)
 - [x] Phase 19: Context, Logging & HTTP/CQRS Tracing (8/8 plans) -- completed 2026-04-23
 - [x] Phase 20: BullMQ Trace Propagation (0/3 plans) (completed 2026-04-26)
+- [ ] Phase 20.1: Close v1.3 milestone gaps from observability UAT (0/0 plans) (INSERTED)
 - [ ] Phase 21: OTEL Adapters + Grafana Observability Stack (0/0 plans)
 - [ ] Phase 22: Admin Ops Tooling (0/0 plans)
 - [ ] Phase 23: Runbooks, Alert Templates & Observability Docs (0/0 plans)
@@ -85,6 +86,7 @@ Full details: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md)
 | 18. Error Tracking Adapters | v1.3 | 7/7 | Complete | 2026-04-23 |
 | 19. Context, Logging & HTTP/CQRS Tracing | v1.3 | 8/8 | Complete | 2026-04-23 |
 | 20. BullMQ Trace Propagation | v1.3 | 3/3 | Complete    | 2026-04-26 |
+| 20.1. Close v1.3 milestone gaps from observability UAT | v1.3 | 0/0 | Not started | - |
 | 21. OTEL Adapters + Grafana Observability Stack | v1.3 | 0/0 | Not started | - |
 | 22. Admin Ops Tooling | v1.3 | 0/0 | Not started | - |
 | 23. Runbooks, Alert Templates & Observability Docs | v1.3 | 0/0 | Not started | - |

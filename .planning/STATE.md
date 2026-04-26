@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Observability & Operations
-status: milestone_complete
-stopped_at: Phase 19 shipped end-to-end (8/8 plans merged, verifier PASSED, reviewer advisory REVIEW.md written).
-last_updated: "2026-04-26T08:19:02.426Z"
-last_activity: 2026-04-26 -- Phase 20 execution started
+status: in_progress
+stopped_at: Phase 20.1 inserted after milestone UAT surfaced 3 cleanup gaps (drizzle migrations, billing TypeError, obsContext/OTel bridge). Phases 17-20 complete; 20.1, 21, 22, 23 pending.
+last_updated: "2026-04-26T16:00:00.000Z"
+last_activity: 2026-04-26 -- Phase 20.1 inserted (URGENT) after live milestone UAT
 progress:
-  total_phases: 4
+  total_phases: 8
   completed_phases: 4
   total_plans: 23
-  completed_plans: 20
-  percent: 100
+  completed_plans: 23
+  percent: 50
 ---
 
 # Project State
@@ -26,12 +26,16 @@ See: .planning/PROJECT.md (updated 2026-04-21)
 ## Current Position
 
 Milestone: v1.3 Observability & Operations
-Phase: 20
+Phase: 20.1 (INSERTED — urgent cleanup from milestone UAT)
 Plan: Not started
-Status: Milestone complete
+Status: In progress (4/8 phases complete; 20.1, 21, 22, 23 pending)
 Last activity: 2026-04-26
 
-Progress: [████░░░░░░] 43% (3/7 phases)
+Progress: [█████░░░░░] 50% (4/8 phases)
+
+### Roadmap Evolution
+
+- **2026-04-26** — Phase 20.1 inserted after Phase 20: Close v1.3 milestone gaps from observability UAT (URGENT). Bundles 3 todos: drizzle migration journal repair, billing `getSubscriptionStatus` TypeError fix, and obsContext.traceId ↔ OTel server-span trace_id bridge. All three surfaced during live v1.3 milestone UAT against a real Sentry DSN + authenticated session + BullMQ producer/consumer round-trip on 2026-04-26.
 
 ## Performance Metrics
 
