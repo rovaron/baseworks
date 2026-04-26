@@ -84,7 +84,7 @@ Full details: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md)
 | 17. Observability Ports & OTEL Bootstrap | v1.3 | 5/5 | Complete | 2026-04-22 |
 | 18. Error Tracking Adapters | v1.3 | 7/7 | Complete | 2026-04-23 |
 | 19. Context, Logging & HTTP/CQRS Tracing | v1.3 | 8/8 | Complete | 2026-04-23 |
-| 20. BullMQ Trace Propagation | v1.3 | 0/3 | Planned | - |
+| 20. BullMQ Trace Propagation | v1.3 | 1/3 | In Progress|  |
 | 21. OTEL Adapters + Grafana Observability Stack | v1.3 | 0/0 | Not started | - |
 | 22. Admin Ops Tooling | v1.3 | 0/0 | Not started | - |
 | 23. Runbooks, Alert Templates & Observability Docs | v1.3 | 0/0 | Not started | - |
