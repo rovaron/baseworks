@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import type { Processor } from "bullmq";
 import {
   obsContext,
@@ -6,6 +6,14 @@ import {
   type ObservabilityContext,
 } from "@baseworks/observability";
 import { defaultLocale } from "@baseworks/i18n";
+import {
+  propagation,
+  trace,
+  context,
+  ROOT_CONTEXT,
+  type Span,
+} from "@opentelemetry/api";
+import { W3CTraceContextPropagator } from "@opentelemetry/core";
 import { wrapProcessorWithAls, createWorker } from "../index";
 import type { WorkerConfig } from "../types";
 
@@ -17,9 +25,22 @@ import type { WorkerConfig } from "../types";
  * covers the ALS frame contents and per-job isolation.
  */
 
-const fakeJob = (data: any = {}) => ({ id: "fake-id", name: "fake-name", data }) as any;
+const fakeJob = (data: any = {}) => ({
+  id: "fake-id",
+  name: "fake-name",
+  queueName: "test-queue",
+  data,
+  attemptsMade: 0,
+}) as any;
 
 describe("wrapProcessorWithAls — D-05 seed invariants", () => {
+  beforeAll(() => {
+    propagation.setGlobalPropagator(new W3CTraceContextPropagator());
+  });
+  afterAll(() => {
+    propagation.disable();
+  });
+
   test("Test 1: processor runs inside obsContext.run frame (inner frame exists)", async () => {
     let captured: ObservabilityContext | undefined;
     const processor: Processor = async (_job) => {
@@ -173,4 +194,70 @@ describe("wrapProcessorWithAls — D-05 seed invariants", () => {
     expect(innerRequestId).toBe("job-seed");
     expect(innerTenantId).toBeNull();
   });
+
+  test("Test 10: producer carrier in job.data._otel seeds inner ALS traceId", async () => {
+    // Build a known carrier by injecting from a span we control.
+    const tracer = trace.getTracer("test.producer");
+    const producerSpan: Span = tracer.startSpan("test publish");
+    const carrier: Record<string, string> = {};
+    propagation.inject(trace.setSpan(context.active(), producerSpan), carrier);
+    const producerTraceId = producerSpan.spanContext().traceId;
+    producerSpan.end();
+
+    let captured: ObservabilityContext | undefined;
+    const processor: Processor = async () => {
+      captured = getObsContext();
+    };
+    const wrapped = wrapProcessorWithAls(processor);
+    await wrapped(fakeJob({ _otel: carrier, _requestId: "R-prod" }), "fake-token");
+
+    expect(captured?.traceId).toBe(producerTraceId);
+    expect(captured?.requestId).toBe("R-prod");
+  });
+
+  test("Test 11: _tenantId and _userId from job.data seed inner ALS frame", async () => {
+    // Build a carrier so the consumer extract path runs (otherwise fresh-fallback).
+    const tracer = trace.getTracer("test.producer");
+    const producerSpan: Span = tracer.startSpan("test publish");
+    const carrier: Record<string, string> = {};
+    propagation.inject(trace.setSpan(context.active(), producerSpan), carrier);
+    producerSpan.end();
+
+    let captured: ObservabilityContext | undefined;
+    const processor: Processor = async () => {
+      captured = getObsContext();
+    };
+    const wrapped = wrapProcessorWithAls(processor);
+    await wrapped(
+      fakeJob({
+        _otel: carrier,
+        _requestId: "R-789",
+        _tenantId: "T-123",
+        _userId: "U-456",
+      }),
+      "fake-token",
+    );
+
+    expect(captured?.tenantId).toBe("T-123");
+    expect(captured?.userId).toBe("U-456");
+    expect(captured?.requestId).toBe("R-789");
+  });
+
+  test("Test 12: absent _otel falls back to Phase 19 fresh-trace path", async () => {
+    let captured: ObservabilityContext | undefined;
+    const processor: Processor = async () => {
+      captured = getObsContext();
+    };
+    const wrapped = wrapProcessorWithAls(processor);
+    await wrapped(fakeJob({}), "fake-token");
+
+    // Fresh hex traceId — Phase 19 D-05 behaviour preserved when no carrier present.
+    expect(captured?.traceId).toMatch(/^[0-9a-f]{32}$/i);
+    expect(captured?.traceId).not.toBe("0".repeat(32));
+    expect(captured?.tenantId).toBeNull();
+    expect(captured?.userId).toBeNull();
+  });
+
+  // Reference imports to avoid unused warnings; harmless at runtime.
+  void ROOT_CONTEXT;
 });
