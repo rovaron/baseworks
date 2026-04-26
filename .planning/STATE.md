@@ -4,14 +4,14 @@ milestone: v1.3
 milestone_name: Observability & Operations
 status: executing
 stopped_at: Phase 20.1 context gathered
-last_updated: "2026-04-26T21:31:23.975Z"
+last_updated: "2026-04-26T21:47:32.186Z"
 last_activity: 2026-04-26
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 27
-  completed_plans: 25
-  percent: 93
+  completed_plans: 26
+  percent: 96
 ---
 
 # Project State
@@ -27,11 +27,11 @@ See: .planning/PROJECT.md (updated 2026-04-21)
 
 Milestone: v1.3 Observability & Operations
 Phase: 20.1 (close-v13-milestone-gaps) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-04-26
 
-Progress: [█████████░] 93%
+Progress: [██████████] 96%
 
 ### Roadmap Evolution
 
@@ -124,6 +124,11 @@ Decisions are logged in PROJECT.md Key Decisions table (updated at v1.2 close wi
 - [Phase ?]: Phase 20.1 Plan 01: migration history reset to single 0000_red_lester.sql baseline; 0001_rename_stripe_to_provider.sql deleted per D-04 (starter-kit fork model — historical rename SQL intentionally lost)
 - [Phase ?]: 20.1-02: D-07 hypothesis EXCLUDED by D-05 probe. Actual root cause: 7 ctx.db handlers misused scopedDb.select(). User-authorized Option A applied across all 7.
 - [Phase ?]: 20.1-02: API regression tests for tenant-scoped CQRS handlers must use real scopedDb(realDb, tenantId), not a mock. Bug lived at handler-scopedDb boundary; unit-test mocks hid it.
+- [Phase 20.1 Plan 03]: D-11 synthetic OTel SpanContext at Bun.serve fetch boundary; obsContext.traceId now flows into OTel ambient context so producer-side log, consumer-side log, and BullMQ carrier traceparent all share a single traceId end-to-end. SC#3 closed at the production-code level.
+- [Phase 20.1 Plan 03]: D-12 CIDR-based traceparent trust gate dropped (OBS_TRUST_TRACEPARENT_FROM/HEADER env vars + ipaddr.js trust logic deleted from packages/config + apps/api). v1.3 adopts OTel always-trust default; production trust hardening deferred per CONTEXT.md.
+- [Phase 20.1 Plan 03]: inboundCarrier?: field on ObservabilityContext left in place per CONTEXT.md `<deferred>` (Claude's Discretion default). The Bun.serve seed no longer populates it; type-side removal is a future cleanup.
+- [Phase 20.1 Plan 03]: Pattern — atomic signature trim. Function signature change + every call-site update + env-var schema removal + dependent test updates land in ONE commit so tsc stays green at every boundary. Used to remove `decideInboundTrace`'s `remoteAddr` arg + `inboundCarrier` return field across 8 files in a single `e16843d` refactor commit.
+- [Phase 20.1 Plan 03]: Pattern — context.with(otelCtx, () => obsContext.run(seed, fn)). OTel ambient context wraps the ALS seed at the Bun.serve fetch boundary; downstream tracer.startSpan and propagation.inject naturally inherit the request's traceId without adapter-specific wiring. Works whether the Tracer port is Noop or wired to a real OTel SDK exporter.
 
 ### v1.3 Roadmap Summary
 
@@ -144,6 +149,7 @@ Decisions are logged in PROJECT.md Key Decisions table (updated at v1.2 close wi
 **Deferred (not v1.3 scope):** TRC-future-01 (postgres.js DB spans), MET-future-01 (Prometheus scrape endpoint), MET-future-02 (histogram exemplars), ALT-future-01 (in-app alert router).
 | Phase 20.1 P01 | 25min | 4 tasks | 6 files |
 | Phase 20.1 P02 | 50min | 3 tasks | 9 files |
+| Phase 20.1 P03 | 11min | 3 tasks | 8 files |
 
 ### Pending Todos
 
@@ -170,10 +176,10 @@ Prior concerns resolved:
 
 ## Session Continuity
 
-Last session: 2026-04-26T21:31:23.960Z
-Stopped at: Phase 20.1 context gathered
+Last session: 2026-04-26T21:47:32.171Z
+Stopped at: Completed 20.1-03-PLAN.md
 Resume file: None
-Next action: Run `/gsd:discuss-phase 20` (or `/gsd:plan-phase 20` if context is obvious) to start BullMQ trace propagation (CTX-04, TRC-03).
+Next action: Execute Plan 20.1-04 (Phase 19 review fixes — H-01 locale-cookie try/catch, H-02 x-request-id validation, H-03 composed-stack error-span gap try/catch, ROADMAP.md SC#5 amendment). Plan 04 layers onto Plan 03's `context.with(otelCtx, () => obsContext.run(seed, fn))` wrapper structure in apps/api/src/index.ts.
 
 **Open threads from Phase 19 (advisory — not gap-closure blockers):**
 
