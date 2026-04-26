@@ -27,6 +27,13 @@ import {
 import { defaultLocale } from "@baseworks/i18n";
 import { parseNextLocaleCookie } from "./lib/locale-cookie";
 import { decideInboundTrace } from "./lib/inbound-trace";
+import {
+  context,
+  ROOT_CONTEXT,
+  type SpanContext,
+  TraceFlags,
+  trace,
+} from "@opentelemetry/api";
 
 // Create database instance
 const db = createDb(env.DATABASE_URL);
@@ -163,6 +170,12 @@ const app = new Elysia()
 // Phase 19 D-01/D-12 — Bun.serve fetch wrapper is the single ALS seed point for
 // every HTTP request. Elysia runs inside `obsContext.run(...)` so every log line,
 // span, and error-capture inside the handler sees the same ObservabilityContext.
+//
+// Phase 20.1 D-11 — wrap `obsContext.run(...)` inside `context.with(otelCtx, ...)`
+// where otelCtx carries a synthetic OTel SpanContext built from the same
+// {traceId, spanId} the ALS frame is seeded with. Downstream `tracer.startSpan`
+// and `propagation.inject(context.active(), ...)` then naturally inherit
+// obsContext.traceId end-to-end (producer span, BullMQ carrier, worker log line).
 Bun.serve({
   port: env.PORT,
   fetch(req, server) {
@@ -171,9 +184,18 @@ Bun.serve({
     const locale = parseNextLocaleCookie(cookieHeader) ?? defaultLocale;
     const requestId = req.headers.get("x-request-id") ?? crypto.randomUUID();
     const { traceId, spanId, inboundCarrier } = decideInboundTrace(req, remoteAddr);
-    return obsContext.run(
-      { requestId, traceId, spanId, locale, tenantId: null, userId: null, inboundCarrier },
-      () => app.handle(req),
+    const reqSpanCtx: SpanContext = {
+      traceId,
+      spanId,
+      traceFlags: TraceFlags.SAMPLED,
+      isRemote: false,
+    };
+    const otelCtxWithReqSpan = trace.setSpanContext(ROOT_CONTEXT, reqSpanCtx);
+    return context.with(otelCtxWithReqSpan, () =>
+      obsContext.run(
+        { requestId, traceId, spanId, locale, tenantId: null, userId: null, inboundCarrier },
+        () => app.handle(req),
+      ),
     );
   },
 });
