@@ -63,3 +63,6 @@ export type { ObservabilityContext } from "./context";
 // EventBus wrapper (Phase 19 / TRC-02 / D-15 / D-16 — no edits to core/event-bus.ts).
 export { wrapEventBus } from "./wrappers/wrap-event-bus";
 export type { EventBusLike } from "./wrappers/wrap-event-bus";
+
+// Queue producer wrapper (Phase 20 / CTX-04 / TRC-03 / D-02 — no edits to packages/queue call sites).
+export { wrapQueue } from "./wrappers/wrap-queue";
