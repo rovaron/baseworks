@@ -22,7 +22,14 @@ export function parseNextLocaleCookie(
   if (!cookieHeader) return null;
   const match = cookieHeader.match(/(?:^|;\s*)NEXT_LOCALE=([^;]+)/);
   if (!match) return null;
-  const value = decodeURIComponent(match[1]);
+  let value: string;
+  try {
+    value = decodeURIComponent(match[1]);
+  } catch {
+    // Malformed cookie value (e.g., stray % escape) — caller falls
+    // through to defaultLocale per Phase 20.1 D-16 / H-01.
+    return null;
+  }
   return (locales as readonly string[]).includes(value)
     ? (value as Locale)
     : null;
