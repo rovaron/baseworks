@@ -4,14 +4,14 @@ milestone: v1.3
 milestone_name: Observability & Operations
 status: executing
 stopped_at: Phase 20.1 context gathered
-last_updated: "2026-04-26T21:05:19.304Z"
+last_updated: "2026-04-26T21:31:23.975Z"
 last_activity: 2026-04-26
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 27
-  completed_plans: 24
-  percent: 89
+  completed_plans: 25
+  percent: 93
 ---
 
 # Project State
@@ -27,11 +27,11 @@ See: .planning/PROJECT.md (updated 2026-04-21)
 
 Milestone: v1.3 Observability & Operations
 Phase: 20.1 (close-v13-milestone-gaps) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-04-26
 
-Progress: [█████████░] 89%
+Progress: [█████████░] 93%
 
 ### Roadmap Evolution
 
@@ -122,6 +122,8 @@ Decisions are logged in PROJECT.md Key Decisions table (updated at v1.2 close wi
 - [Phase ?]: Phase 20.1 Plan 01: drizzle.config.ts paths normalized so bun run db:migrate works from any cwd (auto-fix Rule 1)
 - [Phase ?]: Phase 20.1 Plan 01: D-02 reset step home = docs/getting-started.md (canonical onboarding doc; neither apps/api/README.md nor repo-root README.md exists)
 - [Phase ?]: Phase 20.1 Plan 01: migration history reset to single 0000_red_lester.sql baseline; 0001_rename_stripe_to_provider.sql deleted per D-04 (starter-kit fork model — historical rename SQL intentionally lost)
+- [Phase ?]: 20.1-02: D-07 hypothesis EXCLUDED by D-05 probe. Actual root cause: 7 ctx.db handlers misused scopedDb.select(). User-authorized Option A applied across all 7.
+- [Phase ?]: 20.1-02: API regression tests for tenant-scoped CQRS handlers must use real scopedDb(realDb, tenantId), not a mock. Bug lived at handler-scopedDb boundary; unit-test mocks hid it.
 
 ### v1.3 Roadmap Summary
 
@@ -141,6 +143,7 @@ Decisions are logged in PROJECT.md Key Decisions table (updated at v1.2 close wi
 
 **Deferred (not v1.3 scope):** TRC-future-01 (postgres.js DB spans), MET-future-01 (Prometheus scrape endpoint), MET-future-02 (histogram exemplars), ALT-future-01 (in-app alert router).
 | Phase 20.1 P01 | 25min | 4 tasks | 6 files |
+| Phase 20.1 P02 | 50min | 3 tasks | 9 files |
 
 ### Pending Todos
 
@@ -167,7 +170,7 @@ Prior concerns resolved:
 
 ## Session Continuity
 
-Last session: 2026-04-26T21:04:54.121Z
+Last session: 2026-04-26T21:31:23.960Z
 Stopped at: Phase 20.1 context gathered
 Resume file: None
 Next action: Run `/gsd:discuss-phase 20` (or `/gsd:plan-phase 20` if context is obvious) to start BullMQ trace propagation (CTX-04, TRC-03).
