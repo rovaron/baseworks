@@ -24,9 +24,12 @@ import {
   getTracer,
   installGlobalErrorHandlers,
   obsContext,
+  readHeartbeats,
+  RingBufferingErrorTracker,
   wrapCqrsBus,
   wrapEventBus,
 } from "@baseworks/observability";
+import { createHealthDetailedPlugin } from "./routes/health-detailed";
 import { defaultLocale } from "@baseworks/i18n";
 import { parseNextLocaleCookie, hasNextLocaleCookie } from "./lib/locale-cookie";
 import { decideInboundTrace } from "./lib/inbound-trace";
@@ -48,8 +51,14 @@ const db = createDb(env.DATABASE_URL);
 validatePaymentProviderEnv();
 // Phase 18 — crash-hard on missing DSN for the selected ERROR_TRACKER (D-09).
 validateObservabilityEnv();
+// Phase 22 / D-15 — wrap the env-selected ErrorTracker in a ring buffer so the
+// /health/detailed endpoint (Plan 22-05) can surface a process-local rolling window
+// of recent errors without needing a Sentry/GlitchTip API token. Capacity 50 entries
+// (~30 KB/process). Inner tracker still receives every captureException/captureMessage
+// — this decorator is a side-buffer, NOT a redirect.
+const errorTracker = new RingBufferingErrorTracker(getErrorTracker(), 50);
 // Phase 18 D-02 — register global uncaughtException + unhandledRejection handlers.
-installGlobalErrorHandlers(getErrorTracker());
+installGlobalErrorHandlers(errorTracker);
 
 // Create module registry -- auth module loaded alongside example
 const registry = new ModuleRegistry({
@@ -62,7 +71,9 @@ await registry.loadAll();
 
 // Phase 18 D-01 — wrap the CqrsBus so thrown handler exceptions are captured.
 // External wrapper; zero edits to apps/api/src/core/cqrs.ts (D-01 invariant).
-wrapCqrsBus(registry.getCqrs(), getErrorTracker());
+// Phase 22 D-15 — pass the ring-buffered tracker so CQRS-source errors flow into
+// the /health/detailed envelope.
+wrapCqrsBus(registry.getCqrs(), errorTracker);
 // Phase 19 D-16 — wrap the EventBus so emit/on get producer/consumer spans.
 // External wrapper; zero edits to apps/api/src/core/event-bus.ts (TRC-02 invariant).
 wrapEventBus(registry.getEventBus(), getTracer());
@@ -97,6 +108,122 @@ if (env.REDIS_URL) {
   logger.warn("REDIS_URL not configured — bull-board will mount with zero queues");
 }
 const bullBoardPlugin = await createBullBoardPlugin(moduleQueues);
+
+// Phase 22 / OPS-04 — register built-in contributors with the aggregator owned by
+// the registry. Each contributor reports a HealthCheckResult; the aggregator
+// performs a parallel fan-out and worst-of-N rollup that surfaces in
+// /health/detailed's `data.status`. Module-supplied contributors (def.health)
+// were already registered during registry.loadAll(); these four cover the
+// cross-cutting infra signals every fork's operator wants.
+const aggregator = registry.getHealthAggregator();
+
+// DB lag probe — round-trip latency from SELECT 1 (D-07 db.{connected,lagMs,status}).
+// healthy < 500ms; degraded ≥ 500ms; unhealthy on connection failure.
+aggregator.register({
+  name: "db",
+  timeoutMs: 1000,
+  check: async () => {
+    const start = performance.now();
+    try {
+      await db.execute(sql`SELECT 1`);
+      const lagMs = Math.round(performance.now() - start);
+      return {
+        status: lagMs < 500 ? "healthy" : "degraded",
+        details: { connected: true, lagMs },
+      };
+    } catch (err) {
+      return {
+        status: "unhealthy",
+        details: { connected: false, lagMs: null, error: String(err) },
+      };
+    }
+  },
+});
+
+// Queue-depth contributor — overall status reflects the worst per-queue threshold breach.
+// Mirrors the per-queue thresholds in /health/detailed (D-09 hardcoded warn=100, critical=1000).
+aggregator.register({
+  name: "queueDepth",
+  check: async () => {
+    let worst: "healthy" | "degraded" | "unhealthy" = "healthy";
+    for (const q of moduleQueues) {
+      try {
+        const counts = await q.getJobCounts("waiting");
+        const waiting = counts.waiting ?? 0;
+        if (waiting >= 1000) worst = "unhealthy";
+        else if (waiting >= 100 && worst === "healthy") worst = "degraded";
+      } catch {
+        worst = "unhealthy";
+      }
+    }
+    return { status: worst };
+  },
+});
+
+// Worker-heartbeat contributor — degraded if any heartbeat is stale, unhealthy if any
+// is dead OR no heartbeats are reporting. Mirrors the freshness thresholds in
+// /health/detailed (D-13: 2× / 5× heartbeat interval).
+aggregator.register({
+  name: "workerHeartbeat",
+  check: async () => {
+    if (!env.REDIS_URL) {
+      return {
+        status: "unhealthy",
+        details: { error: "REDIS_URL not configured" },
+      };
+    }
+    const redis = getRedisConnection(env.REDIS_URL);
+    try {
+      const heartbeats = await readHeartbeats(redis);
+      if (heartbeats.length === 0) {
+        return {
+          status: "unhealthy",
+          details: { error: "no workers reporting" },
+        };
+      }
+      const intervalMs = env.WORKER_HEARTBEAT_INTERVAL_MS;
+      const now = Date.now();
+      let worst: "healthy" | "degraded" | "unhealthy" = "healthy";
+      for (const hb of heartbeats) {
+        const ageMs = now - new Date(hb.lastHeartbeat).getTime();
+        if (ageMs >= 5 * intervalMs) worst = "unhealthy";
+        else if (ageMs >= 2 * intervalMs && worst === "healthy") worst = "degraded";
+      }
+      return { status: worst, details: { count: heartbeats.length } };
+    } catch (err) {
+      return { status: "unhealthy", details: { error: String(err) } };
+    }
+  },
+});
+
+// Recent-errors contributor (D-15) — informational only. Buffer presence never
+// drives status; operators read the `recentErrors` array in the envelope directly.
+aggregator.register({
+  name: "recentErrors",
+  check: async () => ({
+    status: "healthy",
+    details: { count: errorTracker.snapshot().length },
+  }),
+});
+
+// Phase 22 / OPS-03 — /health/detailed plugin (mounted in the app chain below).
+// moduleStatuses() intentionally returns an empty Map for v1.3 — no module ships a
+// HealthContributor in this phase, so every loaded module falls through to the D-16
+// default ("healthy") at the endpoint. The aggregator's worst-of-N rollup IS still
+// reflected in `data.status` (overall) and IS used by the four built-in contributors
+// above. Wiring agg.contributors results into modules[].status (so a module's own
+// contributor result shows up on its module card) is documented in CONTEXT 'Deferred
+// Ideas' as a v1.4 follow-up. See 22-05-PLAN.md must_haves for the partial-OPS-04 note.
+const healthDetailedPlugin = createHealthDetailedPlugin({
+  aggregator,
+  moduleQueues,
+  redis: env.REDIS_URL ? getRedisConnection(env.REDIS_URL) : null,
+  heartbeatIntervalMs: env.WORKER_HEARTBEAT_INTERVAL_MS,
+  loadedModuleNames: () => registry.getLoadedNames(),
+  moduleStatuses: () =>
+    new Map<string, "healthy" | "degraded" | "unhealthy" | "unknown">(),
+  recentErrorsSnapshot: () => errorTracker.snapshot(),
+});
 
 // Build app via chained .use() calls to preserve type inference for Eden Treaty.
 // No `as any` casts -- each plugin is used directly in the chain.
@@ -159,6 +286,10 @@ const app = new Elysia()
   // middleware: bull-board owns its own auth derive via requireRole, and is
   // operator-scope (not tenant-scope) so it must not require a tenant context.
   .use(bullBoardPlugin)
+  // Phase 22 / OPS-03 — /health/detailed endpoint at API root (NOT under /api/admin/)
+  // per D-08. Mounted AFTER bullBoardPlugin and BEFORE authRoutes so it sits in the
+  // operator-scope band: same RBAC discipline as bull-board, no tenant context required.
+  .use(healthDetailedPlugin)
   // Auth routes -- mounted BEFORE tenant middleware so signup/login/OAuth
   // callbacks do NOT require tenant context (D-16)
   .use(authRoutes ?? new Elysia())

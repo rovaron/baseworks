@@ -317,7 +317,14 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
   })
 
   // --- System Health ---
-  // Cached Redis connection for health checks to avoid connection churn (WR-04)
+  // Phase 22 / D-07 — DEPRECATED ALIAS. Use GET /health/detailed instead.
+  // Will be removed in v1.4 once Plan 22-06 migrates the admin UI to the new
+  // endpoint. The legacy `{ data: { uptime, timestamp, redis } }` shape is
+  // preserved verbatim for Eden Treaty client backwards compatibility — the
+  // `deprecated` + `deprecation` markers are added as SIBLING fields rather
+  // than replacing the envelope so external consumers that have not yet
+  // migrated keep working during the cutover. The full D-07 envelope (with
+  // queues, workers, db lag probe, recentErrors, modules) is at /health/detailed.
   .get("/system/health", async () => {
     const health: Record<string, any> = {
       uptime: process.uptime(),
@@ -345,5 +352,10 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
       health.redis = { connected: false, error: "REDIS_URL not configured" };
     }
 
-    return { data: health };
+    return {
+      data: health,
+      deprecated: true,
+      deprecation:
+        "Use /health/detailed instead. This route will be removed in v1.4.",
+    };
   });
