@@ -44,7 +44,7 @@ created: 2026-04-27
 | TBD | TBD | TBD | OPS-01 | TBD | bull-board mounted at /admin/bull-board behind requireRole("owner"), read-only by default | integration | `bun test apps/api/test/admin-bull-board.test.ts` | ❌ W0 | ⬜ pending |
 | TBD | TBD | TBD | OPS-02 | TBD | Admin sidebar Job Monitor entry renders bull-board iframe | unit + e2e | `bun run --filter @baseworks/admin test src/routes/jobs.test.tsx` | ❌ W0 | ⬜ pending |
 | TBD | TBD | TBD | OPS-03 | TBD | /health/detailed returns shape with queues/workers/db/recentErrors/modules | integration | `bun test apps/api/test/health-detailed.test.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | OPS-04 | TBD | HealthContributor slot collected by registry, aggregator rolls up | unit | `bun test apps/api/src/core/health-aggregator.test.ts` | ❌ W0 | ⬜ pending |
+| TBD | TBD | TBD | OPS-04 | TBD | HealthContributor slot collected by registry, aggregator rolls up | unit | `bun test apps/api/src/core/__tests__/health-aggregator.test.ts` | ❌ W0 | ⬜ pending |
 | TBD | TBD | TBD | EXT-02 | TBD | Worker publishes Redis heartbeat key on configured interval; cleared on shutdown | integration | `bun test apps/api/test/worker-heartbeat.test.ts` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
@@ -53,10 +53,17 @@ created: 2026-04-27
 
 ## Wave 0 Requirements
 
+> Test files that the planner declared as the canonical falsifiable check per REQ-ID. Paths reflect the
+> existing project test convention: backend unit tests live under `src/.../__tests__/`, integration tests
+> live under `apps/api/test/`. Frontend tests live next to their source under `apps/admin/src/routes/`.
+
 - [ ] `apps/api/test/admin-bull-board.test.ts` — stubs for OPS-01 (401/403/static-asset gating, CSP frame-ancestors, readOnlyMode env-driven)
 - [ ] `apps/api/test/health-detailed.test.ts` — stubs for OPS-03 (response shape, RBAC, status rollup)
-- [ ] `apps/api/src/core/health-aggregator.test.ts` — stubs for OPS-04 (Promise.allSettled + per-contributor timeout, worst-of-N rollup)
+- [ ] `apps/api/src/core/__tests__/health-aggregator.test.ts` — stubs for OPS-04 (Promise.allSettled + per-contributor timeout, worst-of-N rollup)
+- [ ] `apps/api/src/core/__tests__/registry-health.test.ts` — stubs for OPS-04 registry collector (def.health gathered at loadAll() time)
 - [ ] `apps/api/test/worker-heartbeat.test.ts` — stubs for EXT-02 (Redis SET with EX, instanceId resolution, cleanup on SIGTERM)
+- [ ] `packages/observability/src/health/__tests__/heartbeat-publisher.test.ts` — stubs for EXT-02 publisher unit tests (D-12 key shape, D-13 TTL, D-14 resilience)
+- [ ] `packages/observability/src/health/__tests__/heartbeat-reader.test.ts` — stubs for EXT-02 reader unit tests (SCAN-not-KEYS, paginated walk)
 - [ ] `apps/admin/src/routes/jobs.test.tsx` — stubs for OPS-02 (iframe renders, fills layout main slot)
 - [ ] `apps/admin/src/routes/system/health-detailed.test.tsx` — stubs for OPS-03 admin UI (queue thresholds, worker status, recent errors)
 - [ ] `apps/api/test/error-tracker-ringbuffer.test.ts` — stubs for recent-errors ringbuffer (capacity 50, dedup, decorator pass-through)
@@ -84,3 +91,4 @@ created: 2026-04-27
 - [ ] `nyquist_compliant: true` set in frontmatter
 
 **Approval:** pending
+</content>

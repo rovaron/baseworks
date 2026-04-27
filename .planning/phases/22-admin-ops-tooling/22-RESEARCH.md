@@ -1384,7 +1384,7 @@ The following directives from `CLAUDE.md` MUST be honored by Phase 22 plans. Res
 - "Bun's single-threaded event loop makes ringbuffer concurrency-safe without locks" — standard JS semantics; not Bun-specific. **HIGH confidence.**
 - "`@bull-board/elysia` v7.0.0 works under `elysia ^1.4.28`" — peer declared as `^1.1.0`; standard semver compat. Confirmed by official example using bun runtime. **HIGH confidence** — but executor should run a smoke test on Wave 1 to catch any edge case.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 > All questions raised in upstream `<additional_context>` resolved. Below are the remaining low-impact unknowns.
 
