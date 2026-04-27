@@ -75,9 +75,9 @@ Full details: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md)
   5. Operator sees workers publishing heartbeat keys to Redis on a configurable interval so the health dashboard worker-heartbeat status reflects real state, not a mock
 **Plans**: 6 plans
   - [x] 22-01-PLAN.md — Foundation: env vars, HealthContributor types, instance-id helper, RingBufferingErrorTracker decorator (no mounts)
-  - [ ] 22-02-PLAN.md — HealthAggregator class + ModuleRegistry def.health collector
-  - [ ] 22-03-PLAN.md — bull-board mount at /admin/bull-board with RBAC + CSP + readOnly env
-  - [ ] 22-04-PLAN.md — Worker heartbeat publisher + reader (Redis SET worker:heartbeat:{instanceId})
+  - [x] 22-02-PLAN.md — HealthAggregator class + ModuleRegistry def.health collector
+  - [x] 22-03-PLAN.md — bull-board mount at /admin/bull-board with RBAC + CSP + readOnly env
+  - [x] 22-04-PLAN.md — Worker heartbeat publisher + reader (Redis SET worker:heartbeat:{instanceId})
   - [ ] 22-05-PLAN.md — /health/detailed endpoint + built-in contributors + ringbuffer wiring
   - [ ] 22-06-PLAN.md — Admin frontend: vite proxy, /jobs iframe, /system page replacement, i18n keys
 **UI hint**: yes
@@ -120,5 +120,5 @@ Full details: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md)
 | 20. BullMQ Trace Propagation | v1.3 | 3/3 | Complete    | 2026-04-26 |
 | 20.1. Close v1.3 milestone gaps from observability UAT | v1.3 | 4/4 | Complete    | 2026-04-27 |
 | 21. OTEL Adapters + Grafana Observability Stack | v1.3 | 0/0 | Deferred to v1.4+ (Sentry SaaS) | - |
-| 22. Admin Ops Tooling | v1.3 | 1/6 | In Progress|  |
+| 22. Admin Ops Tooling | v1.3 | 4/6 | In Progress|  |
 | 23. Runbooks, Alert Templates & Observability Docs | v1.3 | 0/0 | Not started | - |
