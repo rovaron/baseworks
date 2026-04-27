@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Observability & Operations
-status: milestone_complete
-stopped_at: Completed 20.1-03-PLAN.md
-last_updated: "2026-04-26T22:01:16.979Z"
-last_activity: 2026-04-26
+status: in_progress
+stopped_at: Phase 21 deferred to v1.4+; Phase 22 next (discuss-phase needed)
+last_updated: "2026-04-27T00:00:00.000Z"
+last_activity: 2026-04-27
 progress:
-  total_phases: 5
-  completed_phases: 6
-  total_plans: 27
+  total_phases: 6
+  completed_phases: 5
+  total_plans: 31
   completed_plans: 27
-  percent: 120
+  percent: 87
 ---
 
 # Project State
@@ -181,10 +181,12 @@ Prior concerns resolved:
 
 ## Session Continuity
 
-Last session: 2026-04-26T22:00:45.261Z
-Stopped at: Completed 20.1-03-PLAN.md
+Last session: 2026-04-27
+Stopped at: Phase 21 deferred to v1.4+ (Sentry SaaS substitution decision recorded in ROADMAP + v1.3-ROADMAP). Phase 20.1 was the last execution.
 Resume file: None
-Next action: Execute Plan 20.1-04 (Phase 19 review fixes — H-01 locale-cookie try/catch, H-02 x-request-id validation, H-03 composed-stack error-span gap try/catch, ROADMAP.md SC#5 amendment). Plan 04 layers onto Plan 03's `context.with(otelCtx, () => obsContext.run(seed, fn))` wrapper structure in apps/api/src/index.ts.
+Next action: `/gsd:discuss-phase 22` — Phase 22 (Admin Ops Tooling: bull-board RBAC, /health/detailed, HealthContributor registry, worker heartbeat). CONTEXT.md does not yet exist for Phase 22; discuss-phase gathers gray-area context before planning. Has UI hint — `/gsd:ui-phase 22` may follow plan to spec the admin Job Monitor screen.
+
+**Deferral context recorded 2026-04-27:** Phase 21 (OTEL Adapters + Grafana stack) moved to v1.4+. MET-01..03 + DOC-01..02 are now in the deferred list of `.planning/milestones/v1.3-ROADMAP.md`. Rationale: Sentry SaaS already serves the operator audience for hosted forks; the observability ports shipped in Phase 17 are vendor-agnostic, so a future fork can wire OTLP without code edits. Phase 22 `Depends on` shrunk from {20, 21} → {20}; Phase 23 from {21, 22} → {22}. Grafana alert YAML scope drops from Phase 23; Sentry alert templates remain in scope.
 
 **Open threads from Phase 19 (advisory — not gap-closure blockers):**
 

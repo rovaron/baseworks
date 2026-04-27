@@ -166,6 +166,7 @@ v1.2 shipped in 6 days (2026-04-16 to 2026-04-21) across 115 commits and 4 phase
 | Phase 16 content-drift fixes (docs-first over code-first) | Chose Option A: revise docs to match live `event-bus-hook` enqueue path rather than retrofit `ctx.enqueue`. Lower risk, preserves the working pattern | ✓ Good — 6 audit gaps closed, no new code paths introduced |
 | Phase 17 OTEL bootstrap: `NodeSDK` without `traceExporter` + dynamic `await import("@baseworks/config")` after `sdk.start()` (v1.3) | Zero-exporter keeps default-noop posture (T-17-03 noop egress); dynamic import preserves D-06 — config load must not run before OTEL patches require/import | ✓ Good — subprocess smoke tests confirm `otel-selftest: ok` with zero outbound traffic; all 4 instrumentation subtests pass |
 | Phase 17 `INSTANCE_ROLE` strict `'api' \| 'worker'` union, default 'api' (v1.3) | Two-role model matches Baseworks deployment reality; dropping the speculative 'all' role avoids a leaky abstraction ahead of real need | ✓ Good — role-branched instrumentation matrix cleanly gates HTTP to api only |
+| Defer Phase 21 (OTEL adapters + Grafana stack) to v1.4+ (2026-04-27) | Sentry SaaS already provides metrics/dashboards/alerts for hosted forks; the observability ports shipped in Phase 17 are vendor-agnostic, so a future fork wanting self-hosted Grafana can wire OTLP without touching application code. Cuts 1 phase from v1.3 scope; MET-01..03 + DOC-01..02 move to deferred. | Pending — re-evaluate when fork-user demand for self-hosted observability emerges |
 
 ## Evolution
 
@@ -185,4 +186,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-27 after Phase 20.1 (Close v1.3 milestone gaps) completed — fresh-clone db:migrate locked, billing TypeError closed, obsContext→OTel bridge wired at Bun.serve boundary, Phase 19 H-01/H-02/H-03 closed; v1.3 milestone ready for archive pending live producer→consumer log grep walkthrough (HUMAN-UAT 20.1 item 1).*
+*Last updated: 2026-04-27 — Phase 21 (OTEL Adapters + Grafana stack) deferred to v1.4+; v1.3 active scope is now {Phase 22: Admin Ops Tooling, Phase 23: Runbooks + Sentry alert templates + observability docs}. Sentry SaaS substitutes for Phase 21 in hosted forks; observability ports remain ready for OTLP wiring later.*
