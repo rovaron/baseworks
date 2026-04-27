@@ -74,9 +74,11 @@ Type scale uses Tailwind defaults; only sizes/weights actually rendered in this 
 | Body | 14px | 400 (regular) | 1.5 (`leading-normal`) | `text-sm` | Card body text, metric values, sidebar labels, error messages, recent-error timestamps |
 | Label | 12px | 400 (regular) | 1.4 (`leading-tight`) | `text-xs` | Badge text (`Badge` component default), `text-muted-foreground` metric labels (`waiting`, `active`, etc.), "Updated Ns ago" chip, version tag |
 | Heading | 18px | 500 (medium) | 1.4 | `text-lg font-medium` | Section headings: "Queues", "Workers", "Recent Errors", "Modules" (matches `system/health.tsx:148`) |
-| Display | 24px | 600 (semibold) | 1.3 | `text-2xl font-semibold` | Page title (`<h1>` "Job Monitor", "System Health") (matches `system/health.tsx:81,99,120`) |
+| Display | 24px | 500 (medium) | 1.3 | `text-2xl font-medium` | Page title (`<h1>` "Job Monitor", "System Health") (matches `system/health.tsx:81,99,120`) |
 
-Two weights only: **400 regular** (body / labels) and **500 medium** for section headings, with **600 semibold** reserved for the single page-level `<h1>`. The semibold-on-display + medium-on-headings pairing matches the Phase 7/11 accessibility audit baseline already shipped across the admin app.
+**Two weights only:** `400 regular` for body and labels; `500 medium` for headings and display. The medium-on-display + medium-on-headings pairing keeps the admin chrome calm and matches the Phase 7/11 accessibility audit baseline already shipped — display gets its prominence from size (24px) and `space-y-6` rhythm rather than a heavier weight.
+
+> **Note on 12 vs 14px:** the `text-xs` (12px) label and `text-sm` (14px) body sizes are only 2px apart, which on its own is a weak differentiator. Differentiation is augmented by **role + color**: labels always carry `text-muted-foreground` (the `--muted-foreground` token), body text uses default `--foreground`. This pairing — smaller-and-muted vs default-and-foreground — is the established admin-app pattern and is sufficient to disambiguate the two roles for sighted users; AT users get the same disambiguation via badge text and surrounding markup.
 
 ---
 
@@ -129,6 +131,8 @@ No new color tokens introduced. Do **not** add a new "warning yellow" or "info b
 ## Copywriting Contract
 
 All visible strings flow through `useTranslation("admin")` or `useTranslation("common")`. **Zero hardcoded English** in `.tsx` files for this phase. New keys land in BOTH `packages/i18n/src/locales/en/admin.json` AND `packages/i18n/src/locales/pt-BR/admin.json`.
+
+> **Note on the `Retry` CTA:** the page-level error fallback re-uses the existing `common.retry` key intentionally. `Retry` is a single-word, cross-phase shared label that already appears in other admin error surfaces; renaming it for this phase would fork the cross-phase pattern. The single-word style matches its established usage and is preserved deliberately.
 
 ### New i18n keys (admin namespace)
 
@@ -271,7 +275,7 @@ No confirmation dialogs are introduced in this phase. (Bull-board's own retry/pr
 <AdminLayout>          // existing
   <main class="flex-1 p-6">
     <header class="flex items-center justify-between mb-6">
-      <h1 class="text-2xl font-semibold">{t("jobs.title")}</h1>
+      <h1 class="text-2xl font-medium">{t("jobs.title")}</h1>
       // No actions on this page — bull-board owns its own toolbar inside the iframe
     </header>
 
@@ -310,7 +314,7 @@ Notes:
 
 Section ordering (top to bottom; matches priority for an on-call operator's eye):
 
-1. Page header: `<h1>{t("systemHealth.title")}</h1>` + right-aligned chip group (`Updated Ns ago` + `RefreshCw` button).
+1. Page header: `<h1 class="text-2xl font-medium">{t("systemHealth.title")}</h1>` + right-aligned chip group (`Updated Ns ago` + `RefreshCw` button).
 2. **Overall status card** (existing pattern, kept) — large `Badge` + status sentence.
 3. **Queues** grid — `Layers` icon + h2; per-queue card shows: name, badge, waiting/active/delayed/completed/failed (4-col tight grid), thresholds row.
 4. **Workers** grid — `Cpu` icon + h2; per-worker card shows: instanceId, queues (badge list), `Last heartbeat: 12s ago`, status badge.
