@@ -3,6 +3,7 @@
 //   - github.com/felixmosh/bull-board/tree/master/examples/with-elysia (verified 2026-04-27)
 //   - github.com/felixmosh/bull-board/blob/master/README.md#queue-options (readOnlyMode)
 //   - github.com/oven-sh/bun/issues/5809 (uiBasePath Bun workaround)
+import { dirname } from "node:path";
 import { Elysia } from "elysia";
 import { createBullBoard } from "@bull-board/api";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
@@ -10,6 +11,13 @@ import { ElysiaAdapter } from "@bull-board/elysia";
 import type { Queue } from "bullmq";
 import { requireRole } from "@baseworks/module-auth";
 import { env } from "@baseworks/config";
+
+// Resolve @bull-board/ui's installed dist directory at runtime. Bun's isolated
+// install does NOT hoist @bull-board/ui to the workspace-root node_modules, so
+// the plan's hard-coded "node_modules/@bull-board/ui" path is invalid here.
+// Bun.resolveSync returns the package.json path; dist/static lives next to it.
+const uiPkgPath = Bun.resolveSync("@bull-board/ui/package.json", import.meta.dir);
+const uiBasePath = dirname(uiPkgPath);
 
 /**
  * Phase 22 / OPS-01 — Elysia plugin factory mounting bull-board at /admin/bull-board.
@@ -43,8 +51,9 @@ export async function createBullBoardPlugin(queues: Queue[]): Promise<Elysia> {
     serverAdapter,
     options: {
       // CRITICAL Bun-compat workaround for oven-sh/bun#5809 (eval inside @bull-board/ui).
-      // Without this, the build/runtime fails. Path is relative to process.cwd() at runtime.
-      uiBasePath: "node_modules/@bull-board/ui",
+      // Resolved dynamically — Bun isolated install does not hoist @bull-board/ui to
+      // the workspace-root node_modules, so a static relative path breaks at runtime.
+      uiBasePath,
       uiConfig: {
         boardTitle: "Baseworks Job Monitor",
         hideRedisDetails: true,
