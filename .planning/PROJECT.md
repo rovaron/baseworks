@@ -10,7 +10,7 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 
 ## Current State
 
-**Shipped:** v1.2 Documentation & Quality (2026-04-21). v1.3 in progress — Phase 17 (OTEL bootstrap + ports) complete 2026-04-22; Phase 18 (Error Tracking Adapters) complete 2026-04-23; Phase 19 (Context, Logging & HTTP/CQRS Tracing — unified ALS + pino mixin + Elysia middleware + CQRS/EventBus span wrappers + Biome GritQL `enterWith` ban) complete 2026-04-23; Phase 20 (BullMQ Trace Propagation — `wrapQueue` producer + extended `wrapProcessorWithAls` consumer, W3C carrier on `job.data._otel`, in-process E2E single-trace gate) complete 2026-04-26.
+**Shipped:** v1.2 Documentation & Quality (2026-04-21). v1.3 in progress — Phase 17 (OTEL bootstrap + ports) complete 2026-04-22; Phase 18 (Error Tracking Adapters) complete 2026-04-23; Phase 19 (Context, Logging & HTTP/CQRS Tracing — unified ALS + pino mixin + Elysia middleware + CQRS/EventBus span wrappers + Biome GritQL `enterWith` ban) complete 2026-04-23; Phase 20 (BullMQ Trace Propagation — `wrapQueue` producer + extended `wrapProcessorWithAls` consumer, W3C carrier on `job.data._otel`, in-process E2E single-trace gate) complete 2026-04-26; Phase 20.1 (Close v1.3 milestone gaps — Drizzle migration baseline reset, billing scopedDb misuse fix across 7 handlers, obsContext→OTel bridge at Bun.serve boundary with CIDR trust gate dropped, Phase 19 H-01/H-02/H-03 closure) complete 2026-04-27.
 **Codebase:** ~20K lines TypeScript across apps/packages
 **Tech stack:** Bun + Elysia + Drizzle + PostgreSQL + BullMQ + Redis + Next.js 15 + Vite + React 19 + shadcn/ui + Tailwind 4 + better-auth + Stripe + Pagar.me + Docker + pino + next-intl + react-i18next + Vitest (jsdom)
 
@@ -185,4 +185,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-26 after Phase 20 (BullMQ Trace Propagation) completed — CTX-04 + TRC-03 satisfied at trace-data level (Tempo visual confirmation deferred to Phase 21 per CONTEXT D-08)*
+*Last updated: 2026-04-27 after Phase 20.1 (Close v1.3 milestone gaps) completed — fresh-clone db:migrate locked, billing TypeError closed, obsContext→OTel bridge wired at Bun.serve boundary, Phase 19 H-01/H-02/H-03 closed; v1.3 milestone ready for archive pending live producer→consumer log grep walkthrough (HUMAN-UAT 20.1 item 1).*
