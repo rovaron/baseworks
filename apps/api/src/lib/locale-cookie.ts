@@ -35,4 +35,19 @@ export function parseNextLocaleCookie(
     : null;
 }
 
+/**
+ * Phase 20.1 WR-04 — true when the raw Cookie header contains a
+ * `NEXT_LOCALE=...` segment, regardless of validity. Used by the
+ * Bun.serve fetch wrapper to decide whether to emit a clearing
+ * `Set-Cookie` response header when `parseNextLocaleCookie` returns
+ * null. Without this signal, a browser that once stored a malformed
+ * or unsupported NEXT_LOCALE cookie would silently fall back to
+ * `defaultLocale` on every subsequent request — the user is stuck
+ * with no way to recover short of manually clearing cookies.
+ */
+export function hasNextLocaleCookie(cookieHeader: string | null): boolean {
+  if (!cookieHeader) return false;
+  return /(?:^|;\s*)NEXT_LOCALE=/.test(cookieHeader);
+}
+
 export { defaultLocale };

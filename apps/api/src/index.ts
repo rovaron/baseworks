@@ -25,7 +25,7 @@ import {
   wrapEventBus,
 } from "@baseworks/observability";
 import { defaultLocale } from "@baseworks/i18n";
-import { parseNextLocaleCookie } from "./lib/locale-cookie";
+import { parseNextLocaleCookie, hasNextLocaleCookie } from "./lib/locale-cookie";
 import { decideInboundTrace } from "./lib/inbound-trace";
 import { readRequestId } from "./lib/request-id";
 import {
@@ -182,7 +182,17 @@ Bun.serve({
   port: env.PORT,
   fetch(req) {
     const cookieHeader = req.headers.get("cookie");
-    const locale = parseNextLocaleCookie(cookieHeader) ?? defaultLocale;
+    const parsedLocale = parseNextLocaleCookie(cookieHeader);
+    const locale = parsedLocale ?? defaultLocale;
+    // Phase 20.1 WR-04 — when the inbound NEXT_LOCALE cookie is present but
+    // unparseable (malformed escape OR unsupported locale), the request
+    // safely falls back to defaultLocale here, but the bad cookie persists
+    // in the browser. Without an explicit clear, every subsequent request
+    // repeats the silent fallback and the user is stuck on defaultLocale
+    // forever with no signal. Stamp the response with a clearing Set-Cookie
+    // so the browser drops the bad value on the next round-trip.
+    const localeCookieNeedsClear =
+      parsedLocale === null && hasNextLocaleCookie(cookieHeader);
     const requestId = readRequestId(req);
     const { traceId, spanId } = decideInboundTrace(req);
     const reqSpanCtx: SpanContext = {
@@ -203,8 +213,9 @@ Bun.serve({
       obsContext.run(
         { requestId, traceId, spanId, locale, tenantId: null, userId: null },
         async () => {
+          let response: Response;
           try {
-            return await app.handle(req);
+            response = await app.handle(req);
           } catch (err) {
             const active = trace.getActiveSpan();
             if (active) {
@@ -213,6 +224,28 @@ Bun.serve({
             }
             throw err;
           }
+          // Phase 20.1 WR-04 — append the clearing Set-Cookie. Use append (not
+          // set) so any auth/session Set-Cookie already on the response is
+          // preserved. Path=/ matches the cookie scope used by the Next.js
+          // i18n integration; Max-Age=0 instructs the browser to delete it.
+          if (localeCookieNeedsClear) {
+            try {
+              response.headers.append(
+                "Set-Cookie",
+                "NEXT_LOCALE=; Max-Age=0; Path=/",
+              );
+            } catch {
+              // Headers are immutable on some Response shapes — rebuild.
+              const headers = new Headers(response.headers);
+              headers.append("Set-Cookie", "NEXT_LOCALE=; Max-Age=0; Path=/");
+              response = new Response(response.body, {
+                status: response.status,
+                statusText: response.statusText,
+                headers,
+              });
+            }
+          }
+          return response;
         },
       ),
     );
