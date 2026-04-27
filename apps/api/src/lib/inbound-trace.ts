@@ -5,6 +5,14 @@
  * otherwise mint fresh server-side ids. Trust-gate (CIDR + trusted header)
  * deleted in Phase 20.1; revisit for production hardening (deferred per
  * 20.1-CONTEXT.md "Production trust hardening").
+ *
+ * SECURITY (TODO v1.4) — always-trusting an inbound traceparent is a
+ * correlation-injection surface the moment this API is exposed to the public
+ * internet (trace-graph poisoning + trace-join attacks). Safe for v1.3 because
+ * ingress is not yet public. Re-introduce the CIDR + trusted-header gate
+ * before public launch. Tracked in:
+ *   .planning/todos/pending/2026-04-26-harden-inbound-traceparent-trust-gate.md
+ * Source finding: 20.1-REVIEW.md WR-01.
  */
 const TRACEPARENT_RE = /^00-([0-9a-f]{32})-([0-9a-f]{16})-[0-9a-f]{2}$/;
 
