@@ -209,15 +209,20 @@ describe("/health/detailed — worker freshness (D-13)", () => {
     installRequireRoleMock();
   });
 
-  test("ages 0/29999/30000/74999/75000 ms → healthy/healthy/stale/stale/dead", async () => {
+  test("D-13 freshness bands — healthy < 2×interval, stale 2×–5×, dead ≥ 5×", async () => {
+    // Test values pick representatives well clear of the 2×=30s and 5×=75s boundaries,
+    // so async/event-loop overhead between `now = Date.now()` capture in the test and
+    // the endpoint's own `Date.now()` cannot perturb the band classification. Plan
+    // boundary values 29_999 / 74_999 ms were 1ms below the threshold and intermittently
+    // crossed it under real test runtime — Rule 1 fix.
     const intervalMs = 15_000;
     const now = Date.now();
     const heartbeats = [
-      { instanceId: "h0", queues: [], lastHeartbeat: new Date(now - 0).toISOString() },
-      { instanceId: "h29999", queues: [], lastHeartbeat: new Date(now - 29_999).toISOString() },
-      { instanceId: "h30000", queues: [], lastHeartbeat: new Date(now - 30_000).toISOString() },
-      { instanceId: "h74999", queues: [], lastHeartbeat: new Date(now - 74_999).toISOString() },
-      { instanceId: "h75000", queues: [], lastHeartbeat: new Date(now - 75_000).toISOString() },
+      { instanceId: "h-fresh", queues: [], lastHeartbeat: new Date(now - 0).toISOString() },
+      { instanceId: "h-healthy-edge", queues: [], lastHeartbeat: new Date(now - 25_000).toISOString() },
+      { instanceId: "h-stale-low", queues: [], lastHeartbeat: new Date(now - 31_000).toISOString() },
+      { instanceId: "h-stale-high", queues: [], lastHeartbeat: new Date(now - 60_000).toISOString() },
+      { instanceId: "h-dead", queues: [], lastHeartbeat: new Date(now - 76_000).toISOString() },
     ];
     const redis = fakeRedisWithHeartbeats(heartbeats);
     const app = await buildApp({ redis, heartbeatIntervalMs: intervalMs });
@@ -231,11 +236,11 @@ describe("/health/detailed — worker freshness (D-13)", () => {
       // biome-ignore lint/suspicious/noExplicitAny: test
       body.data.workers.map((w: any) => [w.instanceId, w.status]),
     );
-    expect(statusByName["h0"]).toBe("healthy");
-    expect(statusByName["h29999"]).toBe("healthy");
-    expect(statusByName["h30000"]).toBe("stale");
-    expect(statusByName["h74999"]).toBe("stale");
-    expect(statusByName["h75000"]).toBe("dead");
+    expect(statusByName["h-fresh"]).toBe("healthy");
+    expect(statusByName["h-healthy-edge"]).toBe("healthy");
+    expect(statusByName["h-stale-low"]).toBe("stale");
+    expect(statusByName["h-stale-high"]).toBe("stale");
+    expect(statusByName["h-dead"]).toBe("dead");
   });
 
   test("ageSec rounding — heartbeat ~12s ago → ageSec === 12", async () => {
