@@ -1,7 +1,7 @@
 import "./telemetry";
 import { env, assertRedisUrl, validatePaymentProviderEnv, validateObservabilityEnv } from "@baseworks/config";
 import { createDb } from "@baseworks/db";
-import { createWorker, closeConnection } from "@baseworks/queue";
+import { createWorker, closeConnection, getRedisConnection } from "@baseworks/queue";
 import type { Worker } from "bullmq";
 import { ModuleRegistry } from "./core/registry";
 import { logger } from "./lib/logger";
@@ -9,6 +9,8 @@ import {
   getErrorTracker,
   getTracer,
   installGlobalErrorHandlers,
+  resolveInstanceId,
+  startHeartbeatPublisher,
   wrapCqrsBus,
   wrapEventBus,
 } from "@baseworks/observability";
@@ -107,6 +109,23 @@ logger.info(
   "Worker started",
 );
 
+// Phase 22 / EXT-02 / D-14 — start the worker heartbeat publisher AFTER
+// workers attach so getQueues() returns the actual queue list. The publisher
+// uses raw redis.set (NOT the queue producer wrapper — Phase 20 D-02
+// invariant; heartbeat is a self-report, not a producer/consumer pair).
+const heartbeat = startHeartbeatPublisher({
+  redis: getRedisConnection(redisUrl),
+  instanceId: resolveInstanceId(),
+  getQueues: () => workers.map((w) => w.name),
+  intervalMs: env.WORKER_HEARTBEAT_INTERVAL_MS,
+  version: env.RELEASE,
+  logger,
+});
+logger.info(
+  { intervalMs: env.WORKER_HEARTBEAT_INTERVAL_MS, instanceId: resolveInstanceId() },
+  "Worker heartbeat publisher started",
+);
+
 // Health check HTTP server for Docker/infrastructure probes (D-06)
 const WORKER_HEALTH_PORT = Number(process.env.WORKER_HEALTH_PORT) || 3001;
 
@@ -153,6 +172,10 @@ logger.info({ port: WORKER_HEALTH_PORT }, "Worker health server started");
 // Graceful shutdown handler
 async function shutdown() {
   logger.info("Worker shutting down...");
+  // Phase 22 / D-14 — clear heartbeat timer + DEL key BEFORE workers/redis close
+  // so the dashboard transitions worker → absent immediately on graceful stop
+  // (rather than waiting for TTL expiry).
+  await heartbeat.stop();
   healthServer.stop();
   await Promise.all(workers.map((w) => w.close()));
   await closeConnection();
