@@ -3,6 +3,7 @@ import { Elysia } from "elysia";
 import { logger } from "../lib/logger";
 import { CqrsBus } from "./cqrs";
 import { TypedEventBus } from "./event-bus";
+import { HealthAggregator } from "./health-aggregator";
 
 /**
  * Static import map for modules. Ensures imports are statically analyzable by Bun.
@@ -38,6 +39,7 @@ export class ModuleRegistry {
   private loaded = new Map<string, ModuleDefinition>();
   private cqrs: CqrsBus;
   private eventBus: TypedEventBus;
+  private healthAggregator: HealthAggregator;
   private config: RegistryConfig;
 
   /**
@@ -52,6 +54,8 @@ export class ModuleRegistry {
     this.config = config;
     this.cqrs = new CqrsBus();
     this.eventBus = new TypedEventBus();
+    // Phase 22 / OPS-04 — central health aggregator owned by the registry.
+    this.healthAggregator = new HealthAggregator();
   }
 
   /**
@@ -91,6 +95,11 @@ export class ModuleRegistry {
         // Register queries
         for (const [key, handler] of Object.entries(def.queries ?? {})) {
           this.cqrs.registerQuery(key, handler);
+        }
+
+        // Register health contributor (Phase 22 / OPS-04 / D-10)
+        if (def.health) {
+          this.healthAggregator.register(def.health);
         }
 
         this.loaded.set(name, def);
@@ -176,6 +185,11 @@ export class ModuleRegistry {
   /** Returns the TypedEventBus instance used by this registry. */
   getEventBus(): TypedEventBus {
     return this.eventBus;
+  }
+
+  /** Returns the HealthAggregator instance (Phase 22 / OPS-04). Same instance across calls. */
+  getHealthAggregator(): HealthAggregator {
+    return this.healthAggregator;
   }
 
   /** Returns the map of loaded ModuleDefinition objects keyed by name. */
