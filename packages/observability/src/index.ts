@@ -70,6 +70,14 @@ export { wrapQueue } from "./wrappers/wrap-queue";
 // Phase 22 / EXT-02 / D-12 — instance-id resolver for worker heartbeats.
 export { resolveInstanceId } from "./instance-id";
 
+// Phase 22 / EXT-02 — worker heartbeat publisher/reader.
+export { startHeartbeatPublisher, readHeartbeats } from "./health/heartbeat";
+export type {
+  HeartbeatPayload,
+  HeartbeatPublisherOptions,
+  HeartbeatPublisherHandle,
+} from "./health/heartbeat";
+
 // Phase 22 / D-15 — recent-errors ringbuffer decorator (consumed by apps/api/src/index.ts).
 export { RingBufferingErrorTracker } from "./lib/ring-buffer-error-tracker";
 export type { RingBufferEntry } from "./lib/ring-buffer-error-tracker";
