@@ -15,6 +15,9 @@ import { errorMiddleware } from "./core/middleware/error";
 import { requestTraceMiddleware } from "./core/middleware/request-trace";
 import { observabilityMiddleware } from "./core/middleware/observability";
 import { adminRoutes } from "./routes/admin";
+import { Queue } from "bullmq";
+import { getRedisConnection } from "@baseworks/queue";
+import { createBullBoardPlugin } from "./routes/bull-board";
 import { logger } from "./lib/logger";
 import {
   getErrorTracker,
@@ -75,6 +78,26 @@ const authRoutes = registry.getAuthRoutes();
 const billingModule = registry.getLoaded().get("billing");
 const billingApiRoutes = billingModule?.routes;
 
+// Phase 22 / OPS-01 / Pitfall 10 — collect all module-registered queue names and construct
+// read-only Queue references for bull-board to introspect. The API process does NOT run
+// BullMQ Workers (those live in worker.ts); we only construct Queue handles for inspection.
+const moduleQueues: Queue[] = [];
+if (env.REDIS_URL) {
+  const redisConnection = getRedisConnection(env.REDIS_URL);
+  const seenQueues = new Set<string>();
+  for (const [, def] of registry.getLoaded()) {
+    if (!def.jobs) continue;
+    for (const jobDef of Object.values(def.jobs)) {
+      if (seenQueues.has(jobDef.queue)) continue;
+      seenQueues.add(jobDef.queue);
+      moduleQueues.push(new Queue(jobDef.queue, { connection: redisConnection }));
+    }
+  }
+} else {
+  logger.warn("REDIS_URL not configured — bull-board will mount with zero queues");
+}
+const bullBoardPlugin = await createBullBoardPlugin(moduleQueues);
+
 // Build app via chained .use() calls to preserve type inference for Eden Treaty.
 // No `as any` casts -- each plugin is used directly in the chain.
 const app = new Elysia()
@@ -131,6 +154,11 @@ const app = new Elysia()
       uptime: Math.round(process.uptime()),
     };
   })
+  // Phase 22 / OPS-01 — bull-board mount (RBAC owner-only, CSP, readOnly env-driven).
+  // Mounts AFTER /health (Docker probe stays unauthenticated) and BEFORE auth/tenant
+  // middleware: bull-board owns its own auth derive via requireRole, and is
+  // operator-scope (not tenant-scope) so it must not require a tenant context.
+  .use(bullBoardPlugin)
   // Auth routes -- mounted BEFORE tenant middleware so signup/login/OAuth
   // callbacks do NOT require tenant context (D-16)
   .use(authRoutes ?? new Elysia())
