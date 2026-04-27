@@ -9,6 +9,21 @@ import type { HandlerContext } from "@baseworks/shared";
  *
  * @param results - Optional overrides for default resolved values
  * @returns Mock database with select/insert/update/delete chains
+ *
+ * KNOWN LIMITATION (Phase 20.1 WR-03) — the `select` thenable resolves to
+ * the SAME `results.select` array regardless of chain shape. Calls like
+ * `await db.select(table)`, `await db.select(table).limit(1)`, and
+ * `await db.select().from(t).where(p).limit(n)` all return the same array.
+ * This is fine for handlers that issue a single select-by-tenant (the
+ * Phase 20.1 billing handler shape) but will produce phantom data for
+ * handlers that issue two structurally different selects in sequence.
+ *
+ * If you need per-chain control (different tables / different limits
+ * returning different rows), reach for an integration-scope test against
+ * a real `scopedDb` (see the SC#2 pattern in
+ * `apps/api/__tests__/billing-subscription.test.ts`) rather than trying
+ * to extend this mock — the integration test caught a real bug that the
+ * mock-shaped tests could not have surfaced.
  */
 export function createMockDb(results?: {
   select?: any[];
