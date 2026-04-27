@@ -38,4 +38,28 @@ export interface ModuleDefinition {
   jobs?: Record<string, JobDefinition>;
   /** List of domain event names this module may emit. */
   events?: string[];
+  /** Optional health contributor — registered into the central HealthAggregator at loadAll() (Phase 22 / OPS-04). */
+  health?: HealthContributor;
+}
+
+/**
+ * Phase 22 / OPS-04 / D-10 — outcome of a single module's health probe.
+ * Aggregator combines all results via worst-of-N rollup.
+ */
+export interface HealthCheckResult {
+  status: "healthy" | "degraded" | "unhealthy";
+  details?: Record<string, unknown>;
+}
+
+/**
+ * Phase 22 / OPS-04 / D-10 — module-supplied health contributor.
+ * Registered into the central HealthAggregator at `registry.loadAll()` time.
+ */
+export interface HealthContributor {
+  /** Typically the module name; required so the aggregator can label results. */
+  name: string;
+  /** Async probe; returned status feeds the worst-of-N rollup. */
+  check: () => Promise<HealthCheckResult>;
+  /** Per-contributor timeout in ms; defaults to 2000ms in the aggregator (D-11). */
+  timeoutMs?: number;
 }

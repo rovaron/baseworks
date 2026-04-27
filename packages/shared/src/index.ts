@@ -6,7 +6,12 @@ export type {
 } from "./types/cqrs";
 export { defineCommand, defineQuery } from "./types/cqrs";
 
-export type { ModuleDefinition, JobDefinition } from "./types/module";
+export type {
+  ModuleDefinition,
+  JobDefinition,
+  HealthContributor,
+  HealthCheckResult,
+} from "./types/module";
 
 export type { TenantContext, AppContext } from "./types/context";
 

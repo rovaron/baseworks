@@ -45,6 +45,11 @@ const serverSchema = {
   WEB_URL: z.string().url().default("http://localhost:3000"),
   ADMIN_URL: z.string().url().default("http://localhost:5173"),
   WORKER_HEALTH_PORT: z.coerce.number().default(3001),
+  // Phase 22 D-02 — bull-board read-only mode (default ON; crash-hard on typo per OPS-01).
+  BULL_BOARD_READ_ONLY: z.enum(["true", "false"]).default("true"),
+  // Phase 22 D-13 — worker heartbeat interval. Min 1000ms (1s), max 300000ms (5min).
+  // TTL on heartbeat keys is 2× this value; "stale" threshold is 2×, "dead" is 5×.
+  WORKER_HEARTBEAT_INTERVAL_MS: z.coerce.number().min(1000).max(300_000).default(15_000),
 };
 
 export const env = createEnv({
