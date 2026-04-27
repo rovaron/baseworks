@@ -73,7 +73,13 @@ Full details: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md)
   3. Admin user sees a `/health/detailed` endpoint and matching admin dashboard page showing queue depth with warn/critical thresholds, worker heartbeat freshness, DB lag, recent errors, and per-module status
   4. Module author sees a `HealthContributor` registered at module registration time; the central aggregator rolls up all contributions into an overall status surfaced by the admin health page
   5. Operator sees workers publishing heartbeat keys to Redis on a configurable interval so the health dashboard worker-heartbeat status reflects real state, not a mock
-**Plans**: TBD
+**Plans**: 6 plans
+  - [ ] 22-01-PLAN.md — Foundation: env vars, HealthContributor types, instance-id helper, RingBufferingErrorTracker decorator (no mounts)
+  - [ ] 22-02-PLAN.md — HealthAggregator class + ModuleRegistry def.health collector
+  - [ ] 22-03-PLAN.md — bull-board mount at /admin/bull-board with RBAC + CSP + readOnly env
+  - [ ] 22-04-PLAN.md — Worker heartbeat publisher + reader (Redis SET worker:heartbeat:{instanceId})
+  - [ ] 22-05-PLAN.md — /health/detailed endpoint + built-in contributors + ringbuffer wiring
+  - [ ] 22-06-PLAN.md — Admin frontend: vite proxy, /jobs iframe, /system page replacement, i18n keys
 **UI hint**: yes
 
 ### Phase 23: Runbooks, Alert Templates & Observability Docs

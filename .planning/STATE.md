@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Observability & Operations
 status: completed
-stopped_at: Phase 22 context gathered (--auto)
-last_updated: "2026-04-27T10:29:54.650Z"
+stopped_at: Phase 22 UI-SPEC approved
+last_updated: "2026-04-27T12:26:22.527Z"
 last_activity: 2026-04-27
 progress:
   total_phases: 6
@@ -181,9 +181,9 @@ Prior concerns resolved:
 
 ## Session Continuity
 
-Last session: 2026-04-27T10:29:54.639Z
-Stopped at: Phase 22 context gathered (--auto)
-Resume file: .planning/phases/22-admin-ops-tooling/22-CONTEXT.md
+Last session: 2026-04-27T12:26:22.511Z
+Stopped at: Phase 22 UI-SPEC approved
+Resume file: .planning/phases/22-admin-ops-tooling/22-UI-SPEC.md
 Next action: `/gsd:discuss-phase 22` — Phase 22 (Admin Ops Tooling: bull-board RBAC, /health/detailed, HealthContributor registry, worker heartbeat). CONTEXT.md does not yet exist for Phase 22; discuss-phase gathers gray-area context before planning. Has UI hint — `/gsd:ui-phase 22` may follow plan to spec the admin Job Monitor screen.
 
 **Deferral context recorded 2026-04-27:** Phase 21 (OTEL Adapters + Grafana stack) moved to v1.4+. MET-01..03 + DOC-01..02 are now in the deferred list of `.planning/milestones/v1.3-ROADMAP.md`. Rationale: Sentry SaaS already serves the operator audience for hosted forks; the observability ports shipped in Phase 17 are vendor-agnostic, so a future fork can wire OTLP without code edits. Phase 22 `Depends on` shrunk from {20, 21} → {20}; Phase 23 from {21, 22} → {22}. Grafana alert YAML scope drops from Phase 23; Sentry alert templates remain in scope.
