@@ -47,8 +47,14 @@ export const createPortalSession = defineCommand(
       }
 
       return ok({ url: session.url });
-    } catch (error: any) {
-      return err(error.message || "Failed to create portal session");
+    } catch (error: unknown) {
+      // Phase 20.1 WR-02 — narrow `unknown` so non-Error throws fall back
+      // to the generic message instead of TypeError on `.message`.
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to create portal session";
+      return err(message || "Failed to create portal session");
     }
   },
 );

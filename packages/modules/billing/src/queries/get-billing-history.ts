@@ -41,8 +41,14 @@ export const getBillingHistory = defineQuery(
       );
 
       return ok({ invoices });
-    } catch (error: any) {
-      return err(error.message || "Failed to fetch billing history");
+    } catch (error: unknown) {
+      // Phase 20.1 WR-02 — narrow `unknown` so non-Error throws fall back
+      // to the generic message instead of TypeError on `.message`.
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to fetch billing history";
+      return err(message || "Failed to fetch billing history");
     }
   },
 );

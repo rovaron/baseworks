@@ -43,8 +43,14 @@ export const cancelSubscription = defineCommand(
         cancelledAt: "period_end" as const,
         currentPeriodEnd: customer.currentPeriodEnd,
       });
-    } catch (error: any) {
-      return err(error.message || "Failed to cancel subscription");
+    } catch (error: unknown) {
+      // Phase 20.1 WR-02 — narrow `unknown` so non-Error throws (e.g., a
+      // thrown string or a provider error whose `.message` is undefined)
+      // fall back to the generic message instead of producing
+      // `undefined` / a property-access TypeError.
+      const message =
+        error instanceof Error ? error.message : "Failed to cancel subscription";
+      return err(message || "Failed to cancel subscription");
     }
   },
 );
