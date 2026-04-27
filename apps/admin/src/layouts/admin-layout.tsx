@@ -28,7 +28,7 @@ import {
   TooltipTrigger,
   useSidebar,
 } from "@baseworks/ui";
-import { Building2, Users, CreditCard, Activity, LogOut, ChevronUp } from "lucide-react";
+import { Building2, Users, CreditCard, Activity, ListTodo, LogOut, ChevronUp } from "lucide-react";
 import { AuthGuard } from "./auth-guard";
 import { auth } from "@/lib/api";
 import { useFocusOnNavigate } from "@/hooks/use-focus-on-navigate";
@@ -38,6 +38,7 @@ const navItems = [
   { titleKey: "nav.users", icon: Users, href: "/users" },
   { titleKey: "nav.billing", icon: CreditCard, href: "/billing" },
   { titleKey: "nav.system", icon: Activity, href: "/system" },
+  { titleKey: "nav.jobs", icon: ListTodo, href: "/jobs" },
 ];
 
 function NavigationAutoClose() {

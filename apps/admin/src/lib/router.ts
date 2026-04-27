@@ -16,6 +16,7 @@ export const router = createBrowserRouter([
       { path: "users/:id", lazy: () => import("../routes/users/detail") },
       { path: "billing", lazy: () => import("../routes/billing/overview") },
       { path: "system", lazy: () => import("../routes/system/health") },
+      { path: "jobs", lazy: () => import("../routes/jobs") },
     ],
   },
 ]);

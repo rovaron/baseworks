@@ -7,7 +7,15 @@
     "tenants": "Tenants",
     "users": "Users",
     "billing": "Billing",
-    "system": "System"
+    "system": "System",
+    "jobs": "Job Monitor"
+  },
+  "jobs": {
+    "title": "Job Monitor",
+    "loading": "Loading job dashboard…",
+    "loadError": "Could not load the job dashboard. Check the API connection and try again.",
+    "retry": "Reload dashboard",
+    "iframeTitle": "Job Monitor — bull-board"
   },
   "toast": {
     "invalidCredentials": "Invalid email or password",
@@ -151,11 +159,65 @@
       "unhealthy": "One or more systems require attention."
     },
     "queues": "Queues",
+    "statusLabel": "Status",
+    "refreshNow": "Refresh now",
+    "updatedAgo": "Updated {{time}} ago",
+    "updatedJustNow": "Updated just now",
     "queueMetrics": {
       "waiting": "Waiting",
       "active": "Active",
       "completed": "Completed",
-      "failed": "Failed"
+      "failed": "Failed",
+      "delayed": "Delayed",
+      "thresholds": "Thresholds",
+      "warnAt": "Warn at {{count}}",
+      "criticalAt": "Critical at {{count}}"
+    },
+    "workers": {
+      "title": "Workers",
+      "empty": "No workers reporting heartbeats yet. Start a worker to see status.",
+      "instanceId": "Instance",
+      "queues": "Queues",
+      "lastHeartbeat": "Last heartbeat",
+      "status": {
+        "healthy": "Healthy",
+        "stale": "Stale",
+        "dead": "Dead"
+      }
+    },
+    "db": {
+      "title": "Database",
+      "connected": "Connected",
+      "disconnected": "Disconnected",
+      "lagMs": "Round-trip latency",
+      "lagUnavailable": "Latency unavailable"
+    },
+    "recentErrors": {
+      "title": "Recent Errors",
+      "empty": "No errors recorded in the current process. Restarts clear this list.",
+      "source": {
+        "cqrs": "CQRS",
+        "http": "HTTP",
+        "worker": "Worker",
+        "global": "Global"
+      },
+      "occurrences": "{{count}}× in window"
+    },
+    "modules": {
+      "title": "Modules",
+      "noContributor": "No health check registered",
+      "status": {
+        "healthy": "Healthy",
+        "degraded": "Degraded",
+        "unhealthy": "Unhealthy",
+        "unknown": "Unknown"
+      }
+    },
+    "errors": {
+      "unauthorized": "Your session has expired. Sign in again to view system health.",
+      "forbidden": "Owner role required to view detailed system health.",
+      "serverError": "The system health endpoint returned an error. Try again in a moment.",
+      "timeout": "The system health check timed out. The aggregator may be under load."
     },
     "redis": {
       "title": "Redis",
