@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Observability & Operations
 status: executing
-stopped_at: Phase 22 UI-SPEC approved
-last_updated: "2026-04-27T13:22:22.962Z"
-last_activity: 2026-04-27 -- Phase 22 execution started
+stopped_at: Phase 22 complete + live-tested; ready to plan Phase 23
+last_updated: "2026-04-27T18:25:00.000Z"
+last_activity: 2026-04-27 -- Phase 22 complete (6/6 plans, verified, live-tested 14/14)
 progress:
   total_phases: 2
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 6
-  completed_plans: 0
-  percent: 0
+  completed_plans: 6
+  percent: 50
 ---
 
 # Project State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-21)
 
 **Core value:** Clone, configure, and start building a multitenant SaaS in minutes -- not weeks.
-**Current focus:** Phase 22 — admin-ops-tooling
+**Current focus:** Phase 22 complete — ready to plan Phase 23 (Runbooks, Alert Templates & Observability Docs)
 
 ## Current Position
 
 Milestone: v1.3 Observability & Operations
-Phase: 22 (admin-ops-tooling) — EXECUTING
-Plan: 1 of 6
-Status: Executing Phase 22
-Last activity: 2026-04-27 -- Phase 22 execution started
+Phase: 22 (admin-ops-tooling) — COMPLETE ✓
+Plan: 6 of 6
+Status: Phase 22 complete; verifier passed 5/5 must-haves; live end-to-end test passed 14/14; two boot defects (bullmq direct dep, Bun.resolveSync uiBasePath) fixed and committed (b0dbe1d)
+Last activity: 2026-04-27 -- Phase 22 verified + live-tested
 
-Progress: [██████████] 100%
+Progress: [██████████] 100% of v1.3 plans (Phase 21 deferred to v1.4+; Phase 23 not yet planned)
 
 ### Roadmap Evolution
 
@@ -181,10 +181,22 @@ Prior concerns resolved:
 
 ## Session Continuity
 
-Last session: 2026-04-27T12:26:22.511Z
-Stopped at: Phase 22 UI-SPEC approved
-Resume file: .planning/phases/22-admin-ops-tooling/22-UI-SPEC.md
-Next action: `/gsd:discuss-phase 22` — Phase 22 (Admin Ops Tooling: bull-board RBAC, /health/detailed, HealthContributor registry, worker heartbeat). CONTEXT.md does not yet exist for Phase 22; discuss-phase gathers gray-area context before planning. Has UI hint — `/gsd:ui-phase 22` may follow plan to spec the admin Job Monitor screen.
+Last session: 2026-04-27T18:25:00.000Z
+Stopped at: Phase 22 complete + live end-to-end tested (14/14 PASS); resume work invoked
+Resume file: .planning/phases/22-admin-ops-tooling/22-VERIFICATION.md
+Next action: `/gsd:discuss-phase 23` — last v1.3 phase (Runbooks, Alert Templates & Observability Docs). Phase 23 depends only on Phase 22 (now complete). Phase 21 deferred to v1.4+. CONTEXT.md does not yet exist for Phase 23; discuss-phase gathers gray-area context before planning. Phase 23 is docs-heavy (no UI), so /gsd:ui-phase is unlikely to be needed.
+
+**Phase 22 deliverables verified live (2026-04-27, 14/14 checks):**
+- bull-board mounted at /admin/bull-board with requireRole("owner") + CSP frame-ancestors header + readOnly env feature flag (401 for unauth on HTML, JSON API, AND static assets)
+- /health/detailed endpoint behind requireRole("owner"); deprecated /api/admin/system/health alias preserved (401 unauth)
+- Worker heartbeat publishes worker:heartbeat:{instanceId} JSON to Redis with TTL=2*interval and 4 queues enumerated (example-process-followup, billing-process-webhook, billing-sync-usage, email-send); key DEL'd on graceful shutdown
+- Two production defects surfaced and fixed in commit b0dbe1d: (a) apps/api missing bullmq direct dep, (b) bull-board.ts hardcoded uiBasePath broke under Bun isolated install — replaced with Bun.resolveSync('@bull-board/ui/package.json', import.meta.dir) + dirname
+
+**Phase 22 manual UAT items still open (per VALIDATION.md Manual-Only):**
+1. Browser CSP frame-ancestors enforcement (foreign-origin iframe → console violation)
+2. Iframe session cookie sharing via vite proxy (admin → /jobs renders bull-board without second login)
+3. Worker heartbeat `dead` status after SIGKILL + 80s wait
+4. pt-BR locale visual review (sidebar shows "Monitor de Jobs", system page renders correctly)
 
 **Deferral context recorded 2026-04-27:** Phase 21 (OTEL Adapters + Grafana stack) moved to v1.4+. MET-01..03 + DOC-01..02 are now in the deferred list of `.planning/milestones/v1.3-ROADMAP.md`. Rationale: Sentry SaaS already serves the operator audience for hosted forks; the observability ports shipped in Phase 17 are vendor-agnostic, so a future fork can wire OTLP without code edits. Phase 22 `Depends on` shrunk from {20, 21} → {20}; Phase 23 from {21, 22} → {22}. Grafana alert YAML scope drops from Phase 23; Sentry alert templates remain in scope.
 
