@@ -62,6 +62,32 @@ Full details: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md)
 
 Full details: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md)
 
+### Phase 22: Admin Ops Tooling
+
+**Goal**: Admin user can monitor jobs and system health from the Vite admin dashboard without leaving the app, with bull-board gated by RBAC and read-only by default.
+**Depends on**: Phase 20 (Phase 21 deferred 2026-04-27 — see deferral note in milestones/v1.3-ROADMAP.md)
+**Requirements**: OPS-01, OPS-02, OPS-03, OPS-04, EXT-02
+**Success Criteria** (what must be TRUE):
+  1. Operator sees `@bull-board/elysia` mounted at `/admin/bull-board` behind `requireRole("owner")` with read-only mode enabled by default via feature-flag env and admin-origin CSP; unauthenticated requests return 401, non-admin return 403, and static asset requests are also gated
+  2. Admin user sees a "Job Monitor" entry in the Vite admin dashboard sidebar that renders bull-board as a same-origin iframe sharing the better-auth session cookie
+  3. Admin user sees a `/health/detailed` endpoint and matching admin dashboard page showing queue depth with warn/critical thresholds, worker heartbeat freshness, DB lag, recent errors, and per-module status
+  4. Module author sees a `HealthContributor` registered at module registration time; the central aggregator rolls up all contributions into an overall status surfaced by the admin health page
+  5. Operator sees workers publishing heartbeat keys to Redis on a configurable interval so the health dashboard worker-heartbeat status reflects real state, not a mock
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 23: Runbooks, Alert Templates & Observability Docs
+
+**Goal**: Operator paged at 3am has a linked runbook for every alert and a short doc explaining how attributes, cardinality, and trace propagation work in this codebase.
+**Depends on**: Phase 22 (Phase 21 deferred 2026-04-27 — Grafana alert YAML scope drops with it; Sentry alert templates remain in scope)
+**Requirements**: DOC-03, DOC-04
+**Success Criteria** (what must be TRUE):
+  1. Operator sees 8–10 incident runbooks under `docs/runbooks/` covering DB down, Redis down, queue backing up, webhook failures, auth outage, OTEL exporter failing, bull-board inaccessible, high error rate, and slow checkout — each using a Trigger → Symptoms → Triage → Resolution → Escalation template
+  2. Operator gets a pre-built Grafana alert rule YAML plus Sentry alert config templates importable into their tooling, with a `runbook_url` annotation on every rule linking to the matching `docs/runbooks/*.md` file
+  3. Developer sees an observability concepts doc at `docs/observability/` covering the attributes glossary (which go on spans/logs vs metrics), the cardinality guide, and the trace-propagation flow (API → DB → enqueue → worker)
+  4. Operator sees alerts designed with SLO-based burn-rate thresholds and `for: 5m` minimums so deploy rollouts and warmup periods do not fire, with runbook links living in-repo so CI fails if a `runbook_url` points to a missing file
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
