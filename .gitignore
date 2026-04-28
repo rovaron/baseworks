@@ -6,3 +6,7 @@ dist/
 .DS_Store
 bun.lockb
 *.tsbuildinfo
+.claude/worktrees/
+tmp/
+summary-content.txt
+write-summary.js
