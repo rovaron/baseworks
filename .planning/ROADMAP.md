@@ -57,7 +57,7 @@ Full details: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md)
 - [x] Phase 20: BullMQ Trace Propagation (0/3 plans) (completed 2026-04-26)
 - [x] Phase 20.1: Close v1.3 milestone gaps from observability UAT (4/4 plans) (INSERTED) (completed 2026-04-26)
 - [~] Phase 21: OTEL Adapters + Grafana Observability Stack — DEFERRED to v1.4+ (Sentry SaaS covers metrics/dashboards/alerts; observability ports remain in place for fork users to wire OTLP later)
-- [ ] Phase 22: Admin Ops Tooling (0/0 plans)
+- [x] Phase 22: Admin Ops Tooling (0/0 plans) (completed 2026-04-27)
 - [ ] Phase 23: Runbooks, Alert Templates & Observability Docs (0/0 plans)
 
 Full details: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md)
@@ -78,8 +78,8 @@ Full details: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md)
   - [x] 22-02-PLAN.md — HealthAggregator class + ModuleRegistry def.health collector
   - [x] 22-03-PLAN.md — bull-board mount at /admin/bull-board with RBAC + CSP + readOnly env
   - [x] 22-04-PLAN.md — Worker heartbeat publisher + reader (Redis SET worker:heartbeat:{instanceId})
-  - [ ] 22-05-PLAN.md — /health/detailed endpoint + built-in contributors + ringbuffer wiring
-  - [ ] 22-06-PLAN.md — Admin frontend: vite proxy, /jobs iframe, /system page replacement, i18n keys
+  - [x] 22-05-PLAN.md — /health/detailed endpoint + built-in contributors + ringbuffer wiring
+  - [x] 22-06-PLAN.md — Admin frontend: vite proxy, /jobs iframe, /system page replacement, i18n keys
 **UI hint**: yes
 
 ### Phase 23: Runbooks, Alert Templates & Observability Docs
@@ -120,5 +120,5 @@ Full details: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md)
 | 20. BullMQ Trace Propagation | v1.3 | 3/3 | Complete    | 2026-04-26 |
 | 20.1. Close v1.3 milestone gaps from observability UAT | v1.3 | 4/4 | Complete    | 2026-04-27 |
 | 21. OTEL Adapters + Grafana Observability Stack | v1.3 | 0/0 | Deferred to v1.4+ (Sentry SaaS) | - |
-| 22. Admin Ops Tooling | v1.3 | 4/6 | In Progress|  |
+| 22. Admin Ops Tooling | v1.3 | 6/6 | Complete   | 2026-04-27 |
 | 23. Runbooks, Alert Templates & Observability Docs | v1.3 | 0/0 | Not started | - |
