@@ -126,4 +126,4 @@ Full details: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md)
 | 20.1. Close v1.3 milestone gaps from observability UAT | v1.3 | 4/4 | Complete    | 2026-04-27 |
 | 21. OTEL Adapters + Grafana Observability Stack | v1.3 | 0/0 | Deferred to v1.4+ (Sentry SaaS) | - |
 | 22. Admin Ops Tooling | v1.3 | 6/6 | Complete   | 2026-04-27 |
-| 23. Runbooks, Alert Templates & Observability Docs | v1.3 | 5/5 | Complete   | 2026-04-28 |
+| 23. Runbooks, Alert Templates & Observability Docs | v1.3 | 5/5 | Complete    | 2026-04-28 |
