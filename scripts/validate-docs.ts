@@ -10,8 +10,7 @@ import { existsSync } from "node:fs";
  *      revision). All test-utils imports in docs use relative paths.
  *   2. No leaked secrets of common provider shapes: `sk_live_`, `sk_test_{24+}`,
  *      `re_{20+}`, `whsec_{24+}`.
- *   3. Mermaid coverage floor: per D-01, at least 8 Mermaid fenced code blocks
- *      appear across docs/ (4 architecture diagrams + 4 integration sequenceDiagrams).
+ *   3. Mermaid coverage floor: per D-01 (Phase 15) + D-06 (Phase 23), at least 11 Mermaid fenced code blocks appear across docs/ (4 architecture diagrams + 4 integration sequenceDiagrams + 2 trace-propagation + 1 obs README, with 1 buffer).
  *   4. runbook_url + cross-runbook markdown link integrity:
  *      - Every `runbook_url` field in `docs/alerts/sentry/*.json` MUST resolve to
  *        an existing file (validator does `JSON.parse(file).runbook_url` and
@@ -179,17 +178,18 @@ if (import.meta.main) {
     }
   }
 
-  // Mermaid floor: D-01 specifies 4 architecture + 4 integration diagrams = 8 minimum.
-  // Plan 23-02 owns the 8 → 11 bump (in the same commit as trace-propagation.md's
-  // two new diagrams). Do NOT touch this literal in Plan 23-01.
-  if (mermaidTotal < 8) {
+  // Mermaid floor: D-01 (Phase 15) specified 4 architecture + 4 integration diagrams = 8 minimum.
+  // D-06 (Phase 23) bumped the floor to 11 in lockstep with the two trace-propagation.md
+  // diagrams + 1 docs/observability/README.md flowchart (Research Finding 5 — half-merged
+  // state breaks CI; bump and diagrams must land atomically).
+  if (mermaidTotal < 11) {
     console.error(
-      `[validate-docs] FAIL: found ${mermaidTotal} Mermaid fenced blocks across docs/; D-01 requires at least 8 (4 in docs/architecture.md + 1 per integration doc).`,
+      `[validate-docs] FAIL: found ${mermaidTotal} Mermaid fenced blocks across docs/; floor is 11 (4 in docs/architecture.md + 1 per integration doc + 2 in docs/observability/trace-propagation.md + 1 in docs/observability/README.md, with 1 buffer).`,
     );
     failures++;
   } else {
     console.log(
-      `[validate-docs] OK: found ${mermaidTotal} Mermaid fenced blocks across docs/ (>= 8 required).`,
+      `[validate-docs] OK: found ${mermaidTotal} Mermaid fenced blocks across docs/ (>= 11 required).`,
     );
   }
 
