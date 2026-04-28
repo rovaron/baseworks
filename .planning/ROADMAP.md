@@ -93,8 +93,8 @@ Full details: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md)
   3. Developer sees an observability concepts doc at `docs/observability/` covering the attributes glossary (which go on spans/logs vs metrics), the cardinality guide, and the trace-propagation flow (API → DB → enqueue → worker)
   4. Operator sees alerts designed with SLO-based burn-rate thresholds and `for: 5m` minimums so deploy rollouts and warmup periods do not fire, with runbook links living in-repo so CI fails if a `runbook_url` points to a missing file
 **Plans**: 5 plans
-- [ ] 23-01-PLAN.md — Validator extension + workflow + package.json wiring + Wave-0 test scaffolds
-- [ ] 23-02-PLAN.md — Observability concept docs (4 files) + Mermaid floor bump 8 to 11
+- [x] 23-01-PLAN.md — Validator extension + workflow + package.json wiring + Wave-0 test scaffolds
+- [x] 23-02-PLAN.md — Observability concept docs (4 files) + Mermaid floor bump 8 to 11
 - [ ] 23-03-PLAN.md — 9 incident runbooks under docs/runbooks/
 - [ ] 23-04-PLAN.md — 9 Sentry alert JSON templates + sentry README
 - [ ] 23-05-PLAN.md — docs README index update + final smoke-test PR
@@ -126,4 +126,4 @@ Full details: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md)
 | 20.1. Close v1.3 milestone gaps from observability UAT | v1.3 | 4/4 | Complete    | 2026-04-27 |
 | 21. OTEL Adapters + Grafana Observability Stack | v1.3 | 0/0 | Deferred to v1.4+ (Sentry SaaS) | - |
 | 22. Admin Ops Tooling | v1.3 | 6/6 | Complete   | 2026-04-27 |
-| 23. Runbooks, Alert Templates & Observability Docs | v1.3 | 0/0 | Not started | - |
+| 23. Runbooks, Alert Templates & Observability Docs | v1.3 | 2/5 | In Progress|  |

@@ -4,14 +4,14 @@ milestone: v1.3
 milestone_name: Observability & Operations
 status: executing
 stopped_at: Phase 23 context gathered
-last_updated: "2026-04-28T19:11:23.048Z"
-last_activity: 2026-04-28 -- Phase 23 execution started
+last_updated: "2026-04-28T20:23:17.606Z"
+last_activity: 2026-04-28
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 11
-  completed_plans: 6
-  percent: 55
+  completed_plans: 8
+  percent: 73
 ---
 
 # Project State
@@ -27,11 +27,11 @@ See: .planning/PROJECT.md (updated 2026-04-21)
 
 Milestone: v1.3 Observability & Operations
 Phase: 23 (runbooks-alert-templates-observability-docs) — EXECUTING
-Plan: 1 of 5
-Status: Executing Phase 23
-Last activity: 2026-04-28 -- Phase 23 execution started
+Plan: 2 of 5
+Status: Ready to execute
+Last activity: 2026-04-28
 
-Progress: [██████████] 100% of v1.3 plans (Phase 21 deferred to v1.4+; Phase 23 not yet planned)
+Progress: [███████░░░] 73%
 
 ### Roadmap Evolution
 
@@ -133,6 +133,9 @@ Decisions are logged in PROJECT.md Key Decisions table (updated at v1.2 close wi
 - [Phase ?]: [Phase 20.1 Plan 04]: H-02 closed — new readRequestId helper validates inbound x-request-id against ^[A-Za-z0-9_-]{1,128}$ (D-17); invalid values fall through to crypto.randomUUID(). Defends log-injection / correlation-poisoning / cardinality.
 - [Phase ?]: [Phase 20.1 Plan 04]: H-03 closed — try/catch around app.handle in Bun.serve fetch wrapper now invokes recordException + setStatus(ERROR) on the active OTel span (D-18); Phase 19 ACCEPTED DEVIATION resolved via Option A from 19-REVIEW.md.
 - [Phase ?]: [Phase 20.1 Plan 04]: Pattern — duck-typed Request stand-in for tests. When Bun's strict Headers constructor rejects an attack vector (newline in header value), expose the helper through a structural type { headers: { get(name): string | null } } so tests can drive vectors the upstream gate already rejects.
+- [Phase ?]: Phase 23 Plan 02: Honored RESEARCH Finding 2 corrected file:line paths in every citation across the 4 docs/observability/ files; CONTEXT.md WRONG paths appear zero times.
+- [Phase ?]: Phase 23 Plan 02: Mermaid floor literal raised 8 to 11 in scripts/validate-docs.ts atomically with the 3 new diagrams (Research Finding 5).
+- [Phase ?]: Phase 23 Plan 02: docs/observability/ subdirectory established (README + attributes + cardinality + trace-propagation); observability-docs-present.test.ts goes 1/5 to 5/5 GREEN.
 
 ### v1.3 Roadmap Summary
 
@@ -155,6 +158,7 @@ Decisions are logged in PROJECT.md Key Decisions table (updated at v1.2 close wi
 | Phase 20.1 P02 | 50min | 3 tasks | 9 files |
 | Phase 20.1 P03 | 11min | 3 tasks | 8 files |
 | Phase 20.1 P04 | 8min | 5 tasks | 11 files |
+| Phase 23 P02 | 12min | 3 tasks | 5 files |
 
 ### Pending Todos
 
@@ -181,9 +185,9 @@ Prior concerns resolved:
 
 ## Session Continuity
 
-Last session: 2026-04-28T14:58:46.628Z
+Last session: 2026-04-28T20:21:39.142Z
 Stopped at: Phase 23 context gathered
-Resume file: .planning/phases/23-runbooks-alert-templates-observability-docs/23-CONTEXT.md
+Resume file: None
 Next action: `/gsd:discuss-phase 23` — last v1.3 phase (Runbooks, Alert Templates & Observability Docs). Phase 23 depends only on Phase 22 (now complete). Phase 21 deferred to v1.4+. CONTEXT.md does not yet exist for Phase 23; discuss-phase gathers gray-area context before planning. Phase 23 is docs-heavy (no UI), so /gsd:ui-phase is unlikely to be needed.
 
 **Phase 22 deliverables verified live (2026-04-27, 14/14 checks):**
