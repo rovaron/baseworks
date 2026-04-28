@@ -158,6 +158,7 @@ let errorTrackerInstance: ErrorTracker | null = null;
 export function getErrorTracker(): ErrorTracker {
   if (!errorTrackerInstance) {
     const name = process.env.ERROR_TRACKER ?? "pino"; // D-06: default widened
+    console.log("[factory DEBUG] selecting ErrorTracker:", name, "DSN_set:", !!process.env.SENTRY_DSN);
     switch (name) {
       case "noop":
         errorTrackerInstance = new NoopErrorTracker();
