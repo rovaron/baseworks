@@ -10,7 +10,7 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 
 ## Current State
 
-**Shipped:** v1.2 Documentation & Quality (2026-04-21). v1.3 in progress — Phase 17 (OTEL bootstrap + ports) complete 2026-04-22; Phase 18 (Error Tracking Adapters) complete 2026-04-23; Phase 19 (Context, Logging & HTTP/CQRS Tracing — unified ALS + pino mixin + Elysia middleware + CQRS/EventBus span wrappers + Biome GritQL `enterWith` ban) complete 2026-04-23; Phase 20 (BullMQ Trace Propagation — `wrapQueue` producer + extended `wrapProcessorWithAls` consumer, W3C carrier on `job.data._otel`, in-process E2E single-trace gate) complete 2026-04-26; Phase 20.1 (Close v1.3 milestone gaps — Drizzle migration baseline reset, billing scopedDb misuse fix across 7 handlers, obsContext→OTel bridge at Bun.serve boundary with CIDR trust gate dropped, Phase 19 H-01/H-02/H-03 closure) complete 2026-04-27.
+**Shipped:** v1.2 Documentation & Quality (2026-04-21). v1.3 in progress — Phase 17 (OTEL bootstrap + ports) complete 2026-04-22; Phase 18 (Error Tracking Adapters) complete 2026-04-23; Phase 19 (Context, Logging & HTTP/CQRS Tracing — unified ALS + pino mixin + Elysia middleware + CQRS/EventBus span wrappers + Biome GritQL `enterWith` ban) complete 2026-04-23; Phase 20 (BullMQ Trace Propagation — `wrapQueue` producer + extended `wrapProcessorWithAls` consumer, W3C carrier on `job.data._otel`, in-process E2E single-trace gate) complete 2026-04-26; Phase 20.1 (Close v1.3 milestone gaps — Drizzle migration baseline reset, billing scopedDb misuse fix across 7 handlers, obsContext→OTel bridge at Bun.serve boundary with CIDR trust gate dropped, Phase 19 H-01/H-02/H-03 closure) complete 2026-04-27; Phase 22 (Admin Ops Tooling — bull-board iframe under requireRole("owner") + readOnly env gate, /health/detailed endpoint behind owner role, worker:heartbeat:* Redis pub-sub) complete 2026-04-27; Phase 23 (Runbooks, Alert Templates & Observability Docs — 9 incident runbooks, 9 Sentry alert JSONs + import README, 4 obs concept docs, validate-docs 4th invariant + validate.yml CI gate) complete 2026-04-28. v1.3 complete (Phase 21 deferred to v1.4+).
 **Codebase:** ~20K lines TypeScript across apps/packages
 **Tech stack:** Bun + Elysia + Drizzle + PostgreSQL + BullMQ + Redis + Next.js 15 + Vite + React 19 + shadcn/ui + Tailwind 4 + better-auth + Stripe + Pagar.me + Docker + pino + next-intl + react-i18next + Vitest (jsdom)
 
@@ -35,7 +35,8 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 - Unit test coverage for every CQRS handler — 8 auth commands + 6 auth queries + 6 billing commands + 2 billing queries, Stripe adapter conformance at parity with Pagar.me, scoped-db edge cases, core infrastructure tests (56/56 auth tests + 21/21 UI tests passing)
 - Two-runner test orchestration via root `bun run test` — `bun test` for non-DOM + `vitest run` for React component a11y tests under jsdom
 - In-repo developer documentation — Getting Started, Architecture Overview (4 Mermaid diagrams), Add-a-Module tutorial, Configuration + Testing guides, and integration docs for better-auth, Stripe/Pagar.me, BullMQ, Resend/React Email (11 pages under `docs/`)
-- `scripts/validate-docs.ts` phase-close validator enforcing forbidden-import, secret-shape, and Mermaid floor invariants
+- `scripts/validate-docs.ts` phase-close validator enforcing forbidden-import, secret-shape, Mermaid floor (≥11), and runbook cross-link invariants — wired to `bun run validate` + `.github/workflows/validate.yml` CI gate
+- Operator surface: 9 incident runbooks + 9 Sentry alert JSON templates with import README + 4 observability concept docs (attributes/cardinality/trace-propagation/index) under `docs/observability` and `docs/runbooks` and `docs/alerts/sentry`
 
 ## Requirements
 
@@ -186,4 +187,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-27 — Phase 21 (OTEL Adapters + Grafana stack) deferred to v1.4+; v1.3 active scope is now {Phase 22: Admin Ops Tooling, Phase 23: Runbooks + Sentry alert templates + observability docs}. Sentry SaaS substitutes for Phase 21 in hosted forks; observability ports remain ready for OTLP wiring later.*
+*Last updated: 2026-04-28 — Phase 23 (Runbooks, Alert Templates & Observability Docs) complete; v1.3 milestone fully shipped (Phase 21 deferred to v1.4+). Operator-facing observability documentation set is in place with a CI gate proving runbook_url integrity on every PR.*
