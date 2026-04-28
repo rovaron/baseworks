@@ -1,0 +1,36 @@
+{
+  "name": "Auth outage — login error spike",
+  "actionMatch": "all",
+  "filterMatch": "all",
+  "frequency": 5,
+  "environment": "production",
+  "conditions": [
+    {
+      "id": "sentry.rules.conditions.event_frequency.EventFrequencyCondition",
+      "value": 50,
+      "interval": "5m"
+    }
+  ],
+  "filters": [
+    {
+      "id": "sentry.rules.filters.tagged_event.TaggedEventFilter",
+      "key": "module",
+      "match": "eq",
+      "value": "auth"
+    }
+  ],
+  "actions": [
+    {
+      "id": "sentry.mail.actions.NotifyEmailAction",
+      "targetType": "Team",
+      "fallthroughType": "AllMembers",
+      "targetIdentifier": "OPERATOR_TEAM_ID"
+    }
+  ],
+  "runbook_url": "../../runbooks/auth-outage.md",
+  "_baseworks_meta": {
+    "endpoint": "POST /api/0/projects/{org}/{project}/rules/",
+    "slo_note": "Fires when >=50 auth-tagged events occur within a 5m window.",
+    "priority": "high"
+  }
+}

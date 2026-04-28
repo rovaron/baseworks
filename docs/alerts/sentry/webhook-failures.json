@@ -1,0 +1,36 @@
+{
+  "name": "Webhook failures — Stripe/Pagar.me delivery errors",
+  "actionMatch": "all",
+  "filterMatch": "all",
+  "frequency": 5,
+  "environment": "production",
+  "conditions": [
+    {
+      "id": "sentry.rules.conditions.event_frequency.EventFrequencyCondition",
+      "value": 10,
+      "interval": "5m"
+    }
+  ],
+  "filters": [
+    {
+      "id": "sentry.rules.filters.tagged_event.TaggedEventFilter",
+      "key": "route",
+      "match": "eq",
+      "value": "/api/webhooks/*"
+    }
+  ],
+  "actions": [
+    {
+      "id": "sentry.mail.actions.NotifyEmailAction",
+      "targetType": "Team",
+      "fallthroughType": "AllMembers",
+      "targetIdentifier": "OPERATOR_TEAM_ID"
+    }
+  ],
+  "runbook_url": "../../runbooks/webhook-failures.md",
+  "_baseworks_meta": {
+    "endpoint": "POST /api/0/projects/{org}/{project}/rules/",
+    "slo_note": "Fires when >=10 webhook-route events occur within a 5m window.",
+    "priority": "medium"
+  }
+}

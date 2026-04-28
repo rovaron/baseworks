@@ -1,0 +1,36 @@
+{
+  "name": "High error rate — overall events spike",
+  "actionMatch": "all",
+  "filterMatch": "all",
+  "frequency": 5,
+  "environment": "production",
+  "conditions": [
+    {
+      "id": "sentry.rules.conditions.event_frequency.EventFrequencyCondition",
+      "value": 100,
+      "interval": "5m"
+    }
+  ],
+  "filters": [
+    {
+      "id": "sentry.rules.filters.tagged_event.TaggedEventFilter",
+      "key": "level",
+      "match": "eq",
+      "value": "error"
+    }
+  ],
+  "actions": [
+    {
+      "id": "sentry.mail.actions.NotifyEmailAction",
+      "targetType": "Team",
+      "fallthroughType": "AllMembers",
+      "targetIdentifier": "OPERATOR_TEAM_ID"
+    }
+  ],
+  "runbook_url": "../../runbooks/high-error-rate.md",
+  "_baseworks_meta": {
+    "endpoint": "POST /api/0/projects/{org}/{project}/rules/",
+    "slo_note": "Fires when >=100 error-level events occur within a 5m window across the project.",
+    "priority": "medium"
+  }
+}
