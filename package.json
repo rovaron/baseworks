@@ -12,6 +12,7 @@
     "lint:als": "bash scripts/lint-no-enterwith.sh",
     "lint:fix": "biome check --write .",
     "typecheck": "tsc --noEmit",
+    "validate": "bun scripts/validate-docs.ts",
     "test": "bun test apps/api packages/config packages/db packages/modules packages/queue && cd packages/ui && bun run test",
     "dev:web": "cd apps/web && bun run dev",
     "dev:admin": "cd apps/admin && bun run dev",
