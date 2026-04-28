@@ -1,0 +1,2 @@
+{ "name": "x", // this comment makes the file invalid JSON
+  "runbook_url": "../runbooks/other.md" }

@@ -1,0 +1,4 @@
+{
+  "name": "test-bad-alert",
+  "runbook_url": "../runbooks/missing.md"
+}
