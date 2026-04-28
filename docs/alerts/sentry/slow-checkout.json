@@ -12,9 +12,7 @@
       "label": "critical",
       "alertThreshold": 5000,
       "thresholdType": 0,
-      "actions": [
-        { "type": "email", "targetType": "team", "targetIdentifier": "OPERATOR_TEAM_ID" }
-      ]
+      "actions": [{ "type": "email", "targetType": "team", "targetIdentifier": "OPERATOR_TEAM_ID" }]
     }
   ],
   "projects": ["YOUR_PROJECT_SLUG"],
