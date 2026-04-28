@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Observability & Operations
-status: executing
-stopped_at: Phase 22 complete + live-tested; ready to plan Phase 23
-last_updated: "2026-04-27T18:25:00.000Z"
-last_activity: 2026-04-27 -- Phase 22 complete (6/6 plans, verified, live-tested 14/14)
+status: verifying
+stopped_at: Phase 23 context gathered
+last_updated: "2026-04-28T14:58:46.640Z"
+last_activity: 2026-04-27 -- Phase 22 verified + live-tested
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 6
   completed_plans: 6
-  percent: 50
+  percent: 100
 ---
 
 # Project State
@@ -181,18 +181,20 @@ Prior concerns resolved:
 
 ## Session Continuity
 
-Last session: 2026-04-27T18:25:00.000Z
-Stopped at: Phase 22 complete + live end-to-end tested (14/14 PASS); resume work invoked
-Resume file: .planning/phases/22-admin-ops-tooling/22-VERIFICATION.md
+Last session: 2026-04-28T14:58:46.628Z
+Stopped at: Phase 23 context gathered
+Resume file: .planning/phases/23-runbooks-alert-templates-observability-docs/23-CONTEXT.md
 Next action: `/gsd:discuss-phase 23` — last v1.3 phase (Runbooks, Alert Templates & Observability Docs). Phase 23 depends only on Phase 22 (now complete). Phase 21 deferred to v1.4+. CONTEXT.md does not yet exist for Phase 23; discuss-phase gathers gray-area context before planning. Phase 23 is docs-heavy (no UI), so /gsd:ui-phase is unlikely to be needed.
 
 **Phase 22 deliverables verified live (2026-04-27, 14/14 checks):**
+
 - bull-board mounted at /admin/bull-board with requireRole("owner") + CSP frame-ancestors header + readOnly env feature flag (401 for unauth on HTML, JSON API, AND static assets)
 - /health/detailed endpoint behind requireRole("owner"); deprecated /api/admin/system/health alias preserved (401 unauth)
 - Worker heartbeat publishes worker:heartbeat:{instanceId} JSON to Redis with TTL=2*interval and 4 queues enumerated (example-process-followup, billing-process-webhook, billing-sync-usage, email-send); key DEL'd on graceful shutdown
 - Two production defects surfaced and fixed in commit b0dbe1d: (a) apps/api missing bullmq direct dep, (b) bull-board.ts hardcoded uiBasePath broke under Bun isolated install — replaced with Bun.resolveSync('@bull-board/ui/package.json', import.meta.dir) + dirname
 
 **Phase 22 manual UAT items still open (per VALIDATION.md Manual-Only):**
+
 1. Browser CSP frame-ancestors enforcement (foreign-origin iframe → console violation)
 2. Iframe session cookie sharing via vite proxy (admin → /jobs renders bull-board without second login)
 3. Worker heartbeat `dead` status after SIGKILL + 80s wait
