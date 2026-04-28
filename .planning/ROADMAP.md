@@ -58,7 +58,7 @@ Full details: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md)
 - [x] Phase 20.1: Close v1.3 milestone gaps from observability UAT (4/4 plans) (INSERTED) (completed 2026-04-26)
 - [~] Phase 21: OTEL Adapters + Grafana Observability Stack — DEFERRED to v1.4+ (Sentry SaaS covers metrics/dashboards/alerts; observability ports remain in place for fork users to wire OTLP later)
 - [x] Phase 22: Admin Ops Tooling (0/0 plans) (completed 2026-04-27)
-- [ ] Phase 23: Runbooks, Alert Templates & Observability Docs (0/0 plans)
+- [x] Phase 23: Runbooks, Alert Templates & Observability Docs (0/0 plans) (completed 2026-04-28)
 
 Full details: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md)
 
@@ -97,7 +97,7 @@ Full details: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md)
 - [x] 23-02-PLAN.md — Observability concept docs (4 files) + Mermaid floor bump 8 to 11
 - [x] 23-03-PLAN.md — 9 incident runbooks under docs/runbooks/
 - [x] 23-04-PLAN.md — 9 Sentry alert JSON templates + sentry README
-- [ ] 23-05-PLAN.md — docs README index update + final smoke-test PR
+- [x] 23-05-PLAN.md — docs README index update + final smoke-test PR
 
 ## Progress
 
@@ -126,4 +126,4 @@ Full details: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md)
 | 20.1. Close v1.3 milestone gaps from observability UAT | v1.3 | 4/4 | Complete    | 2026-04-27 |
 | 21. OTEL Adapters + Grafana Observability Stack | v1.3 | 0/0 | Deferred to v1.4+ (Sentry SaaS) | - |
 | 22. Admin Ops Tooling | v1.3 | 6/6 | Complete   | 2026-04-27 |
-| 23. Runbooks, Alert Templates & Observability Docs | v1.3 | 4/5 | In Progress|  |
+| 23. Runbooks, Alert Templates & Observability Docs | v1.3 | 5/5 | Complete   | 2026-04-28 |
