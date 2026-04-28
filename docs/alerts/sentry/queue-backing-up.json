@@ -1,0 +1,33 @@
+{
+  "name": "Queue backing up — BullMQ depth runaway",
+  "dataset": "metrics",
+  "query": "metric:queue.waiting_count",
+  "aggregate": "max()",
+  "timeWindow": 5,
+  "thresholdType": 0,
+  "resolveThreshold": 100,
+  "triggers": [
+    {
+      "label": "warning",
+      "alertThreshold": 500,
+      "thresholdType": 0,
+      "actions": []
+    },
+    {
+      "label": "critical",
+      "alertThreshold": 1000,
+      "thresholdType": 0,
+      "actions": [
+        { "type": "email", "targetType": "team", "targetIdentifier": "OPERATOR_TEAM_ID" }
+      ]
+    }
+  ],
+  "projects": ["YOUR_PROJECT_SLUG"],
+  "environment": "production",
+  "runbook_url": "../../runbooks/queue-backing-up.md",
+  "_baseworks_meta": {
+    "endpoint": "POST /api/0/organizations/{org}/alert-rules/",
+    "slo_note": "Fast-burn alert: max queue waiting count >1000 over a 5m window. Forward-looking: requires custom metrics wiring (v1.4+ OTLP). For v1.3, monitor via /health/detailed.data.queues manually or convert to Issue Alert on queue-depth log events.",
+    "priority": "low"
+  }
+}
