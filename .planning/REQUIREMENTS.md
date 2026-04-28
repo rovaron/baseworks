@@ -51,7 +51,7 @@
 
 - [ ] **DOC-01**: Developer can run `bun run observability:up` to launch `docker-compose.observability.yml` (OTEL Collector + Tempo 2.10 + Loki 3.7 + Prometheus 3.10 + Grafana 12.4) with per-service `mem_limit` and laptop-tuned retention
 - [ ] **DOC-02**: Developer sees 4 pre-provisioned Grafana dashboards on stack up — API Overview (RED), Queue Health (BullMQ), DB+Redis (USE), CQRS View (per-command RED) — committed to repo
-- [ ] **DOC-03**: Operator sees 8–10 incident runbooks under `docs/runbooks/` (DB down, Redis down, queue backing up, webhook failures, auth outage, OTEL exporter failing, bull-board inaccessible, high error rate, slow checkout) using a Trigger → Symptoms → Triage → Resolution → Escalation template
+- [x] **DOC-03**: Operator sees 8–10 incident runbooks under `docs/runbooks/` (DB down, Redis down, queue backing up, webhook failures, auth outage, OTEL exporter failing, bull-board inaccessible, high error rate, slow checkout) using a Trigger → Symptoms → Triage → Resolution → Escalation template
 - [x] **DOC-04**: Operator gets pre-built Grafana alert rule YAML + Sentry alert config templates (importable into their tooling) with `runbook_url` annotations pointing to DOC-03, plus an observability concepts doc at `docs/observability/` covering attributes glossary, cardinality guide, and trace-propagation flow
 
 ### EXT — Extensions
@@ -118,7 +118,7 @@ Which phases cover which requirements. Populated during roadmap creation (2026-0
 | OPS-04 | Phase 22 | Pending |
 | DOC-01 | Phase 21 | Pending |
 | DOC-02 | Phase 21 | Pending |
-| DOC-03 | Phase 23 | Pending |
+| DOC-03 | Phase 23 | Complete |
 | DOC-04 | Phase 23 | Complete |
 | EXT-01 | Phase 18 | Pending |
 | EXT-02 | Phase 22 | Pending |
