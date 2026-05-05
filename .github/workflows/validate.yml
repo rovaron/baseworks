@@ -6,6 +6,11 @@ on:
   push:
     branches: [main]
 
+# Least-privilege: validator only checks out code and runs a script.
+# No need for write scopes on GITHUB_TOKEN.
+permissions:
+  contents: read
+
 jobs:
   validate-docs:
     name: Run scripts/validate-docs.ts
