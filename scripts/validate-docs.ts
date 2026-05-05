@@ -44,7 +44,11 @@ const mermaidFence = /^```mermaid$/gm;
 // Pass A regex — capture relative `.md` link targets (./foo.md, ../bar/baz.md),
 // optionally followed by a `#anchor` fragment we strip. HTTP URLs are excluded
 // because the leading `./` or `../` is mandatory (out of scope per D-10).
-const linkRegex = /\]\((\.\.?\/[\w/.-]+\.md)(?:#[\w-]+)?\)/g;
+// The leading `\[[^\]]*\]` anchor requires the opening `[` of the markdown link
+// syntax, preventing false positives on stray `](./foo.md)` substrings outside
+// link context. The path body permits `%` (URL-encoded segments) and spaces in
+// addition to `\w/.-` so legal-but-ugly link targets are not silently skipped.
+const linkRegex = /\[[^\]]*\]\((\.\.?\/[\w%/.\- ]+\.md)(?:#[\w-]+)?\)/g;
 
 /**
  * Pass A — cross-runbook markdown link integrity.
