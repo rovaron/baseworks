@@ -3,12 +3,12 @@ status: partial
 phase: 20-bullmq-trace-propagation
 source: [20-VERIFICATION.md]
 started: 2026-04-26T00:00:00Z
-updated: 2026-04-26T15:55:00Z
+updated: 2026-05-05T00:00:00Z
 ---
 
 ## Current Test
 
-[awaiting Tempo stack — Phase 21]
+[testing paused — Test 1 blocked on Phase 21 (deferred to v1.4+)]
 
 ## Tests
 
@@ -16,8 +16,9 @@ updated: 2026-04-26T15:55:00Z
 expected: A single trace tree in Tempo showing HTTP server span → BullMQ publish PRODUCER span → BullMQ process CONSUMER span, all sharing one traceId. The worker span must appear as a child/descendant of the enqueue span.
 how_to_run: Start the API + worker against a real Redis. Trigger an HTTP request that enqueues a job. Wait for the worker to process it. Open Grafana/Tempo and inspect the trace tree. (Phase 21 ships `docker-compose.observability.yml` and the four pre-provisioned Grafana dashboards needed for this check.)
 why_human: Requires a real OTEL exporter + Tempo backend + live Redis/BullMQ round-trip. The in-process D-08 E2E test (`apps/api/__tests__/observability-bullmq-trace.test.ts`) satisfies the trace-data assertion programmatically (producer log `traceId === consumer log `traceId`), but the visual Tempo rendering requires the full observability stack which Phase 21 will provide.
-result: [pending]
-reason: Tempo backend not yet stood up (Phase 21 territory).
+result: blocked
+blocked_by: prior-phase
+reason: Phase 21 (OTEL Adapters + Grafana/Tempo stack) DEFERRED to v1.4+. Programmatic equivalent already verified by D-08 E2E test and Test 2 log-level confirmation. Resume when Phase 21 ships and Tempo is available.
 
 ### 2. Live producer→consumer carrier flow — log-level verification
 expected: Trigger an HTTP request that enqueues a job. Worker log line for the resulting job carries an OTel-inherited traceId derived from the producer's _otel carrier (i.e., NOT a fresh random root traceId), plus identical requestId and tenantId from job.data._requestId/_tenantId. Phase 20's W3C carrier injection on .add() and propagation.extract on the consumer side both fire end-to-end.
@@ -50,8 +51,8 @@ notes: |
 total: 2
 passed: 1
 issues: 0
-pending: 1
+pending: 0
 skipped: 0
-blocked: 0
+blocked: 1
 
 ## Gaps
