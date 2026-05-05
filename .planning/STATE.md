@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Observability & Operations
-status: milestone_complete
+status: completed
 stopped_at: "Completed 23-05-PLAN.md (Phase 23 complete; v1.3 ready for /gsd:verify-work)"
-last_updated: "2026-04-28T21:03:18.032Z"
-last_activity: 2026-04-28
+last_updated: "2026-05-05T10:08:51.281Z"
+last_activity: 2026-05-05
 progress:
   total_phases: 2
-  completed_phases: 3
+  completed_phases: 2
   total_plans: 11
   completed_plans: 11
-  percent: 150
+  percent: 100
 ---
 
 # Project State
@@ -29,7 +29,7 @@ Milestone: v1.3 Observability & Operations
 Phase: 23
 Plan: Not started
 Status: Milestone complete
-Last activity: 2026-04-28
+Last activity: 2026-05-05
 
 Progress: [██████████] 100%
 
@@ -188,6 +188,23 @@ Prior concerns resolved:
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260420-a4t | Route packages/ui tests through vitest (eliminated 22 `document is not defined` failures from `bun test`) | 2026-04-20 | 1a00bfc | [260420-a4t-route-packages-ui-src-test-tsx-through-v](./quick/260420-a4t-route-packages-ui-src-test-tsx-through-v/) |
+
+## Deferred Items
+
+Items acknowledged and deferred at v1.3 milestone close on 2026-05-05. All are operator-gated (require production deploy or deferred Phase 21 stack), not implementation gaps.
+
+| Category | Item | Status |
+|----------|------|--------|
+| uat_gap | Phase 18 — 18-HUMAN-UAT.md | partial (4 skipped pending prod deploy) |
+| uat_gap | Phase 20 — 20-HUMAN-UAT.md | partial (1 blocked on Phase 21 — deferred to v1.4+) |
+| uat_gap | Phase 20.1 — 20.1-HUMAN-UAT.md | passed (audit flagged status field non-canonical) |
+| verification_gap | Phase 18 — 18-VERIFICATION.md | human_needed (operator gate: Sentry release workflow secrets + test tag) |
+| verification_gap | Phase 20 — 20-VERIFICATION.md | human_needed (Tempo backend — Phase 21 deferred) |
+| verification_gap | Phase 20.1 — 20.1-VERIFICATION.md | human_needed |
+| verification_gap | Phase 22 — 22-VERIFICATION.md | human_needed (4 manual UAT items: CSP iframe, cookie share, worker dead-status, pt-BR locale) |
+| todo | 2026-04-26-harden-inbound-traceparent-trust-gate.md | api — pending |
+
+These items survive into v1.4 for resolution when production deploy + observability stack are stood up.
 
 ## Session Continuity
 

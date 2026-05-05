@@ -5,7 +5,8 @@
 - ✅ **v1.0 MVP** -- Phases 1-5 (shipped 2026-04-08)
 - ✅ **v1.1 Polish & Extensibility** -- Phases 6-12 (shipped 2026-04-16)
 - ✅ **v1.2 Documentation & Quality** -- Phases 13-16 (shipped 2026-04-21)
-- 🚧 **v1.3 Observability & Operations** -- Phases 17-23 (started 2026-04-21)
+- ✅ **v1.3 Observability & Operations** -- Phases 17-23 (shipped 2026-05-05)
+- 📋 **v1.4** -- Planning next milestone
 
 ## Phases
 
@@ -49,55 +50,30 @@ Full details: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md)
 
 </details>
 
-### Active Milestone: v1.3 Observability & Operations
+<details>
+<summary>✅ v1.3 Observability & Operations (Phases 17-23) -- SHIPPED 2026-05-05</summary>
 
 - [x] Phase 17: Observability Ports & OTEL Bootstrap (5/5 plans) -- completed 2026-04-22
 - [x] Phase 18: Error Tracking Adapters (7/7 plans) -- completed 2026-04-23 (EXT-01 operator gate deferred to 18-HUMAN-UAT.md)
 - [x] Phase 19: Context, Logging & HTTP/CQRS Tracing (8/8 plans) -- completed 2026-04-23
-- [x] Phase 20: BullMQ Trace Propagation (0/3 plans) (completed 2026-04-26)
-- [x] Phase 20.1: Close v1.3 milestone gaps from observability UAT (4/4 plans) (INSERTED) (completed 2026-04-26)
-- [~] Phase 21: OTEL Adapters + Grafana Observability Stack — DEFERRED to v1.4+ (Sentry SaaS covers metrics/dashboards/alerts; observability ports remain in place for fork users to wire OTLP later)
-- [x] Phase 22: Admin Ops Tooling (0/0 plans) (completed 2026-04-27)
-- [x] Phase 23: Runbooks, Alert Templates & Observability Docs (0/0 plans) (completed 2026-04-28)
+- [x] Phase 20: BullMQ Trace Propagation (3/3 plans) -- completed 2026-04-26
+- [x] Phase 20.1: Close v1.3 milestone gaps from observability UAT (4/4 plans) (INSERTED) -- completed 2026-04-26
+- [~] Phase 21: OTEL Adapters + Grafana Observability Stack -- DEFERRED to v1.4+ (Sentry SaaS covers metrics/dashboards/alerts; observability ports remain in place for fork users to wire OTLP later)
+- [x] Phase 22: Admin Ops Tooling (6/6 plans) -- completed 2026-04-27
+- [x] Phase 23: Runbooks, Alert Templates & Observability Docs (5/5 plans) -- completed 2026-04-28
 
 Full details: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md)
 
-### Phase 22: Admin Ops Tooling
+</details>
 
-**Goal**: Admin user can monitor jobs and system health from the Vite admin dashboard without leaving the app, with bull-board gated by RBAC and read-only by default.
-**Depends on**: Phase 20 (Phase 21 deferred 2026-04-27 — see deferral note in milestones/v1.3-ROADMAP.md)
-**Requirements**: OPS-01, OPS-02, OPS-03, OPS-04, EXT-02
-**Success Criteria** (what must be TRUE):
-  1. Operator sees `@bull-board/elysia` mounted at `/admin/bull-board` behind `requireRole("owner")` with read-only mode enabled by default via feature-flag env and admin-origin CSP; unauthenticated requests return 401, non-admin return 403, and static asset requests are also gated
-  2. Admin user sees a "Job Monitor" entry in the Vite admin dashboard sidebar that renders bull-board as a same-origin iframe sharing the better-auth session cookie
-  3. Admin user sees a `/health/detailed` endpoint and matching admin dashboard page showing queue depth with warn/critical thresholds, worker heartbeat freshness, DB lag, recent errors, and per-module status
-  4. Module author sees a `HealthContributor` registered at module registration time; the central aggregator rolls up all contributions into an overall status surfaced by the admin health page
-  5. Operator sees workers publishing heartbeat keys to Redis on a configurable interval so the health dashboard worker-heartbeat status reflects real state, not a mock
-**Plans**: 6 plans
-  - [x] 22-01-PLAN.md — Foundation: env vars, HealthContributor types, instance-id helper, RingBufferingErrorTracker decorator (no mounts)
-  - [x] 22-02-PLAN.md — HealthAggregator class + ModuleRegistry def.health collector
-  - [x] 22-03-PLAN.md — bull-board mount at /admin/bull-board with RBAC + CSP + readOnly env
-  - [x] 22-04-PLAN.md — Worker heartbeat publisher + reader (Redis SET worker:heartbeat:{instanceId})
-  - [x] 22-05-PLAN.md — /health/detailed endpoint + built-in contributors + ringbuffer wiring
-  - [x] 22-06-PLAN.md — Admin frontend: vite proxy, /jobs iframe, /system page replacement, i18n keys
-**UI hint**: yes
+### 📋 v1.4 (Planned)
 
-### Phase 23: Runbooks, Alert Templates & Observability Docs
+Next milestone scope to be defined via `/gsd:new-milestone`. Carry-over candidates from v1.3:
 
-**Goal**: Operator paged at 3am has a linked runbook for every alert and a short doc explaining how attributes, cardinality, and trace propagation work in this codebase.
-**Depends on**: Phase 22 (Phase 21 deferred 2026-04-27 — Grafana alert YAML scope drops with it; Sentry alert templates remain in scope)
-**Requirements**: DOC-03, DOC-04
-**Success Criteria** (what must be TRUE):
-  1. Operator sees 8–10 incident runbooks under `docs/runbooks/` covering DB down, Redis down, queue backing up, webhook failures, auth outage, OTEL exporter failing, bull-board inaccessible, high error rate, and slow checkout — each using a Trigger → Symptoms → Triage → Resolution → Escalation template
-  2. Operator gets a pre-built Grafana alert rule YAML plus Sentry alert config templates importable into their tooling, with a `runbook_url` annotation on every rule linking to the matching `docs/runbooks/*.md` file
-  3. Developer sees an observability concepts doc at `docs/observability/` covering the attributes glossary (which go on spans/logs vs metrics), the cardinality guide, and the trace-propagation flow (API → DB → enqueue → worker)
-  4. Operator sees alerts designed with SLO-based burn-rate thresholds and `for: 5m` minimums so deploy rollouts and warmup periods do not fire, with runbook links living in-repo so CI fails if a `runbook_url` points to a missing file
-**Plans**: 5 plans
-- [x] 23-01-PLAN.md — Validator extension + workflow + package.json wiring + Wave-0 test scaffolds
-- [x] 23-02-PLAN.md — Observability concept docs (4 files) + Mermaid floor bump 8 to 11
-- [x] 23-03-PLAN.md — 9 incident runbooks under docs/runbooks/
-- [x] 23-04-PLAN.md — 9 Sentry alert JSON templates + sentry README
-- [x] 23-05-PLAN.md — docs README index update + final smoke-test PR
+- Phase 21 work: OTEL Adapters + Grafana stack (MET-01..03, DOC-01..02) -- deferred from v1.3
+- 18-HUMAN-UAT.md production verification (Sentry release workflow + demangled stack-trace check)
+- 22-VERIFICATION.md manual UAT items (CSP iframe, cookie share, worker dead-status, pt-BR locale)
+- harden-inbound-traceparent-trust-gate todo (api boundary)
 
 ## Progress
 
@@ -122,8 +98,8 @@ Full details: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md)
 | 17. Observability Ports & OTEL Bootstrap | v1.3 | 5/5 | Complete | 2026-04-22 |
 | 18. Error Tracking Adapters | v1.3 | 7/7 | Complete | 2026-04-23 |
 | 19. Context, Logging & HTTP/CQRS Tracing | v1.3 | 8/8 | Complete | 2026-04-23 |
-| 20. BullMQ Trace Propagation | v1.3 | 3/3 | Complete    | 2026-04-26 |
-| 20.1. Close v1.3 milestone gaps from observability UAT | v1.3 | 4/4 | Complete    | 2026-04-27 |
-| 21. OTEL Adapters + Grafana Observability Stack | v1.3 | 0/0 | Deferred to v1.4+ (Sentry SaaS) | - |
-| 22. Admin Ops Tooling | v1.3 | 6/6 | Complete   | 2026-04-27 |
-| 23. Runbooks, Alert Templates & Observability Docs | v1.3 | 5/5 | Complete    | 2026-04-28 |
+| 20. BullMQ Trace Propagation | v1.3 | 3/3 | Complete | 2026-04-26 |
+| 20.1. Close v1.3 milestone gaps | v1.3 | 4/4 | Complete | 2026-04-26 |
+| 21. OTEL Adapters + Grafana Observability Stack | v1.3 | 0/0 | Deferred to v1.4+ | - |
+| 22. Admin Ops Tooling | v1.3 | 6/6 | Complete | 2026-04-27 |
+| 23. Runbooks, Alert Templates & Observability Docs | v1.3 | 5/5 | Complete | 2026-04-28 |

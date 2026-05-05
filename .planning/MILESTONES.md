@@ -1,10 +1,42 @@
 # Milestones
 
+## v1.3 Observability & Operations (Shipped: 2026-05-05)
+
+**Phases completed:** 7 phases (17-23, with 21 deferred to v1.4+), 38 plans
+
+**Stats:**
+
+- Git commits: 239 (a363a60 → 9ec3d60 range)
+- Timeline: 13 days (2026-04-22 → 2026-05-05)
+- Requirements: 21/28 satisfied, 5 deferred to v1.4 (Phase 21), 2 satisfied with operator UAT carryover (EXT-01 release-tag verification, OPS-02 manual iframe UAT)
+- Decimal phase inserted: 20.1 (close v1.3 milestone gaps from observability UAT, urgent — drizzle migration journal repair, billing TypeError, obsContext↔OTel trace_id bridge)
+
+**Key accomplishments:**
+
+- **Observability ports + OTEL bootstrap** (Phase 17): typed `ErrorTracker`, `MetricsProvider`, `Tracer` ports with Noop adapters, factory-selected via `@t3-oss/env-core`; OTEL SDK bootstrapped as first-imports in apps/api + apps/worker entrypoints with Bun smoke-test gate
+- **Error tracking adapters** (Phase 18): Sentry/GlitchTip parity via single `SentryErrorTracker` with kind tag (D-05), Pino-sink default fallback, scrubPii (17 keys + 5 regex patterns + webhook-route rule), 39-test cross-adapter PII conformance suite, GitHub Actions release workflow at `.github/workflows/release.yml` shipping debug-id source maps to Sentry on tag push
+- **Context + structured tracing** (Phase 19): single `AsyncLocalStorage<ObservabilityContext>`, Elysia `observabilityMiddleware` populating ALS per request, pino logger mixin auto-injecting `{trace_id, span_id, requestId, tenantId}` on every log line, span-per-HTTP-request + per-CQRS-dispatch via external bus wrappers (zero edits to handlers)
+- **BullMQ trace propagation** (Phase 20 + 20.1): W3C `traceparent` injection on `.add()` and `propagation.extract` on consumer side, end-to-end traceId continuity API → enqueue → worker verified live; obsContext.traceId↔OTel server-span bridge ensures producer log, consumer log, and BullMQ carrier all share one traceId
+- **Admin ops tooling** (Phase 22): `@bull-board/elysia` mounted at `/admin/bull-board` with RBAC + readOnly + CSP frame-ancestors, `/health/detailed` endpoint with `HealthContributor` rollup pattern (worst-of-N aggregator, 5s cache, timeout-resolves-not-throws), worker heartbeat publisher (Redis SET with TTL=2*interval)
+- **Operator runbooks + alert templates + observability docs** (Phase 23): 9 incident runbooks under `docs/runbooks/` (Trigger → Symptoms → Triage → Resolution → Escalation), 9 Sentry alert JSON templates with `runbook_url` cross-links, 4 observability concept docs (attributes glossary, cardinality guide, trace-propagation flow), CI validate.yml gate with smoke-tested runbook_url integrity check
+- **Tech-debt fixes during milestone** (Phase 20.1, urgent insert): drizzle migration journal repair, billing `getSubscriptionStatus` TypeError fix, locale-cookie decodeURIComponent try/catch (H-01), x-request-id charset+length validation (H-02), Bun.serve fetch error-span recordException + setStatus (H-03)
+
+**Known deferred items at close** (8 — see STATE.md `## Deferred Items`):
+
+- Phase 21 stack (MET-01..03, DOC-01..02) deferred to v1.4 — Sentry SaaS covers operator audience for hosted forks
+- 18-HUMAN-UAT.md: 4 tests skipped pending production deploy (Sentry release workflow secrets + test tag + demangled stack-trace + .map 404)
+- 20-HUMAN-UAT.md: Tempo visual confirmation blocked on Phase 21
+- 22-VERIFICATION.md: 4 manual UAT items (CSP iframe, cookie-share, worker dead-status, pt-BR locale)
+- harden-inbound-traceparent-trust-gate todo (api boundary)
+
+---
+
 ## v1.2 Documentation & Quality (Shipped: 2026-04-21)
 
 **Phases completed:** 4 phases (13-16), 19 plans
 
 **Stats:**
+
 - Files modified: 114
 - Lines changed: +5,908 / −312
 - Git commits: 115 (22e7738 → ef2fcaa range)
