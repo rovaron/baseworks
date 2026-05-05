@@ -105,56 +105,56 @@ Explicitly excluded. Documented to prevent scope creep.
 
 ## Traceability
 
-Which phases cover which requirements. Populated during roadmap creation.
+Which phases cover which requirements. Populated during roadmap creation 2026-05-05.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FILE-01 | TBD | Pending |
-| FILE-02 | TBD | Pending |
-| FILE-03 | TBD | Pending |
-| UPL-01 | TBD | Pending |
-| UPL-02 | TBD | Pending |
-| UPL-03 | TBD | Pending |
-| UPL-04 | TBD | Pending |
-| IMG-01 | TBD | Pending |
-| IMG-02 | TBD | Pending |
-| IMG-03 | TBD | Pending |
-| QUO-01 | TBD | Pending |
-| QUO-02 | TBD | Pending |
-| QUO-03 | TBD | Pending |
-| MOD-01 | TBD | Pending |
-| MOD-02 | TBD | Pending |
-| MOD-03 | TBD | Pending |
-| IDA-01 | TBD | Pending |
-| IDA-02 | TBD | Pending |
-| ATT-01 | TBD | Pending |
-| ATT-02 | TBD | Pending |
-| UI-01 | TBD | Pending |
-| UI-02 | TBD | Pending |
-| OPS-01 | TBD | Pending |
-| OPS-02 | TBD | Pending |
-| OPS-03 | TBD | Pending |
+| FILE-01 | Phase 24 | Pending |
+| FILE-02 | Phase 25 | Pending |
+| FILE-03 | Phase 25 | Pending |
+| UPL-01 | Phase 26 | Pending |
+| UPL-02 | Phase 27 | Pending |
+| UPL-03 | Phase 26 | Pending |
+| UPL-04 | Phase 27 | Pending |
+| IMG-01 | Phase 28 | Pending |
+| IMG-02 | Phase 28 | Pending |
+| IMG-03 | Phase 28 | Pending |
+| QUO-01 | Phase 26 | Pending |
+| QUO-02 | Phase 26 | Pending |
+| QUO-03 | Phase 31 | Pending |
+| MOD-01 | Phase 24 | Pending |
+| MOD-02 | Phase 26 | Pending |
+| MOD-03 | Phase 27 | Pending |
+| IDA-01 | Phase 29 | Pending |
+| IDA-02 | Phase 29 | Pending |
+| ATT-01 | Phase 27 | Pending |
+| ATT-02 | Phase 27 | Pending |
+| UI-01 | Phase 30 | Pending |
+| UI-02 | Phase 30 | Pending |
+| OPS-01 | Phase 31 | Pending |
+| OPS-02 | Phase 31 | Pending |
+| OPS-03 | Phase 31 | Pending |
 
 **Coverage:**
 - v1.4 requirements: 25 total
-- Mapped to phases: 0 (populated by roadmapper)
-- Unmapped: 25 (will be 0 after roadmap)
+- Mapped to phases: 25
+- Unmapped: 0
 
-**Phase distribution (proposed by research, finalized by roadmapper):**
+**Phase distribution (final):**
 
-Suggested 8-phase decomposition (Phases 24–31) per `.planning/research/SUMMARY.md` §7:
+| Phase | Name | REQ-IDs | Count |
+|-------|------|---------|-------|
+| 24 | Foundation: Storage Port + Files Schema + ModuleDefinition Extension | FILE-01, MOD-01 | 2 |
+| 25 | Test Infrastructure + Three Storage Adapters (Local + S3 + S3-Compat) | FILE-02, FILE-03 | 2 |
+| 26 | Files Module Skeleton + Sign-Upload + Per-Tenant Quota | UPL-01, UPL-03, QUO-01, QUO-02, MOD-02 | 5 |
+| 27 | Complete-Upload + Signed Read URLs + Delete + Generic Attachments | UPL-02, UPL-04, ATT-01, ATT-02, MOD-03 | 5 |
+| 28 | Image Transform Pipeline (sharp spike + imagescript fallback) | IMG-01, IMG-02, IMG-03 | 3 |
+| 29 | Auth & Org Identity Asset Wiring | IDA-01, IDA-02 | 2 |
+| 30 | Reusable Uploader Component in packages/ui | UI-01, UI-02 | 2 |
+| 31 | Cleanup, Reconciliation & Operator Surface | QUO-03, OPS-01, OPS-02, OPS-03 | 4 |
 
-| Phase | Suggested name | Suggested REQ-IDs |
-|-------|----------------|-------------------|
-| 24 | Foundation: Port + Schema | FILE-01, FILE-02 (port skeleton), MOD-01 (`fileRelations` type) |
-| 25 | Adapters + Test Infra | FILE-02 (conformance), FILE-03 |
-| 26 | Files Module + Sign-Upload + Quota | UPL-01, UPL-03, QUO-01, QUO-02, MOD-02 |
-| 27 | Complete + Read + Delete | UPL-02, UPL-04, ATT-01, ATT-02, MOD-03 |
-| 28 | Image Transform Pipeline | IMG-01, IMG-02, IMG-03 |
-| 29 | Auth + Org Identity Wiring | IDA-01, IDA-02 |
-| 30 | UI Uploader | UI-01, UI-02 |
-| 31 | Cleanup + Operator Surface | QUO-03, OPS-01, OPS-02, OPS-03 |
+**Variance from research §7 proposal:** FILE-02 moved from Phase 24 to Phase 25. Rationale: a requirement maps to the phase where it is *delivered* (proven). The conformance suite that proves the port shape behaves identically across all 3 adapters is the deliverable that satisfies FILE-02, and that suite runs against real adapters in Phase 25, not against Noop scaffolds in Phase 24. Phase 24 still ships the port skeleton + types + factory contract; Phase 25 ships the proof.
 
 ---
 *Requirements defined: 2026-05-05*
-*Last updated: 2026-05-05 after milestone scope confirmation — traceability awaits roadmap*
+*Last updated: 2026-05-05 — traceability populated; 25/25 mapped to Phases 24–31; ready for /gsd:plan-phase 24*
