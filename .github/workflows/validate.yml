@@ -22,7 +22,10 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          # Pin to 1.1.x (matches CLAUDE.md `^1.1+` constraint) so future Bun
+          # releases that change Bun.Glob / import.meta.main / JSON.parse error
+          # message format cannot turn a green PR red without a code change.
+          bun-version: "1.1.x"
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
