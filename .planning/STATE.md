@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: File Storage & Uploads
-status: planned
-stopped_at: "v1.4 roadmap created; awaiting /gsd:plan-phase 24"
-last_updated: "2026-05-05T12:00:00.000Z"
-last_activity: 2026-05-05
+status: "Roadmap created — ready for /gsd:plan-phase 24"
+stopped_at: Phase 24 context gathered
+last_updated: "2026-05-05T20:58:25.717Z"
+last_activity: 2026-05-05 — v1.4 roadmap created (8 phases, 25 requirements mapped, 0 orphans)
 progress:
   total_phases: 8
   completed_phases: 0
@@ -99,7 +99,7 @@ Items acknowledged and deferred at v1.3 milestone close on 2026-05-05. All are o
 
 ## Session Continuity
 
-Last session: 2026-05-05T12:00:00.000Z
-Stopped at: v1.4 roadmap created. ROADMAP.md, REQUIREMENTS.md (traceability populated), STATE.md updated.
-Resume file: None
+Last session: 2026-05-05T20:58:25.706Z
+Stopped at: Phase 24 context gathered
+Resume file: .planning/phases/24-foundation-storage-port-files-schema-moduledefinition-extens/24-CONTEXT.md
 Next action: `/gsd:plan-phase 24` — Foundation: Storage Port + Files Schema + ModuleDefinition Extension. 2 requirements (FILE-01, MOD-01); 5 success criteria covering schema migration, port type surface, factory env-validation crash, `fileRelations` registry collection, and Biome GritQL ban on direct `files` table access.
