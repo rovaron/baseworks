@@ -83,7 +83,15 @@ Full details: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md)
   3. Operator setting `STORAGE_PROVIDER=local|s3|s3-compat` sees the factory return the correct adapter shape; missing adapter-required env (`AWS_ACCESS_KEY_ID`, `S3_ENDPOINT`, etc.) causes `apps/api` boot to crash with a clear error message naming the missing var (mirrors Phase 17 `validateObservabilityEnv` pattern)
   4. Module author can declare `fileRelations: { user: { recordType, allowedMimeTypes, maxByteSize, generateVariants?, onDelete?, canRead?, canWrite? } }` in `ModuleDefinition` and the registry collects all relations at boot into a `fileRelationsRegistry` singleton (analogous to Phase 22 `healthContributors` collection at `apps/api/src/core/registry.ts`)
   5. Biome GritQL rule bans direct `db.select().from(files)` outside `packages/modules/files/`; cross-tenant access requires the scoped wrapper (Pitfall 5 prevention)
-**Plans:** TBD (populated by /gsd:plan-phase 24)
+**Plans:** 7 plans
+Plans:
+- [ ] 24-01-PLAN.md — Workspace skeleton + FileStorage/ImageTransform ports
+- [ ] 24-02-PLAN.md — Drizzle schema + migration 0002_v14_file_storage.sql + barrel re-exports
+- [ ] 24-03-PLAN.md — ModuleDefinition.fileRelations + FileRelation/ImageVariantSpec types in @baseworks/shared
+- [ ] 24-04-PLAN.md — Factory + env validator + 5 throwing-NotImplemented adapter scaffolds
+- [ ] 24-05-PLAN.md — fileRelationsRegistry singleton + collectFileRelations + Zod fail-loud
+- [ ] 24-06-PLAN.md — apps/api wire-up + .env.example + [BLOCKING] migration apply
+- [ ] 24-07-PLAN.md — Biome GritQL ban-files-table-access + belt-and-suspenders shell gate
 **UI hint:** no
 
 #### Phase 25: Test Infrastructure + Three Storage Adapters (Local + S3 + S3-Compat)
