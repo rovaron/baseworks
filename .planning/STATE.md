@@ -1,37 +1,37 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.3
-milestone_name: Observability & Operations
-status: completed
-stopped_at: "Completed 23-05-PLAN.md (Phase 23 complete; v1.3 ready for /gsd:verify-work)"
-last_updated: "2026-05-05T10:08:51.281Z"
+milestone: v1.4
+milestone_name: File Storage & Uploads
+status: defining_requirements
+stopped_at: "v1.3 closed; v1.4 goals defined; awaiting research + requirements"
+last_updated: "2026-05-05T10:30:00.000Z"
 last_activity: 2026-05-05
 progress:
-  total_phases: 2
-  completed_phases: 2
-  total_plans: 11
-  completed_plans: 11
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-21)
+See: .planning/PROJECT.md (updated 2026-05-05)
 
 **Core value:** Clone, configure, and start building a multitenant SaaS in minutes -- not weeks.
-**Current focus:** Phase 23 — runbooks-alert-templates-observability-docs
+**Current focus:** v1.4 File Storage & Uploads — defining requirements
 
 ## Current Position
 
-Milestone: v1.3 Observability & Operations
-Phase: 23
-Plan: Not started
-Status: Milestone complete
-Last activity: 2026-05-05
+Milestone: v1.4 File Storage & Uploads
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-05 — Milestone v1.4 started
 
-Progress: [██████████] 100%
+Progress: [░░░░░░░░░░] 0%
 
 ### Roadmap Evolution
 

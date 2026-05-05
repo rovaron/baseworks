@@ -83,14 +83,50 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 
 ### Active
 
-**Milestone v1.4: Planning**
+**Milestone v1.4: File Storage & Uploads**
 
-Scope to be defined via `/gsd:new-milestone`. Carry-over from v1.3:
+**Goal:** Ship a typed file storage port with S3 + S3-compatible + local adapters, signed direct uploads, automatic image transforms via sharp, per-tenant quota tracking, and a reusable UI uploader component — so fork users inherit ready-to-use file handling for both identity assets (avatars, org logos) and tenant content (documents, photos, videos attached to records).
 
-- Phase 21 work — OTEL adapters + Grafana stack (`docker-compose.observability.yml`, Prometheus + Tempo + Loki + Grafana 12.4, RED metrics per route + per CQRS, USE metrics for DB pool/Redis/BullMQ, 4 pre-provisioned dashboards) (MET-01..03, DOC-01..02)
-- 18-HUMAN-UAT.md operator gate — Sentry release workflow secrets + test tag push + demangled stack-trace verification + no-public-`.map` curl check (after first production deploy)
-- 22-VERIFICATION.md manual UAT — CSP frame-ancestors enforcement, iframe session cookie sharing via vite proxy, worker heartbeat `dead` status after SIGKILL, pt-BR locale visual review
-- harden-inbound-traceparent-trust-gate todo — production trust hardening (CIDR allowlist or signed traceparent) for the always-trust default that ships in v1.3
+**Target features:**
+
+- File storage port + 3 adapters: S3 (AWS), S3-compatible (configurable endpoint covering MinIO/Garage/Ceph/R2), Local (dev/self-host)
+- Signed direct upload flow — server signs short-lived PUT URLs with size + MIME-type constraints; browser uploads directly to storage; server records metadata on success
+- Signed read URLs for tenant-private file access (private buckets, short-lived GET URLs)
+- Image transforms via sharp — avatars and org logos auto-generate variants (e.g., 64/128/256/512 px) on upload; tenant content stored as-is
+- Per-tenant storage quota — bytes-used tracked in `tenant_storage_usage`, enforced at upload-signing time, surfaced in admin dashboard + `/health/detailed`
+- Module file-ownership pattern — modules declare file relations (e.g., billing attaches invoice PDFs to subscriptions); central `files` table with tenant + owner + key + metadata
+- Identity asset wiring — user avatar + org logo flows through auth + tenant settings UI
+- Generic tenant-attachments path — any module can attach files to its records via the shared adapter
+- Reusable UI uploader in `packages/ui` — drag-and-drop, progress bar, image preview; used by Next.js customer app and Vite admin app
+- Async image transform jobs via BullMQ — variant generation off the upload response path
+
+**Adapter matrix:**
+
+| Port | Adapters shipped |
+|------|------------------|
+| `FileStorage` | S3 (AWS SDK), S3-compatible (S3 SDK with configurable endpoint), Local (Node FS) |
+| `ImageTransform` | sharp (with Bun-compat verification — fallback to imagescript/wasm-vips if needed) |
+
+**Key context:**
+- Reuse existing patterns — port + adapters (matching PaymentProvider, ErrorTracker, Tracer), Drizzle schema with tenant_id scoping, BullMQ for async work
+- **Sharp under Bun** is a research item — verify Bun-native compatibility; fall back to imagescript/wasm-vips if not stable
+- Signed URL flow requires CORS config in the bucket — fork user gets boilerplate + docs
+- Quota tracking integrates with existing `/health/detailed` (Phase 22 pattern)
+- Storage usage tracked via Drizzle counter on every successful upload + cleanup on delete; reconcile job optional
+
+**Out of scope (v1.5+):**
+- Virus scanning (ClamAV/etc adapter) — deferred to a security-focused milestone
+- Video transcoding — depth issue, separate milestone
+- Bulk CSV/Excel imports — different problem domain (data import, not file storage)
+- Browser-side image cropping/editing — frontend feature, not starter-kit core
+- Multi-region replication — operational concern, not v1.4 scope
+- File-access audit log — folds into future audit-log milestone
+
+**Carry-over from v1.3 (NOT v1.4 scope, still pending):**
+- Phase 21 work (OTEL adapters + Grafana stack) — remains deferred; re-evaluate when fork-user demand emerges
+- 18-HUMAN-UAT.md operator gate — gates on first production deploy
+- 22-VERIFICATION.md manual UAT items — gates on staging deploy + browser testing
+- harden-inbound-traceparent-trust-gate todo — production trust hardening when high-volume traffic exposure becomes real
 
 ### Out of Scope
 
@@ -188,4 +224,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-05 after v1.3 milestone close. Observability ports + adapters, error tracking with PII redaction, unified ALS context with auto-injecting log mixin, HTTP+CQRS+BullMQ tracing, admin ops tooling (bull-board + /health/detailed + worker heartbeat), and the operator runbook + alert template + observability docs surface all shipped. Phase 21 (OTEL/Grafana stack) deferred to v1.4+.*
+*Last updated: 2026-05-05 — v1.3 closed, v1.4 (File Storage & Uploads) goals defined. Active milestone targets a typed FileStorage port + S3/S3-compat/local adapters, signed direct uploads with image transforms, per-tenant quotas, and a reusable UI uploader.*
