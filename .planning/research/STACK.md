@@ -1,114 +1,187 @@
-# Stack Research: v1.3 Observability & Operations
+# Stack Research — v1.4 File Storage & Uploads
 
-**Domain:** Observability (errors, metrics, traces, logs) + ops tooling for a Bun/Elysia/BullMQ monorepo
-**Researched:** 2026-04-21
-**Confidence:** HIGH for Bun/OTEL/Sentry/bull-board baseline; MEDIUM for exact Docker image tags (verify at pin-time); HIGH for what to avoid
-**Scope:** Additions/changes only. All v1.2 baseline stack (Bun 1.1+, Elysia 1.1+, Drizzle, postgres.js, BullMQ 5, ioredis 5, pino 9, better-auth 1.2, Next.js 15, Vite 6, shadcn, Tailwind 4, Zod, @t3-oss/env-core) is taken as given and NOT re-researched.
-
----
-
-## Executive Decision
-
-| Decision | Choice | Reason |
-|----------|--------|--------|
-| OTEL SDK | `@opentelemetry/sdk-node` (NOT `@opentelemetry/sdk-trace-web` or custom-per-runtime) | Bun implements enough of `node:*` to run the Node SDK. Community posts (Feb 2026) confirm it works with programmatic init. |
-| OTEL init style | Programmatic, NOT `--require`/`-r` | Bun's module loader does not respect Node's `--require` for auto-instrumentation hooks. Must call `sdk.start()` before any instrumented module is imported. |
-| OTEL exporter | OTLP **HTTP/protobuf** (`@opentelemetry/exporter-*-otlp-proto`) | gRPC exporter (`@grpc/grpc-js`) has native-addon quirks under Bun. HTTP/protobuf is the documented Bun path in every 2026 write-up. |
-| Sentry SDK | `@sentry/bun` (NOT `@sentry/node`) | First-class Bun SDK; `@sentry/profiling-node` native addon does not run in Bun. |
-| GlitchTip adapter | Same `@sentry/bun` client — DSN swap only | GlitchTip 6 (Feb 2026) implements Sentry wire protocol; no second SDK required. |
-| BullMQ instrumentation | `@appsignal/opentelemetry-instrumentation-bullmq` | Jennifer's original package is minimally maintained; AppSignal fork is the actively developed successor called out in OTEL community docs. |
-| Job monitor | `@bull-board/elysia` (7.x) + `@bull-board/api` + `@bull-board/ui` | Native Elysia adapter exists — no custom mount needed. Mount behind admin RBAC middleware. |
-| Metrics | OTEL SDK metrics only — NO `prom-client` | OTEL `MeterProvider` produces OTLP metrics; collector converts to Prometheus remote-write or scrape. Adding `prom-client` would be double-booking. |
-| AsyncLocalStorage | Bun native `node:async_hooks` | Implemented in Bun, supports `run`/`enterWith`/`snapshot`. Caveat: avoid NAPI addons inside ALS scopes (known Bun issue). |
-| Log shipping | OTEL Logs via `@opentelemetry/instrumentation-pino` + collector | Promtail EOL March 2026. Pino instrumentation injects trace_id/span_id and emits to collector which routes to Loki. Alloy as fallback if not using collector. |
-| Local dev stack | Grafana Alloy OR OTEL Collector Contrib as the single ingress, fanning to Prometheus / Tempo / Loki / Grafana | One collector per compose file — simpler than three agents. |
+**Domain:** File storage / signed direct uploads / image transforms / per-tenant quota / generic attachments
+**Researched:** 2026-05-05
+**Overall confidence:** MEDIUM (one HIGH-impact verification spike required: sharp on Bun in production Docker)
 
 ---
 
-## Recommended Stack
+## Scope Note
 
-### New Core Packages
-
-| Package | Version | Purpose | Bun Compat | Plug-in Point |
-|---------|---------|---------|------------|---------------|
-| `@opentelemetry/api` | ^1.9.0 | Tracing/metrics/context API surface used by app code | HIGH — pure JS, no native deps | Import in every module that creates custom spans; CQRS dispatcher wraps command/query in `tracer.startActiveSpan` |
-| `@opentelemetry/sdk-node` | ^0.215.0 | Aggregate SDK: `NodeSDK` bootstrap for traces + metrics + logs | HIGH — runs under Bun with programmatic init (verified in community posts Feb 2026) | `apps/api/src/telemetry/bootstrap.ts` — first import before Elysia |
-| `@opentelemetry/resources` | ^1.30.0 | Resource attributes (service.name, service.version) | HIGH | `bootstrap.ts` |
-| `@opentelemetry/semantic-conventions` | ^1.30.0 | Standard attribute keys | HIGH | Wherever attributes are set |
-| `@opentelemetry/sdk-trace-node` | ^1.30.0 | Node-targeted tracer provider (used by sdk-node internally; pin explicitly for span processors) | HIGH | `bootstrap.ts` |
-| `@opentelemetry/sdk-metrics` | ^1.30.0 | `MeterProvider`, `PeriodicExportingMetricReader` | HIGH | `bootstrap.ts`; MetricsProvider port Grafana adapter uses it |
-| `@opentelemetry/sdk-logs` | ^0.215.0 | `LoggerProvider` for OTLP logs | HIGH | `bootstrap.ts` when log-via-OTLP mode is selected |
-| `@opentelemetry/exporter-trace-otlp-proto` | ^0.215.0 | OTLP/HTTP+protobuf trace exporter | HIGH — pure fetch, no gRPC | `bootstrap.ts` |
-| `@opentelemetry/exporter-metrics-otlp-proto` | ^0.215.0 | OTLP/HTTP+protobuf metrics exporter | HIGH | `bootstrap.ts` |
-| `@opentelemetry/exporter-logs-otlp-proto` | ^0.215.0 | OTLP/HTTP+protobuf logs exporter | HIGH | `bootstrap.ts` |
-| `@opentelemetry/auto-instrumentations-node` | ^0.60.0 | Bundle of HTTP/pg/ioredis/http/graphql/etc. auto-instrumentations | MEDIUM — most subset works under Bun; disable any that fail with `getNodeAutoInstrumentations({ '@opentelemetry/instrumentation-xxx': { enabled: false } })` | `bootstrap.ts` — preferred over hand-picking each one |
-| `@opentelemetry/instrumentation-pg` | ^0.56.0 | postgres driver instrumentation (auto-injected via auto-instrumentations-node, but postgres.js may need patch — see pitfalls) | MEDIUM | Included in bundle |
-| `@opentelemetry/instrumentation-ioredis` | ^0.58.0 | ioredis instrumentation — covers BullMQ Redis ops at the driver level | HIGH | Included in bundle |
-| `@opentelemetry/instrumentation-pino` | ^0.47.0 | Injects trace_id/span_id into pino log records + optional OTLP log emission | HIGH | Included in bundle; pair with `@opentelemetry/sdk-logs` for full log export |
-| `@opentelemetry/instrumentation-http` | ^0.58.0 | Node `http`/`https` client spans (outbound HTTP from app) | HIGH | Included in bundle |
-| `@appsignal/opentelemetry-instrumentation-bullmq` | ^0.7.x (verify exact at install) | BullMQ Worker/Queue span creation + context propagation across enqueue→process boundary | MEDIUM — pure JS wrapping BullMQ hooks, expected to work; smoke-test in Phase 0 | Register manually alongside auto-instrumentations |
-| `@sentry/bun` | ^10.32+ | Error tracking: errors, unhandled rejections, breadcrumbs, performance | HIGH — first-party Bun SDK | `apps/api/src/telemetry/sentry.ts`, ErrorTracker Sentry + GlitchTip adapters share this client |
-| `@bull-board/api` | ^7.0.0 | Core bull-board API | HIGH | Workers server (or API process) registers queues |
-| `@bull-board/elysia` | ^7.0.0 | Native Elysia server adapter for bull-board | HIGH — published 2026-04 | Mount at `/admin/queues` behind admin RBAC; or in admin-dashboard-backend process |
-| `@bull-board/ui` | ^7.0.0 | Pre-built UI bundle served by the Elysia adapter | HIGH | Auto-served by elysia adapter |
-
-### Supporting Libraries
-
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| `node:async_hooks` (built-in) | — | `AsyncLocalStorage` for request-scoped correlation context | Request middleware enters ALS scope with `{ correlationId, tenantId, userId, traceId }`; scope propagates into async handlers and BullMQ enqueue calls |
-| `nanoid` | ^5.0+ (already installed) | Correlation ID generation when no `x-request-id` / `traceparent` is provided | Reuse existing dependency — do not add `uuid` |
-
-### Docker Images — `docker-compose.observability.yml`
-
-| Image | Pinned Tag | Purpose | Notes |
-|-------|-----------|---------|-------|
-| `otel/opentelemetry-collector-contrib` | `0.127.0` (or latest 0.150.0 — pin at implementation time) | Single ingress for OTLP traces/metrics/logs, fans out to Tempo/Prometheus/Loki | Contrib flavor needed for Loki + Prometheus remote-write exporters |
-| `grafana/tempo` | `2.10.4` | Trace storage (OTLP ingest) | v2.8+ changed default http-listen-port to 3200 — update any hard-coded configs |
-| `prom/prometheus` | `v3.10.0` (or latest `v3` tag) | Metrics storage, scraping + remote-write receiver | Prefer `-distroless` variant for production compose; `v3` for dev |
-| `grafana/loki` | `3.7.1` | Log storage (OTLP ingest via collector, no Promtail) | Single-binary mode via `-config.file` is fine for dev |
-| `grafana/grafana` | `12.4.3` (or `13.0.1` if stable feedback received) | Dashboards, alerting | Starting v12.4.0, `grafana/grafana-oss` repo is frozen; use `grafana/grafana` |
-| `grafana/alloy` | latest stable | Optional replacement for OTEL Collector Contrib if teams prefer Grafana-native agent | Promtail EOL 2026-03-02; Alloy is the migration target — but the OTEL collector is vendor-neutral and is the default recommendation |
-
-Pre-provisioned Grafana datasources + dashboards are shipped as JSON in `infra/grafana/provisioning/`.
-
-### Development Tools
-
-| Tool | Purpose | Notes |
-|------|---------|-------|
-| Bun `--inspect` + OTEL dev exporter | Local trace inspection | `OTEL_TRACES_EXPORTER=console` during unit development to debug span shape without running the stack |
-| `bull-board` standalone (same packages) | Local queue inspection outside admin | Optional — `apps/api` `/admin/queues` mount covers the use case |
+This document covers **only the additions required for v1.4**. The Baseworks core stack (Bun, Elysia, Drizzle/postgres.js, BullMQ, better-auth, Zod, pino, Tailwind 4, shadcn, Eden Treaty) is locked and not re-evaluated here.
 
 ---
 
-## Installation
+## Recommended Stack — File Storage v1.4
 
-```bash
-# Backend (apps/api) — telemetry bootstrap + instrumentations
-bun add \
-  @opentelemetry/api@^1.9 \
-  @opentelemetry/sdk-node@^0.215 \
-  @opentelemetry/sdk-trace-node@^1.30 \
-  @opentelemetry/sdk-metrics@^1.30 \
-  @opentelemetry/sdk-logs@^0.215 \
-  @opentelemetry/resources@^1.30 \
-  @opentelemetry/semantic-conventions@^1.30 \
-  @opentelemetry/exporter-trace-otlp-proto@^0.215 \
-  @opentelemetry/exporter-metrics-otlp-proto@^0.215 \
-  @opentelemetry/exporter-logs-otlp-proto@^0.215 \
-  @opentelemetry/auto-instrumentations-node@^0.60 \
-  @appsignal/opentelemetry-instrumentation-bullmq
+### Core Additions (Backend)
 
-# Error tracking
-bun add @sentry/bun
+| Technology | Version | Purpose | Why | Bun-compat | Confidence |
+|------------|---------|---------|-----|------------|------------|
+| **`Bun.S3Client`** (built-in) | Bun ^1.1.44+ | Primary S3 / S3-compatible client (PUT, GET, DELETE, presign GET/PUT, list, stat, multipart) | Zero-dependency, native, ~5x faster uploads than `@aws-sdk/client-s3`. Documented endpoints for AWS S3, R2, MinIO, DigitalOcean Spaces, Supabase, GCS XML. Synchronous `presign()` (no network). Same primitive serves all 3 adapters (AWS / S3-compat / Local-via-MinIO-in-dev). | NATIVE | HIGH |
+| **`@aws-sdk/s3-presigned-post`** | ^3.700+ | Generate **POST policy** presigned forms with size + content-type conditions | `Bun.S3Client.presign()` only signs PUT URLs and **does NOT support POST policy with conditions** (confirmed via [Bun issue #16667](https://github.com/oven-sh/bun/issues/16667), still open). POST policy is the canonical way to enforce server-defined `Content-Length-Range`, `Content-Type`, and key-prefix constraints on direct browser uploads. Imported server-side only — never bundled into Next.js client. | YES (server-side only, pure JS via `@smithy/*`) | HIGH |
+| **`sharp`** | ^0.34.5+ (Nov 2025) | Image transforms: resize, format conversion (WebP/AVIF), variant generation for avatars + org logos | The de facto Node image library; ~5x faster than ImageMagick; built on libvips. Supports Node-API v9 → "all runtimes that provide Node-API v9 including Node.js, Deno and Bun" per official changelog. Built-in `limitInputPixels` for decompression-bomb DoS prevention (default 0x3FFF² ≈ 268M px). Always run inside the **BullMQ worker**, never inline on the request path. | YES (with verification spike — see below) | MEDIUM |
+| **`file-type`** | ^19.x or ^20.x (latest as of 2026, ESM-only) | Server-side magic-byte MIME detection from buffer / stream | `Content-Type` from the browser is spoofable. After upload-success callback, the API reads the first ~4KB of the uploaded object and validates the actual signature matches what the client claimed before recording metadata. Pure JS, no native deps, "works in Deno, Bun, Cloudflare Workers" per maintainer notes. | YES (pure ESM JS) | HIGH |
+| **`nanoid`** | ^5.0+ (already in stack) | URL-safe object-storage key path components (e.g. `tenants/{tenantId}/files/{nanoid21}-{slug}.{ext}`) | Already in deps. 21-char default has ~126 bits entropy → collision-safe at fork-user scale. NOT used as PK (PKs remain `gen_random_uuid()` per existing convention). | YES (pure JS) | HIGH |
 
-# Job monitor (can live in apps/api OR a dedicated admin backend package)
-bun add @bull-board/api @bull-board/elysia @bull-board/ui
+### Core Additions (Frontend)
 
-# NO new dev dependencies required. Existing bun test / vitest stack is sufficient.
+| Technology | Version | Purpose | Why | Bun-compat | Confidence |
+|------------|---------|---------|-----|------------|------------|
+| **`react-dropzone`** | ^14.3+ (current latest train; v15 also OK if released) | Headless drag-and-drop hook (`useDropzone`) for the `packages/ui` uploader | ~11.2 KB gzipped, hook-based, requires React ≥16.8 (works under React 19 — `useDropzone` is a plain hook). Does NOT do uploads itself — leaves HTTP layer to `@tanstack/react-query` mutations (already in stack). Matches "headless primitive + project-owned upload logic" pattern that fits shadcn's philosophy. | YES (build-time only via Vite/Next.js) | HIGH |
+
+### What we are NOT adding to the frontend
+
+- **Uppy / `@uppy/core`** — too heavy, opinionated UI, brings its own state management. Conflicts with our `react-query` + `react-hook-form` patterns. Uppy excels when you need provider integrations (Dropbox/Instagram/etc), which is out of scope for v1.4.
+- **`@aws-sdk/client-s3`** in the customer Next.js bundle — never imported on the client. All signing happens on the Elysia API.
+
+---
+
+## Adapter-by-Adapter Mapping
+
+| `FileStorage` adapter | Implementation primitive | Notes |
+|------------------------|--------------------------|-------|
+| **S3 (AWS)** | `Bun.S3Client` with `region` + AWS creds | Default endpoint. POST policy signed via `@aws-sdk/s3-presigned-post`. |
+| **S3-compatible** (MinIO / R2 / Garage / Ceph / DO Spaces) | `Bun.S3Client` with explicit `endpoint` URL + `virtualHostedStyle: false` for path-style backends | Same code path, just config. POST policy: same `@aws-sdk/s3-presigned-post` with custom `endpoint`. **Verify per-backend** that POST policy is honored — MinIO yes, R2 has known quirks (R2 does not enforce all S3 POST policy conditions; document in operator runbook). |
+| **Local (dev / self-host)** | Node FS + Elysia route serving signed URLs through the API itself (HMAC-signed `?sig=` short-lived tokens) | No `Bun.S3Client` involvement. Use a tiny custom signer (HMAC-SHA256 over `key + expiresAt`) — no extra dep. |
+
+| `ImageTransform` adapter | Implementation primitive |
+|--------------------------|--------------------------|
+| **sharp** (default) | `sharp` ^0.34.5 inside the BullMQ worker; `.metadata()` first to gate on `width × height` before decode; produce 64/128/256/512 variants for avatars and org logos. |
+| **fallback (if spike fails)** | `wasm-vips` (libvips compiled to WASM) — same API surface as sharp, no native bindings. Slower. Document as escape hatch, do not ship by default. |
+
+---
+
+## Supporting Libraries (Already in Stack — Reuse Verbatim)
+
+| Library | Reuse for v1.4 |
+|---------|----------------|
+| `drizzle-orm` + `drizzle-zod` | `files`, `file_variants`, `tenant_storage_usage` tables — reuse tenant-scoped DB wrapper from v1.0 |
+| `bullmq` + `wrapQueue` / `wrapProcessorWithAls` (Phase 20) | Async image-variant generation queue + reconcile-quota job. Trace propagation already wired. |
+| `@tanstack/react-query` | Upload mutation, polling for variant-ready state, optimistic file-list updates |
+| `react-hook-form` + `zod` | Upload form validation (file size, count, accepted MIME) on the client, mirrored on the server |
+| `pino` + observability ports (Phase 17–20) | Structured logs with `{requestId, traceId, tenantId, fileId, byteSize, mimeType}`; `ErrorTracker.captureException` on transform failures |
+| `@elysiajs/cors` | Already configured; will need a small additive rule for the CORS preflight against the bucket origin (boilerplate documented for fork users) |
+| `nanoid` | Object-storage key segments |
+
+---
+
+## Drizzle Schema Pattern — `files` Table
+
+Canonical shape, derived from common starter-kit precedents (Makerkit/SaaS Starter), adapted to Baseworks conventions (tenant_id scoping, `gen_random_uuid()` PKs, snake_case columns):
+
+```ts
+// packages/modules/files/schema.ts
+import { pgTable, uuid, text, integer, bigint, timestamp, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+
+export const files = pgTable(
+  "files",
+  {
+    id:              uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    tenantId:        uuid("tenant_id").notNull(),                 // tenant isolation (existing convention)
+    ownerModule:     text("owner_module").notNull(),              // e.g. 'auth', 'billing', 'invoices'
+    ownerRecordId:   uuid("owner_record_id"),                     // nullable for orphan/intent uploads
+    storageAdapter:  text("storage_adapter").notNull(),           // 's3' | 's3-compat' | 'local'
+    storageKey:      text("storage_key").notNull(),               // tenants/{tenantId}/files/{nanoid}-{slug}.{ext}
+    mimeType:        text("mime_type").notNull(),                 // verified via file-type post-upload
+    declaredMime:    text("declared_mime"),                       // what the client claimed (audit)
+    byteSize:        bigint("byte_size", { mode: "number" }).notNull(),  // BIGINT — INT4 overflows at ~2.1 GB total
+    checksumSha256:  text("checksum_sha256"),                     // optional, from S3 ETag or computed
+    visibility:      text("visibility").notNull().default("private"), // 'private' | 'public'
+    status:          text("status").notNull().default("pending"), // 'pending' | 'ready' | 'failed' | 'deleted'
+    metadata:        jsonb("metadata").$type<Record<string, unknown>>(),  // module-specific (image dims, page count, etc)
+    uploadedById:    uuid("uploaded_by_id"),                      // user FK
+    createdAt:       timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt:       timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    deletedAt:       timestamp("deleted_at", { withTimezone: true }),
+  },
+  (t) => ({
+    tenantOwnerIdx:  index("files_tenant_owner_idx").on(t.tenantId, t.ownerModule, t.ownerRecordId),
+    storageKeyUnq:   uniqueIndex("files_storage_key_unq").on(t.storageAdapter, t.storageKey),
+    tenantStatusIdx: index("files_tenant_status_idx").on(t.tenantId, t.status),
+  }),
+);
+
+export const fileVariants = pgTable(
+  "file_variants",
+  {
+    id:         uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    fileId:     uuid("file_id").notNull().references(() => files.id, { onDelete: "cascade" }),
+    variant:    text("variant").notNull(),               // '64' | '128' | '256' | '512' | 'original'
+    storageKey: text("storage_key").notNull(),
+    mimeType:   text("mime_type").notNull(),
+    byteSize:   bigint("byte_size", { mode: "number" }).notNull(),
+    width:      integer("width"),
+    height:     integer("height"),
+    createdAt:  timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    fileVariantUnq: uniqueIndex("file_variants_file_variant_unq").on(t.fileId, t.variant),
+  }),
+);
+
+export const tenantStorageUsage = pgTable(
+  "tenant_storage_usage",
+  {
+    tenantId:    uuid("tenant_id").primaryKey(),
+    bytesUsed:   bigint("bytes_used", { mode: "number" }).notNull().default(0),
+    fileCount:   integer("file_count").notNull().default(0),
+    bytesQuota:  bigint("bytes_quota", { mode: "number" }),       // null = use plan default
+    updatedAt:   timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+);
 ```
 
-All packages resolve under Bun workspaces without additional config.
+---
+
+## Image Decompression-Bomb Prevention Pattern
+
+Even with `sharp.limitInputPixels`, defense-in-depth requires a metadata-first read:
+
+```ts
+// In the BullMQ image-transform worker
+import sharp from "sharp";
+
+const MAX_PIXELS = 50_000_000;        // 50 Mpx → ~200 MB decoded RGBA worst case
+const MAX_BYTES  = 25 * 1024 * 1024;  // 25 MB on-disk before we even read
+
+export async function generateVariants(buf: Buffer) {
+  if (buf.byteLength > MAX_BYTES) throw new Error("file_too_large");
+
+  // 1. Read header only — does NOT decode pixel data
+  const meta = await sharp(buf, { limitInputPixels: MAX_PIXELS, failOnError: true }).metadata();
+  if (!meta.width || !meta.height) throw new Error("unreadable_image");
+  if (meta.width * meta.height > MAX_PIXELS) throw new Error("dimensions_too_large");
+
+  // 2. Now safe to decode and resize
+  return sharp(buf, { limitInputPixels: MAX_PIXELS })
+    .resize(256, 256, { fit: "cover" })
+    .webp({ quality: 85 })
+    .toBuffer();
+}
+```
+
+The `file-type` magic-byte check happens **before** sharp ever runs:
+
+```ts
+import { fileTypeFromBuffer } from "file-type";
+const ft = await fileTypeFromBuffer(headBuf);   // reads first ~4KB
+if (!ft || !ALLOWED_IMAGE_MIMES.has(ft.mime)) throw new Error("invalid_file_type");
+```
+
+---
+
+## Object Storage Key Convention
+
+```
+{adapter-prefix}/tenants/{tenantId}/{ownerModule}/{ownerRecordId|orphan}/{nanoid21}-{kebab-case-original-name-truncated-64}.{ext}
+```
+
+- `tenantId` first → easy lifecycle rules per tenant + cheap S3 inventory filtering
+- `nanoid21` → collision-safe, URL-safe, no need to query DB to generate
+- Original filename slug → operator-friendly (logs, S3 console)
+- Variants stored under `…/{nanoid21}-{slug}/v/{variantName}.{ext}` (sibling pseudo-folder)
 
 ---
 
@@ -116,16 +189,18 @@ All packages resolve under Bun workspaces without additional config.
 
 | Recommended | Alternative | When to Use Alternative |
 |-------------|-------------|-------------------------|
-| `@opentelemetry/sdk-node` | `@opentelemetry/sdk-trace-base` + hand-wired providers | Only if auto-instrumentations cause crashes under Bun and we need surgical control. Default is auto. |
-| OTLP HTTP/protobuf exporter | OTLP HTTP/JSON (`exporter-*-otlp-http`) | Slightly slower but human-debuggable on wire. Use temporarily for collector troubleshooting. |
-| OTLP HTTP/protobuf exporter | OTLP gRPC (`exporter-*-otlp-grpc` + `@grpc/grpc-js`) | DO NOT use. `@grpc/grpc-js` has native-addon edge cases under Bun; no benefit at our scale. |
-| `@sentry/bun` | `@sentry/node` | Never. Profiling addon fails; use `@sentry/bun` unconditionally. |
-| `@appsignal/opentelemetry-instrumentation-bullmq` | `@jenniferplusplus/opentelemetry-instrumentation-bullmq` (original) | Only to cross-check span shape. Original is minimally maintained per OTEL-contrib docs. |
-| `@bull-board/elysia` | Hand-rolling Express adapter behind Elysia proxy | Never — native adapter exists. |
-| OTEL metrics SDK | `prom-client` + `/metrics` scrape endpoint | Only if a specific dashboard requires a metric that OTEL cannot express. Default: do not mix. |
-| OTEL Collector Contrib | Grafana Alloy | If team is Grafana-stack-only AND wants one binary that owns both shipping + config-via-Grafana-Cloud. Alloy is a vendor-neutral OTEL distribution — functionally equivalent for our needs. |
-| `pino` + `@opentelemetry/instrumentation-pino` | `pino-opentelemetry-transport` | Transport approach runs in a Pino worker thread. Prefer the instrumentation approach so trace_id injection happens in the main thread and OTLP log export is controlled by the same SDK as traces/metrics. |
-| GlitchTip via `@sentry/bun` + DSN swap | Dedicated GlitchTip SDK | There is no separate SDK — DSN swap is the intended path. |
+| `Bun.S3Client` | `@aws-sdk/client-s3` ^3.700+ | If a fork target requires non-S3-API features (S3 Object Lambda, Glacier Restore, S3 Replication APIs). Penalty: ~600 KB additional `node_modules` + slower uploads. |
+| `Bun.S3Client` | `aws4fetch` (~3 KB gzipped) | If you ever need to sign from an edge runtime (Cloudflare Workers, browser). For Bun server-side, no advantage over the built-in. |
+| `@aws-sdk/s3-presigned-post` | Hand-rolled SigV4 POST policy | Only if bundle weight on the API server matters more than maintenance burden. AWS SigV4 is fiddly (canonical request, signed headers, scope, x-amz-credential field, base64 policy). Not worth it for a starter kit. |
+| `sharp` | `wasm-vips` | If sharp's Bun-on-Docker spike fails. Same libvips API surface, ~3-5x slower, no native deps. |
+| `sharp` | `imagescript` (pure JS) | Tiny, zero-dep, works everywhere — but no AVIF, basic resize quality, and ~10x slower than sharp. Fallback only if BOTH sharp AND wasm-vips are blocked. |
+| `sharp` | `@cf-wasm/photon` | Cloudflare-targeted; useful in edge scenarios. Not v1.4 scope. |
+| `sharp` | External services (Cloudinary / imgix / Bunny Optimizer) | Powerful but external dep + paid. The whole point of Baseworks is self-contained — fork users can swap in Cloudinary later by writing an alt adapter against the `ImageTransform` port. |
+| `file-type` | `mmmagic` (libmagic native) | libmagic native bindings are a deployment headache, especially on Bun. file-type's pure-JS magic-byte detection is sufficient for the MIME types we care about (image/*, application/pdf, text/csv, etc). |
+| `react-dropzone` | `@uppy/core` + `@uppy/react` | If a fork later needs Dropbox/Google-Drive/Instagram providers, multi-step encoding pipeline, or built-in resumable tus protocol. Not v1.4. |
+| `react-dropzone` | Hand-rolled `<input type="file">` + drag handlers | Saves 11 KB but reinvents accessible focus management, multiple-file selection, and reject-by-type/size. Not worth it. |
+| `nanoid` for keys | `uuid` v7 | UUIDv7 sortable + ~36 chars — heavier in URLs. nanoid's 21 chars is tighter and the ordering benefit doesn't matter once `tenantId` is already a path prefix. |
+| `nanoid` for keys | `ulid` | Same trade-off as v7. ULID is sortable but also longer (26 chars, base32). No win here. |
 
 ---
 
@@ -133,171 +208,166 @@ All packages resolve under Bun workspaces without additional config.
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `@sentry/node` in apps/api | Profiling is a native addon, fails under Bun; Sentry docs explicitly route Bun users elsewhere | `@sentry/bun` |
-| `@sentry/profiling-node` | Does not load under Bun (tracked in oven-sh/bun#19230) | Skip profiling, or rely on OTEL spans for perf insight |
-| `@grpc/grpc-js` + OTLP gRPC exporter | Native-dep quirks under Bun, no throughput benefit at this scale | OTLP HTTP/protobuf |
-| `prom-client` | Would duplicate metrics pipeline — we already have OTEL metrics + collector | OTEL `@opentelemetry/sdk-metrics` |
-| `winston` / `bunyan` | pino is already the canonical logger across the codebase | pino (already installed) |
-| OTEL `--require` / `-r` bootstrap | Bun does not honor Node's require hook for auto-instrumentation | Programmatic `sdk.start()` as first import |
-| `promtail` | EOL 2026-03-02, no future updates | OTEL Collector Contrib OR Grafana Alloy |
-| `newrelic` / `dd-trace` / `elastic-apm-node` full-fat vendor agents | Pull in vendor-specific native addons, break Bun, defeat port/adapter pattern | OTEL SDK + collector; route to vendor via collector exporter if needed |
-| `express` / `koa` adapters for bull-board | We use Elysia | `@bull-board/elysia` |
-| `opentracing` / `jaeger-client-node` | Superseded by OpenTelemetry since 2022 | OpenTelemetry |
-| Custom UUID lib for correlation IDs | `nanoid` already installed | `nanoid` |
+| `@aws-sdk/client-s3` as the **default** S3 client | 5-10x heavier than `Bun.S3Client`, slower under Bun per Bun's own benchmarks, more startup time, larger Docker image | `Bun.S3Client` |
+| `@aws-sdk/client-s3` in the customer **Next.js bundle** | Massive client bundle bloat (~600+ KB gzipped). Direct browser→S3 PUT does NOT need the SDK — just `fetch(presignedUrl, { method: "PUT", body })` | Plain `fetch()` against the presigned URL |
+| `multer` / `formidable` / `busboy` for multipart parsing on the API | We use **direct browser→S3** uploads. The API never receives the file bytes. Only metadata (key, size, content-type from the upload-success callback) flows through Elysia. | Signed POST/PUT URLs + Elysia JSON metadata route |
+| `mime` / `mime-types` packages for validation | These map filename extensions to MIME, which is exactly what attackers control. Useless for security. | `file-type` (magic bytes from the actual buffer) |
+| `imagemagick` / native `convert` shell-out | Slower than sharp, security-sensitive (CVEs around ImageMagick parsing untrusted images are legendary), no streaming | `sharp` |
+| `tus-js-client` / resumable-upload protocols | Overkill for v1.4. S3 multipart upload (which `Bun.S3Client.write` does internally for large files) covers the resumable case. | `Bun.S3Client.write()` for large server-side uploads; for browser→S3, S3 multipart presigning if files >100MB become routine (defer) |
+| `dotenv` for storage creds | Bun loads `.env` natively; existing `@t3-oss/env-core` validates them. No new env library. | Existing env validation pattern |
+| Storing files **in PostgreSQL** (BYTEA / large objects) | Disk + backup + IOPS tax; the whole point of S3 is offload | Storage adapter, always |
 
 ---
 
-## Stack Patterns by Variant
+## Bun-Compatibility Status (Per Library)
 
-**If fork user opts for Sentry SaaS (ErrorTracker = "sentry"):**
-- Set `SENTRY_DSN` to Sentry-hosted DSN. No further changes — `@sentry/bun` handles it.
-
-**If fork user opts for self-hosted GlitchTip (ErrorTracker = "glitchtip"):**
-- Set `SENTRY_DSN` to GlitchTip DSN. Same SDK, same code path.
-- Disable Sentry-only features the adapter exposes (no Session Replay, no full Distributed Tracing visualization inside Sentry UI — tracing goes to Tempo instead).
-
-**If fork user opts for no external error tracker (ErrorTracker = "pino-sink" / "noop"):**
-- Skip `@sentry/bun` init. ErrorTracker adapter writes errors to pino at `level: error` with structured fields. Zero external dependency.
-
-**If fork user opts for OTEL off (MetricsProvider = "noop", Tracer = "noop"):**
-- `NodeSDK` is not started. `@opentelemetry/api` no-op providers take over by default. Cost: near-zero overhead when off.
-
-**If running under Node instead of Bun (future-proofing):**
-- Replace `@sentry/bun` with `@sentry/node` + optional `@sentry/profiling-node`. Everything else is identical. The port/adapter pattern already encapsulates this.
+| Library | Bun-compat | How Verified | Notes |
+|---------|------------|--------------|-------|
+| `Bun.S3Client` | NATIVE — HIGH | Bun official docs; built into runtime | The reference implementation. Zero risk. |
+| `@aws-sdk/s3-presigned-post` | YES — HIGH | Pure JS atop `@smithy/*`; no native bindings; widely used under Bun | Server-side only. Used purely as a SigV4 POST-policy generator — no actual HTTP traffic from this package. |
+| `sharp` ^0.34.5 | YES — MEDIUM (verification spike required) | sharp officially declares Node-API v9 → "Node.js, Deno, Bun" supported (changelog Nov 2025). However, [sharp #4549](https://github.com/lovell/sharp/issues/4549), [#4317](https://github.com/lovell/sharp/issues/4317), and [#4215](https://github.com/lovell/sharp/issues/4215) document recurring breakage on **Bun + Alpine Linux musl** and **Bun postinstall optional-dependencies resolution** ([Bun #20472](https://github.com/oven-sh/bun/issues/20472)). | The Baseworks Docker images use multi-stage builds — base image choice (Debian-slim vs. Alpine) directly impacts whether sharp installs cleanly. **See Spike S-1 below.** |
+| `file-type` ^19/^20 | YES — HIGH | Pure ESM JS, no native deps, maintainer explicitly lists Bun support | ESM-only since v17 — Baseworks is already ESM-everywhere, no friction. |
+| `nanoid` ^5 | YES — HIGH | Already in stack since v1.0 | No change. |
+| `react-dropzone` ^14.3 / ^15 | YES — HIGH | Build-time only; Vite + Next.js. React 16.8+ peer; React 19 hooks API stable | No runtime concerns; no SSR concerns (drag-drop is client-only — wrap in `"use client"` boundary in Next.js). |
 
 ---
 
-## Version Compatibility
+## Verification Spikes Required Before Locking In
 
-| Package A | Compatible With | Notes |
-|-----------|-----------------|-------|
-| `@opentelemetry/sdk-node@0.215` | `@opentelemetry/api@^1.9` | SDK peer-depends on 1.9+; lock to avoid 2.x jump |
-| `@opentelemetry/auto-instrumentations-node@0.60` | `@opentelemetry/sdk-node@0.21x` | Keep SDK + auto-instrumentations on matching minor release cadence |
-| `@appsignal/opentelemetry-instrumentation-bullmq` | BullMQ 2.x–5.x | We are on BullMQ 5 — supported |
-| `@sentry/bun@10.x` | Bun 1.1+ | Matches our runtime floor |
-| `@bull-board/elysia@7.0.0` | `@bull-board/api@7.0.0`, Elysia 1.x | Major versions must match across `@bull-board/*` packages |
-| Grafana 12.4+ | Tempo 2.8+, Loki 3.x, Prometheus 3.x | All 2026 versions interoperate cleanly |
-| OTEL Collector Contrib 0.127+ | OTLP/HTTP protobuf from our exporters | HTTP/protobuf stable since 2024 |
-| Bun `node:async_hooks` | `AsyncLocalStorage` + context propagation | Avoid NAPI addon calls inside ALS scope (oven-sh/bun#13638) |
+### Spike S-1: sharp under Bun in production Docker (BLOCKING)
+
+**Why:** sharp's Bun support is real but historically fragile around (a) Alpine musl base images and (b) Bun's optional-dependencies resolution. Baseworks ships Docker images for `apps/api` and `apps/worker`. A regression here forces a fallback to `wasm-vips`, which changes the worker's perf profile materially.
+
+**Steps:**
+1. In a throwaway phase-prep branch, add `sharp@^0.34.5` to `apps/worker/package.json`, run `bun install`, commit lockfile.
+2. Rebuild **both** Docker variants:
+   - `oven/bun:1-debian` (current default)
+   - `oven/bun:1-alpine` (smaller, but musl)
+3. From inside each container, run a smoke test:
+   ```ts
+   import sharp from "sharp";
+   const buf = await sharp({ create: { width: 100, height: 100, channels: 3, background: "red" }})
+     .png().toBuffer();
+   await sharp(buf).resize(50, 50).webp().toBuffer();
+   console.log("sharp ok");
+   ```
+4. Repeat under `linux/arm64` build (Apple Silicon devs + Graviton hosts).
+5. **Decision gate:**
+   - If clean on Debian-slim x64 + arm64 → ship sharp as default; document Alpine as unsupported in `docs/runbooks/file-storage-image-transforms.md`.
+   - If broken on Debian → fall back to `wasm-vips` adapter; sharp downgraded to "experimental, opt-in".
+
+**Owner:** v1.4 phase that introduces the `ImageTransform` port (likely Phase ~25 per roadmapper).
+
+### Spike S-2: POST policy enforcement on S3-compatible backends (NON-BLOCKING)
+
+**Why:** AWS S3 enforces all POST policy conditions strictly. MinIO does. **Cloudflare R2 has documented quirks** — does not enforce all conditions identically, and `aws4fetch`/SDK behave slightly differently against R2.
+
+**Steps:**
+1. Generate a POST policy with `Content-Length-Range` [1, 1024] + `Content-Type` "image/png".
+2. Attempt 4 uploads against AWS S3 + MinIO + R2 + Garage:
+   - Valid (image/png, 500 bytes) → must succeed
+   - Oversize (image/png, 2KB) → must fail with policy error
+   - Wrong MIME (text/plain, 500 bytes) → must fail with policy error
+   - No content-length header → must fail
+3. Document per-backend result matrix in `docs/runbooks/file-storage-s3-compat-matrix.md`.
+4. Where a backend is permissive, fall back to **server-side post-upload validation** (file-type magic bytes + HEAD size check) as the security gate.
+
+**Owner:** v1.4 phase that ships the S3-compat adapter (right after S-1 closes).
+
+### Spike S-3: file-type ESM under Bun + tree-shake (NON-BLOCKING, low risk)
+
+**Why:** `file-type` v19+ pulls in token decoders for many formats. Verify Bun bundles only the image/PDF subset we need, and that ESM imports don't inflate the worker startup time.
+
+**Steps:** simple `bun run` smoke test + `bun build --target=bun` size measurement. Expected: <50 KB added to worker bundle.
 
 ---
 
-## Environment Schema Additions (@t3-oss/env-core)
+## Installation
 
-Extend the existing backend env schema in `apps/api/src/env.ts`:
+```bash
+# Backend (apps/api + apps/worker)
+bun add @aws-sdk/s3-presigned-post file-type sharp
 
-```ts
-// Error tracking
-ERROR_TRACKER: z.enum(["sentry", "glitchtip", "pino-sink", "noop"]).default("noop"),
-SENTRY_DSN: z.string().url().optional(),               // required when ERROR_TRACKER in ("sentry","glitchtip")
-SENTRY_ENVIRONMENT: z.string().default("development"),
-SENTRY_RELEASE: z.string().optional(),                 // CI sets to git sha
-SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0.1),
+# Frontend (packages/ui consumers — apps/web + apps/admin)
+bun add react-dropzone
 
-// OTEL tracing + metrics
-OTEL_ENABLED: z.coerce.boolean().default(false),
-OTEL_SERVICE_NAME: z.string().default("baseworks-api"),
-OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().default("http://localhost:4318"),
-OTEL_EXPORTER_OTLP_HEADERS: z.string().optional(),     // k=v,k=v — e.g., auth token for SaaS collectors
-OTEL_TRACES_SAMPLER: z.enum(["always_on","always_off","parentbased_always_on","traceidratio","parentbased_traceidratio"]).default("parentbased_traceidratio"),
-OTEL_TRACES_SAMPLER_ARG: z.coerce.number().min(0).max(1).default(0.1),
-OTEL_METRICS_ENABLED: z.coerce.boolean().default(false),
-OTEL_LOGS_ENABLED: z.coerce.boolean().default(false),
-
-// Job monitor
-BULL_BOARD_ENABLED: z.coerce.boolean().default(true),  // toggle mount; RBAC check still applies
-BULL_BOARD_BASE_PATH: z.string().default("/admin/queues"),
+# No new dev deps — Bun.S3Client is built in; reuses existing @t3-oss/env-core / Zod / drizzle-zod
 ```
 
-Add a cross-field refine so `SENTRY_DSN` is required when `ERROR_TRACKER` selects Sentry or GlitchTip. Mirror the OTEL env names from the spec exactly (`OTEL_EXPORTER_OTLP_ENDPOINT` etc.) — those are standard and the SDK picks some up automatically.
-
-Worker process (`apps/api/src/worker.ts`) reuses the same schema — must read the identical OTEL config so trace context propagates and job spans land in the same service graph (distinct `OTEL_SERVICE_NAME=baseworks-worker`).
-
----
-
-## Bun Compatibility Scorecard
-
-| Concern | Status | Workaround |
-|---------|--------|-----------|
-| `AsyncLocalStorage` | NATIVE — supported in `node:async_hooks` | None |
-| `@opentelemetry/sdk-node` boot | WORKS with programmatic init | Do not use `--require`; import and `sdk.start()` as the very first statement in the entrypoint |
-| OTLP HTTP/protobuf exporter | WORKS | None |
-| OTLP gRPC exporter | AVOID | Use HTTP/protobuf instead |
-| `@opentelemetry/auto-instrumentations-node` | WORKS for HTTP, pg, ioredis, pino | Disable any instrumentation that errors via `getNodeAutoInstrumentations({ '<name>': { enabled: false } })`. Smoke-test each in Phase 0. |
-| `@opentelemetry/instrumentation-pg` + postgres.js | PARTIAL — this package instruments `pg`; postgres.js is a different driver | Rely on manual Drizzle spans in the Tracer port adapter (wrap query execution in `tracer.startActiveSpan`) OR evaluate `@opentelemetry/instrumentation-postgres` alternatives at implementation time. Flag for phase-level deep research. |
-| `@sentry/bun` | FIRST-CLASS | None |
-| `@sentry/profiling-node` | BROKEN under Bun | Do not install; skip profiling |
-| `@appsignal/opentelemetry-instrumentation-bullmq` | EXPECTED TO WORK (pure-JS hook wrapping) | Smoke-test in Phase 0; if it fails, fall back to manual span creation inside CQRS job dispatcher |
-| `@bull-board/elysia` | WORKS (2026-04 release targets Elysia + Bun) | None |
-| Bun single-file executable (`bun build --compile`) | BREAKS OTEL auto-instrumentation + Sentry auto-instrumentation | Do not use `--compile` for the production API image. Current Docker strategy runs `bun run src/index.ts` which is correct. |
-| NAPI addon inside `AsyncLocalStorage.run()` | KNOWN BUN BUG (oven-sh/bun#13638) | None of our planned deps are NAPI addons; do not add one later without re-testing |
+Approximate weight added (production):
+- Backend `node_modules`: ~50 MB (sharp prebuilt binaries dominate; ~45 MB)
+- Frontend gzipped bundle: ~12 KB (react-dropzone)
+- **Zero** added to Next.js client bundle for AWS SDK (kept server-side via API route or Server Action boundary)
 
 ---
 
-## Integration Points
+## Version Compatibility Matrix
 
-| Code path | Package inserted | Why |
-|-----------|------------------|-----|
-| `apps/api/src/index.ts` — line 1 | `./telemetry/bootstrap` import | Must run before Elysia, Drizzle, BullMQ are imported |
-| `apps/api/src/telemetry/bootstrap.ts` | `NodeSDK` from `@opentelemetry/sdk-node` | Configures exporters + samplers + resource + instrumentations |
-| `apps/api/src/telemetry/sentry.ts` | `@sentry/bun` | Called from bootstrap when `ERROR_TRACKER=sentry|glitchtip` |
-| `apps/api/src/middleware/request-context.ts` (new) | `AsyncLocalStorage` | Enters scope per Elysia request; stores correlationId + tenantId + userId + active span |
-| `apps/api/src/core/cqrs/dispatcher.ts` | `@opentelemetry/api` + ErrorTracker port | Wraps each command/query in an active span; on error, calls ErrorTracker.capture |
-| `packages/db` — query wrapper | `@opentelemetry/api` | Manual spans for Drizzle operations (postgres.js driver — see pitfalls) with SQL statement as attribute |
-| `apps/api/src/worker.ts` | `NodeSDK` init (worker flavor) + `@appsignal/opentelemetry-instrumentation-bullmq` | Worker trace context continues from enqueue span |
-| `apps/api/src/modules/<job>/handler.ts` | BullMQ instrumentation auto-wraps | Plus app-level spans inside job handlers |
-| `apps/api/src/admin/bull-board.ts` (new) | `@bull-board/elysia` | Mounted under admin RBAC guard |
-| `apps/admin/src/pages/jobs.tsx` | iframe/link to `/admin/queues` | Simpler than re-embedding the UI inside the React admin |
-| `apps/api/src/routes/health.ts` | Pure code changes; no new dep | Reuse Drizzle ping + ioredis ping + BullMQ queue depth |
-| `infra/observability/docker-compose.observability.yml` | Images listed above | Local dev stack |
-| `infra/observability/otel-collector.yml` | — | OTLP HTTP receiver → Tempo/Prometheus-RW/Loki exporters |
-| `infra/grafana/provisioning/*` | — | Pre-built dashboards + Tempo/Prometheus/Loki datasources |
-| `docs/runbooks/*.md` | — | On-call playbooks (no deps) |
+| Component | Requires | Notes |
+|-----------|----------|-------|
+| `Bun.S3Client.presign({ method: "POST" })` | Bun ≥ 1.1.x (basic POST presign) | Does **not** support POST policy with conditions; use `@aws-sdk/s3-presigned-post` for that |
+| `@aws-sdk/s3-presigned-post` ^3.700 | `@aws-sdk/client-s3` peer or compatible signer | We import only the post-policy generator, NOT the full client. Treeshaken |
+| `sharp` ^0.34.5 | Node-API v9 runtimes (Node ≥ 18.17 / 20.3 / 21+; Bun; Deno) | See spike S-1; Alpine musl is the known risk |
+| `sharp` ^0.34 + Bun + Docker | `oven/bun:1-debian` or `oven/bun:1-debian-slim` recommended | Avoid `oven/bun:1-alpine` until S-1 confirms |
+| `file-type` ^19/^20 | ESM-only consumers | Baseworks is ESM throughout — no concern |
+| `react-dropzone` ^14.3+ | React ≥ 16.8 | Works with React 19; mark consuming components `"use client"` in Next.js |
+| Image variant generation pipeline | BullMQ ≥ 5 + ioredis ≥ 5 (already locked) | Reuse `wrapQueue` + `wrapProcessorWithAls` from Phase 20 for trace propagation |
+
+---
+
+## Integration Notes Specific to Baseworks Patterns
+
+### 1. Port + adapter (matches PaymentProvider, ErrorTracker, Tracer)
+- `FileStorage` port: `signUploadUrl`, `signReadUrl`, `delete`, `head`, `streamGet`
+- `ImageTransform` port: `metadata`, `generateVariant`
+- Env-selected factory at module boot: `FILE_STORAGE_DRIVER=s3 | s3-compat | local` and `IMAGE_TRANSFORM_DRIVER=sharp | wasm-vips`
+- Conformance test suite (matching the Stripe ↔ Pagar.me + Sentry ↔ GlitchTip parity pattern)
+
+### 2. Tenant-scoped DB wrapper
+- `files`, `file_variants`, `tenant_storage_usage` all auto-filtered by `tenantId` via existing `scopedDb` from v1.0
+- No raw SQL; same Drizzle patterns
+
+### 3. CQRS commands/queries
+- `RequestUploadUrl` (command, returns presigned form/URL + `pending` file row)
+- `ConfirmUpload` (command, validates with file-type + HEAD size + updates `tenant_storage_usage` atomically)
+- `GetFileSignedReadUrl` (query)
+- `DeleteFile` (command, soft-delete + enqueue physical-delete job)
+- `GetTenantStorageUsage` (query, surfaces in admin + `/health/detailed`)
+- `RegenerateVariants` (command, enqueue BullMQ job)
+
+### 4. BullMQ jobs (with v1.3 trace-propagation wrappers)
+- `files:generate-variants` — sharp pipeline; consumed by worker
+- `files:reconcile-quota` — periodic; recomputes `tenant_storage_usage` from `files` sum (drift correction)
+- `files:purge-deleted` — physical S3 delete after grace period
+
+### 5. Observability (Phase 17–20 reuse)
+- Pino mixin already injects `{requestId, traceId, tenantId}` — add `{fileId, byteSize, mimeType}` per log line via `obsContext`-friendly helpers
+- `ErrorTracker.captureException` on transform failures, with `scrubPii` already covering arbitrary key shapes
+- New metrics (when MetricsProvider noop is replaced): `files.uploads.total`, `files.bytes.total`, `tenant.storage.bytes_used`, `image.transform.duration_ms`
+
+### 6. Health contributor (Phase 22 pattern)
+- New `FilesModule` health contributor: `s3_reachability` (HEAD on a known canary key) + `quota_pressure` (% of any tenant over 90% of quota)
 
 ---
 
 ## Sources
 
-- Bun `node:async_hooks` reference — https://bun.com/reference/node/async_hooks/AsyncLocalStorage — HIGH (official)
-- Bun + Elysia + OTEL integration guide (Feb 2026) — https://oneuptime.com/blog/post/2026-02-06-instrument-bun-elysiajs-opentelemetry/view — MEDIUM (community)
-- OTEL Bun bootstrap without `--require` (Feb 2026) — https://oneuptime.com/blog/post/2026-02-06-opentelemetry-bun-without-nodejs-require-flag/view — MEDIUM (community)
-- Sentry Bun docs — https://docs.sentry.io/platforms/javascript/guides/bun/ — HIGH (official)
-- `@sentry/profiling-node` Bun incompat — https://github.com/oven-sh/bun/issues/19230 — HIGH
-- `@bull-board/elysia` npm (v7.0.0, 2026-04) — https://www.npmjs.com/package/@bull-board/elysia — HIGH
-- `@bull-board/api` npm (v7.0.0) — https://www.npmjs.com/package/@bull-board/api — HIGH
-- `@opentelemetry/sdk-node` npm (v0.215.0, 2026-04) — https://www.npmjs.com/package/@opentelemetry/sdk-node — HIGH
-- `@opentelemetry/auto-instrumentations-node` npm — https://www.npmjs.com/package/@opentelemetry/auto-instrumentations-node — HIGH
-- `@opentelemetry/instrumentation-pg` npm — https://www.npmjs.com/package/@opentelemetry/instrumentation-pg — HIGH
-- `@opentelemetry/instrumentation-ioredis` npm — https://www.npmjs.com/package/@opentelemetry/instrumentation-ioredis — HIGH
-- AppSignal BullMQ OTEL instrumentation — https://github.com/appsignal/opentelemetry-instrumentation-bullmq — MEDIUM
-- Pino + OTEL (instrumentation vs transport) — https://www.npmjs.com/package/@opentelemetry/instrumentation-pino — HIGH
-- Grafana Tempo 2.8/2.10 release notes — https://grafana.com/docs/tempo/latest/release-notes/ — HIGH
-- Grafana Loki 3.7.1 release — https://github.com/grafana/loki/releases/tag/v3.7.1 — HIGH
-- Prometheus 3.10.0 release — https://github.com/prometheus/prometheus/releases/tag/v3.10.0 — HIGH
-- Grafana 12.4.3/13.0.1 (Apr 2026) — https://github.com/grafana/grafana/releases — HIGH
-- OTEL Collector Contrib Docker — https://hub.docker.com/r/otel/opentelemetry-collector-contrib — HIGH
-- GlitchTip Sentry SDK compat — https://glitchtip.com/sdkdocs/ — HIGH
-- Promtail EOL + Alloy migration — https://grafana.com/docs/alloy/latest/set-up/migrate/from-promtail/ — HIGH
-- `node:async_hooks` + NAPI bug — https://github.com/oven-sh/bun/issues/13638 — MEDIUM (known issue, not blocking our deps)
+- [Bun S3 documentation](https://bun.com/docs/runtime/s3) — `Bun.S3Client` API surface, presign options, S3-compatible endpoints (HIGH confidence)
+- [Bun issue #16667 — S3 Presigned POST Policy Support](https://github.com/oven-sh/bun/issues/16667) — confirms native presign lacks POST policy with conditions (HIGH confidence; issue still open as of search date)
+- [@aws-sdk/s3-presigned-post on npm](https://www.npmjs.com/package/@aws-sdk/s3-presigned-post) — POST policy generator API (HIGH)
+- [sharp install docs](https://sharp.pixelplumbing.com/install/) — Node-API v9 → "Node.js, Deno and Bun"; prebuilt binary platform list (HIGH)
+- [sharp v0.34.5 changelog (6 Nov 2025)](https://sharp.pixelplumbing.com/changelog/v0.34.5/) — current stable version (HIGH)
+- [sharp issue #4549, #4317, #4215](https://github.com/lovell/sharp/issues/4549) — known Bun + Alpine + postinstall friction (MEDIUM — explains why spike S-1 is required)
+- [Bun issue #20472 — fails installing correct platform binary](https://github.com/oven-sh/bun/issues/20472) — Bun's optional-dependencies edge case relevant to sharp (MEDIUM)
+- [sharp Resize / metadata API + limitInputPixels](https://sharp.pixelplumbing.com/api-resize/) — DoS-prevention default 268M px, configurable (HIGH)
+- [file-type on npm](https://www.npmjs.com/package/file-type) + [GitHub readme](https://github.com/sindresorhus/file-type) — ESM-only since v17, Bun-compatible, magic-byte detection (HIGH)
+- [react-dropzone npm](https://www.npmjs.com/package/react-dropzone) — ~11.2 KB gzipped, hooks API, React ≥ 16.8 (HIGH)
+- [Uppy vs react-dropzone npm-trends](https://npmtrends.com/react-dropzone) — react-dropzone ~3.5M weekly vs @uppy/core ~248K (MEDIUM, popularity context only)
+- [aws4fetch vs aws-sdk-js-v3 (Cloudflare R2 docs)](https://developers.cloudflare.com/r2/examples/aws/aws4fetch/) — bundle-size and edge-runtime context (MEDIUM, used to dismiss alternative)
+- [UUID v7 vs ULID vs nanoid 2026 comparison](https://createuuid.com/articles/uuid-alternatives) — collision-resistance context for object-storage keys (MEDIUM)
 
 ---
 
-## Confidence Summary
-
-| Area | Confidence | Notes |
-|------|------------|-------|
-| OTEL package set + versions | HIGH | Verified via npm (Apr 2026) |
-| Bun compatibility of OTEL SDK | HIGH | Multiple 2026 community guides + OTEL docs confirming programmatic-init path |
-| `@sentry/bun` as correct SDK | HIGH | Official Sentry docs + Bun ecosystem guide |
-| GlitchTip DSN-swap compat | HIGH | GlitchTip docs explicit |
-| `@bull-board/elysia` readiness | HIGH | Published 2026-04, native Elysia adapter |
-| BullMQ OTEL instrumentation | MEDIUM | Two packages exist; AppSignal fork is the maintained one but smoke-test in Phase 0 |
-| postgres.js vs `instrumentation-pg` | MEDIUM — flag for phase-research | `instrumentation-pg` targets `pg`; postgres.js is different. Plan a manual Drizzle tracing wrapper as the reliable path |
-| Grafana stack image tags | MEDIUM | Versions verified, but pin at implementation time — image tags rev weekly |
-| AsyncLocalStorage under Bun | HIGH | Native, documented, avoid NAPI-in-scope |
-| Env schema extensions | HIGH | Standard OTEL env var names + project conventions |
-
----
-
-*Stack research for: v1.3 Observability & Operations — additions only*
-*Researched: 2026-04-21*
+*Stack research for v1.4 — File Storage & Uploads*
+*Researched: 2026-05-05*
+*Next consumer: requirements-definition step → gsd-roadmapper agent*

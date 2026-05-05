@@ -1,289 +1,184 @@
-# Research Summary -- v1.3 Observability and Operations
+# Research Summary — v1.4 File Storage & Uploads
 
-**Project:** Baseworks v1.3 Observability and Operations
-**Domain:** Production observability layer for a Bun + Elysia + BullMQ + Drizzle + PostgreSQL SaaS starter
-**Researched:** 2026-04-21
-**Confidence:** HIGH (stack, architecture from direct repo inspection + 2026 community guides); MEDIUM (postgres.js OTEL driver compat -- needs smoke-test at implementation time)
-
----
-
-## Executive Summary
-
-v1.3 adds a complete, production-grade observability layer to an already-working monorepo. The guiding constraint is the existing port/adapter pattern used by the billing PaymentProvider: every observability concern gets an interface in packages/observability/, env-selected adapters (real backends + a noop), and a factory that mirrors provider-factory.ts byte-for-byte. Fork users configure ERROR_TRACKER=pino, TRACER=noop, METRICS_PROVIDER=noop and get a fully operational system. The three real-backend stacks are Sentry + GlitchTip (DSN swap, same @sentry/bun SDK), OTEL (Grafana Tempo + Loki + Prometheus via a single OTEL Collector Contrib), and the Pino-sink fallback.
-
-The foundational design: all request-scoped state flows through a single AsyncLocalStorage<ObservabilityContext> instance. Pino reads from it via a mixin on every log call; OTEL uses AsyncLocalStorageContextManager sharing the same async task graph. BullMQ enqueue serializes a W3C traceparent carrier into job.data._otel; workers extract it and rehydrate the ALS context, making the trace tree span both processes. No handler code changes are required -- all instrumentation is applied as external wrappers around CqrsBus, TypedEventBus, the Drizzle client, and BullMQ Queue/Worker.
-
-The primary Bun-specific risks: (1) OTEL SDK initialization ordering -- import "./telemetry" must be line 1 of every entrypoint because Bun does not honour NODE_OPTIONS=--require; (2) instrumentation-pg instruments the pg driver, not postgres.js -- the reliable path is a hand-rolled Drizzle Proxy wrapper; (3) @sentry/profiling-node does not load under Bun -- use @sentry/bun only.
+**Milestone:** v1.4 — File Storage & Uploads
+**Goal:** Ship a typed `FileStorage` port with S3 + S3-compatible + Local adapters, signed direct uploads, automatic image transforms via sharp (with `imagescript`/`wasm-vips` fallback), per-tenant quota tracking, and a reusable UI uploader component.
+**Synthesis date:** 2026-05-05
+**Source files:** [STACK.md](./STACK.md) · [FEATURES.md](./FEATURES.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [PITFALLS.md](./PITFALLS.md)
 
 ---
 
-## Stack Additions
+## 1. TL;DR
 
-New packages only -- the v1.0-v1.2 baseline is unchanged.
-
-| Package | Version | Purpose | Bun Compat |
-|---------|---------|---------|------------|
-| @opentelemetry/api | ^1.9.0 | Tracing/metrics/context API | HIGH |
-| @opentelemetry/sdk-node | ^0.215.0 | Aggregate SDK bootstrap (programmatic init) | HIGH -- use sdk.start(), not --require |
-| @opentelemetry/sdk-trace-node | ^1.30.0 | Tracer provider | HIGH |
-| @opentelemetry/sdk-metrics | ^1.30.0 | MeterProvider | HIGH |
-| @opentelemetry/sdk-logs | ^0.215.0 | LoggerProvider for OTLP log export | HIGH |
-| @opentelemetry/resources | ^1.30.0 | Resource attributes | HIGH |
-| @opentelemetry/semantic-conventions | ^1.30.0 | Standard attribute keys | HIGH |
-| @opentelemetry/exporter-trace-otlp-proto | ^0.215.0 | OTLP/HTTP+protobuf trace exporter | HIGH |
-| @opentelemetry/exporter-metrics-otlp-proto | ^0.215.0 | OTLP/HTTP+protobuf metrics exporter | HIGH |
-| @opentelemetry/exporter-logs-otlp-proto | ^0.215.0 | OTLP/HTTP+protobuf logs exporter | HIGH |
-| @opentelemetry/auto-instrumentations-node | ^0.60.0 | Bundle of HTTP/ioredis/pino auto-instrumentations | MEDIUM -- disable fs/dns/net explicitly |
-| @opentelemetry/instrumentation-pino | ^0.47.0 | Injects trace_id/span_id into pino records | HIGH |
-| @appsignal/opentelemetry-instrumentation-bullmq | ^0.7.x | BullMQ span creation + traceparent propagation | MEDIUM -- smoke-test in Phase 1; fallback: hand-wired W3C propagator |
-| @sentry/bun | ^10.32+ | Error tracking (Sentry SaaS + GlitchTip via DSN swap) | HIGH -- do NOT use @sentry/node or @sentry/profiling-node |
-| @bull-board/api | ^7.0.0 | bull-board core API | HIGH |
-| @bull-board/elysia | ^7.0.0 | Native Elysia adapter (published 2026-04) | HIGH |
-| @bull-board/ui | ^7.0.0 | Pre-built UI bundle (auto-served by adapter) | HIGH |
-
-**DO NOT add:** prom-client, @grpc/grpc-js + OTLP gRPC exporters, @sentry/profiling-node, promtail (EOL 2026-03), winston/bunyan, opentracing/jaeger-client.
-
-**Docker images for docker-compose.observability.yml:**
-
-| Image | Pinned Tag | Purpose |
-|-------|-----------|---------|
-| otel/opentelemetry-collector-contrib | 0.127.0 | Single OTLP ingress to Tempo / Prometheus / Loki |
-| grafana/tempo | 2.10.4 | Trace storage |
-| prom/prometheus | v3.10.0 | Metrics storage |
-| grafana/loki | 3.7.1 | Log storage |
-| grafana/grafana | 12.4.3 | Dashboards -- remap to port 3030 (avoids Next.js :3000 collision) |
+- **What ships:** central `files` table + `tenant_storage_usage` counter; `FileStorage` port (3 adapters) and `ImageTransform` port (2 adapters) under a new `packages/storage/` workspace; `packages/modules/files/` module owning routes, CQRS, BullMQ jobs, health contributor; `<FileUpload>` headless hook + component in `packages/ui`; auth/org wiring (avatars, org logos).
+- **Highest-risk item:** **Sharp under Bun in Docker.** Native bindings + Alpine musl + Bun's optionalDependencies resolution is documented-fragile. The TRANSFORM phase MUST run a smoke spike on the target Docker image before lock-in. Fallback: `imagescript` (pure JS) or `wasm-vips`.
+- **Architectural keystone:** **single central `files` table** + `fileRelations` field on `ModuleDefinition`. Modules don't own files tables — they declare polymorphic relations (allowed MIMEs, max size, variant specs, `canRead`/`canWrite`/`onDelete` hooks). Registry collects them at boot, exactly like the Phase 22 `health` contributor pattern.
+- **Upload contract:** **PUT presigned by default** (via `Bun.S3Client.presign()`); **POST policy opt-in** for adapters that fully support it (AWS S3 + MinIO yes, R2 quirky) via `@aws-sdk/s3-presigned-post`. `UploadDescriptor` is a discriminated union (`s3-put` | `s3-post` | `local`) so the UI uploader switches on `kind`.
+- **Operator surface integrates with v1.3:** new `HealthContributor` for storage (top-N tenants by usage, quota pressure) plugs into the Phase 22 worst-of-N aggregator. New runbook + Sentry alert templates mirror the v1.3 closing rhythm.
+- **What we explicitly do NOT add:** `@aws-sdk/client-s3` as primary client, Uppy, `multer`/`busboy`, browser cropping libraries.
+- **Key reuse:** Phase 20 BullMQ trace-propagation wrappers, scoped DB wrapper (v1.0), CQRS bus, EventBus, `@t3-oss/env-core`, pino auto-context, vitest+jsdom + vitest-axe a11y suite (v1.2), packages/i18n (v1.1).
 
 ---
 
-## Feature Table Stakes vs Differentiators
+## 2. Stack Additions (delta only)
 
-### Table Stakes -- must ship for v1.3 to be credible
+Baseworks core stack (Bun, Elysia, Drizzle, BullMQ, better-auth, Zod, pino, Tailwind 4, shadcn, Eden Treaty) is **locked**.
 
-| Area | Feature |
-|------|---------|
-| Error Tracking | ErrorTracker port + captureException/captureMessage; uncaught exception + rejection handlers; Elysia onError capture (5xx only); CQRS + BullMQ job failure capture; context enrichment (tenant_id, user_id, correlation_id, trace_id); PII redaction; release tagging; env tagging |
-| Metrics | MetricsProvider port (counter/histogram/gauge); RED per Elysia route using route templates not raw paths; USE for DB + Redis pools; BullMQ queue depth/active/failed/duration per job type; CQRS dispatch counter + duration histogram; process metrics |
-| Distributed Tracing | Tracer port; Elysia HTTP auto-instrumentation; Drizzle query spans (Proxy wrapper -- not instrumentation-pg); BullMQ enqueue-to-worker span continuity via W3C traceparent; CQRS dispatch spans; AsyncLocalStorageContextManager; OTLP exporter; parent-based 10% sampler |
-| Logging Upgrade | Single AsyncLocalStorage request context carrier; pino mixin reading from ALS on every log call; correlation ID generation + header propagation; trace_id + span_id auto-injected; log level per environment; PII redaction at pino level |
-| Admin Job Monitor | bull-board at /admin/bull-board via @bull-board/elysia; all module queues auto-registered; RBAC gated by requireRole(owner); read-only by default; iframe embed in admin SPA |
-| Health Dashboard | Split /health (liveness) / /health/detailed (operator view); queue depth with warn/critical thresholds; worker heartbeat (Redis TTL, 30s); per-module status from registry; golden signals card (reads MetricsProvider) |
-| Runbooks + Alerts | docs/runbooks/ with TEMPLATE.md; 8-10 runbooks for this stack incident classes; grafana-alerts.yaml with SLO-based rules; alert-to-runbook linking via runbook_url annotation |
-| Local Dev Stack | docker-compose.observability.yml (opt-in); OTEL Collector + Tempo + Loki + Prometheus + Grafana; 4 pre-provisioned dashboards; resource limits < 2 GB RAM total |
+| Library | Version | Purpose | Bun-compat | Source |
+|---|---|---|---|---|
+| `Bun.S3Client` (built-in) | Bun ^1.1.44+ | Primary S3 / S3-compatible client (PUT, GET, DELETE, presign GET/PUT, list, stat, multipart) | NATIVE — HIGH | STACK §Recommended Stack |
+| `@aws-sdk/s3-presigned-post` | ^3.700+ | POST policy generator (size + MIME conditions) — `Bun.S3Client.presign()` does NOT support POST policy | YES — HIGH (server-side only) | STACK §Core Additions |
+| `sharp` | ^0.34.5+ | Image transforms (resize, WebP, variant generation) | YES — **MEDIUM (spike required)** | STACK + PITFALLS Pitfall 12 |
+| `imagescript` (fallback) | latest | Pure-JS image fallback if sharp spike fails | YES — HIGH | STACK §Adapter Mapping |
+| `file-type` | ^19.x or ^20.x (ESM-only) | Server-side magic-byte MIME detection | YES — HIGH | STACK |
+| `react-dropzone` | ^14.3+ | Headless drag-drop hook for `<FileUpload>` | YES — HIGH | STACK |
+| `nanoid` (already in stack) | ^5 | Unguessable storage-key segments | reuse | PITFALLS Pitfall 1 |
 
-### Differentiators -- high ROI for a starter kit, include in v1.3
-
-| Feature | Value |
-|---------|-------|
-| Three real ErrorTracker adapters (Sentry, GlitchTip, Pino-sink) | Mirrors Stripe/Pagar.me PaymentProvider story -- swap via env, no code changes |
-| CQRS dispatch span + metric + log correlation as a single wrapper | One layer makes every command fully observable with zero handler changes |
-| better-auth session context auto-injected to ALS | Unlocks tenant/user context everywhere downstream, zero per-handler code |
-| Recent errors panel on admin health page | Closes debugging loop without leaving the admin UI |
-| Grafana CQRS dashboard (commands/sec, p95 per command, error rate) | Baseworks-specific; highest value-per-hour for fork users |
-| Runbook validation script | Extends scripts/validate-docs.ts; turns write good runbooks into a CI contract |
-
-### Anti-Features -- do NOT build in v1.3
-
-| Feature | Why Not |
-|---------|---------|
-| Custom in-app alert pipeline (Slack/PagerDuty from code) | Grafana/Sentry already do this; rebuilding it takes weeks and you will get deduplication wrong |
-| Custom logs UI in admin dashboard | This is Grafana Loki purpose; yours will be strictly worse |
-| Storing metrics/traces/logs in the app PostgreSQL | Time-series data crushes OLTP Postgres; use the docker-compose observability stack |
-| Per-request profiling (Pyroscope/continuous profiling) | Separate port/adapter story; defer to v1.4+ |
-| user_id / tenant_id as metric label dimensions | Cardinality explosion -- Prometheus OOM within weeks |
-| Multi-backend error tracking (Sentry AND GlitchTip simultaneously) | Single adapter selected via env; the port makes swapping trivial |
-| Tenant-aware sampling (boost specific tenants to 100%) | Needs a UI for flag management; premature for v1.3 |
-| Tracing Drizzle query parameters (actual bound values) | PII leak; queries contain tenant data, passwords, tokens |
-| Full event sourcing / audit log of every command | Different problem; PII storage nightmare; defer |
-| 100% sampling in production | Storage cost + backend throttling; use parent-based 10% with error preservation |
+**Explicitly NOT added:** `@aws-sdk/client-s3` as default S3 client (Bun.S3Client is native, ~5x faster); hand-rolled SigV4 POST policy; Uppy (too heavy/opinionated); `multer`/`formidable`/`busboy` (direct-to-S3 uploads, API never receives bytes); `mime`/`mime-types` (extension-based, useless for security); `imagemagick` shell-out (CVE-prone); `tus-js-client` (overkill for v1.4).
 
 ---
 
-## Architecture Summary
+## 3. Feature Catalog (table stakes vs differentiators vs anti-features)
 
-### Where Ports Live
+| # | Category | Table Stakes (must) | Differentiator (should) | Anti-Feature (NEVER) |
+|---|---|---|---|---|
+| 1 | **Direct upload flow** | Server-signed PUT URL, server-side `complete` step with magic-byte verify, size cap at sign-time, CORS docs | POST policy opt-in (AWS+MinIO), optimistic `fileId` allocation in `pending` state | Server-proxied uploads, long-lived (>1h) URLs, trusting browser `Content-Type` |
+| 2 | **Signed read URLs** | Per-request mint, tenant+owner authorization, short TTL (5–15 min), per-request memoization | Batched URL minting, `Content-Disposition` override, range-request, audit-trail logging | Public buckets by default, 24h+ cached client URLs, raw S3 URLs in API responses |
+| 3 | **Image transforms** | Async via BullMQ worker, avatar variants (64/128/256/512 webp), org logo variants (64/256/640), strip EXIF, deterministic variant keys | Sync fast-path for <1MB images, AVIF output, idempotent jobs | Sync transforms on API thread, transform-on-read, browser-side resize replacing original, in-app crop UI |
+| 4 | **Per-tenant quota** | `tenant_storage_usage` counter, atomic increment in commit txn, sign-time check, default quota env var, `/health/detailed` exposure | Nightly reconciliation job, quota grace period, Sentry 90/100% alerts | `SUM(size)` per check, Redis-only counter, report-only no enforcement |
+| 5 | **Module file-ownership** | Central `files` table, module declares `fileRelations` in descriptor, soft-delete + sweep, declarative `onDelete: 'cascade' \| 'orphan'` | `attachFile()` typed helper, `file.committed`/`file.deleted` events on EventBus | Per-module files tables, BYTEA blobs, FK constraints across modules |
+| 6 | **Identity asset wiring** | Avatar upload UI (web+admin), variants populated on `file.committed`, default `<AvatarFallback>` initials, org logo upload, `avatar_url` denormalized accessor, replacement deletes old | DiceBear/identicon defaults, content-hash immutable URLs for org logos behind CDN | base64 in user row, JIT URL signing on every render |
+| 7 | **Generic tenant-attachment** | Two-step `signUpload` + `commitUpload`, `attachFile()` helper for server-generated files, `getFilesForRecord` query, module-defined `kind` discriminator | Eden Treaty type narrowing per `(ownerModule, kind)`, bulk attach | Per-module sign endpoints, attach-by-URL hotlinks |
+| 8 | **UI uploader** | `<FileUploader>` with drag-drop + input fallback, XHR upload progress, per-file error states, image preview, single+multi mode, cancel/retry, i18n + a11y | Paste-from-clipboard, client-side resize, quota-aware live progress, MIME-restricted picker | In-browser cropping/filters/rotation, WebRTC camera, sparklines/ETAs |
+| 9 | **Anti-features (defer/never)** | — | — | Image cropping UI, video transcoding, CSV imports, multi-region replication, file-access audit log, virus scanning, public CDN bucket, browser SHA-256, HEIC conversion |
 
-Three locations with distinct roles:
-
-1. **packages/observability/** (new root-level package) -- port interfaces (Tracer, MetricsProvider, ErrorTracker), all adapter implementations (otel/, sentry/, glitchtip/, pino/, noop/), factory functions. Zero dependencies on apps/ or packages/modules/. This is infrastructure -- every other module consumes it.
-
-2. **apps/api/src/core/observability/** (new app-layer directory) -- wrappers around CqrsBus, TypedEventBus, Drizzle, BullMQ Queue/Worker; Elysia observabilityMiddleware; ALS context (context.ts); bull-board mount helper. These import from packages/observability but never the reverse.
-
-3. **packages/modules/observability/** (new thin module) -- CQRS queries only (get-system-health, get-queue-stats, get-recent-errors). No commands. Keeps admin UI data access uniform with all other modules.
-
-### Wrapping Strategy
-
-All instrumentation is applied as **external wrappers** -- never by modifying core primitives. wrapCqrsBus(bus, tracer, metrics) decorates execute/query methods; a Drizzle Proxy intercepts terminal query calls; wrapQueue overrides queue.add() to inject the OTEL carrier. CqrsBus, TypedEventBus, Drizzle, and BullMQ Queue remain unmodified and independently testable.
-
-### Trace Propagation Flow
-
-
-
-Pino reads { traceId, spanId, requestId, tenantId } from ALS via a mixin on every log call -- zero call-site changes to existing loggers.
-
-### Adapter Matrix
-
-| Port | Adapters | Default (no config) |
-|------|---------|---------------------|
-| ErrorTracker | sentry, glitchtip (same @sentry/bun SDK, DSN swap only), pino-sink | pino-sink |
-| Tracer | otel (OTLP HTTP/proto to Tempo), noop | noop |
-| MetricsProvider | otel (OTLP HTTP/proto to Prometheus), noop | noop |
+See FEATURES.md for per-category dependency graph and full prioritization matrix.
 
 ---
 
-## Top Pitfalls to Design Around
+## 4. Architecture Keystones
 
-**1. OTEL SDK init ordering under Bun (Critical)**
-Bun does not honour NODE_OPTIONS=--require. Any instrumented module imported before sdk.start() will never emit spans. import "./telemetry" must be line 1 of every entrypoint -- no exceptions. Add a startup self-test span as an acceptance criteria gate for Phase 1.
+- **Ports live in `packages/storage/`** (NEW workspace). Mirrors `packages/observability/` precedent. Two ports: `FileStorage` (signUpload, signRead, stat, delete, getObject, putObject) and `ImageTransform` (resize, metadata). Adapters under `packages/storage/src/adapters/{local,s3,s3compat,sharp,imagescript}/`.
+- **Module lives in `packages/modules/files/`** (NEW first-party module). Owns `/api/files/*` routes, CQRS commands (`sign-upload`, `complete-upload`, `delete-file`), queries (`get-signed-read-url`, `list-files-for-record`), BullMQ jobs (`image-transform`, `cleanup-pending`), health contributor.
+- **Schema:** single central `files` table (`id, tenantId, ownerModule, ownerRecordType, ownerRecordId, storageKey, bucket, mimeType, byteSize bigint, checksum, transforms jsonb, status, uploadedByUserId, ...`) + `tenant_storage_usage` (`tenantId PK, bytesUsed, bytesLimit`). Schema lives in `packages/db/src/schema/storage.ts`. `bigint mode "number"` safe to ~9 PB.
+- **`fileRelations` extends `ModuleDefinition`** in `packages/shared/src/types/module.ts`: `fileRelations?: Record<string, FileRelation>` where `FileRelation = { recordType, allowedMimeTypes, maxByteSize, generateVariants?, onDelete?, canRead?, canWrite? }`. Registry collects them at boot (analogous to Phase 22 health-contributor block at `apps/api/src/core/registry.ts:101-103`). `fileRelationsRegistry` singleton in `@baseworks/module-files`.
+- **Upload signing flow:** `POST /api/files/sign-upload` → CQRS `sign-upload` → validate input → look up relation → `canWrite` hook → atomic quota check (`SELECT ... FOR UPDATE` on `tenant_storage_usage`) → generate `storage_key` → `getFileStorage().signUpload()` → INSERT `files` row `status='pending'` → return `{ fileId, signedUpload }`. Browser PUT/POST direct to S3. `POST /api/files/:fileId/complete` → stat verify (authoritative `byteSize`!) → magic-byte MIME check → atomic `UPDATE files.status='uploaded'` + `bytes_used += $1` → optional `enqueue('image-transform', {fileId})` → emit `file.uploaded`.
+- **Polymorphic association:** modules NEVER import each other for file logic. They declare `fileRelations`; the `files` module consults the registry. Cascade-on-delete uses `TypedEventBus` (e.g., `auth.user-deleted`), not better-auth `databaseHooks` (brittle for `organization`).
 
-**2. BullMQ trace context not injected -- orphan worker spans (Critical)**
-BullMQ is not in auto-instrumentations-node. Without explicit W3C traceparent injection at queue.add() and extraction at the worker processor, every job span starts a new disconnected trace. Acceptance criteria: automated test asserts traceId from API request equals traceId in worker job span.
-
-**3. AsyncLocalStorage context bleed (Critical)**
-als.enterWith() leaks context across concurrent requests -- tenant A sees tenant B IDs. Only als.run(ctx, fn) is permitted; ban enterWith via Biome lint rule or CI grep check. Verify with a concurrent load test (100 RPS, mixed tenants).
-
-**4. High-cardinality metric labels (Critical)**
-user_id, unbounded tenant_id, raw URL paths, or any UUID as a metric label will OOM Prometheus. Configure an OTEL View with AttributeSelector dropping these at SDK level; add collector transform to strip UUID regex before Prometheus export. Design-time rule, not a code-review catch.
-
-**5. Sentry/GlitchTip PII leaks (Critical)**
-Default SDK scrubbers miss Stripe webhook bodies, better-auth session tokens, and error messages built with user input. Set sendDefaultPii: false always; add beforeSend/beforeBreadcrumb hooks with a shared redaction list; strip request.data for /api/webhooks/** routes. Conformance test for both adapters is a Phase 1 gate.
-
-**6. Sampling configured to lose error traces (Moderate)**
-100% head sampling costs storage; 1% head sampling drops the error trace you needed. Default policy: parent-based 10% + tail sampling in the OTEL Collector with always_sample for errors and requests over 1s. This policy ships in otel-collector-config.yaml -- it is not a tune-later note.
-
-**7. postgres.js OTEL driver mismatch (Moderate -- verify in Phase 1)**
-instrumentation-pg instruments the pg driver; the codebase uses postgres.js. The instrumentation silently emits no DB spans. The reliable path is a hand-rolled Drizzle Proxy wrapper (db-instrumentation.ts) -- 30 lines, deterministic, Bun-safe.
-
-**8. bull-board without RBAC (Moderate)**
-bull-board exposes job payloads (PII: emails, billing data) and destructive actions. Mount only under requireRole(owner); read-only by default; destructive actions require platform_superadmin. requireRole must gate static asset requests too.
+See ARCHITECTURE §11 for new-vs-modified file inventory and §12 for the 8-phase build order.
 
 ---
 
-## Build Order -- Phase Candidates
+## 5. Top 10 Pitfalls (Watch Out For)
 
-### Phase 1: Ports + Noop Adapters + Factory + OTEL Bootstrap + ErrorTracker Adapters
+Distilled from PITFALLS.md (22 total). Ordered by severity / unfixability cost.
 
-**Rationale:** Port contracts must exist before any wrappers or adapters can be written. Noop adapters ship here so every downstream phase has a working default. OTEL SDK bootstrap must be verified Bun-compatible before any instrumentation work proceeds. ErrorTracker adapters depend only on the port -- no ALS or tracing required.
+| # | Pitfall | Prevention | Phase |
+|---|---|---|---|
+| 1 | **Cross-tenant authorization bypass on file read** (Pitfall 5) — Direct `db.select().from(files)` bypasses scopedDb; tenant prefix in `storage_key` is informational only. | Port-only access (`fileStorage.getById(ctx, id)` uses scopedDb internally); Biome GritQL ban on direct `files` table access; cross-tenant test returns 404. | PORT + TEST |
+| 2 | **Trusting client-reported `byte_size` for quota math** (Pitfall 4) — client lies → quota drift → unbounded storage. | `/complete` MUST `HeadObject` and use the *authoritative* size from S3 stat, never the client's claim. | SIGN-API + QUOTA |
+| 3 | **Sharp + Bun native-binding fragility** (Pitfall 12) — Alpine musl, optionalDependencies quirks. | Phase-entry smoke test on target Docker image (debian-slim x64 + arm64); fallback `ImageTransform` adapter (`imagescript`) wired and selectable via env. | TRANSFORM |
+| 4 | **Predictable storage keys leak content existence** (Pitfall 1) — `tenants/{slug}/avatars/{userId}.jpg` enumerable. | Mandatory unguessable `nanoid(24)` segment; `buildStorageKey()` is the only constructor; no human-meaningful inputs. | PORT |
+| 5 | **Image-decompression bombs OOM the worker** (Pitfall 9) — 10KB PNG → 10GB decoded. | Pre-flight `metadata()` check with explicit pixel cap; sharp's `limitInputPixels: 50_000_000`; `failOn: "warning"`; dedicated transform Worker `concurrency: 2` + memory ceiling; refuse `image/*` >20MB before sharp. | TRANSFORM + OPS |
+| 6 | **MIME-type spoofing via client `Content-Type`** (Pitfall 10) — `payload.exe` as `image/jpeg`; SVG with `<script>` → stored XSS. | `file-type` magic-byte detection on first 4KB at `/complete`; mismatch → DELETE object; default `Content-Disposition: attachment`; `X-Content-Type-Options: nosniff`; reject SVG in image kinds. | SIGN-API |
+| 7 | **Concurrent quota race** (Pitfall 6) — read-modify-write across requests, both pass at 95MB used / 100MB quota. | Option A (default): atomic `bytes_pending` UPSERT at sign-time with `WHERE (used+pending+size) <= quota`; decrement on `/complete` failure or 1h timeout. Load test gate: 50 concurrent near-quota uploads. | QUOTA |
+| 8 | **Local adapter — missing volume + no real signing** (Pitfall 14) — files vanish on restart; "signed" URLs are guessable IDs. | `UploadDescriptor` discriminated union; HMAC-signed `{fileId, expiresAt, op}` tokens; named volume mandatory in compose; **boot-time refusal** if `STORAGE_ADAPTER=local && NODE_ENV=production`. | ADAPTER-LOCAL |
+| 9 | **CORS misconfiguration blocks browser uploads** (Pitfall 11) — wildcard origin in prod, missing `ETag` in `ExposeHeaders`, missing `x-amz-checksum-sha256` in `AllowedHeaders`. | Per-backend templates (`docs/file-storage/cors/{aws-s3,r2,minio,garage}.json`); `bun run validate-cors` script asserts no wildcard, ETag exposed, methods present. | OPS + ADAPTER-S3 |
+| 10 | **No bucket lifecycle = unbounded cost growth** (Pitfall 18) — abandoned multipart, `pending` files never completed, soft-deleted objects never hard-deleted. | Three layers: bucket lifecycle (AbortIncompleteMultipartUpload 7d, tmp/ 1d), `cleanup:reap-orphan-files` daily job, `cleanup:reap-soft-deleted` weekly job. Surface counts in `/health/detailed`. | CLEANUP |
 
-**Delivers:** packages/observability/ with all three ports and all adapters. apps/api/src/telemetry.ts bootstrap (line-1 import guard + startup self-test span). validateObservabilityEnv(). PII conformance tests for Sentry and GlitchTip adapters.
-
-**Pitfalls addressed:** Init ordering, PII leaks, cardinality View defined before first metric, postgres.js smoke test.
-
-**Research flag:** Smoke-test @appsignal/opentelemetry-instrumentation-bullmq under Bun 1.1+. Verify postgres.js OTEL instrumentation status.
-
-### Phase 2: ALS Context + Pino Mixin + CqrsBus/EventBus Wrapping + DB Instrumentation
-
-**Rationale:** ALS is the foundation -- BullMQ carrier extraction, pino mixin, and metric labels all depend on it. CqrsBus wrapping is the highest-value instrumentation point. DB spans complete the trace tree for synchronous work.
-
-**Delivers:** context.ts (single ALS instance). observabilityMiddleware (Elysia). pino-mixin.ts. wrapCqrsBus + wrapEventBus. db-instrumentation.ts (Drizzle Proxy). Concurrent load test (100 RPS, mixed tenants) passing with correct tenantId in all log lines.
-
-**Pitfalls addressed:** ALS side of BullMQ propagation, enterWith ban + concurrent load test, Drizzle Proxy, p99 benchmark gate.
-
-### Phase 3: BullMQ Propagation + Worker Context + bull-board Mount
-
-**Rationale:** BullMQ is the last missing link in the trace tree. bull-board is bundled here because it touches the same queue infrastructure -- avoids a second pass through queue-related code.
-
-**Delivers:** queue-instrumentation.ts (wrapQueue, injectCarrier, extractCarrier). Worker modified to extract carrier + ALS.run per job. bull-board.ts Elysia plugin behind requireRole(owner). Iframe embed in admin SPA. Automated trace continuity test (API traceId == worker traceId).
-
-**Pitfalls addressed:** BullMQ orphan spans fully resolved, bull-board RBAC (unauthenticated 401, non-admin 403, static assets also gated).
-
-### Phase 4: OTEL Adapters + docker-compose.observability.yml + Grafana Provisioning
-
-**Rationale:** OTEL adapters depend only on Phase 1 ports. The local dev stack can only be validated once metrics and traces are emitting from real code paths (Phases 2-3 complete).
-
-**Delivers:** otel-tracer.ts, otel-metrics.ts, otel-sdk.ts. docker-compose.observability.yml with resource limits (Grafana on :3030, total < 2 GB RAM, 24h retention for dev). otel-collector-config.yaml with tail-sampling policy (always_sample errors + slow requests, 10% otherwise). 4 pre-provisioned Grafana dashboards (API Overview/RED, Queue Health, DB+Redis/USE, CQRS View).
-
-**Pitfalls addressed:** Sampling policy in collector config, compose RAM limits and port remapping.
-
-**Research flag:** Verify Grafana 12.4 provisioning JSON schema before building dashboards.
-
-### Phase 5: Health Dashboard Upgrade
-
-**Rationale:** Needs Phases 2-4 to have data (module health contributions, BullMQ queue depths, MetricsProvider golden signals). Extends an existing admin page.
-
-**Delivers:** HealthContribution interface added to ModuleDefinition. packages/modules/observability/ CQRS queries. GET /api/admin/observability/health. Worker heartbeat (Redis TTL, 10s write/30s TTL). Admin SPA health page with queue depth cards, worker heartbeat status, per-module status, golden signals card, recent errors panel.
-
-**Pitfalls addressed:** Tiered checks: /health/live, /health/ready, /health/deep with canary DB query.
-
-### Phase 6: Runbooks + Alert Templates + Docs
-
-**Rationale:** Must be last -- runbooks reference concrete alert names, dashboard names, and metric names that only exist after Phases 1-5.
-
-**Delivers:** docs/runbooks/TEMPLATE.md + 8-10 runbooks (DB connection exhaustion, Redis down, BullMQ queue backed up, worker stuck, Stripe webhook failures, high 5xx rate, email delivery backlog, better-auth session failure). docs/observability/grafana-alerts.yaml (SLO-based, deploy-aware, for: 5m minimum, runbook_url on every rule). docs/runbooks/observability-attributes.md. Runbook validation script. ALERT-PHILOSOPHY.md.
-
-**Pitfalls addressed:** Attribute placement doc, alert fatigue (SLO-based rules), runbook decay (validation CI + review cadence as a deliverable).
-
-### Research Flags
-
-**Needs /gsd:plan-phase deeper research:**
-- **Phase 1** -- postgres.js OTEL instrumentation: verify whether a postgres.js-specific instrumentation has shipped; confirm Drizzle Proxy covers transactions + batch queries. Smoke-test @appsignal/opentelemetry-instrumentation-bullmq on Bun 1.1+.
-- **Phase 4** -- Grafana 12.4 provisioning JSON schema: verify format before building the 4 dashboards.
-
-**Standard patterns (skip research-phase):**
-- **Phase 2** -- ALS + pino mixin is well-documented; Bun node:async_hooks is confirmed native.
-- **Phase 3** -- @bull-board/elysia v7.0.0 has an official native adapter; mount pattern is straightforward.
-- **Phase 5** -- HealthContributor pattern mirrors existing module patterns in the codebase.
-- **Phase 6** -- Documentation and alert YAML; no runtime code.
+See PITFALLS §Pitfall-to-Phase Mapping for full 22-pitfall coverage and §"Looks Done But Isn't" for the verification checklist.
 
 ---
 
-## Watch Out For
+## 6. Open Research Spikes Required
 
-- **import "./telemetry" must be line 1** -- Bun ignores --require; any instrumented import before sdk.start() will never emit spans.
-- **Never als.enterWith() in a server** -- use als.run(ctx, fn) exclusively; enterWith causes cross-tenant context bleed under load.
-- **user_id is never a metric label** -- it turns every counter into a time series per user; Prometheus OOMs within weeks.
-- **@sentry/profiling-node does not load under Bun** -- tracked in oven-sh/bun#19230; skip it entirely.
-- **OTLP gRPC exporter has native-addon edge cases on Bun** -- use HTTP/protobuf (exporter-*-otlp-proto) exclusively.
-- **instrumentation-pg instruments pg, not postgres.js** -- DB spans require the Drizzle Proxy wrapper, not auto-instrumentation.
-- **bull-board shows all tenants job data** -- gate with platform_admin role, not tenant admin; scrub payloads before display.
-- **Grafana default port is 3000** -- collides with Next.js dev server; remap to 3030 in the compose file.
-- **Promtail is EOL (2026-03-02)** -- use OTEL Collector Contrib for log shipping to Loki.
-- **Do not bun build --compile the API** -- breaks OTEL and Sentry auto-instrumentation; run bun run src/index.ts in Docker.
+| Spike | Severity | Owner Phase |
+|---|---|---|
+| **S-1: Sharp under Bun + Docker base image** — Smoke test sharp on `oven/bun:1-debian` x64 + arm64 (and Alpine for documentation). Decision gate: clean → ship sharp; broken → `imagescript`/`wasm-vips` fallback as default. | **BLOCKING** for TRANSFORM | First deliverable of TRANSFORM (Phase 28) |
+| **S-2: POST policy enforcement matrix per S3-compat backend** — AWS S3 strict, MinIO strict, R2 quirky, Garage version-dependent. Generate POST policy with `content-length-range` + MIME, attempt valid/oversize/wrong-MIME against all 4. Document matrix; fall back to server-side validation where backend is permissive. | NON-BLOCKING (PUT covers fallback) | ADAPTER-S3 (Phase 25) |
+| **S-3: `aws-sdk-client-mock` Bun compatibility** — Historical Bun-runtime quirks. If shaky, MinIO-in-CI as primary harness + thin custom S3Client double for unit tests. | NON-BLOCKING (MinIO covers it) | TEST infrastructure phase |
+
+---
+
+## 7. Roadmap Implications (for gsd-roadmapper)
+
+**Suggested phase decomposition: 8 phases (Phases 24–31).**
+
+| # | Phase | Scope | Why this order | Risk |
+|---|---|---|---|---|
+| 24 | **Foundation: Port + Schema** | `packages/storage/` ports + types + factory skeletons (Noop adapters), `files` + `tenant_storage_usage` schema + migration `0002_v14_file_storage.sql`, env additions, extend `ModuleDefinition.fileRelations`, registry boot integration, scopedDb enforcement + Biome GritQL ban on direct `files` access. | Schema + port + scoping rules are foundational; expensive to retrofit. Pitfalls 1, 5, 7, 13, 20, 21. | LOW |
+| 25 | **TEST infrastructure + Adapters: Local + S3 + S3-compat** | MinIO-in-CI service container, sharp fixture set (100×100 baseline, 5000×5000 photo, 50000×50000 bomb, truncated, SVG-with-script), adapter conformance suite (mirrors PaymentProvider Stripe↔Pagar.me parity from v1.1), all 3 adapters, `forcePathStyle` presets, **CORS validate-script** + per-backend templates. Spike S-2 runs here. | Conformance suite drives the adapters, not the other way around. | MEDIUM |
+| 26 | **Files Module Skeleton + Sign-Upload + Quota** | Module shell, `sign-upload` command + relations registry + atomic quota check (`bytes_pending` pattern), `tenant_storage_usage` UPSERT + tenant-create hook, add to `moduleImportMap`. Endpoint live end-to-end with one mock relation. Load-test gate: 50 concurrent near-quota uploads. | First end-to-end signing flow; concentrates security review. Pitfalls 2, 3, 4, 6, 7, 10. | HIGH (security surface) |
+| 27 | **Complete-Upload + Read Flow + Delete** | `complete-upload` (HEAD stat verify + magic-byte check + quota increment + emit event), `get-signed-read-url`, `list-files-for-record`, `delete-file` (soft-delete pattern), authorizer registry. Closes synchronous loop. | Pitfalls 4, 10, 21. | MEDIUM |
+| 28 | **Image Transform Pipeline (sharp spike + fallback)** | **Spike S-1 first.** Then `ImageTransform` port + Sharp adapter + `imagescript` fallback, `image-transform` BullMQ job (re-using Phase 20 wrapper for trace propagation), `transforms` jsonb manifest writes, `transform_status` field, decompression-bomb caps. | Highest research-flag risk. Pitfalls 9, 12, 16. | **HIGHEST** |
+| 29 | **Auth + Org Identity Wiring** | Auth module declares `fileRelations: { user, organization }`, `get-profile` resolves `avatarUrl` from latest user-file, customer-app avatar/logo upload pages. First real consumer; proves cross-module decoupling. | Validates polymorphic association. | LOW-MED |
+| 30 | **UI Uploader in `packages/ui`** | `<FileUpload>` + `useFileUpload` hook, drag-drop with `dragover preventDefault` on body, XHR with File body (no `arrayBuffer()`), upload progress, image preview via `URL.createObjectURL`, beforeunload nav-block, `UploadDescriptor` `kind` switch, processing-state for variants, vitest+jsdom + vitest-axe a11y suite, i18n strings (en + pt-BR). Wire admin tenant-files browser. | Backend stable; hook design depends on full sign→PUT→complete→variants flow being settled. | **LOWEST** |
+| 31 | **Cleanup + Reconciliation + Operator Surface** | `cleanup-pending` hourly, `cleanup:reap-orphan-files` daily, `cleanup:reap-soft-deleted` weekly, `quota:reconcile-tenant-usage` daily, `HealthContributor` registered with worst-of-N rollup, runbook (`docs/runbooks/file-storage-*`), Sentry alert templates, integration docs, Docker base-image pin doc, CDN/Cache-Control guidance. | Mirrors v1.3's Phase 23 closing rhythm. | LOW |
+
+**Optional 31.5:** Virus-scanning hook port + Noop adapter (decimal-phase precedent from Phase 20.1). Out of scope per PROJECT.md but the port shape can be reserved.
+
+**Dependency rules:**
+- 24 → 25 → 26 strictly serial.
+- 27 depends on 26.
+- 28 can branch off 26 in parallel with 27 if a second contributor available; Phase 25 conformance suite must be green first.
+- 29 depends on 27 + 28.
+- 30 depends on 27 (sign+complete contract stable); benefits from 28 (processing-state UX).
+- 31 depends on everything; pure ops/docs polish.
+
+**Parallel-execution opportunities:** 27 ∥ 28 (with conformance suite green); within 28, sharp spike runs first, then adapter + job in parallel.
+
+---
+
+## 8. Open Questions for Requirements
+
+- **Default tenant quota:** 5 GiB placeholder. Confirm vs. per-plan via better-auth org metadata?
+- **Bucket-per-tenant vs prefix-per-tenant:** Default is **prefix-per-tenant** for IAM-policy friendliness. Confirm fork users won't need bucket-per-tenant (compliance/data-residency)?
+- **Local adapter URL serving in dev:** HMAC-signed `?sig=` short-lived tokens via Elysia route `/api/files/local/{token}` — confirm shape, especially for `Content-Disposition` override.
+- **`files.kind` discriminator:** registry-validated (each module declares allowed kinds in `fileRelations`) vs free-form text? Recommendation: registry-validated.
+- **Virus-scanning hook port:** Ship the *port shape* in v1.4 (Noop adapter only), or defer entirely to v1.5+? PROJECT.md says deferred; ARCHITECTURE.md flags as "31.5 optional."
+- **Default `Content-Disposition` policy:** `attachment` for everything except whitelisted inline-safe MIMEs (jpeg/png/webp/gif)? Confirm.
+- **Org logo SVG support:** FEATURES Cat 6 lists `image/svg+xml` for org logos. Pitfall 10 strongly recommends NOT accepting SVG without sanitizer. Decision needed.
+- **POST policy default vs PUT default:** Architecture and Stack land on **PUT default + POST policy opt-in**. Confirm; some operators may want POST default for stronger size enforcement.
+- **Reconciliation cadence:** daily vs on-demand? Recommend daily.
+- **Multi-file upload UX:** opt-in via prop (`multi`)? Default count limit? Confirm.
+
+---
+
+## 9. What v1.4 Will NOT Ship
+
+**From PROJECT.md (explicit defers):** in-browser image cropping/editing, video transcoding, bulk CSV/Excel imports, multi-region replication, file-access audit log, virus scanning.
+
+**Additional deferrals from research:** POST policy as default (PUT covers it; POST is opt-in); S3 multipart upload for large (>100MB) files; synchronous fast-path transforms for tiny (<1MB) images; AVIF output (webp + jpeg only); per-module quota sub-buckets; quota grace periods; pre-upload client-side resize; paste-from-clipboard; HEIC → JPEG conversion (libheif system dep); browser-side SHA-256 hashing; animated avatars (multi-frame WebP); public CDN bucket / hotlinking; per-spec transform versioning; Eden Treaty type narrowing per `(ownerModule, kind)`; resumable uploads (`tus-js-client` / multipart resume); WebRTC camera capture; DiceBear/identicon default avatars.
+
+---
+
+## 10. Cross-references
+
+| Synthesis section | Source file | Key passages |
+|---|---|---|
+| §1 TL;DR | All 4 | All summary sections |
+| §2 Stack additions | STACK.md | §Recommended Stack, §What we are NOT adding, §What NOT to Use |
+| §3 Feature catalog | FEATURES.md | All 9 categories + §Feature Prioritization Matrix |
+| §4 Architecture keystones | ARCHITECTURE.md | §1 Decision Summary, §2 Schema, §3 Ports, §4 Module Integration, §10 Polymorphic Association |
+| §5 Top 10 pitfalls | PITFALLS.md | Pitfalls 1, 4, 5, 6, 9, 10, 11, 12, 14, 18 |
+| §6 Spikes | STACK §Verification Spikes, PITFALLS §Pitfall 12, 22 | S-1 to S-3 |
+| §7 Roadmap implications | ARCHITECTURE §12, PITFALLS §Phase Ordering Implications, FEATURES §Suggested phase ordering | All three converge on 8-phase 24–31 decomposition |
+| §8 Open questions | All 4 | Quota defaults; SVG (FEATURES Cat 6 vs PITFALLS 10); virus-scanning (ARCHITECTURE §12 31.5); local adapter (PITFALLS 14) |
+| §9 Defer list | PROJECT.md, FEATURES §Category 9, STACK §Alternatives | Out-of-scope + deferral rationales |
 
 ---
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
-|------|------------|-------|
-| Stack (new packages) | HIGH | All packages verified on npm 2026-04-21; Bun compat confirmed via 2026 community guides and official docs |
-| Features | HIGH | Feature set derived from industry-standard RED/USE patterns + direct codebase inspection |
-| Architecture | HIGH | Port/adapter pattern read directly from existing billing module; OTEL init ordering confirmed by Bun community |
-| Pitfalls | MEDIUM-HIGH | Critical pitfalls from official docs + Bun issue tracker; recovery strategies are forward-looking |
-| postgres.js OTEL compat | MEDIUM | instrumentation-pg targets pg driver; postgres.js status uncertain; Proxy wrapper is reliable fallback |
-| Grafana image tags | MEDIUM | Versions verified 2026-04-21; pin at implementation time |
-
-**Overall confidence:** HIGH for architectural decisions and package selections. MEDIUM for two implementation-time verification points.
-
-### Gaps to Address
-
-- **postgres.js OTEL driver** (Phase 1): verify whether a postgres.js-specific instrumentation now exists; if not, confirm Drizzle Proxy covers transactions and batch queries.
-- **BullMQ instrumentation Bun compat** (Phase 1): smoke-test @appsignal/opentelemetry-instrumentation-bullmq under Bun 1.1+; fallback to hand-wired W3C propagator if it fails.
-- **Grafana 12.4 provisioning JSON schema** (Phase 4): verify format before building dashboard JSON files.
-- **Trace + log retention alignment** (Phase 4 + 6): decide default Tempo retention (7 or 14 days) and document alignment with removeOnFail BullMQ job retention and the project privacy policy.
+|---|---|---|
+| **Stack** | MEDIUM-HIGH | `Bun.S3Client` HIGH; `@aws-sdk/s3-presigned-post` HIGH; `sharp` MEDIUM (spike S-1 required); `file-type` HIGH; `react-dropzone` HIGH. One blocking spike. |
+| **Features** | MEDIUM-HIGH | High on S3 patterns, sharp, MIME validation, quota; medium on uploader UI shape and reconciliation cadence. Aligned with established Baseworks patterns. |
+| **Architecture** | HIGH | All integration points verified against live code. New patterns added are minimal. |
+| **Pitfalls** | HIGH (security/multitenancy/ops); MEDIUM (Bun-platform-specific) | S3/sharp/multitenant pitfalls well-documented. Bun-specific items need empirical validation in S-1. |
+| **Overall** | **MEDIUM-HIGH** | One blocking spike (S-1 sharp); one high-leverage security phase (26 sign-upload + 27 complete); rest is pattern-extension on top of locked v1.0–v1.3 foundations. |
 
 ---
 
-## Sources
-
-### Primary (HIGH confidence)
-- Direct repo reads: apps/api/src/{index.ts,worker.ts,core/**,lib/logger.ts,routes/admin.ts}, packages/modules/billing/src/{ports/,provider-factory.ts}, packages/queue/src/index.ts, packages/db/src/**, packages/shared/src/types/**
-- Sentry Bun docs (official) -- @sentry/bun confirmed; @sentry/profiling-node broken (oven-sh/bun#19230)
-- @bull-board/elysia npm v7.0.0 (2026-04) -- native Elysia adapter
-- @opentelemetry/sdk-node npm v0.215.0 (2026-04)
-- GlitchTip 6 docs -- Sentry wire protocol DSN-swap compat
-- Bun node:async_hooks reference (official) -- ALS native support
-- Promtail EOL + Grafana Alloy migration docs (official)
-
-### Secondary (MEDIUM confidence)
-- OneUptime: OTEL Bun without --require (2026-02) -- programmatic init pattern
-- OneUptime: Instrument Bun + ElysiaJS with OTEL (2026-02) -- Bun compat validation
-- AppSignal BullMQ OTEL instrumentation -- maintained fork confirmed; Bun compat is MEDIUM
-- oven-sh/bun#13638 -- NAPI addon inside ALS scope (known issue, none of our deps trigger it)
-- Grafana Tempo 2.10, Loki 3.7.1, Prometheus 3.10.0, Grafana 12.4.3 release notes
-
-### Tertiary (LOW -- verify at implementation)
-- postgres.js + instrumentation-pg compat -- no definitive 2026 source; Proxy wrapper is safe fallback regardless
-
----
-*Research completed: 2026-04-21*
-*Ready for roadmap: yes*
+*Synthesis for: Baseworks v1.4 — File Storage & Uploads*
+*Synthesized: 2026-05-05 from 4 parallel researcher outputs*
+*Next consumer: requirements-definition step → gsd-roadmapper agent*
