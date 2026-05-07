@@ -1,4 +1,5 @@
 import type { ModuleDefinition } from "@baseworks/shared";
+import { fileRelationsRegistry } from "@baseworks/storage";
 import { Elysia } from "elysia";
 import { logger } from "../lib/logger";
 import { CqrsBus } from "./cqrs";
@@ -100,6 +101,18 @@ export class ModuleRegistry {
         // Register health contributor (Phase 22 / OPS-04 / D-10)
         if (def.health) {
           this.healthAggregator.register(def.health);
+        }
+
+        // Register file-relations (Phase 24 / FILE-01 / MOD-01 / D-09).
+        // Each module's `fileRelations: Record<kind, FileRelation>` is collected
+        // into the process-wide fileRelationsRegistry. Phase 26's files-module
+        // sign-upload contract reads from this populated registry.
+        // Zod validation in register() throws with module + kind context on
+        // invalid shape — fails boot loud per D-07.
+        if (def.fileRelations) {
+          for (const [kind, relation] of Object.entries(def.fileRelations)) {
+            fileRelationsRegistry.register(name, kind, relation);
+          }
         }
 
         this.loaded.set(name, def);
