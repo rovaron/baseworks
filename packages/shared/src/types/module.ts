@@ -40,6 +40,39 @@ export interface ModuleDefinition {
   events?: string[];
   /** Optional health contributor — registered into the central HealthAggregator at loadAll() (Phase 22 / OPS-04). */
   health?: HealthContributor;
+  /** Optional polymorphic file-relations declaration (Phase 24 / FILE-01 / MOD-01 / D-06). Collected into fileRelationsRegistry at loadAll() per D-09. Keyed by `kind`; `kind` is the registry-side discriminator. */
+  fileRelations?: Record<string, FileRelation>;
+}
+
+/**
+ * Phase 24 / FILE-01 / D-06 — declares a single polymorphic file relation on
+ * a module. Collected at boot into `fileRelationsRegistry` (Plan 24-05) keyed
+ * by `(ownerModule, kind)` per D-08, where `kind` is the Record key in
+ * `ModuleDefinition.fileRelations`.
+ *
+ * `recordType` is the schema-side discriminator (matches `files.owner_record_type`).
+ * Phases 26-29 use this for sign-upload validation, attach-file routing, and
+ * cascade-on-delete.
+ *
+ * Hooks `canRead`/`canWrite` receive the request `HandlerContext` (typed `any`
+ * here to avoid a cqrs.ts cycle in shared). Phase 26 docs the expected shape
+ * in `packages/modules/files/` consumer code.
+ */
+export interface FileRelation {
+  /** Discriminator stored in `files.owner_record_type`. */
+  recordType: string;
+  /** Allowed MIME types for sign-upload validation (Phase 26 enforcement). */
+  allowedMimeTypes: string[];
+  /** Max bytes per file; sign-upload denies anything larger (Phase 26 enforcement). */
+  maxByteSize: number;
+  /** Optional variants generated asynchronously by Phase 28 sharp/imagescript adapter. */
+  generateVariants?: ImageVariantSpec[];
+  /** Cascade strategy when the owning record is deleted (Phase 27 / MOD-03). */
+  onDelete?: "cascade" | "orphan";
+  /** Per-request read-permission hook (Phase 27 / ATT-02). Return false → 404 (no existence leak). */
+  canRead?: (ctx: any, recordId: string) => Promise<boolean>;
+  /** Per-request write-permission hook (Phase 26 sign-upload). Return false → 403. */
+  canWrite?: (ctx: any, recordId: string) => Promise<boolean>;
 }
 
 /**

@@ -11,6 +11,7 @@ export type {
   JobDefinition,
   HealthContributor,
   HealthCheckResult,
+  FileRelation,
   ImageVariantSpec,
 } from "./types/module";
 
