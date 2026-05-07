@@ -34,7 +34,7 @@
 
 ### MOD — Module File-Ownership
 
-- [ ] **MOD-01**: Module author declares `fileRelations` in `ModuleDefinition` — `{ recordType, allowedMimeTypes, maxByteSize, generateVariants?, onDelete?, canRead?, canWrite? }`
+- [x] **MOD-01**: Module author declares `fileRelations` in `ModuleDefinition` — `{ recordType, allowedMimeTypes, maxByteSize, generateVariants?, onDelete?, canRead?, canWrite? }`
 - [ ] **MOD-02**: Files module collects relations at boot via the registry (mirrors Phase 22 health-contributor pattern); cross-module file logic uses `TypedEventBus`, not direct imports between modules
 - [ ] **MOD-03**: Cascade-on-delete via event subscription (e.g., `auth.user-deleted`); orphan reconciliation job sweeps files whose `(ownerModule, ownerRecordId)` no longer resolves; soft-delete pattern preserves audit trail
 
@@ -122,7 +122,7 @@ Which phases cover which requirements. Populated during roadmap creation 2026-05
 | QUO-01 | Phase 26 | Pending |
 | QUO-02 | Phase 26 | Pending |
 | QUO-03 | Phase 31 | Pending |
-| MOD-01 | Phase 24 | Pending |
+| MOD-01 | Phase 24 | Complete |
 | MOD-02 | Phase 26 | Pending |
 | MOD-03 | Phase 27 | Pending |
 | IDA-01 | Phase 29 | Pending |
