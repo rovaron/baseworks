@@ -239,6 +239,14 @@
         "nanoid": "^5.1.0",
       },
     },
+    "packages/storage": {
+      "name": "@baseworks/storage",
+      "version": "0.0.1",
+      "dependencies": {
+        "@baseworks/shared": "workspace:*",
+        "zod": "^3.23.0",
+      },
+    },
     "packages/ui": {
       "name": "@baseworks/ui",
       "version": "0.0.1",
@@ -358,6 +366,8 @@
     "@baseworks/queue": ["@baseworks/queue@workspace:packages/queue"],
 
     "@baseworks/shared": ["@baseworks/shared@workspace:packages/shared"],
+
+    "@baseworks/storage": ["@baseworks/storage@workspace:packages/storage"],
 
     "@baseworks/ui": ["@baseworks/ui@workspace:packages/ui"],
 
