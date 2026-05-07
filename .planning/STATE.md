@@ -4,14 +4,14 @@ milestone: v1.4
 milestone_name: File Storage & Uploads
 status: executing
 stopped_at: Phase 24 context gathered
-last_updated: "2026-05-07T10:51:37.214Z"
+last_updated: "2026-05-07T10:56:24.618Z"
 last_activity: 2026-05-07
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 7
-  completed_plans: 5
-  percent: 71
+  completed_plans: 6
+  percent: 86
 ---
 
 # Project State
@@ -27,11 +27,11 @@ See: .planning/PROJECT.md (updated 2026-05-05)
 
 Milestone: v1.4 File Storage & Uploads
 Phase: 24 (foundation-storage-port-files-schema-moduledefinition-extens) — EXECUTING
-Plan: 6 of 7
+Plan: 7 of 7
 Status: Ready to execute
 Last activity: 2026-05-07
 
-Progress: [███████░░░] 71%
+Progress: [█████████░] 86%
 
 ### Roadmap Evolution
 
@@ -68,6 +68,7 @@ Decisions are logged in PROJECT.md Key Decisions table (last updated at v1.3 clo
 - [Phase ?]: Plan 24-03: FileRelation+fileRelations? added in @baseworks/shared; ImageVariantSpec auto-resolved by 24-01 (soft cross-plan dep)
 - [Phase ?]: Plan 24-07: Path-allowlist for no-direct-files-table-access lives in scripts/lint-no-direct-files-access.sh ONLY (Biome 2.4.10 GritQL plugins lack a built-in path-allowlist primitive). packages/modules/files/** is pre-allow-listed for Phase 26.
 - [Phase ?]: Stack-trace adapter identity preserved via per-adapter source dir slug (Bun stack frames omit class names for instance methods)
+- [Phase ?]: Plan 24-05: fileRelationsRegistry singleton in @baseworks/storage with Zod runtime validation (D-07) and two-level key per D-08
 
 ### Pending Todos
 
@@ -93,6 +94,7 @@ Prior concerns (v1.3 carryovers, not v1.4 scope — see Deferred Items below).
 | Phase 24 P24-03 | 4min | 1 tasks | 3 files |
 | Phase 24 P07 | 8min | 2 tasks | 6 files |
 | Phase 24 P24-04 | 6min | 3 tasks | 11 files |
+| Phase 24 P24-05 | 2min | 1 tasks | 3 files |
 
 ## Deferred Items
 
@@ -111,7 +113,7 @@ Items acknowledged and deferred at v1.3 milestone close on 2026-05-05. All are o
 
 ## Session Continuity
 
-Last session: 2026-05-07T10:51:28.066Z
+Last session: 2026-05-07T10:56:04.299Z
 Stopped at: Phase 24 context gathered
 Resume file: None
 Next action: `/gsd:plan-phase 24` — Foundation: Storage Port + Files Schema + ModuleDefinition Extension. 2 requirements (FILE-01, MOD-01); 5 success criteria covering schema migration, port type surface, factory env-validation crash, `fileRelations` registry collection, and Biome GritQL ban on direct `files` table access.
