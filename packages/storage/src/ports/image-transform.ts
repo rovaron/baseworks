@@ -58,16 +58,7 @@ export interface ImageTransform {
 export interface ImageMetadata {
   width: number;
   height: number;
-  format:
-    | "webp"
-    | "jpeg"
-    | "png"
-    | "gif"
-    | "tiff"
-    | "bmp"
-    | "heif"
-    | "avif"
-    | string;
+  format: "webp" | "jpeg" | "png" | "gif" | "tiff" | "bmp" | "heif" | "avif" | string;
   /** Total pixel count (width × height). Phase 28 rejects > 50_000_000. */
   pixels?: number;
 }

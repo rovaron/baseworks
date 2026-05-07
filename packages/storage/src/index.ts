@@ -7,9 +7,9 @@
 // Ports — FileStorage (Phase 24 / FILE-01 / Plan 24-01).
 export type {
   FileStorage,
-  SignedUpload,
-  SignedRead,
   ObjectStat,
+  SignedRead,
+  SignedUpload,
   StorageBucket,
   StorageKey,
 } from "./ports/file-storage";
@@ -19,7 +19,7 @@ export type {
 // lives in @baseworks/shared (Plan 24-03 / declared in 24-01 per the soft-dep
 // resolution).
 export type {
-  ImageTransform,
   ImageMetadata,
+  ImageTransform,
   ImageVariantSpec,
 } from "./ports/image-transform";

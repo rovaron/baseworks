@@ -39,19 +39,13 @@ describe("FileStorage port (FILE-01)", () => {
       }): Promise<SignedRead> {
         throw new Error("nyi");
       }
-      async stat(_: {
-        bucket: string;
-        key: string;
-      }): Promise<ObjectStat | null> {
+      async stat(_: { bucket: string; key: string }): Promise<ObjectStat | null> {
         return null;
       }
       async delete(_: { bucket: string; key: string }): Promise<void> {
         return;
       }
-      async getObject(_: {
-        bucket: string;
-        key: string;
-      }): Promise<Uint8Array> {
+      async getObject(_: { bucket: string; key: string }): Promise<Uint8Array> {
         return new Uint8Array();
       }
       async putObject(_: {
