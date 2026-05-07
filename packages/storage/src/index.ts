@@ -13,3 +13,13 @@ export type {
   StorageBucket,
   StorageKey,
 } from "./ports/file-storage";
+
+// Ports — ImageTransform (Phase 24 / FILE-01 / Plan 24-01).
+// ImageVariantSpec is re-exported here for ergonomics; the canonical declaration
+// lives in @baseworks/shared (Plan 24-03 / declared in 24-01 per the soft-dep
+// resolution).
+export type {
+  ImageTransform,
+  ImageMetadata,
+  ImageVariantSpec,
+} from "./ports/image-transform";
