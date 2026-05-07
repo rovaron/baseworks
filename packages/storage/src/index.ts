@@ -11,6 +11,15 @@ export { LocalFileStorage } from "./adapters/local/file-storage";
 export { S3FileStorage } from "./adapters/s3/file-storage";
 export { S3CompatFileStorage } from "./adapters/s3-compat/file-storage";
 export { SharpImageTransform } from "./adapters/sharp/image-transform";
+// Env-selected singleton factories (Phase 24 / Plan 24-04 / D-10 / D-12 / D-15 / D-16).
+export {
+  getFileStorage,
+  getImageTransform,
+  resetFileStorage,
+  resetImageTransform,
+  setFileStorage,
+  setImageTransform,
+} from "./factory";
 // Ports — FileStorage (Phase 24 / FILE-01 / Plan 24-01).
 export type {
   FileStorage,

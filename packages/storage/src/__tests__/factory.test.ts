@@ -15,9 +15,9 @@ import {
   resetImageTransform,
   S3CompatFileStorage,
   S3FileStorage,
+  SharpImageTransform,
   setFileStorage,
   setImageTransform,
-  SharpImageTransform,
 } from "@baseworks/storage";
 
 const originalEnv = { ...process.env };
