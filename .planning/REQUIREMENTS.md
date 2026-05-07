@@ -9,7 +9,7 @@
 
 ### FILE — File Storage Core
 
-- [ ] **FILE-01**: Operator can configure storage backend via env (`STORAGE_PROVIDER=local|s3|s3-compat`); factory selects adapter at startup; missing required env crashes at boot with a clear error
+- [x] **FILE-01**: Operator can configure storage backend via env (`STORAGE_PROVIDER=local|s3|s3-compat`); factory selects adapter at startup; missing required env crashes at boot with a clear error
 - [ ] **FILE-02**: Developer sees a typed `FileStorage` port with `signUpload`/`signRead`/`stat`/`delete`/`getObject`/`putObject`; conformance test suite proves all 3 adapters behave identically (mirrors PaymentProvider Stripe↔Pagar.me parity from v1.1)
 - [ ] **FILE-03**: Operator can run all 3 adapters — Local (dev), AWS S3 (cloud), S3-compatible (self-hosted MinIO/Garage/Ceph/R2 via configurable endpoint + path-style)
 
@@ -109,7 +109,7 @@ Which phases cover which requirements. Populated during roadmap creation 2026-05
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FILE-01 | Phase 24 | Pending |
+| FILE-01 | Phase 24 | Complete |
 | FILE-02 | Phase 25 | Pending |
 | FILE-03 | Phase 25 | Pending |
 | UPL-01 | Phase 26 | Pending |

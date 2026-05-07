@@ -83,9 +83,9 @@ Full details: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md)
   3. Operator setting `STORAGE_PROVIDER=local|s3|s3-compat` sees the factory return the correct adapter shape; missing adapter-required env (`AWS_ACCESS_KEY_ID`, `S3_ENDPOINT`, etc.) causes `apps/api` boot to crash with a clear error message naming the missing var (mirrors Phase 17 `validateObservabilityEnv` pattern)
   4. Module author can declare `fileRelations: { user: { recordType, allowedMimeTypes, maxByteSize, generateVariants?, onDelete?, canRead?, canWrite? } }` in `ModuleDefinition` and the registry collects all relations at boot into a `fileRelationsRegistry` singleton (analogous to Phase 22 `healthContributors` collection at `apps/api/src/core/registry.ts`)
   5. Biome GritQL rule bans direct `db.select().from(files)` outside `packages/modules/files/`; cross-tenant access requires the scoped wrapper (Pitfall 5 prevention)
-**Plans:** 7 plans
+**Plans:** 1/7 plans executed
 Plans:
-- [ ] 24-01-PLAN.md — Workspace skeleton + FileStorage/ImageTransform ports
+- [x] 24-01-PLAN.md — Workspace skeleton + FileStorage/ImageTransform ports
 - [ ] 24-02-PLAN.md — Drizzle schema + migration 0002_v14_file_storage.sql + barrel re-exports
 - [ ] 24-03-PLAN.md — ModuleDefinition.fileRelations + FileRelation/ImageVariantSpec types in @baseworks/shared
 - [ ] 24-04-PLAN.md — Factory + env validator + 5 throwing-NotImplemented adapter scaffolds
@@ -219,7 +219,7 @@ Plans:
 | 21. OTEL Adapters + Grafana Observability Stack | v1.3 | 0/0 | Deferred to v1.4+ | - |
 | 22. Admin Ops Tooling | v1.3 | 6/6 | Complete | 2026-04-27 |
 | 23. Runbooks, Alert Templates & Observability Docs | v1.3 | 5/5 | Complete | 2026-04-28 |
-| 24. Foundation: Storage Port + Files Schema | v1.4 | 0/0 | Not started | - |
+| 24. Foundation: Storage Port + Files Schema | v1.4 | 1/7 | In Progress|  |
 | 25. Test Infra + Three Storage Adapters | v1.4 | 0/0 | Not started | - |
 | 26. Files Module + Sign-Upload + Quota | v1.4 | 0/0 | Not started | - |
 | 27. Complete-Upload + Read + Delete + Attachments | v1.4 | 0/0 | Not started | - |
