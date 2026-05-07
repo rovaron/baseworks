@@ -3,3 +3,13 @@
 //   - Plan 24-01: port types (this plan)
 //   - Plan 24-04: factory + env validator + adapter scaffolds
 //   - Plan 24-05: fileRelations registry + collector
+
+// Ports — FileStorage (Phase 24 / FILE-01 / Plan 24-01).
+export type {
+  FileStorage,
+  SignedUpload,
+  SignedRead,
+  ObjectStat,
+  StorageBucket,
+  StorageKey,
+} from "./ports/file-storage";

@@ -21,6 +21,8 @@
       "@baseworks/config/*": ["./packages/config/src/*"],
       "@baseworks/observability": ["./packages/observability/src"],
       "@baseworks/observability/*": ["./packages/observability/src/*"],
+      "@baseworks/storage": ["./packages/storage/src"],
+      "@baseworks/storage/*": ["./packages/storage/src/*"],
       "@baseworks/module-*": ["./packages/modules/*/src"],
       "@baseworks/ui": ["./packages/ui/src"],
       "@baseworks/ui/*": ["./packages/ui/src/*"],
