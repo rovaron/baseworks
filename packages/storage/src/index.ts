@@ -4,6 +4,13 @@
 //   - Plan 24-04: factory + env validator + adapter scaffolds
 //   - Plan 24-05: fileRelations registry + collector
 
+export { ImagescriptImageTransform } from "./adapters/imagescript/image-transform";
+// Throwing-NotImplemented adapter scaffolds (Phase 24 / D-15 verbatim / D-16 parallel form).
+// Bodies in Phase 25 (FileStorage) / Phase 28 (ImageTransform).
+export { LocalFileStorage } from "./adapters/local/file-storage";
+export { S3FileStorage } from "./adapters/s3/file-storage";
+export { S3CompatFileStorage } from "./adapters/s3-compat/file-storage";
+export { SharpImageTransform } from "./adapters/sharp/image-transform";
 // Ports — FileStorage (Phase 24 / FILE-01 / Plan 24-01).
 export type {
   FileStorage,
@@ -13,7 +20,6 @@ export type {
   StorageBucket,
   StorageKey,
 } from "./ports/file-storage";
-
 // Ports — ImageTransform (Phase 24 / FILE-01 / Plan 24-01).
 // ImageVariantSpec is re-exported here for ergonomics; the canonical declaration
 // lives in @baseworks/shared (Plan 24-03 / declared in 24-01 per the soft-dep

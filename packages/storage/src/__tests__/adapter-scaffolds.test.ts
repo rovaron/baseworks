@@ -18,6 +18,11 @@ import {
   SharpImageTransform,
 } from "@baseworks/storage";
 
+// Path separator differs between platforms; Bun on Windows produces back-slashes
+// in stack frames, POSIX produces forward slashes. Use the OS-native separator
+// for the substring assertion.
+const separator = process.platform === "win32" ? "\\" : "/";
+
 const fileStorageMethods = [
   "signUpload",
   "signRead",
@@ -28,19 +33,33 @@ const fileStorageMethods = [
 ] as const;
 const imageMethods = ["resize", "metadata"] as const;
 
+// Adapter identity is preserved in stack traces via the unique source-file path
+// (e.g., `adapters/local/file-storage.ts`). Bun/V8 stack frames for instance
+// methods do NOT include the class name (only method name + file path), so we
+// assert the directory slug instead — this is the reliable identity carrier.
 const fileStorageScaffolds = [
-  { ctor: LocalFileStorage, name: "local", className: "LocalFileStorage" },
-  { ctor: S3FileStorage, name: "s3", className: "S3FileStorage" },
-  { ctor: S3CompatFileStorage, name: "s3-compat", className: "S3CompatFileStorage" },
+  { ctor: LocalFileStorage, name: "local", className: "LocalFileStorage", dirSlug: "local" },
+  { ctor: S3FileStorage, name: "s3", className: "S3FileStorage", dirSlug: "s3" },
+  {
+    ctor: S3CompatFileStorage,
+    name: "s3-compat",
+    className: "S3CompatFileStorage",
+    dirSlug: "s3-compat",
+  },
 ];
 
 const imageScaffolds = [
-  { ctor: SharpImageTransform, name: "sharp", className: "SharpImageTransform" },
-  { ctor: ImagescriptImageTransform, name: "imagescript", className: "ImagescriptImageTransform" },
+  { ctor: SharpImageTransform, name: "sharp", className: "SharpImageTransform", dirSlug: "sharp" },
+  {
+    ctor: ImagescriptImageTransform,
+    name: "imagescript",
+    className: "ImagescriptImageTransform",
+    dirSlug: "imagescript",
+  },
 ];
 
 describe("FileStorage scaffolds (Phase 24 / D-15 verbatim message)", () => {
-  for (const { ctor, name, className } of fileStorageScaffolds) {
+  for (const { ctor, name, className, dirSlug } of fileStorageScaffolds) {
     test(`${className}.name === "${name}"`, () => {
       // biome-ignore lint/suspicious/noExplicitAny: scaffold ctors take no args; loop drives ergonomically
       const a = new (ctor as any)();
@@ -71,7 +90,7 @@ describe("FileStorage scaffolds (Phase 24 / D-15 verbatim message)", () => {
         );
       });
 
-      test(`${className}.${method}() preserves adapter identity in stack-trace class name`, async () => {
+      test(`${className}.${method}() preserves adapter identity in stack-trace file path`, async () => {
         // biome-ignore lint/suspicious/noExplicitAny: dynamic method invocation in scaffold smoke
         const a = new (ctor as any)() as any;
         let err: Error | null = null;
@@ -87,16 +106,19 @@ describe("FileStorage scaffolds (Phase 24 / D-15 verbatim message)", () => {
         } catch (e) {
           err = e as Error;
         }
-        // Stack trace must contain the throwing class name so adapter identity
-        // remains discoverable even though the message body itself does not encode it.
-        expect(err?.stack ?? "").toContain(className);
+        // Adapter identity preserved in stack via the per-adapter source dir
+        // (`adapters/{dirSlug}/file-storage.ts`). Bun stack frames omit class
+        // names for instance methods, so dir slug is the reliable carrier.
+        expect(err?.stack ?? "").toContain(
+          `adapters${separator}${dirSlug}${separator}file-storage`,
+        );
       });
     }
   }
 });
 
 describe("ImageTransform scaffolds (Phase 24 / D-16 parallel form)", () => {
-  for (const { ctor, name, className } of imageScaffolds) {
+  for (const { ctor, name, className, dirSlug } of imageScaffolds) {
     test(`${className}.name === "${name}"`, () => {
       // biome-ignore lint/suspicious/noExplicitAny: scaffold ctors take no args; loop drives ergonomically
       const a = new (ctor as any)();
@@ -124,7 +146,7 @@ describe("ImageTransform scaffolds (Phase 24 / D-16 parallel form)", () => {
         );
       });
 
-      test(`${className}.${method}() preserves adapter identity in stack-trace class name`, async () => {
+      test(`${className}.${method}() preserves adapter identity in stack-trace file path`, async () => {
         // biome-ignore lint/suspicious/noExplicitAny: dynamic method invocation in scaffold smoke
         const a = new (ctor as any)() as any;
         let err: Error | null = null;
@@ -137,7 +159,9 @@ describe("ImageTransform scaffolds (Phase 24 / D-16 parallel form)", () => {
         } catch (e) {
           err = e as Error;
         }
-        expect(err?.stack ?? "").toContain(className);
+        expect(err?.stack ?? "").toContain(
+          `adapters${separator}${dirSlug}${separator}image-transform`,
+        );
       });
     }
   }
