@@ -1,6 +1,9 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.4.10/schema.json",
-  "plugins": ["./.biome/plugins/no-als-enter-with.grit"],
+  "plugins": [
+    "./.biome/plugins/no-als-enter-with.grit",
+    "./.biome/plugins/ban-files-table-access.grit"
+  ],
   "formatter": {
     "indentStyle": "space",
     "indentWidth": 2,
