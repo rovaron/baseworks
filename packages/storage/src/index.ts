@@ -11,6 +11,8 @@ export { LocalFileStorage } from "./adapters/local/file-storage";
 export { S3FileStorage } from "./adapters/s3/file-storage";
 export { S3CompatFileStorage } from "./adapters/s3-compat/file-storage";
 export { SharpImageTransform } from "./adapters/sharp/image-transform";
+// Env validator (Phase 17 pattern; called from apps/api boot — Plan 24-06).
+export { validateStorageEnv } from "./env";
 // Env-selected singleton factories (Phase 24 / Plan 24-04 / D-10 / D-12 / D-15 / D-16).
 export {
   getFileStorage,
