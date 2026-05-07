@@ -14,6 +14,7 @@ import {
   wrapCqrsBus,
   wrapEventBus,
 } from "@baseworks/observability";
+import { validateStorageEnv } from "@baseworks/storage";
 
 // Validate environment at startup (crashes on missing/invalid vars)
 const _env = env;
@@ -25,6 +26,8 @@ const redisUrl = assertRedisUrl(env.INSTANCE_ROLE, env.REDIS_URL);
 validatePaymentProviderEnv();
 // Phase 18 — crash-hard on missing DSN for the selected ERROR_TRACKER (D-09).
 validateObservabilityEnv();
+// Phase 24 — crash-hard on missing storage adapter env or production-local (D-13/D-14).
+validateStorageEnv();
 // Phase 18 D-02 — register global uncaughtException + unhandledRejection handlers.
 installGlobalErrorHandlers(getErrorTracker());
 

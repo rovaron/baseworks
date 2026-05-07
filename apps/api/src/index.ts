@@ -29,6 +29,7 @@ import {
   wrapCqrsBus,
   wrapEventBus,
 } from "@baseworks/observability";
+import { validateStorageEnv } from "@baseworks/storage";
 import { createHealthDetailedPlugin } from "./routes/health-detailed";
 import { defaultLocale } from "@baseworks/i18n";
 import { parseNextLocaleCookie, hasNextLocaleCookie } from "./lib/locale-cookie";
@@ -51,6 +52,8 @@ const db = createDb(env.DATABASE_URL);
 validatePaymentProviderEnv();
 // Phase 18 — crash-hard on missing DSN for the selected ERROR_TRACKER (D-09).
 validateObservabilityEnv();
+// Phase 24 — crash-hard on missing storage adapter env or production-local (D-13/D-14).
+validateStorageEnv();
 // Phase 22 / D-15 — wrap the env-selected ErrorTracker in a ring buffer so the
 // /health/detailed endpoint (Plan 22-05) can surface a process-local rolling window
 // of recent errors without needing a Sentry/GlitchTip API token. Capacity 50 entries

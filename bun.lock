@@ -58,6 +58,7 @@
         "@baseworks/observability": "workspace:*",
         "@baseworks/queue": "workspace:*",
         "@baseworks/shared": "workspace:*",
+        "@baseworks/storage": "workspace:*",
         "@bull-board/api": "7.0.0",
         "@bull-board/elysia": "7.0.0",
         "@bull-board/ui": "7.0.0",
