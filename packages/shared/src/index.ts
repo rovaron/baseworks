@@ -11,6 +11,7 @@ export type {
   JobDefinition,
   HealthContributor,
   HealthCheckResult,
+  ImageVariantSpec,
 } from "./types/module";
 
 export type { TenantContext, AppContext } from "./types/context";

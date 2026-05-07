@@ -63,3 +63,33 @@ export interface HealthContributor {
   /** Per-contributor timeout in ms; defaults to 2000ms in the aggregator (D-11). */
   timeoutMs?: number;
 }
+
+/**
+ * Phase 24 / FILE-01 — canonical declaration of an image-variant spec.
+ *
+ * `ImageVariantSpec` lives in `@baseworks/shared` (per PATTERNS lines 760-762
+ * + Plan 24-01 type-ownership decision): the type has zero workspace deps and
+ * is safe to import from any package; `ModuleDefinition` is the contract owner
+ * and lives in shared. `@baseworks/storage` import-and-re-exports the type so
+ * downstream code can `import { ImageVariantSpec } from "@baseworks/storage"`
+ * without changing its import path.
+ *
+ * T-24-01-02 mitigation: the `format` union restricts variants to web-safe
+ * raster formats — SVG is structurally rejected at compile time (Pitfall 10 /
+ * IDA-02 — XSS via `<script>` in SVG variant outputs).
+ *
+ * (Declared here in Plan 24-01 to satisfy the soft cross-plan dependency on
+ * Plan 24-03; Plan 24-03 confirms / extends as needed.)
+ */
+export interface ImageVariantSpec {
+  /** Variant identifier — used as the storage-key segment (e.g., "thumb-256"). */
+  name: string;
+  /** Target width in pixels. */
+  width: number;
+  /** Optional target height; if omitted, aspect ratio is preserved. */
+  height?: number;
+  /** Output format. SVG intentionally excluded (T-24-01-02). */
+  format: "webp" | "jpeg" | "png";
+  /** Quality 1-100 (adapter-specific default if omitted). */
+  quality?: number;
+}
