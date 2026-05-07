@@ -40,3 +40,5 @@ export type {
   ImageTransform,
   ImageVariantSpec,
 } from "./ports/image-transform";
+// FileRelations registry + collector (Phase 24 / D-06..D-09).
+export { collectFileRelations, fileRelationsRegistry } from "./registry";
