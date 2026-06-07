@@ -1,5 +1,5 @@
+import { defineCommand, err, ok } from "@baseworks/shared";
 import { Type } from "@sinclair/typebox";
-import { defineCommand, ok, err } from "@baseworks/shared";
 import { nanoid } from "nanoid";
 import { auth } from "../auth";
 
@@ -37,37 +37,31 @@ const CreateInvitationInput = Type.Object({
  * is not).
  * Per INVT-01/INVT-03: Email invite and shareable link creation.
  */
-export const createInvitation = defineCommand(
-  CreateInvitationInput,
-  async (input, ctx) => {
-    try {
-      // For link mode, generate a placeholder @internal email.
-      // The sendInvitationEmail callback in auth.ts detects @internal
-      // and skips email enqueueing. This is the email suppression contract.
-      const email =
-        input.mode === "link"
-          ? `link-invite-${nanoid(10)}@internal`
-          : input.email!;
+export const createInvitation = defineCommand(CreateInvitationInput, async (input, ctx) => {
+  try {
+    // For link mode, generate a placeholder @internal email.
+    // The sendInvitationEmail callback in auth.ts detects @internal
+    // and skips email enqueueing. This is the email suppression contract.
+    const email = input.mode === "link" ? `link-invite-${nanoid(10)}@internal` : input.email!;
 
-      const invitation = await auth.api.createInvitation({
-        body: {
-          email,
-          role: input.role,
-          organizationId: input.organizationId,
-        },
-        headers: ctx.headers ?? new Headers(),
-      });
-
-      ctx.emit("invitation.created", {
-        invitationId: invitation.id,
-        organizationId: input.organizationId,
+    const invitation = await auth.api.createInvitation({
+      body: {
         email,
-        mode: input.mode,
-      });
+        role: input.role,
+        organizationId: input.organizationId,
+      },
+      headers: ctx.headers ?? new Headers(),
+    });
 
-      return ok(invitation);
-    } catch (error: any) {
-      return err(error.message || "Failed to create invitation");
-    }
-  },
-);
+    ctx.emit("invitation.created", {
+      invitationId: invitation.id,
+      organizationId: input.organizationId,
+      email,
+      mode: input.mode,
+    });
+
+    return ok(invitation);
+  } catch (error: any) {
+    return err(error.message || "Failed to create invitation");
+  }
+});

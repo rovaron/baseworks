@@ -1,5 +1,5 @@
-import { TypeCompiler } from "@sinclair/typebox/compiler";
 import type { Static, TSchema } from "@sinclair/typebox";
+import { TypeCompiler } from "@sinclair/typebox/compiler";
 
 /**
  * Discriminated union representing the outcome of a CQRS handler.

@@ -1,5 +1,5 @@
+import { defineQuery, err, ok } from "@baseworks/shared";
 import { Type } from "@sinclair/typebox";
-import { defineQuery, ok, err } from "@baseworks/shared";
 import { auth } from "../auth";
 
 const ListInvitationsInput = Type.Object({
@@ -22,17 +22,14 @@ const ListInvitationsInput = Type.Object({
  * Per INVT-05: Org admin can view pending invitations.
  * Per Pitfall 6: Uses auth.api, not scopedDb.
  */
-export const listInvitations = defineQuery(
-  ListInvitationsInput,
-  async (input, ctx) => {
-    try {
-      const invitations = await auth.api.listInvitations({
-        query: { organizationId: input.organizationId },
-        headers: ctx.headers ?? new Headers(),
-      });
-      return ok(invitations || []);
-    } catch (error: any) {
-      return err(error.message || "Failed to list invitations");
-    }
-  },
-);
+export const listInvitations = defineQuery(ListInvitationsInput, async (input, ctx) => {
+  try {
+    const invitations = await auth.api.listInvitations({
+      query: { organizationId: input.organizationId },
+      headers: ctx.headers ?? new Headers(),
+    });
+    return ok(invitations || []);
+  } catch (error: any) {
+    return err(error.message || "Failed to list invitations");
+  }
+});

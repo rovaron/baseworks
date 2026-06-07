@@ -1,0 +1,11 @@
+bunx lint-staged
+
+# Belt-and-suspenders bans (CTX-01 enterWith, no-direct-files-table-access).
+# Run alongside the Biome GritQL plugins; independent of Biome version/scope.
+if [ -f scripts/lint-no-enterwith.sh ]; then
+  bash scripts/lint-no-enterwith.sh
+fi
+
+if [ -f scripts/lint-no-direct-files-access.sh ]; then
+  bash scripts/lint-no-direct-files-access.sh
+fi

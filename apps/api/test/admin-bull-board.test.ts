@@ -14,7 +14,7 @@ process.env.DATABASE_URL ??= "postgres://test:test@localhost:5432/test";
 process.env.BETTER_AUTH_SECRET ??= "test-secret-min-32-chars-long-xxxxxxxxxxxxxxx";
 process.env.NODE_ENV ??= "test";
 
-import { describe, expect, test, beforeEach, mock } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { Elysia } from "elysia";
 import { errorMiddleware } from "../src/core/middleware/error";
 
@@ -102,9 +102,7 @@ async function buildApp(envOverrides: Record<string, string | undefined>) {
   mock.module("@baseworks/config", () => ({
     env: {
       ADMIN_URL:
-        envOverrides.ADMIN_URL === undefined
-          ? "http://localhost:5173"
-          : envOverrides.ADMIN_URL,
+        envOverrides.ADMIN_URL === undefined ? "http://localhost:5173" : envOverrides.ADMIN_URL,
       BULL_BOARD_READ_ONLY: envOverrides.BULL_BOARD_READ_ONLY ?? "true",
     },
   }));
@@ -122,17 +120,13 @@ describe("bull-board RBAC + CSP + readOnly (OPS-01 / D-02..D-04)", () => {
 
   test("unauthenticated GET /admin/bull-board → 401", async () => {
     const app = await buildApp({});
-    const res = await app.handle(
-      new Request("http://localhost/admin/bull-board"),
-    );
+    const res = await app.handle(new Request("http://localhost/admin/bull-board"));
     expect(res.status).toBe(401);
   });
 
   test("unauthenticated GET /admin/bull-board/static/main.css → 401 (D-03 static asset gating)", async () => {
     const app = await buildApp({});
-    const res = await app.handle(
-      new Request("http://localhost/admin/bull-board/static/main.css"),
-    );
+    const res = await app.handle(new Request("http://localhost/admin/bull-board/static/main.css"));
     expect(res.status).toBe(401);
   });
 
@@ -149,23 +143,19 @@ describe("bull-board RBAC + CSP + readOnly (OPS-01 / D-02..D-04)", () => {
   test("CSP frame-ancestors set to ADMIN_URL on every bull-board response", async () => {
     const app = await buildApp({ ADMIN_URL: "http://localhost:5173" });
     // Hits requireRole → 401, but onAfterHandle CSP must apply regardless.
-    const res = await app.handle(
-      new Request("http://localhost/admin/bull-board"),
-    );
+    const res = await app.handle(new Request("http://localhost/admin/bull-board"));
     const csp = res.headers.get("content-security-policy");
     expect(csp).toBe("frame-ancestors 'http://localhost:5173'");
   });
 
   test("CSP degrades to 'none' when ADMIN_URL unset (D-04)", async () => {
     const app = await buildApp({ ADMIN_URL: "" });
-    const res = await app.handle(
-      new Request("http://localhost/admin/bull-board"),
-    );
+    const res = await app.handle(new Request("http://localhost/admin/bull-board"));
     const csp = res.headers.get("content-security-policy");
     expect(csp).toBe("frame-ancestors 'none'");
   });
 
-  test("readOnlyMode=true when env BULL_BOARD_READ_ONLY=\"true\"", async () => {
+  test('readOnlyMode=true when env BULL_BOARD_READ_ONLY="true"', async () => {
     installMocks();
     mock.module("@baseworks/config", () => ({
       env: {
@@ -181,7 +171,7 @@ describe("bull-board RBAC + CSP + readOnly (OPS-01 / D-02..D-04)", () => {
     expect(bullMQAdapterCalls[0].readOnlyMode).toBe(true);
   });
 
-  test("readOnlyMode=false when env BULL_BOARD_READ_ONLY=\"false\"", async () => {
+  test('readOnlyMode=false when env BULL_BOARD_READ_ONLY="false"', async () => {
     installMocks();
     mock.module("@baseworks/config", () => ({
       env: {
@@ -215,14 +205,11 @@ describe("bull-board RBAC + CSP + readOnly (OPS-01 / D-02..D-04)", () => {
   test("CSP does NOT leak to other routes (Pitfall 6)", async () => {
     installMocks();
     // A separate, unrelated plugin — bull-board's onAfterHandle must not affect it.
-    const otherPlugin = new Elysia({ name: "other" }).get(
-      "/api/admin/tenants",
-      () => ({ data: [] }),
-    );
+    const otherPlugin = new Elysia({ name: "other" }).get("/api/admin/tenants", () => ({
+      data: [],
+    }));
     const composed = new Elysia().use(errorMiddleware).use(otherPlugin);
-    const res = await composed.handle(
-      new Request("http://localhost/api/admin/tenants"),
-    );
+    const res = await composed.handle(new Request("http://localhost/api/admin/tenants"));
     expect(res.headers.get("content-security-policy")).toBeNull();
   });
 });

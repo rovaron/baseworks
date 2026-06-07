@@ -1,23 +1,23 @@
 import type { ModuleDefinition } from "@baseworks/shared";
-import { authRoutes } from "./routes";
-import { createTenant } from "./commands/create-tenant";
-import { updateTenant } from "./commands/update-tenant";
-import { deleteTenant } from "./commands/delete-tenant";
-import { updateProfile } from "./commands/update-profile";
-import { createInvitation } from "./commands/create-invitation";
 import { acceptInvitation } from "./commands/accept-invitation";
-import { rejectInvitation } from "./commands/reject-invitation";
 import { cancelInvitation } from "./commands/cancel-invitation";
-import { getTenant } from "./queries/get-tenant";
-import { listTenants } from "./queries/list-tenants";
-import { listMembers } from "./queries/list-members";
-import { getProfile } from "./queries/get-profile";
-import { listInvitations } from "./queries/list-invitations";
+import { createInvitation } from "./commands/create-invitation";
+import { createTenant } from "./commands/create-tenant";
+import { deleteTenant } from "./commands/delete-tenant";
+import { rejectInvitation } from "./commands/reject-invitation";
+import { updateProfile } from "./commands/update-profile";
+import { updateTenant } from "./commands/update-tenant";
 import { getInvitation } from "./queries/get-invitation";
+import { getProfile } from "./queries/get-profile";
+import { getTenant } from "./queries/get-tenant";
+import { listInvitations } from "./queries/list-invitations";
+import { listMembers } from "./queries/list-members";
+import { listTenants } from "./queries/list-tenants";
+import { authRoutes } from "./routes";
 
 export { auth } from "./auth";
-export { betterAuthPlugin, requireRole, requirePlatformAdmin } from "./middleware";
 export { getLocale } from "./locale-context";
+export { betterAuthPlugin, requirePlatformAdmin, requireRole } from "./middleware";
 
 /**
  * Auth module definition following the Medusa-style module pattern.

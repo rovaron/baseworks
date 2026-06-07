@@ -1,10 +1,3 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { ColumnDef } from "@tanstack/react-table";
-import { formatDistanceToNow } from "date-fns";
-import { MoreHorizontal } from "lucide-react";
-import { useTranslation } from "react-i18next";
 import {
   Badge,
   Button,
@@ -21,9 +14,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@baseworks/ui";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { ColumnDef } from "@tanstack/react-table";
+import { formatDistanceToNow } from "date-fns";
+import { MoreHorizontal } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router";
 import { toast } from "sonner";
-import { api } from "@/lib/api";
 import { DataTable } from "@/components/data-table";
+import { api } from "@/lib/api";
 
 interface User {
   id: string;
@@ -57,7 +57,12 @@ export function Component() {
     return () => clearTimeout(id);
   }, [searchInput]);
 
-  const { data: result, isLoading, error, refetch } = useQuery({
+  const {
+    data: result,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["admin", "users", page, search],
     queryFn: async () => {
       const res = await api.api.admin.users.get({
@@ -125,9 +130,7 @@ export function Component() {
       enableSorting: true,
       cell: ({ row }) => {
         const d = row.original.createdAt ? new Date(row.original.createdAt) : null;
-        return d && !isNaN(d.getTime())
-          ? formatDistanceToNow(d, { addSuffix: true })
-          : "\u2014";
+        return d && !isNaN(d.getTime()) ? formatDistanceToNow(d, { addSuffix: true }) : "\u2014";
       },
       meta: { priority: 3 },
     },
@@ -179,9 +182,7 @@ export function Component() {
         <h1 className="text-2xl font-semibold">{t("users.title")}</h1>
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-sm text-muted-foreground mb-4">
-              {t("users.loadError")}
-            </p>
+            <p className="text-sm text-muted-foreground mb-4">{t("users.loadError")}</p>
             <Button variant="outline" onClick={() => refetch()}>
               {tc("retry")}
             </Button>
@@ -196,9 +197,7 @@ export function Component() {
       <h1 className="text-2xl font-semibold">{t("users.title")}</h1>
 
       {!isLoading && users.length === 0 && !search ? (
-        <p className="text-sm text-muted-foreground py-12 text-center">
-          {t("users.empty")}
-        </p>
+        <p className="text-sm text-muted-foreground py-12 text-center">{t("users.empty")}</p>
       ) : (
         <DataTable
           columns={columns}
@@ -217,7 +216,9 @@ export function Component() {
       <Dialog open={!!banTarget} onOpenChange={() => setBanTarget(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{banTarget?.banned ? t("users.banDialog.unbanTitle") : t("users.banDialog.banTitle")}</DialogTitle>
+            <DialogTitle>
+              {banTarget?.banned ? t("users.banDialog.unbanTitle") : t("users.banDialog.banTitle")}
+            </DialogTitle>
             <DialogDescription>
               {banTarget?.banned
                 ? t("users.banDialog.unbanDescription", { email: banTarget?.email })
@@ -260,7 +261,9 @@ export function Component() {
               onClick={() => impersonateTarget && impersonateMutation.mutate(impersonateTarget)}
               disabled={impersonateMutation.isPending}
             >
-              {impersonateMutation.isPending ? t("users.impersonateDialog.starting") : t("users.impersonateDialog.startImpersonation")}
+              {impersonateMutation.isPending
+                ? t("users.impersonateDialog.starting")
+                : t("users.impersonateDialog.startImpersonation")}
             </Button>
           </DialogFooter>
         </DialogContent>

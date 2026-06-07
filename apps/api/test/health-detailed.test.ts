@@ -13,12 +13,12 @@
 // import time. The side-effect module runs first per ES module evaluation order.
 import "./_env-setup";
 
-import { describe, expect, test, beforeEach, mock } from "bun:test";
-import { Elysia } from "elysia";
-import { errorMiddleware } from "../src/core/middleware/error";
-import { HealthAggregator } from "../src/core/health-aggregator";
-import type { HealthContributor } from "@baseworks/shared";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { RingBufferEntry } from "@baseworks/observability";
+import type { HealthContributor } from "@baseworks/shared";
+import { Elysia } from "elysia";
+import { HealthAggregator } from "../src/core/health-aggregator";
+import { errorMiddleware } from "../src/core/middleware/error";
 
 function fakeQueue(
   name: string,
@@ -51,10 +51,7 @@ function fakeRedisWithHeartbeats(
   return {
     async scan(cursor: string) {
       if (cursor === "0") {
-        return ["0", payloads.map((p) => `worker:heartbeat:${p.instanceId}`)] as [
-          string,
-          string[],
-        ];
+        return ["0", payloads.map((p) => `worker:heartbeat:${p.instanceId}`)] as [string, string[]];
       }
       return ["0", []] as [string, string[]];
     },
@@ -177,7 +174,7 @@ describe("/health/detailed — RBAC (D-07)", () => {
       "recentErrors",
       "modules",
     ]) {
-      expect(Object.prototype.hasOwnProperty.call(body.data, k)).toBe(true);
+      expect(Object.hasOwn(body.data, k)).toBe(true);
     }
     expect(typeof body.data.uptime).toBe("number");
     expect(body.data.uptime).toBeGreaterThanOrEqual(0);
@@ -234,9 +231,21 @@ describe("/health/detailed — worker freshness (D-13)", () => {
     const now = Date.now();
     const heartbeats = [
       { instanceId: "h-fresh", queues: [], lastHeartbeat: new Date(now - 0).toISOString() },
-      { instanceId: "h-healthy-edge", queues: [], lastHeartbeat: new Date(now - 25_000).toISOString() },
-      { instanceId: "h-stale-low", queues: [], lastHeartbeat: new Date(now - 31_000).toISOString() },
-      { instanceId: "h-stale-high", queues: [], lastHeartbeat: new Date(now - 60_000).toISOString() },
+      {
+        instanceId: "h-healthy-edge",
+        queues: [],
+        lastHeartbeat: new Date(now - 25_000).toISOString(),
+      },
+      {
+        instanceId: "h-stale-low",
+        queues: [],
+        lastHeartbeat: new Date(now - 31_000).toISOString(),
+      },
+      {
+        instanceId: "h-stale-high",
+        queues: [],
+        lastHeartbeat: new Date(now - 60_000).toISOString(),
+      },
       { instanceId: "h-dead", queues: [], lastHeartbeat: new Date(now - 76_000).toISOString() },
     ];
     const redis = fakeRedisWithHeartbeats(heartbeats);

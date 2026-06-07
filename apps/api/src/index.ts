@@ -1,40 +1,25 @@
 import "./telemetry";
-import { env, validatePaymentProviderEnv, validateObservabilityEnv } from "@baseworks/config";
-import { getDb, scopedDb, closeDb } from "@baseworks/db";
-import type { HandlerContext } from "@baseworks/shared";
-import { Elysia } from "elysia";
-import { sql } from "drizzle-orm";
-import cors from "@elysiajs/cors";
-import swagger from "@elysiajs/swagger";
+import { env, validateObservabilityEnv, validatePaymentProviderEnv } from "@baseworks/config";
+import { closeDb, getDb, scopedDb } from "@baseworks/db";
+import { defaultLocale } from "@baseworks/i18n";
 import { requireRole } from "@baseworks/module-auth";
-import { registerBillingHooks, billingWebhookRoutes } from "@baseworks/module-billing";
+import { billingWebhookRoutes, registerBillingHooks } from "@baseworks/module-billing";
 import { registerExampleHooks } from "@baseworks/module-example";
-import { ModuleRegistry } from "./core/registry";
-import { tenantMiddleware } from "./core/middleware/tenant";
-import { errorMiddleware } from "./core/middleware/error";
-import { requestTraceMiddleware } from "./core/middleware/request-trace";
-import { observabilityMiddleware } from "./core/middleware/observability";
-import { adminRoutes } from "./routes/admin";
-import { Queue } from "bullmq";
-import { getRedisConnection, closeConnection } from "@baseworks/queue";
-import { createBullBoardPlugin } from "./routes/bull-board";
-import { logger } from "./lib/logger";
 import {
   getErrorTracker,
   getTracer,
   installGlobalErrorHandlers,
   obsContext,
-  readHeartbeats,
   RingBufferingErrorTracker,
+  readHeartbeats,
   wrapCqrsBus,
   wrapEventBus,
 } from "@baseworks/observability";
+import { closeConnection, getRedisConnection } from "@baseworks/queue";
+import type { HandlerContext } from "@baseworks/shared";
 import { validateStorageEnv } from "@baseworks/storage";
-import { createHealthDetailedPlugin } from "./routes/health-detailed";
-import { defaultLocale } from "@baseworks/i18n";
-import { parseNextLocaleCookie, hasNextLocaleCookie } from "./lib/locale-cookie";
-import { decideInboundTrace } from "./lib/inbound-trace";
-import { readRequestId } from "./lib/request-id";
+import cors from "@elysiajs/cors";
+import swagger from "@elysiajs/swagger";
 import {
   context,
   ROOT_CONTEXT,
@@ -43,6 +28,21 @@ import {
   TraceFlags,
   trace,
 } from "@opentelemetry/api";
+import { Queue } from "bullmq";
+import { sql } from "drizzle-orm";
+import { Elysia } from "elysia";
+import { errorMiddleware } from "./core/middleware/error";
+import { observabilityMiddleware } from "./core/middleware/observability";
+import { requestTraceMiddleware } from "./core/middleware/request-trace";
+import { tenantMiddleware } from "./core/middleware/tenant";
+import { ModuleRegistry } from "./core/registry";
+import { decideInboundTrace } from "./lib/inbound-trace";
+import { hasNextLocaleCookie, parseNextLocaleCookie } from "./lib/locale-cookie";
+import { logger } from "./lib/logger";
+import { readRequestId } from "./lib/request-id";
+import { adminRoutes } from "./routes/admin";
+import { createBullBoardPlugin } from "./routes/bull-board";
+import { createHealthDetailedPlugin } from "./routes/health-detailed";
 
 // Create database instance — shared process-wide singleton pool (api-multiple-db-pools).
 const db = getDb(env.DATABASE_URL);
@@ -230,8 +230,7 @@ const healthDetailedPlugin = createHealthDetailedPlugin({
   redis: env.REDIS_URL ? getRedisConnection(env.REDIS_URL) : null,
   heartbeatIntervalMs: env.WORKER_HEARTBEAT_INTERVAL_MS,
   loadedModuleNames: () => registry.getLoadedNames(),
-  moduleStatuses: () =>
-    new Map<string, "healthy" | "degraded" | "unhealthy" | "unknown">(),
+  moduleStatuses: () => new Map<string, "healthy" | "degraded" | "unhealthy" | "unknown">(),
   recentErrorsSnapshot: () => errorTracker.snapshot(),
 });
 
@@ -295,7 +294,7 @@ const app = new Elysia()
         headers: ctx.request.headers,
         emit: (event: string, data: unknown) =>
           registry.getEventBus().emit(event, {
-            ...((typeof data === "object" && data !== null) ? data : { data }),
+            ...(typeof data === "object" && data !== null ? data : { data }),
             _requestId: ctx.requestId,
           }),
       } satisfies HandlerContext,
@@ -311,23 +310,21 @@ const app = new Elysia()
   // deleteOrganization runs and the `tenant.deleted` domain event is emitted
   // (api-delete-tenant-noop / tenant-delete-route-stub-returns-success).
   .group("/api", (group) =>
-    group
-      .use(requireRole("owner"))
-      .delete("/tenant", async (ctx: any) => {
-        const tenantId: string = ctx.tenantId;
-        const result = await registry
-          .getCqrs()
-          .execute<{ deleted: true }>(
-            "auth:delete-tenant",
-            { organizationId: tenantId },
-            ctx.handlerCtx,
-          );
-        if (!result.success) {
-          ctx.set.status = 500;
-          return { success: false, error: result.error };
-        }
-        return { deleted: true, tenantId };
-      }),
+    group.use(requireRole("owner")).delete("/tenant", async (ctx: any) => {
+      const tenantId: string = ctx.tenantId;
+      const result = await registry
+        .getCqrs()
+        .execute<{ deleted: true }>(
+          "auth:delete-tenant",
+          { organizationId: tenantId },
+          ctx.handlerCtx,
+        );
+      if (!result.success) {
+        ctx.set.status = 500;
+        return { success: false, error: result.error };
+      }
+      return { deleted: true, tenantId };
+    }),
   )
   // Non-auth, non-billing module routes (e.g., example)
   .use(registry.getModuleRoutes());
@@ -354,8 +351,7 @@ const server = Bun.serve({
     // repeats the silent fallback and the user is stuck on defaultLocale
     // forever with no signal. Stamp the response with a clearing Set-Cookie
     // so the browser drops the bad value on the next round-trip.
-    const localeCookieNeedsClear =
-      parsedLocale === null && hasNextLocaleCookie(cookieHeader);
+    const localeCookieNeedsClear = parsedLocale === null && hasNextLocaleCookie(cookieHeader);
     const requestId = readRequestId(req);
     const { traceId, spanId } = decideInboundTrace(req);
     const reqSpanCtx: SpanContext = {
@@ -393,10 +389,7 @@ const server = Bun.serve({
           // i18n integration; Max-Age=0 instructs the browser to delete it.
           if (localeCookieNeedsClear) {
             try {
-              response.headers.append(
-                "Set-Cookie",
-                "NEXT_LOCALE=; Max-Age=0; Path=/",
-              );
+              response.headers.append("Set-Cookie", "NEXT_LOCALE=; Max-Age=0; Path=/");
             } catch {
               // Headers are immutable on some Response shapes — rebuild.
               const headers = new Headers(response.headers);

@@ -1,10 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useTranslations } from "next-intl";
-import { toast } from "sonner";
-import { Mail, X, Loader2 } from "lucide-react";
 import {
   Badge,
   Button,
@@ -27,6 +22,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@baseworks/ui";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2, Mail, X } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useState } from "react";
+import { toast } from "sonner";
 import { api } from "@/lib/api";
 
 const isLinkInvite = (email: string) => email.endsWith("@internal");
@@ -150,9 +150,7 @@ export function PendingInvitations() {
                 </TableCell>
                 <TableCell>
                   <Badge
-                    variant={
-                      roleBadgeVariant[role as keyof typeof roleBadgeVariant] ?? "default"
-                    }
+                    variant={roleBadgeVariant[role as keyof typeof roleBadgeVariant] ?? "default"}
                   >
                     {t(`roles.${role}` as any)}
                   </Badge>

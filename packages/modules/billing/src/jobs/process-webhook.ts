@@ -1,10 +1,6 @@
 import { env } from "@baseworks/config";
-import {
-  getDb,
-  billingCustomers,
-  webhookEvents,
-} from "@baseworks/db";
 import type { DbInstance } from "@baseworks/db";
+import { billingCustomers, getDb, webhookEvents } from "@baseworks/db";
 import { and, eq, isNull, lt, or } from "drizzle-orm";
 import pino from "pino";
 import type { NormalizedEvent } from "../ports/types";
@@ -127,7 +123,10 @@ export async function processWebhook(data: unknown): Promise<void> {
  * @param db - Database instance
  * @param normalizedEvent - Normalized checkout event
  */
-async function handleCheckoutCompleted(db: DbInstance, normalizedEvent: NormalizedEvent): Promise<void> {
+async function handleCheckoutCompleted(
+  db: DbInstance,
+  normalizedEvent: NormalizedEvent,
+): Promise<void> {
   if (!normalizedEvent.providerCustomerId || !normalizedEvent.data.subscriptionId) return;
 
   await db
@@ -174,10 +173,7 @@ async function handleSubscriptionCreated(
     .where(
       and(
         eq(billingCustomers.providerCustomerId, normalizedEvent.providerCustomerId),
-        or(
-          isNull(billingCustomers.lastEventAt),
-          lt(billingCustomers.lastEventAt, eventTime),
-        ),
+        or(isNull(billingCustomers.lastEventAt), lt(billingCustomers.lastEventAt, eventTime)),
       ),
     );
 }
@@ -219,10 +215,7 @@ async function handleSubscriptionUpdated(
     .where(
       and(
         eq(billingCustomers.providerCustomerId, normalizedEvent.providerCustomerId),
-        or(
-          isNull(billingCustomers.lastEventAt),
-          lt(billingCustomers.lastEventAt, eventTime),
-        ),
+        or(isNull(billingCustomers.lastEventAt), lt(billingCustomers.lastEventAt, eventTime)),
       ),
     );
 }
@@ -256,10 +249,7 @@ async function handleSubscriptionDeleted(
     .where(
       and(
         eq(billingCustomers.providerCustomerId, normalizedEvent.providerCustomerId),
-        or(
-          isNull(billingCustomers.lastEventAt),
-          lt(billingCustomers.lastEventAt, eventTime),
-        ),
+        or(isNull(billingCustomers.lastEventAt), lt(billingCustomers.lastEventAt, eventTime)),
       ),
     );
 }
@@ -298,10 +288,7 @@ async function handlePaymentFailed(
     .where(
       and(
         eq(billingCustomers.providerCustomerId, normalizedEvent.providerCustomerId),
-        or(
-          isNull(billingCustomers.lastEventAt),
-          lt(billingCustomers.lastEventAt, eventTime),
-        ),
+        or(isNull(billingCustomers.lastEventAt), lt(billingCustomers.lastEventAt, eventTime)),
       ),
     );
 }

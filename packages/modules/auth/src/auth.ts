@@ -1,10 +1,10 @@
-import { betterAuth } from "better-auth";
-import { organization, magicLink } from "better-auth/plugins";
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { getDb } from "@baseworks/db";
 import { env } from "@baseworks/config";
-import { createQueue, getRedisConnection } from "@baseworks/queue";
+import { getDb } from "@baseworks/db";
 import { getErrorTracker } from "@baseworks/observability";
+import { createQueue, getRedisConnection } from "@baseworks/queue";
+import { betterAuth } from "better-auth";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { magicLink, organization } from "better-auth/plugins";
 import type { Queue } from "bullmq";
 import { nanoid } from "nanoid";
 import { getLocale } from "./locale-context";
@@ -176,9 +176,7 @@ export const auth = betterAuth({
             },
           });
         } else {
-          console.log(
-            `[AUTH] Team invite for ${data.email} (locale=${locale}): ${inviteLink}`,
-          );
+          console.log(`[AUTH] Team invite for ${data.email} (locale=${locale}): ${inviteLink}`);
         }
       },
     }),

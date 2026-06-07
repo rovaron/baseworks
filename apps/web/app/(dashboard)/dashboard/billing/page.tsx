@@ -1,13 +1,5 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useQueryState } from "nuqs";
-import { format } from "date-fns";
-import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
-import { useTranslations } from "next-intl";
-
 import {
   Badge,
   Button,
@@ -29,6 +21,13 @@ import {
   TabsList,
   TabsTrigger,
 } from "@baseworks/ui";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
+import { Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useQueryState } from "nuqs";
+import { Suspense, useState } from "react";
+import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { env } from "@/lib/env";
 
@@ -125,10 +124,7 @@ function SubscriptionCard() {
           <CardTitle>{tc("error")}</CardTitle>
         </CardHeader>
         <CardFooter>
-          <Button
-            variant="outline"
-            onClick={() => subscriptionQuery.refetch()}
-          >
+          <Button variant="outline" onClick={() => subscriptionQuery.refetch()}>
             {tc("retry")}
           </Button>
         </CardFooter>
@@ -147,17 +143,13 @@ function SubscriptionCard() {
       <Card>
         <CardHeader>
           <CardTitle>{t("subscription.noActive")}</CardTitle>
-          <CardDescription>
-            {t("subscription.noActiveDescription")}
-          </CardDescription>
+          <CardDescription>{t("subscription.noActiveDescription")}</CardDescription>
         </CardHeader>
         <CardFooter>
           <Button
             variant="outline"
             onClick={() => {
-              document
-                .getElementById("plan-selection")
-                ?.scrollIntoView({ behavior: "smooth" });
+              document.getElementById("plan-selection")?.scrollIntoView({ behavior: "smooth" });
             }}
           >
             {t("subscription.viewPlans")}
@@ -173,9 +165,7 @@ function SubscriptionCard() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>{subscription.planName ?? t("subscription.currentPlan")}</CardTitle>
-            <Badge variant={statusVariant(subscription.status)}>
-              {subscription.status}
-            </Badge>
+            <Badge variant={statusVariant(subscription.status)}>{subscription.status}</Badge>
           </div>
           {subscription.currentPeriodEnd && (
             <CardDescription>
@@ -195,10 +185,7 @@ function SubscriptionCard() {
             {t("subscription.manageBilling")}
           </Button>
           {subscription.status === "active" && (
-            <Button
-              variant="destructive"
-              onClick={() => setCancelOpen(true)}
-            >
+            <Button variant="destructive" onClick={() => setCancelOpen(true)}>
               {t("subscription.cancelSubscription")}
             </Button>
           )}
@@ -209,9 +196,7 @@ function SubscriptionCard() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("subscription.cancelTitle")}</DialogTitle>
-            <DialogDescription>
-              {t("subscription.cancelDescription")}
-            </DialogDescription>
+            <DialogDescription>{t("subscription.cancelDescription")}</DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setCancelOpen(false)}>
@@ -222,9 +207,7 @@ function SubscriptionCard() {
               onClick={() => cancelMutation.mutate()}
               disabled={cancelMutation.isPending}
             >
-              {cancelMutation.isPending && (
-                <Loader2 className="animate-spin" />
-              )}
+              {cancelMutation.isPending && <Loader2 className="animate-spin" />}
               {t("subscription.confirmCancel")}
             </Button>
           </DialogFooter>
@@ -290,8 +273,7 @@ function PlanSelection() {
     mutationFn: async (priceId: string) => {
       const { data, error } = await api.api.billing.checkout.post({
         priceId,
-        successUrl:
-          env.NEXT_PUBLIC_APP_URL + "/dashboard/billing?success=true",
+        successUrl: env.NEXT_PUBLIC_APP_URL + "/dashboard/billing?success=true",
         cancelUrl: env.NEXT_PUBLIC_APP_URL + "/dashboard/billing",
       });
       if (error) throw error;
@@ -314,25 +296,14 @@ function PlanSelection() {
       <h2 className="text-xl font-semibold">{t("plans.title")}</h2>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {PLANS.map((plan) => (
-          <Card
-            key={plan.key}
-            className={
-              plan.popular
-                ? "border-primary shadow-md"
-                : undefined
-            }
-          >
+          <Card key={plan.key} className={plan.popular ? "border-primary shadow-md" : undefined}>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 {plan.name}
-                {plan.popular && (
-                  <Badge variant="secondary">{t("plans.popular")}</Badge>
-                )}
+                {plan.popular && <Badge variant="secondary">{t("plans.popular")}</Badge>}
               </CardTitle>
               <CardDescription>
-                <span className="text-2xl font-bold text-foreground">
-                  {plan.price}
-                </span>
+                <span className="text-2xl font-bold text-foreground">{plan.price}</span>
                 <span className="text-muted-foreground">{plan.period}</span>
               </CardDescription>
             </CardHeader>
@@ -353,9 +324,7 @@ function PlanSelection() {
                 onClick={() => checkoutMutation.mutate(plan.priceId)}
                 disabled={checkoutMutation.isPending}
               >
-                {checkoutMutation.isPending && (
-                  <Loader2 className="animate-spin" />
-                )}
+                {checkoutMutation.isPending && <Loader2 className="animate-spin" />}
                 {t("plans.subscribeTo", { planName: plan.name })}
               </Button>
             </CardFooter>
@@ -412,16 +381,13 @@ function BillingHistory() {
   // lives at `data.invoices` -- not at the top level. Narrow on `success`
   // before reading it so a malformed/error body falls back to empty.
   const res = historyQuery.data as any;
-  const items =
-    res?.success && Array.isArray(res.data?.invoices) ? res.data.invoices : [];
+  const items = res?.success && Array.isArray(res.data?.invoices) ? res.data.invoices : [];
 
   if (items.length === 0) {
     return (
       <Card>
         <CardContent className="py-8 text-center">
-          <p className="text-muted-foreground">
-            {t("history.empty")}
-          </p>
+          <p className="text-muted-foreground">{t("history.empty")}</p>
         </CardContent>
       </Card>
     );
@@ -433,19 +399,13 @@ function BillingHistory() {
         <Card key={item.id ?? index}>
           <CardContent className="flex flex-wrap items-center justify-between gap-2 py-4">
             <div>
-              <p className="text-sm font-medium">
-                {item.description ?? t("history.invoice")}
-              </p>
+              <p className="text-sm font-medium">{item.description ?? t("history.invoice")}</p>
               <p className="text-xs text-muted-foreground">
-                {item.date
-                  ? format(new Date(item.date), "MMMM d, yyyy")
-                  : "\u2014"}
+                {item.date ? format(new Date(item.date), "MMMM d, yyyy") : "\u2014"}
               </p>
             </div>
             <span className="text-sm font-medium">
-              {item.amount != null
-                ? `$${(item.amount / 100).toFixed(2)}`
-                : "\u2014"}
+              {item.amount != null ? `$${(item.amount / 100).toFixed(2)}` : "\u2014"}
             </span>
           </CardContent>
         </Card>
@@ -464,9 +424,15 @@ function BillingContent() {
 
       <Tabs value={tab ?? "subscription"} onValueChange={setTab}>
         <TabsList className="w-full">
-          <TabsTrigger value="subscription" className="flex-1">{t("tabs.subscription")}</TabsTrigger>
-          <TabsTrigger value="history" className="flex-1">{t("tabs.history")}</TabsTrigger>
-          <TabsTrigger value="usage" className="flex-1">{t("tabs.usage")}</TabsTrigger>
+          <TabsTrigger value="subscription" className="flex-1">
+            {t("tabs.subscription")}
+          </TabsTrigger>
+          <TabsTrigger value="history" className="flex-1">
+            {t("tabs.history")}
+          </TabsTrigger>
+          <TabsTrigger value="usage" className="flex-1">
+            {t("tabs.usage")}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="subscription" className="space-y-8">
@@ -481,9 +447,7 @@ function BillingContent() {
         <TabsContent value="usage">
           <Card>
             <CardContent className="py-8 text-center">
-              <p className="text-muted-foreground">
-                {t("usage.empty")}
-              </p>
+              <p className="text-muted-foreground">{t("usage.empty")}</p>
             </CardContent>
           </Card>
         </TabsContent>

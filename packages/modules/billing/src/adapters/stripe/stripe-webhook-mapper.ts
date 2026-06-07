@@ -1,8 +1,4 @@
-import type {
-  RawProviderEvent,
-  NormalizedEvent,
-  NormalizedEventType,
-} from "../../ports/types";
+import type { NormalizedEvent, NormalizedEventType, RawProviderEvent } from "../../ports/types";
 
 /**
  * Stripe event type to NormalizedEventType mapping.

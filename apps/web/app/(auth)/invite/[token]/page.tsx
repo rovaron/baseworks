@@ -1,11 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useTranslations } from "next-intl";
-import { Loader2, AlertCircle } from "lucide-react";
-import { toast } from "sonner";
 import {
   Avatar,
   AvatarFallback,
@@ -24,7 +18,13 @@ import {
   DialogTitle,
   Skeleton,
 } from "@baseworks/ui";
-import { auth, api } from "@/lib/api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { AlertCircle, Loader2 } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useState } from "react";
+import { toast } from "sonner";
+import { api, auth } from "@/lib/api";
 
 interface InvitationData {
   id: string;
@@ -179,9 +179,7 @@ export default function InviteAcceptPage() {
           </h1>
         </CardHeader>
         <CardFooter className="justify-center">
-          <Button onClick={() => router.push("/dashboard")}>
-            {t("accept.goToDashboard")}
-          </Button>
+          <Button onClick={() => router.push("/dashboard")}>{t("accept.goToDashboard")}</Button>
         </CardFooter>
       </Card>
     );
@@ -208,8 +206,7 @@ export default function InviteAcceptPage() {
   if (!invitation) return null;
 
   const orgName = invitation.organization.name;
-  const inviterName =
-    invitation.inviter.user.name || invitation.inviter.user.email;
+  const inviterName = invitation.inviter.user.name || invitation.inviter.user.email;
   const invitedEmail = invitation.email;
 
   // Logged in -- show accept/decline
@@ -219,29 +216,19 @@ export default function InviteAcceptPage() {
         <Card className="w-full max-w-md">
           <CardHeader className="items-center text-center">
             <Avatar className="h-16 w-16">
-              <AvatarFallback className="text-xl">
-                {getOrgInitials(orgName)}
-              </AvatarFallback>
+              <AvatarFallback className="text-xl">{getOrgInitials(orgName)}</AvatarFallback>
             </Avatar>
-            <h1 className="mt-4 text-2xl font-semibold leading-none tracking-tight">
-              {orgName}
-            </h1>
+            <h1 className="mt-4 text-2xl font-semibold leading-none tracking-tight">{orgName}</h1>
             <CardDescription>
               {t("accept.invitedBy", { name: inviterName, orgName })}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center gap-2">
-            <span className="text-sm text-muted-foreground">
-              {t("accept.roleAssigned")}
-            </span>
+            <span className="text-sm text-muted-foreground">{t("accept.roleAssigned")}</span>
             <Badge variant="secondary">{t(`roles.${invitation.role}` as any)}</Badge>
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
-            <Button
-              className="w-full"
-              onClick={handleAccept}
-              disabled={isAccepting || isDeclining}
-            >
+            <Button className="w-full" onClick={handleAccept} disabled={isAccepting || isDeclining}>
               {isAccepting && <Loader2 className="mr-2 animate-spin" />}
               {t("actions.accept")}
             </Button>
@@ -260,9 +247,7 @@ export default function InviteAcceptPage() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{t("accept.declineConfirmTitle")}</DialogTitle>
-              <DialogDescription>
-                {t("accept.declineConfirmBody")}
-              </DialogDescription>
+              <DialogDescription>{t("accept.declineConfirmBody")}</DialogDescription>
             </DialogHeader>
             <DialogFooter>
               <Button
@@ -272,11 +257,7 @@ export default function InviteAcceptPage() {
               >
                 {tc("cancel")}
               </Button>
-              <Button
-                variant="destructive"
-                onClick={handleDeclineConfirm}
-                disabled={isDeclining}
-              >
+              <Button variant="destructive" onClick={handleDeclineConfirm} disabled={isDeclining}>
                 {isDeclining && <Loader2 className="mr-2 animate-spin" />}
                 {t("accept.declineConfirmButton")}
               </Button>
@@ -292,37 +273,24 @@ export default function InviteAcceptPage() {
     <Card className="w-full max-w-md">
       <CardHeader className="items-center text-center">
         <Avatar className="h-16 w-16">
-          <AvatarFallback className="text-xl">
-            {getOrgInitials(orgName)}
-          </AvatarFallback>
+          <AvatarFallback className="text-xl">{getOrgInitials(orgName)}</AvatarFallback>
         </Avatar>
-        <h1 className="mt-4 text-2xl font-semibold leading-none tracking-tight">
-          {orgName}
-        </h1>
-        <CardDescription>
-          {t("accept.invitedBy", { name: inviterName, orgName })}
-        </CardDescription>
+        <h1 className="mt-4 text-2xl font-semibold leading-none tracking-tight">{orgName}</h1>
+        <CardDescription>{t("accept.invitedBy", { name: inviterName, orgName })}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col items-center gap-2">
-        <span className="text-sm text-muted-foreground">
-          {t("accept.roleAssigned")}
-        </span>
+        <span className="text-sm text-muted-foreground">{t("accept.roleAssigned")}</span>
         <Badge variant="secondary">{t(`roles.${invitation.role}` as any)}</Badge>
       </CardContent>
       <CardFooter className="flex flex-col gap-3">
-        <Button
-          className="w-full"
-          onClick={() => router.push(`/login?invite=${token}`)}
-        >
+        <Button className="w-full" onClick={() => router.push(`/login?invite=${token}`)}>
           {t("actions.loginToAccept")}
         </Button>
         <Button
           variant="outline"
           className="w-full"
           onClick={() =>
-            router.push(
-              `/signup?invite=${token}&email=${encodeURIComponent(invitedEmail)}`
-            )
+            router.push(`/signup?invite=${token}&email=${encodeURIComponent(invitedEmail)}`)
           }
         >
           {t("actions.createAccountToJoin")}

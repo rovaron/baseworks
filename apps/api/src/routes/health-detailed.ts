@@ -9,12 +9,13 @@
 // All inputs flow through the `deps` parameter so the endpoint is purely a
 // composition surface — testable in isolation with fake queues, fake redis,
 // fake aggregator, and fake module name/status providers.
-import { Elysia } from "elysia";
-import type { Queue } from "bullmq";
-import type IORedis from "ioredis";
+
 import { requirePlatformAdmin } from "@baseworks/module-auth";
-import { readHeartbeats } from "@baseworks/observability";
 import type { RingBufferEntry } from "@baseworks/observability";
+import { readHeartbeats } from "@baseworks/observability";
+import type { Queue } from "bullmq";
+import { Elysia } from "elysia";
+import type IORedis from "ioredis";
 import type { HealthAggregator } from "../core/health-aggregator";
 
 /** D-07 — per-queue thresholds (hardcoded; not env-tunable in v1.3 per D-09). */
@@ -109,11 +110,7 @@ export function createHealthDetailedPlugin(deps: HealthDetailedDeps): Elysia {
             const ageMs = now - new Date(hb.lastHeartbeat).getTime();
             const ageSec = Math.max(0, Math.round(ageMs / 1000));
             const status: "healthy" | "stale" | "dead" =
-              ageMs < 2 * intervalMs
-                ? "healthy"
-                : ageMs < 5 * intervalMs
-                  ? "stale"
-                  : "dead";
+              ageMs < 2 * intervalMs ? "healthy" : ageMs < 5 * intervalMs ? "stale" : "dead";
             return {
               instanceId: hb.instanceId,
               queues: hb.queues,
@@ -135,10 +132,7 @@ export function createHealthDetailedPlugin(deps: HealthDetailedDeps): Elysia {
       const db = {
         connected: typeof dbDetails.connected === "boolean" ? dbDetails.connected : false,
         lagMs: typeof dbDetails.lagMs === "number" ? (dbDetails.lagMs as number) : null,
-        status: (dbContrib?.result.status ?? "unhealthy") as
-          | "healthy"
-          | "degraded"
-          | "unhealthy",
+        status: (dbContrib?.result.status ?? "unhealthy") as "healthy" | "degraded" | "unhealthy",
       };
 
       // Modules — D-16 default (loaded modules without a contributor → "healthy").

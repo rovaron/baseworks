@@ -1,9 +1,3 @@
-import { useState } from "react";
-import { useParams, useNavigate } from "react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { formatDistanceToNow } from "date-fns";
-import { ArrowLeft } from "lucide-react";
-import { useTranslation } from "react-i18next";
 import {
   Badge,
   Button,
@@ -19,6 +13,12 @@ import {
   DialogTitle,
   Skeleton,
 } from "@baseworks/ui";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
+import { ArrowLeft } from "lucide-react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 
@@ -30,7 +30,12 @@ export function Component() {
   const { t } = useTranslation("admin");
   const { t: tc } = useTranslation("common");
 
-  const { data: result, isLoading, error, refetch } = useQuery({
+  const {
+    data: result,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["admin", "tenants", id],
     queryFn: async () => {
       const res = await (api.api.admin.tenants as any)({ id: id! }).get();
@@ -54,7 +59,9 @@ export function Component() {
       return res.data;
     },
     onSuccess: () => {
-      toast.success(isDeactivated ? t("tenants.toast.reactivated") : t("tenants.toast.deactivated"));
+      toast.success(
+        isDeactivated ? t("tenants.toast.reactivated") : t("tenants.toast.deactivated"),
+      );
       queryClient.invalidateQueries({ queryKey: ["admin", "tenants"] });
       setShowDeactivateDialog(false);
     },
@@ -125,25 +132,35 @@ export function Component() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">{t("tenants.detail.name")}</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                {t("tenants.detail.name")}
+              </p>
               <p>{tenant.name}</p>
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">{t("tenants.detail.slug")}</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                {t("tenants.detail.slug")}
+              </p>
               <p className="break-all">{tenant.slug}</p>
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">{t("tenants.detail.created")}</p>
-              <p>{(() => {
-                const d = tenant.createdAt ? new Date(tenant.createdAt) : null;
-                return d && !isNaN(d.getTime())
-                  ? formatDistanceToNow(d, { addSuffix: true })
-                  : "\u2014";
-              })()}</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                {t("tenants.detail.created")}
+              </p>
+              <p>
+                {(() => {
+                  const d = tenant.createdAt ? new Date(tenant.createdAt) : null;
+                  return d && !isNaN(d.getTime())
+                    ? formatDistanceToNow(d, { addSuffix: true })
+                    : "\u2014";
+                })()}
+              </p>
             </div>
             {tenant.memberCount !== undefined && (
               <div>
-                <p className="text-sm font-medium text-muted-foreground">{t("tenants.detail.members")}</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  {t("tenants.detail.members")}
+                </p>
                 <p>{tenant.memberCount}</p>
               </div>
             )}
@@ -170,7 +187,9 @@ export function Component() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {isDeactivated ? t("tenants.detail.reactivateDialog.title") : t("tenants.detail.deactivateDialog.title")}
+              {isDeactivated
+                ? t("tenants.detail.reactivateDialog.title")
+                : t("tenants.detail.deactivateDialog.title")}
             </DialogTitle>
             <DialogDescription>
               {isDeactivated

@@ -4,13 +4,13 @@
 //   - github.com/felixmosh/bull-board/blob/master/README.md#queue-options (readOnlyMode)
 //   - github.com/oven-sh/bun/issues/5809 (uiBasePath Bun workaround)
 import { dirname } from "node:path";
-import { Elysia } from "elysia";
+import { env } from "@baseworks/config";
+import { requirePlatformAdmin } from "@baseworks/module-auth";
 import { createBullBoard } from "@bull-board/api";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
 import { ElysiaAdapter } from "@bull-board/elysia";
 import type { Queue } from "bullmq";
-import { requirePlatformAdmin } from "@baseworks/module-auth";
-import { env } from "@baseworks/config";
+import { Elysia } from "elysia";
 
 // Resolve @bull-board/ui's installed dist directory at runtime. Bun's isolated
 // install does NOT hoist @bull-board/ui to the workspace-root node_modules, so

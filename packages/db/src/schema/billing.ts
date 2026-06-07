@@ -1,11 +1,4 @@
-import {
-  boolean,
-  index,
-  integer,
-  pgTable,
-  text,
-  timestamp,
-} from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { primaryKeyColumn, tenantIdColumn, timestampColumns } from "./base";
 
 /**

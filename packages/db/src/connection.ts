@@ -67,7 +67,11 @@ export function getDb(connectionString: string = process.env.DATABASE_URL as str
  * call when no singleton has been created.
  */
 export async function closeDb(): Promise<void> {
-  const sql = (_db as (DbInstance & { $sql?: { end: (o?: { timeout?: number }) => Promise<void> } }) | undefined)?.$sql;
+  const sql = (
+    _db as
+      | (DbInstance & { $sql?: { end: (o?: { timeout?: number }) => Promise<void> } })
+      | undefined
+  )?.$sql;
   if (sql) await sql.end({ timeout: 5 });
   _db = undefined;
 }

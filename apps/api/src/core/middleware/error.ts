@@ -1,6 +1,6 @@
-import { Elysia } from "elysia";
 import { getErrorTracker } from "@baseworks/observability";
 import { AppError } from "@baseworks/shared";
+import { Elysia } from "elysia";
 import { logger } from "../../lib/logger";
 
 /**

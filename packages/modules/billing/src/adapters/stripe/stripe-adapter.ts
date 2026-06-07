@@ -1,23 +1,23 @@
 import Stripe from "stripe";
 import type { PaymentProvider } from "../../ports/payment-provider";
 import type {
-  CreateCustomerParams,
-  ProviderCustomer,
-  CreateSubscriptionParams,
-  ProviderSubscription,
   CancelSubscriptionParams,
   ChangeSubscriptionParams,
-  CreateOneTimePaymentParams,
-  ProviderCheckoutSession,
   CreateCheckoutSessionParams,
+  CreateCustomerParams,
+  CreateOneTimePaymentParams,
   CreatePortalSessionParams,
-  ProviderPortalSession,
-  VerifyWebhookParams,
-  RawProviderEvent,
+  CreateSubscriptionParams,
   NormalizedEvent,
+  ProviderCheckoutSession,
+  ProviderCustomer,
   ProviderInvoice,
+  ProviderPortalSession,
+  ProviderSubscription,
+  RawProviderEvent,
   ReportUsageParams,
   ReportUsageResult,
+  VerifyWebhookParams,
 } from "../../ports/types";
 import { mapStripeEvent } from "./stripe-webhook-mapper";
 
@@ -198,7 +198,9 @@ export class StripeAdapter implements PaymentProvider {
    * @param params - Customer, price ID, and redirect URLs
    * @returns Checkout session with redirect URL
    */
-  async createCheckoutSession(params: CreateCheckoutSessionParams): Promise<ProviderCheckoutSession> {
+  async createCheckoutSession(
+    params: CreateCheckoutSessionParams,
+  ): Promise<ProviderCheckoutSession> {
     const session = await this.stripe.checkout.sessions.create(
       {
         customer: params.providerCustomerId,
@@ -223,7 +225,9 @@ export class StripeAdapter implements PaymentProvider {
    * @param params - Customer ID and return URL
    * @returns Portal session with URL
    */
-  async createPortalSession(params: CreatePortalSessionParams): Promise<ProviderPortalSession | null> {
+  async createPortalSession(
+    params: CreatePortalSessionParams,
+  ): Promise<ProviderPortalSession | null> {
     const session = await this.stripe.billingPortal.sessions.create({
       customer: params.providerCustomerId,
       return_url: params.returnUrl,
@@ -296,14 +300,10 @@ export class StripeAdapter implements PaymentProvider {
    */
   async reportUsage(params: ReportUsageParams): Promise<ReportUsageResult> {
     // Retrieve subscription to get the subscription item ID
-    const subscription = await this.stripe.subscriptions.retrieve(
-      params.providerSubscriptionId,
-    );
+    const subscription = await this.stripe.subscriptions.retrieve(params.providerSubscriptionId);
 
     if (!subscription.items.data.length) {
-      throw new Error(
-        `Subscription ${params.providerSubscriptionId} has no items`,
-      );
+      throw new Error(`Subscription ${params.providerSubscriptionId} has no items`);
     }
 
     const subscriptionItemId = subscription.items.data[0].id;

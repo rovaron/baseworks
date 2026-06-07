@@ -1,13 +1,6 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { Button, Card, CardContent, CardHeader, CardTitle, Skeleton } from "@baseworks/ui";
+import { type ReactNode, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Button,
-  Skeleton,
-} from "@baseworks/ui";
 import { auth } from "@/lib/api";
 
 interface AuthGuardProps {
@@ -72,9 +65,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
         const userId = session.data!.user.id;
         const isOwner = fullOrgs.some((fullOrg) => {
-          const member = fullOrg.data?.members.find(
-            (m: any) => m.userId === userId,
-          );
+          const member = fullOrg.data?.members.find((m: any) => m.userId === userId);
           return member?.role === "owner";
         });
 
@@ -120,8 +111,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              We could not verify your access. This may be a temporary problem.
-              Please try again.
+              We could not verify your access. This may be a temporary problem. Please try again.
             </p>
             <Button
               className="w-full"

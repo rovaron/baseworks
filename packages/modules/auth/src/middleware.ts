@@ -1,9 +1,5 @@
 import { getAdminEmails } from "@baseworks/config";
-import {
-  ForbiddenError,
-  NoActiveTenantError,
-  UnauthorizedError,
-} from "@baseworks/shared";
+import { ForbiddenError, NoActiveTenantError, UnauthorizedError } from "@baseworks/shared";
 import { Elysia } from "elysia";
 import { auth } from "./auth";
 
@@ -85,9 +81,7 @@ export function requireRole(...roles: string[]) {
         query: { organizationId: activeOrgId },
       });
 
-      const memberRecord = fullOrg?.members?.find(
-        (m: any) => m.userId === session.user.id,
-      );
+      const memberRecord = fullOrg?.members?.find((m: any) => m.userId === session.user.id);
 
       if (!memberRecord || !roles.includes(memberRecord.role)) {
         throw new ForbiddenError();

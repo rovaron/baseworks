@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
 describe("env validation", () => {
   test("crashes when DATABASE_URL is missing", async () => {

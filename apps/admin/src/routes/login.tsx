@@ -1,21 +1,20 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useTranslation } from "react-i18next";
 import {
+  Button,
   Card,
   CardContent,
   CardDescription,
   CardHeader,
-
-  Button,
   Input,
   Label,
 } from "@baseworks/ui";
-import { auth } from "@/lib/api";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router";
 import { toast } from "sonner";
+import { z } from "zod";
+import { auth } from "@/lib/api";
 
 type LoginValues = z.infer<ReturnType<typeof createLoginSchema>>;
 
@@ -74,9 +73,7 @@ function LoginPage() {
           query: { organizationId: org.id },
         });
         if (fullOrg.data) {
-          const member = fullOrg.data.members.find(
-            (m: any) => m.userId === userId,
-          );
+          const member = fullOrg.data.members.find((m: any) => m.userId === userId);
           if (member?.role === "owner") {
             hasOwnerRole = true;
             break;
@@ -116,9 +113,7 @@ function LoginPage() {
                 autoComplete="email"
                 {...register("email")}
               />
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email.message}</p>
-              )}
+              {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">{tAuth("password")}</Label>

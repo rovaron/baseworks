@@ -1,18 +1,18 @@
-import { Elysia, t } from "elysia";
-import { eq } from "drizzle-orm";
-import { getPaymentProvider } from "./provider-factory";
 import { env } from "@baseworks/config";
 import { getDb, webhookEvents } from "@baseworks/db";
 import { Queue } from "bullmq";
-import type { NormalizedEvent } from "./ports/types";
-import { createCheckoutSession } from "./commands/create-checkout-session";
+import { eq } from "drizzle-orm";
+import { Elysia, t } from "elysia";
 import { cancelSubscription } from "./commands/cancel-subscription";
 import { changeSubscription } from "./commands/change-subscription";
+import { createCheckoutSession } from "./commands/create-checkout-session";
 import { createOneTimePayment } from "./commands/create-one-time-payment";
 import { createPortalSession } from "./commands/create-portal-session";
 import { recordUsage } from "./commands/record-usage";
-import { getSubscriptionStatus } from "./queries/get-subscription-status";
+import type { NormalizedEvent } from "./ports/types";
+import { getPaymentProvider } from "./provider-factory";
 import { getBillingHistory } from "./queries/get-billing-history";
+import { getSubscriptionStatus } from "./queries/get-subscription-status";
 
 /**
  * Billing module routes plugins.
@@ -60,10 +60,7 @@ function getWebhookQueue(): Queue | null {
  * provider event id, so BullMQ dedups concurrent/duplicate enqueues of the
  * same event (T-03-05) -- making the insert->enqueue handoff safe to retry.
  */
-async function enqueueWebhook(
-  queue: Queue,
-  normalizedEvent: NormalizedEvent,
-): Promise<void> {
+async function enqueueWebhook(queue: Queue, normalizedEvent: NormalizedEvent): Promise<void> {
   await queue.add(
     "process-webhook",
     {
@@ -91,8 +88,9 @@ function isUniqueViolation(err: unknown): boolean {
 /**
  * PUBLIC billing webhook plugin -- mounted before tenantMiddleware (C4).
  */
-export const billingWebhookRoutes = new Elysia({ prefix: "/api/billing" })
-  .post("/webhooks", async (ctx) => {
+export const billingWebhookRoutes = new Elysia({ prefix: "/api/billing" }).post(
+  "/webhooks",
+  async (ctx) => {
     const provider = getPaymentProvider();
 
     // Read signature from provider-specific headers
@@ -179,27 +177,32 @@ export const billingWebhookRoutes = new Elysia({ prefix: "/api/billing" })
     await enqueueWebhook(queue, normalizedEvent);
 
     return { received: true };
-  });
+  },
+);
 
 /**
  * Tenant-scoped billing routes -- mounted AFTER auth + tenant middleware.
  */
 export const billingRoutes = new Elysia({ prefix: "/api/billing" })
   // --- Billing HTTP routes (tenant-scoped, requires auth + tenant middleware) ---
-  .post("/checkout", async (ctx: any) => {
-    const result = await createCheckoutSession(ctx.body, ctx.handlerCtx);
-    if (!result.success) {
-      ctx.set.status = 400;
-      return { success: false, error: result.error };
-    }
-    return { success: true, data: result.data };
-  }, {
-    body: t.Object({
-      priceId: t.String(),
-      successUrl: t.String(),
-      cancelUrl: t.String(),
-    }),
-  })
+  .post(
+    "/checkout",
+    async (ctx: any) => {
+      const result = await createCheckoutSession(ctx.body, ctx.handlerCtx);
+      if (!result.success) {
+        ctx.set.status = 400;
+        return { success: false, error: result.error };
+      }
+      return { success: true, data: result.data };
+    },
+    {
+      body: t.Object({
+        priceId: t.String(),
+        successUrl: t.String(),
+        cancelUrl: t.String(),
+      }),
+    },
+  )
   .post("/cancel", async (ctx: any) => {
     const result = await cancelSubscription({}, ctx.handlerCtx);
     if (!result.success) {
@@ -208,61 +211,77 @@ export const billingRoutes = new Elysia({ prefix: "/api/billing" })
     }
     return { success: true };
   })
-  .post("/change", async (ctx: any) => {
-    const result = await changeSubscription(ctx.body, ctx.handlerCtx);
-    if (!result.success) {
-      ctx.set.status = 400;
-      return { success: false, error: result.error };
-    }
-    return { success: true };
-  }, {
-    body: t.Object({
-      newPriceId: t.String(),
-    }),
-  })
-  .post("/one-time", async (ctx: any) => {
-    const result = await createOneTimePayment(ctx.body, ctx.handlerCtx);
-    if (!result.success) {
-      ctx.set.status = 400;
-      return { success: false, error: result.error };
-    }
-    return { success: true, data: result.data };
-  }, {
-    body: t.Object({
-      priceId: t.String(),
-      quantity: t.Optional(t.Number({ minimum: 1 })),
-      successUrl: t.String(),
-      cancelUrl: t.String(),
-    }),
-  })
-  .post("/portal", async (ctx: any) => {
-    const result = await createPortalSession(ctx.body, ctx.handlerCtx);
-    if (!result.success) {
-      ctx.set.status = 400;
-      return { success: false, error: result.error };
-    }
-    return { success: true, data: result.data };
-  }, {
-    body: t.Object({
-      returnUrl: t.String(),
-    }),
-  })
-  .post("/usage", async (ctx: any) => {
-    const result = await recordUsage(
-      { metric: ctx.body.featureKey, quantity: ctx.body.quantity },
-      ctx.handlerCtx,
-    );
-    if (!result.success) {
-      ctx.set.status = 400;
-      return { success: false, error: result.error };
-    }
-    return { success: true };
-  }, {
-    body: t.Object({
-      featureKey: t.String(),
-      quantity: t.Number({ minimum: 1 }),
-    }),
-  })
+  .post(
+    "/change",
+    async (ctx: any) => {
+      const result = await changeSubscription(ctx.body, ctx.handlerCtx);
+      if (!result.success) {
+        ctx.set.status = 400;
+        return { success: false, error: result.error };
+      }
+      return { success: true };
+    },
+    {
+      body: t.Object({
+        newPriceId: t.String(),
+      }),
+    },
+  )
+  .post(
+    "/one-time",
+    async (ctx: any) => {
+      const result = await createOneTimePayment(ctx.body, ctx.handlerCtx);
+      if (!result.success) {
+        ctx.set.status = 400;
+        return { success: false, error: result.error };
+      }
+      return { success: true, data: result.data };
+    },
+    {
+      body: t.Object({
+        priceId: t.String(),
+        quantity: t.Optional(t.Number({ minimum: 1 })),
+        successUrl: t.String(),
+        cancelUrl: t.String(),
+      }),
+    },
+  )
+  .post(
+    "/portal",
+    async (ctx: any) => {
+      const result = await createPortalSession(ctx.body, ctx.handlerCtx);
+      if (!result.success) {
+        ctx.set.status = 400;
+        return { success: false, error: result.error };
+      }
+      return { success: true, data: result.data };
+    },
+    {
+      body: t.Object({
+        returnUrl: t.String(),
+      }),
+    },
+  )
+  .post(
+    "/usage",
+    async (ctx: any) => {
+      const result = await recordUsage(
+        { metric: ctx.body.featureKey, quantity: ctx.body.quantity },
+        ctx.handlerCtx,
+      );
+      if (!result.success) {
+        ctx.set.status = 400;
+        return { success: false, error: result.error };
+      }
+      return { success: true };
+    },
+    {
+      body: t.Object({
+        featureKey: t.String(),
+        quantity: t.Number({ minimum: 1 }),
+      }),
+    },
+  )
   .get("/subscription", async (ctx: any) => {
     const result = await getSubscriptionStatus({}, ctx.handlerCtx);
     if (!result.success) {

@@ -1,10 +1,10 @@
 import { Elysia, t } from "elysia";
 import { auth } from "./auth";
-import { betterAuthPlugin, requireRole } from "./middleware";
-import { createInvitation } from "./commands/create-invitation";
 import { cancelInvitation } from "./commands/cancel-invitation";
-import { listInvitations } from "./queries/list-invitations";
+import { createInvitation } from "./commands/create-invitation";
+import { betterAuthPlugin, requireRole } from "./middleware";
 import { getInvitation } from "./queries/get-invitation";
+import { listInvitations } from "./queries/list-invitations";
 
 /**
  * Auth routes plugin. Mounts better-auth's handler + invitation endpoints.
@@ -83,8 +83,7 @@ const inFlightResends = new Set<string>();
  * is always taken and behavior is unchanged.
  */
 const base = new Elysia({ name: "auth-routes" });
-const mounted =
-  typeof auth?.handler === "function" ? base.mount(auth.handler) : base;
+const mounted = typeof auth?.handler === "function" ? base.mount(auth.handler) : base;
 
 export const authRoutes = mounted
 

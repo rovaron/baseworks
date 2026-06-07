@@ -1,10 +1,11 @@
 import "./telemetry";
-import { env, assertRedisUrl, validatePaymentProviderEnv, validateObservabilityEnv } from "@baseworks/config";
-import { getDb, closeDb } from "@baseworks/db";
-import { createWorker, closeConnection, getRedisConnection } from "@baseworks/queue";
-import type { Worker } from "bullmq";
-import { ModuleRegistry } from "./core/registry";
-import { logger } from "./lib/logger";
+import {
+  assertRedisUrl,
+  env,
+  validateObservabilityEnv,
+  validatePaymentProviderEnv,
+} from "@baseworks/config";
+import { closeDb, getDb } from "@baseworks/db";
 import {
   getErrorTracker,
   getTracer,
@@ -14,7 +15,11 @@ import {
   wrapCqrsBus,
   wrapEventBus,
 } from "@baseworks/observability";
+import { closeConnection, createWorker, getRedisConnection } from "@baseworks/queue";
 import { validateStorageEnv } from "@baseworks/storage";
+import type { Worker } from "bullmq";
+import { ModuleRegistry } from "./core/registry";
+import { logger } from "./lib/logger";
 
 // Validate environment at startup (crashes on missing/invalid vars)
 const _env = env;
@@ -78,10 +83,7 @@ for (const [name, def] of registry.getLoaded()) {
       );
 
       worker.on("failed", (job, err) => {
-        logger.error(
-          { job: job?.id, queue: jobDef.queue, err: String(err) },
-          "Job failed",
-        );
+        logger.error({ job: job?.id, queue: jobDef.queue, err: String(err) }, "Job failed");
         // Phase 18 D-04 — capture via ErrorTracker port. Single call site (this
         // loop) covers every module's jobs. Inner try/catch at line 45 stays
         // log-only to avoid double-reporting.
@@ -92,17 +94,11 @@ for (const [name, def] of registry.getLoaded()) {
       });
 
       worker.on("completed", (job) => {
-        logger.debug(
-          { job: job?.id, queue: jobDef.queue },
-          "Job completed",
-        );
+        logger.debug({ job: job?.id, queue: jobDef.queue }, "Job completed");
       });
 
       workers.push(worker);
-      logger.info(
-        { module: name, job: jobName, queue: jobDef.queue },
-        "Worker started for job",
-      );
+      logger.info({ module: name, job: jobName, queue: jobDef.queue }, "Worker started for job");
     }
   }
 }
@@ -140,7 +136,10 @@ const healthServer = Bun.serve({
       return new Response("Not Found", { status: 404 });
     }
 
-    const checks: Record<string, { status: string; error?: string; active?: number; queues?: string[] }> = {};
+    const checks: Record<
+      string,
+      { status: string; error?: string; active?: number; queues?: string[] }
+    > = {};
 
     // Redis connectivity
     try {

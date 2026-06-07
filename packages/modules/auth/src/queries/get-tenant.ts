@@ -1,5 +1,5 @@
+import { defineQuery, err, ok } from "@baseworks/shared";
 import { Type } from "@sinclair/typebox";
-import { defineQuery, ok, err } from "@baseworks/shared";
 import { auth } from "../auth";
 
 const GetTenantInput = Type.Object({

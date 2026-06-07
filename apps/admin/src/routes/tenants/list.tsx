@@ -1,10 +1,3 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { ColumnDef } from "@tanstack/react-table";
-import { formatDistanceToNow } from "date-fns";
-import { MoreHorizontal } from "lucide-react";
-import { useTranslation } from "react-i18next";
 import {
   Badge,
   Button,
@@ -21,9 +14,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@baseworks/ui";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { ColumnDef } from "@tanstack/react-table";
+import { formatDistanceToNow } from "date-fns";
+import { MoreHorizontal } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router";
 import { toast } from "sonner";
-import { api } from "@/lib/api";
 import { DataTable } from "@/components/data-table";
+import { api } from "@/lib/api";
 
 interface Tenant {
   id: string;
@@ -54,7 +54,12 @@ export function Component() {
     return () => clearTimeout(id);
   }, [searchInput]);
 
-  const { data: result, isLoading, error, refetch } = useQuery({
+  const {
+    data: result,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["admin", "tenants", page, search],
     queryFn: async () => {
       const res = await api.api.admin.tenants.get({
@@ -106,9 +111,7 @@ export function Component() {
       enableSorting: true,
       cell: ({ row }) => {
         const d = row.original.createdAt ? new Date(row.original.createdAt) : null;
-        return d && !isNaN(d.getTime())
-          ? formatDistanceToNow(d, { addSuffix: true })
-          : "\u2014";
+        return d && !isNaN(d.getTime()) ? formatDistanceToNow(d, { addSuffix: true }) : "\u2014";
       },
       meta: { priority: 2 },
     },
@@ -159,9 +162,7 @@ export function Component() {
         <h1 className="text-2xl font-semibold">{t("tenants.title")}</h1>
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-sm text-muted-foreground mb-4">
-              {t("tenants.loadError")}
-            </p>
+            <p className="text-sm text-muted-foreground mb-4">{t("tenants.loadError")}</p>
             <Button variant="outline" onClick={() => refetch()}>
               {tc("retry")}
             </Button>
@@ -176,9 +177,7 @@ export function Component() {
       <h1 className="text-2xl font-semibold">{t("tenants.title")}</h1>
 
       {!isLoading && tenants.length === 0 && !search ? (
-        <p className="text-sm text-muted-foreground py-12 text-center">
-          {t("tenants.empty")}
-        </p>
+        <p className="text-sm text-muted-foreground py-12 text-center">{t("tenants.empty")}</p>
       ) : (
         <DataTable
           columns={columns}
@@ -210,7 +209,9 @@ export function Component() {
               onClick={() => deactivateTarget && deactivateMutation.mutate(deactivateTarget)}
               disabled={deactivateMutation.isPending}
             >
-              {deactivateMutation.isPending ? t("tenants.deactivateDialog.deactivating") : t("tenants.deactivateDialog.confirm")}
+              {deactivateMutation.isPending
+                ? t("tenants.deactivateDialog.deactivating")
+                : t("tenants.deactivateDialog.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>

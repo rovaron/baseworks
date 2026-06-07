@@ -1,6 +1,6 @@
 import { describe, expect, it, spyOn } from "bun:test";
-import { ModuleRegistry } from "../registry";
 import { logger } from "../../lib/logger";
+import { ModuleRegistry } from "../registry";
 
 describe("ModuleRegistry", () => {
   it("should load example module and register its commands and queries", async () => {

@@ -1,13 +1,16 @@
 import { createBrowserRouter } from "react-router";
+import { RouteError } from "../components/route-error";
 
 export const router = createBrowserRouter([
   {
     path: "/login",
     lazy: () => import("../routes/login"),
+    ErrorBoundary: RouteError,
   },
   {
     path: "/",
     lazy: () => import("../layouts/admin-layout"),
+    ErrorBoundary: RouteError,
     children: [
       { index: true, lazy: () => import("../routes/tenants/list") },
       { path: "tenants", lazy: () => import("../routes/tenants/list") },

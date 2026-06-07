@@ -1,22 +1,12 @@
 "use client";
 
-import * as React from "react";
-import {
-  type Table as ReactTable,
-  type Row,
-  flexRender,
-} from "@tanstack/react-table";
+import { flexRender, type Table as ReactTable, type Row } from "@tanstack/react-table";
 import { ChevronDown, X } from "lucide-react";
-import { Card, CardContent } from "./card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./select";
-import { Badge } from "./badge";
+import * as React from "react";
 import { cn } from "../lib/utils";
+import { Badge } from "./badge";
+import { Card, CardContent } from "./card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select";
 
 interface ColumnMeta {
   priority?: number;
@@ -64,8 +54,7 @@ export function DataTableCards<TData>({
     })
     .sort(
       (a, b) =>
-        (getColumnMeta(a.columnDef).priority ?? 0) -
-        (getColumnMeta(b.columnDef).priority ?? 0)
+        (getColumnMeta(a.columnDef).priority ?? 0) - (getColumnMeta(b.columnDef).priority ?? 0),
     );
 
   const detailColumns = allColumns.filter((col) => {
@@ -89,11 +78,7 @@ export function DataTableCards<TData>({
   const rows = table.getRowModel().rows;
 
   if (rows.length === 0) {
-    return (
-      <div className="py-8 text-center text-sm text-muted-foreground">
-        {emptyMessage}
-      </div>
-    );
+    return <div className="py-8 text-center text-sm text-muted-foreground">{emptyMessage}</div>;
   }
 
   return (
@@ -127,9 +112,7 @@ export function DataTableCards<TData>({
         <div className="flex flex-wrap gap-2">
           {columnFilters.map((filter) => {
             const col = allColumns.find((c) => c.id === filter.id);
-            const headerLabel = col
-              ? getHeaderString(col.columnDef.header)
-              : filter.id;
+            const headerLabel = col ? getHeaderString(col.columnDef.header) : filter.id;
             return (
               <Badge key={filter.id} variant="secondary">
                 {headerLabel}: {String(filter.value)}
@@ -154,9 +137,7 @@ export function DataTableCards<TData>({
           const detailId = `card-detail-${row.id}`;
 
           // Build a column.id -> cell map once per row (avoids quadratic find())
-          const cellById = new Map(
-            row.getVisibleCells().map((c) => [c.column.id, c])
-          );
+          const cellById = new Map(row.getVisibleCells().map((c) => [c.column.id, c]));
 
           return (
             <Card key={row.id} data-card="">
@@ -173,10 +154,7 @@ export function DataTableCards<TData>({
                     if (meta.priority === 1) {
                       return (
                         <div key={col.id} className="text-sm font-semibold">
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </div>
                       );
                     }
@@ -188,10 +166,7 @@ export function DataTableCards<TData>({
                           {getHeaderString(col.columnDef.header)}:{" "}
                         </span>
                         <span className="text-sm">
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </span>
                       </div>
                     );
@@ -211,7 +186,7 @@ export function DataTableCards<TData>({
                     <ChevronDown
                       className={cn(
                         "h-4 w-4 transition-transform duration-200",
-                        isExpanded && "rotate-180"
+                        isExpanded && "rotate-180",
                       )}
                       aria-hidden="true"
                     />
@@ -233,19 +208,12 @@ export function DataTableCards<TData>({
                               {getHeaderString(col.columnDef.header)}:{" "}
                             </span>
                             <span className="text-sm">
-                              {flexRender(
-                                cell.column.columnDef.cell,
-                                cell.getContext()
-                              )}
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
                             </span>
                           </div>
                         );
                       })}
-                      {renderActions && (
-                        <div className="mt-2">
-                          {renderActions(row.original)}
-                        </div>
-                      )}
+                      {renderActions && <div className="mt-2">{renderActions(row.original)}</div>}
                     </div>
                   </div>
                 )}

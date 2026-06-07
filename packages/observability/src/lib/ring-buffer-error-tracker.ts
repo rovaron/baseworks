@@ -89,7 +89,10 @@ export class RingBufferingErrorTracker implements ErrorTracker {
     const stack = err instanceof Error && err.stack ? err.stack : "";
     // First non-internal frame — strips node_modules paths.
     const rawFirstFrame = (
-      stack.split("\n").slice(1).find((l) => !l.includes("node_modules")) ?? ""
+      stack
+        .split("\n")
+        .slice(1)
+        .find((l) => !l.includes("node_modules")) ?? ""
     ).trim();
     // Run both leaves through the shared PII scrubber BEFORE truncation/storage so
     // the recent-errors snapshot honors the same redaction guarantees as the
@@ -104,9 +107,7 @@ export class RingBufferingErrorTracker implements ErrorTracker {
     const dedupKey = `${message}::${firstFrame}`;
     const sourceTag = scope?.tags?.source;
     const source: RingBufferEntry["source"] =
-      sourceTag === "cqrs" || sourceTag === "http" || sourceTag === "worker"
-        ? sourceTag
-        : "global";
+      sourceTag === "cqrs" || sourceTag === "http" || sourceTag === "worker" ? sourceTag : "global";
 
     const existingIdx = this.dedupIndex.get(dedupKey);
     if (existingIdx !== undefined && this.buffer[existingIdx]) {

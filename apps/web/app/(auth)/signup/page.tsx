@@ -1,14 +1,5 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import Link from "next/link";
-import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
-import { useTranslations } from "next-intl";
-
 import {
   Button,
   Card,
@@ -16,7 +7,6 @@ import {
   CardDescription,
   CardFooter,
   CardHeader,
-
   Form,
   FormControl,
   FormField,
@@ -25,6 +15,14 @@ import {
   FormMessage,
   Input,
 } from "@baseworks/ui";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2 } from "lucide-react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
 import { auth } from "@/lib/api";
 import { env } from "@/lib/env";
 import { sanitizeInviteToken } from "@/lib/invite";
@@ -76,12 +74,8 @@ export default function SignupPage() {
     });
 
     if (error) {
-      const messageKey = error.code
-        ? SIGNUP_ERROR_KEY_BY_CODE[error.code]
-        : undefined;
-      toast.error(
-        messageKey ? t(`toast.${messageKey}`) : t("toast.somethingWentWrong"),
-      );
+      const messageKey = error.code ? SIGNUP_ERROR_KEY_BY_CODE[error.code] : undefined;
+      toast.error(messageKey ? t(`toast.${messageKey}`) : t("toast.somethingWentWrong"));
       return;
     }
 
@@ -91,9 +85,7 @@ export default function SignupPage() {
         await auth.organization.acceptInvitation({ invitationId: inviteToken });
 
         // Fetch invitation to get organizationId for setActive (Pitfall 3)
-        const res = await fetch(
-          `${env.NEXT_PUBLIC_API_URL}/api/invitations/${inviteToken}`
-        );
+        const res = await fetch(`${env.NEXT_PUBLIC_API_URL}/api/invitations/${inviteToken}`);
         if (res.ok) {
           const invitation = await res.json();
           if (invitation?.organizationId) {
@@ -131,11 +123,7 @@ export default function SignupPage() {
                 <FormItem>
                   <FormLabel>{t("name")}</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder={t("namePlaceholder")}
-                      autoComplete="name"
-                      {...field}
-                    />
+                    <Input placeholder={t("namePlaceholder")} autoComplete="name" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

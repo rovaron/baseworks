@@ -1,8 +1,8 @@
-import { Type } from "@sinclair/typebox";
-import { defineQuery, ok, err } from "@baseworks/shared";
-import { createDb, user as userTable } from "@baseworks/db";
-import { eq } from "drizzle-orm";
 import { env } from "@baseworks/config";
+import { createDb, user as userTable } from "@baseworks/db";
+import { defineQuery, err, ok } from "@baseworks/shared";
+import { Type } from "@sinclair/typebox";
+import { eq } from "drizzle-orm";
 
 const GetProfileInput = Type.Object({});
 

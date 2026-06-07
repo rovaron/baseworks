@@ -1,7 +1,7 @@
-import { Elysia } from "elysia";
 import { auth } from "@baseworks/module-auth";
 import { setTenantContext } from "@baseworks/observability";
 import { NoActiveTenantError, UnauthorizedError } from "@baseworks/shared";
+import { Elysia } from "elysia";
 
 /**
  * Tenant context middleware. Derives tenantId from the authenticated
@@ -74,8 +74,7 @@ export const tenantMiddleware = new Elysia({ name: "tenant-context" }).derive(
           // uses a random suffix so retries don't collide on the 8-char id
           // prefix.
           try {
-            const displayName =
-              session.user.name || session.user.email.split("@")[0];
+            const displayName = session.user.name || session.user.email.split("@")[0];
             const created = await auth.api.createOrganization({
               headers: request.headers,
               body: {

@@ -29,8 +29,7 @@ const serverSchema = {
     // is still using the committed dev default. Durable app-layer guard that
     // protects every deploy path, not just docker-compose.yml.
     .refine(
-      (v) =>
-        !(process.env.NODE_ENV === "production" && v === DEV_AUTH_SECRET_DEFAULT),
+      (v) => !(process.env.NODE_ENV === "production" && v === DEV_AUTH_SECRET_DEFAULT),
       "BETTER_AUTH_SECRET must not be the development default in production",
     ),
   BETTER_AUTH_URL: z.string().url().default("http://localhost:3000"),
@@ -54,10 +53,7 @@ const serverSchema = {
   // OTEL_EXPORTER_OTLP_ENDPOINT.
   TRACER: z.enum(["noop"]).optional().default("noop"),
   METRICS_PROVIDER: z.enum(["noop"]).optional().default("noop"),
-  ERROR_TRACKER: z
-    .enum(["noop", "pino", "sentry", "glitchtip"])
-    .optional()
-    .default("pino"),
+  ERROR_TRACKER: z.enum(["noop", "pino", "sentry", "glitchtip"]).optional().default("pino"),
   SENTRY_DSN: z.string().url().optional(),
   GLITCHTIP_DSN: z.string().url().optional(),
   RELEASE: z.string().optional(),
@@ -111,9 +107,7 @@ export function validatePaymentProviderEnv(): void {
 
   if (provider === "pagarme" && !env.PAGARME_SECRET_KEY) {
     if (isTest) {
-      console.warn(
-        "[env] WARNING: PAGARME_SECRET_KEY is not set (NODE_ENV=test).",
-      );
+      console.warn("[env] WARNING: PAGARME_SECRET_KEY is not set (NODE_ENV=test).");
     } else {
       throw new Error(
         "PAGARME_SECRET_KEY is required when PAYMENT_PROVIDER=pagarme. " +
@@ -127,9 +121,7 @@ export function validatePaymentProviderEnv(): void {
   // is silently skipped) the first time the provider POSTs an event.
   if (provider === "pagarme" && !env.PAGARME_WEBHOOK_SECRET) {
     if (isTest) {
-      console.warn(
-        "[env] WARNING: PAGARME_WEBHOOK_SECRET is not set (NODE_ENV=test).",
-      );
+      console.warn("[env] WARNING: PAGARME_WEBHOOK_SECRET is not set (NODE_ENV=test).");
     } else {
       throw new Error(
         "PAGARME_WEBHOOK_SECRET is required when PAYMENT_PROVIDER=pagarme. " +
@@ -142,9 +134,7 @@ export function validatePaymentProviderEnv(): void {
     // WR-05: Must throw symmetrically with the Pagar.me branch -- a missing
     // Stripe key in a stripe-configured deployment is a fatal startup error.
     if (isTest) {
-      console.warn(
-        "[env] WARNING: STRIPE_SECRET_KEY is not set (NODE_ENV=test).",
-      );
+      console.warn("[env] WARNING: STRIPE_SECRET_KEY is not set (NODE_ENV=test).");
     } else {
       throw new Error(
         "STRIPE_SECRET_KEY is required when PAYMENT_PROVIDER=stripe. " +
@@ -157,9 +147,7 @@ export function validatePaymentProviderEnv(): void {
   // for the webhook signing secret used by stripe.webhooks.constructEvent().
   if (provider === "stripe" && !env.STRIPE_WEBHOOK_SECRET) {
     if (isTest) {
-      console.warn(
-        "[env] WARNING: STRIPE_WEBHOOK_SECRET is not set (NODE_ENV=test).",
-      );
+      console.warn("[env] WARNING: STRIPE_WEBHOOK_SECRET is not set (NODE_ENV=test).");
     } else {
       throw new Error(
         "STRIPE_WEBHOOK_SECRET is required when PAYMENT_PROVIDER=stripe. " +
@@ -199,9 +187,7 @@ export function validateObservabilityEnv(): void {
     case "sentry":
       if (!env.SENTRY_DSN) {
         if (isTest) {
-          console.warn(
-            "[env] WARNING: SENTRY_DSN is not set (NODE_ENV=test).",
-          );
+          console.warn("[env] WARNING: SENTRY_DSN is not set (NODE_ENV=test).");
         } else {
           throw new Error(
             "SENTRY_DSN is required when ERROR_TRACKER=sentry. " +
@@ -213,9 +199,7 @@ export function validateObservabilityEnv(): void {
     case "glitchtip":
       if (!env.GLITCHTIP_DSN) {
         if (isTest) {
-          console.warn(
-            "[env] WARNING: GLITCHTIP_DSN is not set (NODE_ENV=test).",
-          );
+          console.warn("[env] WARNING: GLITCHTIP_DSN is not set (NODE_ENV=test).");
         } else {
           throw new Error(
             "GLITCHTIP_DSN is required when ERROR_TRACKER=glitchtip. " +

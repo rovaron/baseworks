@@ -1,9 +1,9 @@
-import { Elysia, t } from "elysia";
-import { getDb, organization, user, member, billingCustomers } from "@baseworks/db";
 import { env } from "@baseworks/config";
+import { billingCustomers, getDb, member, organization, user } from "@baseworks/db";
 import { requirePlatformAdmin } from "@baseworks/module-auth";
 import { getRedisConnection } from "@baseworks/queue";
-import { eq, like, or, count, sql } from "drizzle-orm";
+import { count, eq, like, or, sql } from "drizzle-orm";
+import { Elysia, t } from "elysia";
 import { logger } from "../lib/logger";
 
 /** Escape LIKE meta-characters to prevent search injection. */
@@ -45,17 +45,12 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
     const offset = Number(ctx.query?.offset) || 0;
     const search = ctx.query?.search as string | undefined;
 
-    let query = db
-      .select()
-      .from(organization);
+    let query = db.select().from(organization);
 
     if (search) {
       const sanitized = escapeLike(search);
       query = query.where(
-        or(
-          like(organization.name, `%${sanitized}%`),
-          like(organization.slug, `%${sanitized}%`),
-        ),
+        or(like(organization.name, `%${sanitized}%`), like(organization.slug, `%${sanitized}%`)),
       ) as typeof query;
     }
 
@@ -64,10 +59,7 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
     if (search) {
       const sanitized = escapeLike(search);
       countQuery = countQuery.where(
-        or(
-          like(organization.name, `%${sanitized}%`),
-          like(organization.slug, `%${sanitized}%`),
-        ),
+        or(like(organization.name, `%${sanitized}%`), like(organization.slug, `%${sanitized}%`)),
       ) as typeof countQuery;
     }
 
@@ -118,29 +110,33 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
     };
   })
 
-  .patch("/tenants/:id", async (ctx) => {
-    const [tenant] = await db
-      .select()
-      .from(organization)
-      .where(eq(organization.id, ctx.params.id))
-      .limit(1);
+  .patch(
+    "/tenants/:id",
+    async (ctx) => {
+      const [tenant] = await db
+        .select()
+        .from(organization)
+        .where(eq(organization.id, ctx.params.id))
+        .limit(1);
 
-    if (!tenant) {
-      ctx.set.status = 404;
-      return { success: false, error: "TENANT_NOT_FOUND" };
-    }
+      if (!tenant) {
+        ctx.set.status = 404;
+        return { success: false, error: "TENANT_NOT_FOUND" };
+      }
 
-    await db
-      .update(organization)
-      .set({ metadata: JSON.stringify(ctx.body.metadata) })
-      .where(eq(organization.id, ctx.params.id));
+      await db
+        .update(organization)
+        .set({ metadata: JSON.stringify(ctx.body.metadata) })
+        .where(eq(organization.id, ctx.params.id));
 
-    return { success: true };
-  }, {
-    body: t.Object({
-      metadata: t.Record(t.String(), t.Any()),
-    }),
-  })
+      return { success: true };
+    },
+    {
+      body: t.Object({
+        metadata: t.Record(t.String(), t.Any()),
+      }),
+    },
+  )
 
   // --- User Management ---
   // Per T-4-03: Only select safe fields (no password hashes)
@@ -162,10 +158,7 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
     if (search) {
       const sanitized = escapeLike(search);
       query = query.where(
-        or(
-          like(user.name, `%${sanitized}%`),
-          like(user.email, `%${sanitized}%`),
-        ),
+        or(like(user.name, `%${sanitized}%`), like(user.email, `%${sanitized}%`)),
       ) as typeof query;
     }
 
@@ -174,10 +167,7 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
     if (search) {
       const sanitized = escapeLike(search);
       userCountQuery = userCountQuery.where(
-        or(
-          like(user.name, `%${sanitized}%`),
-          like(user.email, `%${sanitized}%`),
-        ),
+        or(like(user.name, `%${sanitized}%`), like(user.email, `%${sanitized}%`)),
       ) as typeof userCountQuery;
     }
 
@@ -227,33 +217,41 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
     };
   })
 
-  .patch("/users/:id", async (ctx) => {
-    const [foundUser] = await db
-      .select({ id: user.id })
-      .from(user)
-      .where(eq(user.id, ctx.params.id))
-      .limit(1);
+  .patch(
+    "/users/:id",
+    async (ctx) => {
+      const [foundUser] = await db
+        .select({ id: user.id })
+        .from(user)
+        .where(eq(user.id, ctx.params.id))
+        .limit(1);
 
-    if (!foundUser) {
-      ctx.set.status = 404;
-      return { success: false, error: "USER_NOT_FOUND" };
-    }
+      if (!foundUser) {
+        ctx.set.status = 404;
+        return { success: false, error: "USER_NOT_FOUND" };
+      }
 
-    // TODO: better-auth user table does not have a banned column by default.
-    // Implement via better-auth admin plugin or a custom banned column.
-    logger.info(
-      { targetUserId: ctx.params.id, banned: ctx.body.banned, reason: ctx.body.banReason },
-      "Admin user ban/unban action (not yet implemented)",
-    );
+      // TODO: better-auth user table does not have a banned column by default.
+      // Implement via better-auth admin plugin or a custom banned column.
+      logger.info(
+        { targetUserId: ctx.params.id, banned: ctx.body.banned, reason: ctx.body.banReason },
+        "Admin user ban/unban action (not yet implemented)",
+      );
 
-    ctx.set.status = 501;
-    return { success: false, error: "NOT_IMPLEMENTED", message: "User ban/unban is not yet implemented" };
-  }, {
-    body: t.Object({
-      banned: t.Boolean(),
-      banReason: t.Optional(t.String()),
-    }),
-  })
+      ctx.set.status = 501;
+      return {
+        success: false,
+        error: "NOT_IMPLEMENTED",
+        message: "User ban/unban is not yet implemented",
+      };
+    },
+    {
+      body: t.Object({
+        banned: t.Boolean(),
+        banReason: t.Optional(t.String()),
+      }),
+    },
+  )
 
   // Per T-4-05: Log impersonation events with admin and target user IDs
   .post("/users/:id/impersonate", async (ctx: any) => {
@@ -301,9 +299,10 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
         totalCustomers: count(),
         // count(column) tallies non-null values → customers with a subscription.
         totalSubscribers: count(billingCustomers.providerSubscriptionId),
-        activeSubscriptions: sql<number>`count(*) filter (where ${billingCustomers.status} = 'active')`.mapWith(
-          Number,
-        ),
+        activeSubscriptions:
+          sql<number>`count(*) filter (where ${billingCustomers.status} = 'active')`.mapWith(
+            Number,
+          ),
       })
       .from(billingCustomers);
 
@@ -373,7 +372,6 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
     return {
       data: health,
       deprecated: true,
-      deprecation:
-        "Use /health/detailed instead. This route will be removed in v1.4.",
+      deprecation: "Use /health/detailed instead. This route will be removed in v1.4.",
     };
   });

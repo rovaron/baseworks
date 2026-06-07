@@ -71,9 +71,7 @@ export class HealthAggregator {
     const start = Date.now();
 
     // D-11 — parallel via allSettled; per-item timeout via race-resolves-not-throws (Pitfall 4).
-    const settled = await Promise.allSettled(
-      this.contributors.map((c) => this.runWithTimeout(c)),
-    );
+    const settled = await Promise.allSettled(this.contributors.map((c) => this.runWithTimeout(c)));
 
     const results: AggregatedHealthEntry[] = settled.map((s, i) => ({
       name: this.contributors[i].name,
@@ -87,9 +85,7 @@ export class HealthAggregator {
     }));
 
     // Worst-of-N rollup (D-10).
-    const overall: HealthStatus = this.rollup(
-      results.map((r) => r.result.status),
-    );
+    const overall: HealthStatus = this.rollup(results.map((r) => r.result.status));
 
     const value: AggregatedHealth = {
       status: overall,

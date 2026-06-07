@@ -1,9 +1,3 @@
-import { useState } from "react";
-import { useParams, useNavigate } from "react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { formatDistanceToNow } from "date-fns";
-import { ArrowLeft } from "lucide-react";
-import { useTranslation } from "react-i18next";
 import {
   Avatar,
   AvatarFallback,
@@ -22,6 +16,12 @@ import {
   DialogTitle,
   Skeleton,
 } from "@baseworks/ui";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
+import { ArrowLeft } from "lucide-react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 
@@ -34,7 +34,12 @@ export function Component() {
   const { t } = useTranslation("admin");
   const { t: tc } = useTranslation("common");
 
-  const { data: result, isLoading, error, refetch } = useQuery({
+  const {
+    data: result,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["admin", "users", id],
     queryFn: async () => {
       const res = await (api.api.admin.users as any)({ id: id! }).get();
@@ -164,17 +169,23 @@ export function Component() {
               </div>
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">{t("users.detail.created")}</p>
-              <p>{(() => {
-                const d = user.createdAt ? new Date(user.createdAt) : null;
-                return d && !isNaN(d.getTime())
-                  ? formatDistanceToNow(d, { addSuffix: true })
-                  : "\u2014";
-              })()}</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                {t("users.detail.created")}
+              </p>
+              <p>
+                {(() => {
+                  const d = user.createdAt ? new Date(user.createdAt) : null;
+                  return d && !isNaN(d.getTime())
+                    ? formatDistanceToNow(d, { addSuffix: true })
+                    : "\u2014";
+                })()}
+              </p>
             </div>
             {isBanned && user.banReason && (
               <div>
-                <p className="text-sm font-medium text-muted-foreground">{t("users.detail.banReason")}</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  {t("users.detail.banReason")}
+                </p>
                 <p>{user.banReason}</p>
               </div>
             )}
@@ -191,8 +202,12 @@ export function Component() {
                 <div className="space-y-3">
                   {user.memberships.map((m: any) => (
                     <div key={m.id} className="flex items-center justify-between gap-2">
-                      <span className="min-w-0 truncate">{m.organizationName || m.organizationId}</span>
-                      <Badge variant="secondary" className="shrink-0">{m.role}</Badge>
+                      <span className="min-w-0 truncate">
+                        {m.organizationName || m.organizationId}
+                      </span>
+                      <Badge variant="secondary" className="shrink-0">
+                        {m.role}
+                      </Badge>
                     </div>
                   ))}
                 </div>
@@ -228,7 +243,9 @@ export function Component() {
       <Dialog open={showBanDialog} onOpenChange={setShowBanDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{isBanned ? t("users.banDialog.unbanTitle") : t("users.banDialog.banTitle")}</DialogTitle>
+            <DialogTitle>
+              {isBanned ? t("users.banDialog.unbanTitle") : t("users.banDialog.banTitle")}
+            </DialogTitle>
             <DialogDescription>
               {isBanned
                 ? t("users.banDialog.unbanDescription", { email: user.email })
@@ -271,7 +288,9 @@ export function Component() {
               onClick={() => impersonateMutation.mutate()}
               disabled={impersonateMutation.isPending}
             >
-              {impersonateMutation.isPending ? t("users.impersonateDialog.starting") : t("users.impersonateDialog.startImpersonation")}
+              {impersonateMutation.isPending
+                ? t("users.impersonateDialog.starting")
+                : t("users.impersonateDialog.startImpersonation")}
             </Button>
           </DialogFooter>
         </DialogContent>

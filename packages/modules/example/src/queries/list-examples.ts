@@ -1,6 +1,6 @@
-import { Type } from "@sinclair/typebox";
-import { defineQuery, ok } from "@baseworks/shared";
 import { examples } from "@baseworks/db";
+import { defineQuery, ok } from "@baseworks/shared";
+import { Type } from "@sinclair/typebox";
 
 /** Default page size when the caller omits `limit`. */
 const DEFAULT_LIMIT = 50;
