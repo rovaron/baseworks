@@ -15,6 +15,13 @@
       "when": 1778149471907,
       "tag": "0002_v14_file_storage",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1780839920699,
+      "tag": "0003_audit_indexes",
+      "breakpoints": true
     }
   ]
 }
