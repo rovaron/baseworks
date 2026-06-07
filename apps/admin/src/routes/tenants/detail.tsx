@@ -30,25 +30,28 @@ export function Component() {
   const { t } = useTranslation("admin");
   const { t: tc } = useTranslation("common");
 
-  const { data: result, isLoading } = useQuery({
+  const { data: result, isLoading, error, refetch } = useQuery({
     queryKey: ["admin", "tenants", id],
     queryFn: async () => {
       const res = await (api.api.admin.tenants as any)({ id: id! }).get();
+      if (res.error) throw res.error;
       return res.data;
     },
     enabled: !!id,
   });
 
-  const tenant = result as any;
+  const tenant = (result as any)?.data;
   const isDeactivated = tenant?.metadata?.deactivated;
 
   const toggleMutation = useMutation({
     mutationFn: async () => {
-      await (api.api.admin.tenants as any)({ id: id! }).patch({
+      const res = await (api.api.admin.tenants as any)({ id: id! }).patch({
         metadata: isDeactivated
           ? { deactivated: false, reactivatedAt: new Date().toISOString() }
           : { deactivated: true, deactivatedAt: new Date().toISOString() },
       });
+      if (res.error) throw new Error(res.error?.value?.message ?? "request failed");
+      return res.data;
     },
     onSuccess: () => {
       toast.success(isDeactivated ? t("tenants.toast.reactivated") : t("tenants.toast.deactivated"));
@@ -65,6 +68,25 @@ export function Component() {
       <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <Button variant="ghost" onClick={() => navigate("/tenants")}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          {t("tenants.detail.backToTenants")}
+        </Button>
+        <Card>
+          <CardContent className="space-y-4 py-8 text-center">
+            <p className="text-sm text-muted-foreground">{t("tenants.detail.loadError")}</p>
+            <Button variant="outline" onClick={() => refetch()}>
+              {tc("retry")}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }

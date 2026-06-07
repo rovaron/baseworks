@@ -34,25 +34,28 @@ export function Component() {
   const { t } = useTranslation("admin");
   const { t: tc } = useTranslation("common");
 
-  const { data: result, isLoading } = useQuery({
+  const { data: result, isLoading, error, refetch } = useQuery({
     queryKey: ["admin", "users", id],
     queryFn: async () => {
       const res = await (api.api.admin.users as any)({ id: id! }).get();
+      if (res.error) throw res.error;
       return res.data;
     },
     enabled: !!id,
   });
 
-  const user = result as any;
+  const user = (result as any)?.data;
   const isBanned = user?.banned;
 
   const banMutation = useMutation({
     mutationFn: async () => {
       const newBanned = !isBanned;
-      await (api.api.admin.users as any)({ id: id! }).patch({
+      const res = await (api.api.admin.users as any)({ id: id! }).patch({
         banned: newBanned,
         ...(newBanned ? { banReason: "Banned by admin" } : {}),
       });
+      if (res.error) throw new Error(res.error?.value?.message ?? "request failed");
+      return res.data;
     },
     onSuccess: () => {
       toast.success(isBanned ? t("users.toast.unbanned") : t("users.toast.banned"));
@@ -67,6 +70,7 @@ export function Component() {
   const impersonateMutation = useMutation({
     mutationFn: async () => {
       const res = await (api.api.admin.users as any)({ id: id! }).impersonate.post({});
+      if (res.error) throw new Error(res.error?.value?.message ?? "request failed");
       return res.data;
     },
     onSuccess: () => {
@@ -86,6 +90,25 @@ export function Component() {
           <Skeleton className="h-64 w-full" />
           <Skeleton className="h-64 w-full" />
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <Button variant="ghost" onClick={() => navigate("/users")}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          {t("users.detail.backToUsers")}
+        </Button>
+        <Card>
+          <CardContent className="space-y-4 py-8 text-center">
+            <p className="text-sm text-muted-foreground">{t("users.detail.loadError")}</p>
+            <Button variant="outline" onClick={() => refetch()}>
+              {tc("retry")}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }

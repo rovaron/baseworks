@@ -86,8 +86,10 @@ function SubscriptionCard() {
       return data;
     },
     onSuccess: (data: any) => {
-      if (data?.url) {
-        window.location.href = data.url;
+      // Response is the `{ success, data }` envelope; the redirect URL lives
+      // under `data.data.url`, not `data.url`.
+      if (data?.data?.url) {
+        window.location.href = data.data.url;
       }
     },
     onError: () => {
@@ -113,7 +115,32 @@ function SubscriptionCard() {
     );
   }
 
-  const subscription = subscriptionQuery.data as any;
+  // Distinguish a fetch failure from a genuine "no subscription" empty state:
+  // on error the query has no data, so render an error + retry affordance
+  // instead of misleading the user into thinking they have no plan.
+  if (subscriptionQuery.isError) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{tc("error")}</CardTitle>
+        </CardHeader>
+        <CardFooter>
+          <Button
+            variant="outline"
+            onClick={() => subscriptionQuery.refetch()}
+          >
+            {tc("retry")}
+          </Button>
+        </CardFooter>
+      </Card>
+    );
+  }
+
+  // The query returns the full `{ success, data }` envelope, so narrow on
+  // `success` and read the subscription off `.data`. (Cast retained: the
+  // server payload omits `planName`, which the UI still reads.)
+  const res = subscriptionQuery.data as any;
+  const subscription = res?.success ? res.data : null;
 
   if (!subscription || !subscription.status) {
     return (
@@ -271,8 +298,10 @@ function PlanSelection() {
       return data;
     },
     onSuccess: (data: any) => {
-      if (data?.url) {
-        window.location.href = data.url;
+      // Response is the `{ success, data }` envelope; the redirect URL lives
+      // under `data.data.url`, not `data.url`.
+      if (data?.data?.url) {
+        window.location.href = data.data.url;
       }
     },
     onError: () => {
@@ -363,8 +392,28 @@ function BillingHistory() {
     );
   }
 
-  const history = historyQuery.data as any;
-  const items = Array.isArray(history) ? history : [];
+  // A fetch failure must not look like an empty history: show error + retry.
+  if (historyQuery.isError) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{tc("error")}</CardTitle>
+        </CardHeader>
+        <CardFooter>
+          <Button variant="outline" onClick={() => historyQuery.refetch()}>
+            {tc("retry")}
+          </Button>
+        </CardFooter>
+      </Card>
+    );
+  }
+
+  // The query returns the `{ success, data }` envelope and the invoice list
+  // lives at `data.invoices` -- not at the top level. Narrow on `success`
+  // before reading it so a malformed/error body falls back to empty.
+  const res = historyQuery.data as any;
+  const items =
+    res?.success && Array.isArray(res.data?.invoices) ? res.data.invoices : [];
 
   if (items.length === 0) {
     return (

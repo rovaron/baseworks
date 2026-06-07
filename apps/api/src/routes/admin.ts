@@ -1,8 +1,9 @@
 import { Elysia, t } from "elysia";
-import { createDb, organization, user, member, billingCustomers } from "@baseworks/db";
+import { getDb, organization, user, member, billingCustomers } from "@baseworks/db";
 import { env } from "@baseworks/config";
-import { requireRole } from "@baseworks/module-auth";
-import { eq, like, or, count } from "drizzle-orm";
+import { requirePlatformAdmin } from "@baseworks/module-auth";
+import { getRedisConnection } from "@baseworks/queue";
+import { eq, like, or, count, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 
 /** Escape LIKE meta-characters to prevent search injection. */
@@ -28,29 +29,15 @@ function safeParseMetadata(raw: string | null, tenantId?: string): unknown {
  * Admin API routes for cross-tenant operations.
  *
  * Per D-16: These routes use raw db (not scopedDb) for cross-tenant queries.
- * Per T-4-01: All routes protected by requireRole("owner").
+ * Per T-4-01: All routes protected by requirePlatformAdmin() (operator-scope,
+ *   distinct from per-organization "owner" — see finding authz-admin-owner-role-escalation).
  * Per T-4-03: User queries omit password hashes (select only safe fields).
  */
 
-const db = createDb(env.DATABASE_URL);
-
-/** Cached Redis connection for health checks to avoid per-request connection churn. */
-let healthRedis: any = null;
-
-async function getHealthRedis(redisUrl: string): Promise<any> {
-  if (healthRedis) return healthRedis;
-  const ioredis = await import("ioredis" as string);
-  const IORedis = ioredis.default || ioredis;
-  healthRedis = new IORedis(redisUrl, {
-    maxRetriesPerRequest: 1,
-    lazyConnect: true,
-  });
-  await healthRedis.connect();
-  return healthRedis;
-}
+const db = getDb(env.DATABASE_URL);
 
 export const adminRoutes = new Elysia({ prefix: "/api/admin" })
-  .use(requireRole("owner"))
+  .use(requirePlatformAdmin())
 
   // --- Tenant Management ---
   .get("/tenants", async (ctx: any) => {
@@ -131,7 +118,7 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
     };
   })
 
-  .patch("/tenants/:id", async (ctx: any) => {
+  .patch("/tenants/:id", async (ctx) => {
     const [tenant] = await db
       .select()
       .from(organization)
@@ -240,7 +227,7 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
     };
   })
 
-  .patch("/users/:id", async (ctx: any) => {
+  .patch("/users/:id", async (ctx) => {
     const [foundUser] = await db
       .select({ id: user.id })
       .from(user)
@@ -307,24 +294,42 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
 
   // --- Billing Overview ---
   .get("/billing/overview", async () => {
-    const customers = await db.select().from(billingCustomers);
+    // Aggregate in SQL so this endpoint stays bounded regardless of how many
+    // billing_customers rows exist (no unbounded SELECT * + in-JS counting).
+    const [totals] = await db
+      .select({
+        totalCustomers: count(),
+        // count(column) tallies non-null values → customers with a subscription.
+        totalSubscribers: count(billingCustomers.providerSubscriptionId),
+        activeSubscriptions: sql<number>`count(*) filter (where ${billingCustomers.status} = 'active')`.mapWith(
+          Number,
+        ),
+      })
+      .from(billingCustomers);
 
-    const totalSubscribers = customers.filter((c) => c.providerSubscriptionId).length;
-    const activeSubscriptions = customers.filter((c) => c.status === "active");
+    // Subscription distribution by price/plan, grouped in SQL over active rows.
+    const planRows = await db
+      .select({
+        plan: billingCustomers.providerPriceId,
+        planCount: count(),
+      })
+      .from(billingCustomers)
+      .where(eq(billingCustomers.status, "active"))
+      .groupBy(billingCustomers.providerPriceId);
 
-    // Subscription distribution by price/plan
     const planDistribution: Record<string, number> = {};
-    for (const c of activeSubscriptions) {
-      const plan = c.providerPriceId || "unknown";
-      planDistribution[plan] = (planDistribution[plan] || 0) + 1;
+    for (const row of planRows) {
+      planDistribution[row.plan || "unknown"] = row.planCount;
     }
+
+    const activeSubscriptions = totals?.activeSubscriptions ?? 0;
 
     return {
       data: {
-        totalCustomers: customers.length,
-        totalSubscribers,
-        activeSubscriptions: activeSubscriptions.length,
-        mrrEstimate: activeSubscriptions.length, // Count-based; real MRR requires Stripe price lookup
+        totalCustomers: totals?.totalCustomers ?? 0,
+        totalSubscribers: totals?.totalSubscribers ?? 0,
+        activeSubscriptions,
+        mrrEstimate: activeSubscriptions, // Count-based; real MRR requires Stripe price lookup
         planDistribution,
       },
     };
@@ -345,10 +350,11 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
       timestamp: new Date().toISOString(),
     };
 
-    // Check Redis connectivity if Redis is available
+    // Check Redis connectivity if Redis is available. Reuse the shared,
+    // typed BullMQ Redis singleton instead of an untyped ad-hoc dynamic import.
     if (env.REDIS_URL) {
       try {
-        const redis = await getHealthRedis(env.REDIS_URL);
+        const redis = getRedisConnection(env.REDIS_URL);
 
         // Get Redis memory info
         const info = await redis.info("memory");
@@ -358,8 +364,6 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
           usedMemory: usedMemoryMatch?.[1] || "unknown",
         };
       } catch {
-        // Reset cached connection on failure so next request retries
-        healthRedis = null;
         health.redis = { connected: false, error: "Failed to connect" };
       }
     } else {

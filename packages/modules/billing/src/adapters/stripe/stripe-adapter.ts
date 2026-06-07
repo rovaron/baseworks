@@ -29,7 +29,13 @@ import { mapStripeEvent } from "./stripe-webhook-mapper";
  * imports the Stripe SDK directly. All other billing module files
  * interact with Stripe through this adapter via getPaymentProvider().
  *
- * Per D-09: Uses crypto.randomUUID() as idempotency key on mutation calls.
+ * Per D-09: Mutation calls use a STABLE idempotency key derived from the
+ *   logical operation's natural identity (e.g. customer:create:<tenantId>) so
+ *   that a retried operation (BullMQ job retry, client re-submit) reuses the
+ *   same key and Stripe collapses the duplicate. crypto.randomUUID() is only a
+ *   fallback for operations with no natural key (distinct checkout attempts),
+ *   where a fresh value is the intended behaviour. A random-per-call key would
+ *   defeat idempotency, so it is avoided wherever a stable key can be derived.
  * Per T-10-02: Webhook signature verification uses stripe.webhooks.constructEvent().
  * Per T-10-05: Secret keys are only held in the constructor, never logged.
  */
@@ -58,7 +64,10 @@ export class StripeAdapter implements PaymentProvider {
         metadata: { tenantId: params.tenantId },
         name: params.name ?? `Tenant ${params.tenantId}`,
       },
-      { idempotencyKey: crypto.randomUUID() },
+      // Stable per tenant: a retried create reuses the same Stripe customer
+      // instead of producing a duplicate. Backstopped by the unique
+      // constraint on billing_customers.tenantId.
+      { idempotencyKey: `customer:create:${params.tenantId}` },
     );
     return { providerCustomerId: customer.id };
   }
@@ -75,7 +84,11 @@ export class StripeAdapter implements PaymentProvider {
         customer: params.providerCustomerId,
         items: [{ price: params.priceId }],
       },
-      { idempotencyKey: crypto.randomUUID() },
+      // Stable per (customer, price): a retried create reuses the same
+      // subscription rather than creating a duplicate for the same plan.
+      {
+        idempotencyKey: `subscription:create:${params.providerCustomerId}:${params.priceId}`,
+      },
     );
     return {
       providerSubscriptionId: subscription.id,
@@ -92,10 +105,16 @@ export class StripeAdapter implements PaymentProvider {
    * @param params - Subscription ID and cancellation timing
    */
   async cancelSubscription(params: CancelSubscriptionParams): Promise<void> {
+    const cancelAtPeriodEnd = params.cancelAtPeriodEnd ?? true;
     await this.stripe.subscriptions.update(
       params.providerSubscriptionId,
-      { cancel_at_period_end: params.cancelAtPeriodEnd ?? true },
-      { idempotencyKey: crypto.randomUUID() },
+      { cancel_at_period_end: cancelAtPeriodEnd },
+      // Stable per (subscription, timing): a retried cancel is a no-op.
+      // The timing flag is part of the key because Stripe rejects key reuse
+      // with differing request parameters.
+      {
+        idempotencyKey: `subscription:cancel:${params.providerSubscriptionId}:${cancelAtPeriodEnd}`,
+      },
     );
   }
 
@@ -114,7 +133,11 @@ export class StripeAdapter implements PaymentProvider {
       {
         items: [{ id: sub.items.data[0].id, price: params.newPriceId }],
       },
-      { idempotencyKey: crypto.randomUUID() },
+      // Stable per (subscription, target price): a retried plan change reuses
+      // the same key so the swap is applied at most once.
+      {
+        idempotencyKey: `subscription:change:${params.providerSubscriptionId}:${params.newPriceId}`,
+      },
     );
     return {
       providerSubscriptionId: updated.id,
@@ -160,6 +183,10 @@ export class StripeAdapter implements PaymentProvider {
         success_url: params.successUrl,
         cancel_url: params.cancelUrl,
       },
+      // No natural key: distinct checkout attempts are usually intentional, so
+      // a fresh value is the correct default. A caller-supplied stable token
+      // (request/job id) should be threaded through once ports/types.ts grows
+      // an optional idempotencyKey field (see follow-up).
       { idempotencyKey: crypto.randomUUID() },
     );
     return { sessionId: session.id, url: session.url! };
@@ -180,6 +207,10 @@ export class StripeAdapter implements PaymentProvider {
         success_url: params.successUrl,
         cancel_url: params.cancelUrl,
       },
+      // No natural key: distinct checkout attempts are usually intentional, so
+      // a fresh value is the correct default. A caller-supplied stable token
+      // (request/job id) should be threaded through once ports/types.ts grows
+      // an optional idempotencyKey field (see follow-up).
       { idempotencyKey: crypto.randomUUID() },
     );
     return { sessionId: session.id, url: session.url! };
@@ -276,6 +307,17 @@ export class StripeAdapter implements PaymentProvider {
     }
 
     const subscriptionItemId = subscription.items.data[0].id;
+
+    // The key must encode the usage-window identity so a retried sync reuses
+    // the same key and Stripe does not double-count the increment. A stable
+    // key is only possible when the caller supplies a deterministic window
+    // boundary (params.timestamp); without one the timestamp falls back to
+    // Date.now(), which varies per retry, so we use a random key instead.
+    const idempotencyKey =
+      params.timestamp !== undefined
+        ? `usage:${params.providerSubscriptionId}:${subscriptionItemId}:${params.timestamp}`
+        : crypto.randomUUID();
+
     const usageRecord = await this.stripe.subscriptionItems.createUsageRecord(
       subscriptionItemId,
       {
@@ -283,7 +325,7 @@ export class StripeAdapter implements PaymentProvider {
         timestamp: params.timestamp ?? Math.floor(Date.now() / 1000),
         action: "increment",
       },
-      { idempotencyKey: crypto.randomUUID() },
+      { idempotencyKey },
     );
 
     return { providerUsageRecordId: usageRecord.id };

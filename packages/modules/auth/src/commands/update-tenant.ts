@@ -33,7 +33,7 @@ export const updateTenant = defineCommand(
       const { organizationId, ...data } = input;
       const org = await auth.api.updateOrganization({
         body: { organizationId, data },
-        headers: new Headers(),
+        headers: ctx.headers ?? new Headers(),
       });
       return ok(org);
     } catch (error: any) {

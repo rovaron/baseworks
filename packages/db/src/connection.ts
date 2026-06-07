@@ -55,7 +55,8 @@ let _db: DbInstance | undefined;
  * @returns The shared Drizzle ORM instance
  */
 export function getDb(connectionString: string = process.env.DATABASE_URL as string): DbInstance {
-  return (_db ??= createDb(connectionString));
+  if (!_db) _db = createDb(connectionString);
+  return _db;
 }
 
 /**

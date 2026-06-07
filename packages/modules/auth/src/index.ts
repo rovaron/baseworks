@@ -16,7 +16,7 @@ import { listInvitations } from "./queries/list-invitations";
 import { getInvitation } from "./queries/get-invitation";
 
 export { auth } from "./auth";
-export { betterAuthPlugin, requireRole } from "./middleware";
+export { betterAuthPlugin, requireRole, requirePlatformAdmin } from "./middleware";
 export { getLocale } from "./locale-context";
 
 /**

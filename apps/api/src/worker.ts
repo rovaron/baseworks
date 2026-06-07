@@ -1,6 +1,6 @@
 import "./telemetry";
 import { env, assertRedisUrl, validatePaymentProviderEnv, validateObservabilityEnv } from "@baseworks/config";
-import { createDb } from "@baseworks/db";
+import { getDb, closeDb } from "@baseworks/db";
 import { createWorker, closeConnection, getRedisConnection } from "@baseworks/queue";
 import type { Worker } from "bullmq";
 import { ModuleRegistry } from "./core/registry";
@@ -31,8 +31,8 @@ validateStorageEnv();
 // Phase 18 D-02 — register global uncaughtException + unhandledRejection handlers.
 installGlobalErrorHandlers(getErrorTracker());
 
-// Create database instance
-const db = createDb(env.DATABASE_URL);
+// Create database instance (shared process-wide singleton pool)
+const db = getDb(env.DATABASE_URL);
 
 // Create module registry in worker role (skips route attachment)
 const registry = new ModuleRegistry({
@@ -182,6 +182,8 @@ async function shutdown() {
   healthServer.stop();
   await Promise.all(workers.map((w) => w.close()));
   await closeConnection();
+  // Drain the shared postgres pool so sockets are released on graceful stop.
+  await closeDb();
   process.exit(0);
 }
 

@@ -36,7 +36,7 @@ export const cancelInvitation = defineCommand(
           invitationId: input.invitationId,
           organizationId: input.organizationId,
         },
-        headers: new Headers(),
+        headers: ctx.headers ?? new Headers(),
       });
 
       ctx.emit("invitation.cancelled", {

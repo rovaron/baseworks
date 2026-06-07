@@ -11,8 +11,8 @@ const ListTenantsInput = Type.Object({});
  * record. Used for tenant switching in the frontend sidebar.
  *
  * @param input - ListTenantsInput (empty object, no filters)
- * @param ctx   - Handler context (unused; auth.api resolves
- *   user from session headers)
+ * @param ctx   - Handler context; ctx.headers forwards the
+ *   authenticated session so auth.api can resolve the user
  * @returns Result<Organization[]> -- array of organizations,
  *   or empty array if none
  *
@@ -21,10 +21,10 @@ const ListTenantsInput = Type.Object({});
  */
 export const listTenants = defineQuery(
   ListTenantsInput,
-  async (_input, _ctx) => {
+  async (_input, ctx) => {
     try {
       const orgs = await auth.api.listOrganizations({
-        headers: new Headers(),
+        headers: ctx.headers ?? new Headers(),
       });
       return ok(orgs || []);
     } catch (error: any) {

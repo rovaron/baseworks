@@ -13,8 +13,8 @@ const ListInvitationsInput = Type.Object({
  * the specified organization. Filtered to pending in the UI.
  *
  * @param input - ListInvitationsInput: organizationId (UUID)
- * @param ctx   - Handler context (unused; auth.api is not
- *   tenant-scoped)
+ * @param ctx   - Handler context; ctx.headers forwards the
+ *   authenticated session to auth.api
  * @returns Result<Invitation[]> -- array of invitation records,
  *   or empty array if none
  *
@@ -24,11 +24,11 @@ const ListInvitationsInput = Type.Object({
  */
 export const listInvitations = defineQuery(
   ListInvitationsInput,
-  async (input, _ctx) => {
+  async (input, ctx) => {
     try {
       const invitations = await auth.api.listInvitations({
         query: { organizationId: input.organizationId },
-        headers: new Headers(),
+        headers: ctx.headers ?? new Headers(),
       });
       return ok(invitations || []);
     } catch (error: any) {

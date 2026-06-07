@@ -73,8 +73,11 @@ export class ModuleRegistry {
     for (const name of this.config.modules) {
       const importFn = moduleImportMap[name];
       if (!importFn) {
-        logger.error({ module: name }, "Module not found in import map -- skipping");
-        continue;
+        logger.error({ module: name }, "Module not found in import map");
+        throw new Error(
+          `Module "${name}" is configured but has no entry in the static import map. ` +
+            `Add it to moduleImportMap in apps/api/src/core/registry.ts or remove it from the module config.`,
+        );
       }
 
       try {
@@ -137,33 +140,6 @@ export class ModuleRegistry {
     const authModule = this.loaded.get("auth");
     if (authModule?.routes) return authModule.routes;
     return null;
-  }
-
-  /**
-   * Attach loaded module routes to the Elysia app instance.
-   *
-   * Must be called after {@link loadAll}. Skips auth and billing
-   * modules (mounted separately for type chain preservation).
-   * No-ops when running in worker role.
-   *
-   * @param app - Elysia app instance to mount routes on
-   */
-  attachRoutes(app: Elysia<any>): void {
-    if (this.config.role === "worker") {
-      logger.info("Worker role -- skipping route attachment");
-      return;
-    }
-
-    for (const [name, def] of this.loaded) {
-      // Auth routes are mounted separately before tenant middleware
-      if (name === "auth") continue;
-      // Billing routes are mounted explicitly in app chain for type inference
-      if (name === "billing") continue;
-      if (def.routes) {
-        app.use(def.routes as any);
-        logger.info({ module: name }, "Routes attached");
-      }
-    }
   }
 
   /**

@@ -1,13 +1,13 @@
 import "./telemetry";
 import { env, validatePaymentProviderEnv, validateObservabilityEnv } from "@baseworks/config";
-import { createDb, scopedDb } from "@baseworks/db";
+import { getDb, scopedDb, closeDb } from "@baseworks/db";
 import type { HandlerContext } from "@baseworks/shared";
 import { Elysia } from "elysia";
 import { sql } from "drizzle-orm";
 import cors from "@elysiajs/cors";
 import swagger from "@elysiajs/swagger";
 import { requireRole } from "@baseworks/module-auth";
-import { registerBillingHooks } from "@baseworks/module-billing";
+import { registerBillingHooks, billingWebhookRoutes } from "@baseworks/module-billing";
 import { registerExampleHooks } from "@baseworks/module-example";
 import { ModuleRegistry } from "./core/registry";
 import { tenantMiddleware } from "./core/middleware/tenant";
@@ -16,7 +16,7 @@ import { requestTraceMiddleware } from "./core/middleware/request-trace";
 import { observabilityMiddleware } from "./core/middleware/observability";
 import { adminRoutes } from "./routes/admin";
 import { Queue } from "bullmq";
-import { getRedisConnection } from "@baseworks/queue";
+import { getRedisConnection, closeConnection } from "@baseworks/queue";
 import { createBullBoardPlugin } from "./routes/bull-board";
 import { logger } from "./lib/logger";
 import {
@@ -44,8 +44,8 @@ import {
   trace,
 } from "@opentelemetry/api";
 
-// Create database instance
-const db = createDb(env.DATABASE_URL);
+// Create database instance — shared process-wide singleton pool (api-multiple-db-pools).
+const db = getDb(env.DATABASE_URL);
 
 // Validate payment provider env vars at startup (T-10-09)
 // Prevents starting with PAYMENT_PROVIDER=pagarme but no PAGARME_SECRET_KEY
@@ -255,42 +255,15 @@ const app = new Elysia()
     }),
   )
   .use(swagger())
-  // Health check -- no auth, no tenant context required
-  // Enhanced with dependency status for Docker HEALTHCHECK and load balancer probes
-  .get("/health", async () => {
-    const checks: Record<string, { status: string; latency_ms?: number; error?: string }> = {};
-
-    // Database check
-    const dbStart = performance.now();
-    try {
-      await db.execute(sql`SELECT 1`);
-      checks.database = { status: "up", latency_ms: Math.round(performance.now() - dbStart) };
-    } catch (err) {
-      checks.database = { status: "down", error: "Failed to connect" };
-    }
-
-    // Redis check (if configured)
-    if (env.REDIS_URL) {
-      const redisStart = performance.now();
-      try {
-        const { getRedisConnection } = await import("@baseworks/queue");
-        const redis = getRedisConnection(env.REDIS_URL);
-        await redis.ping();
-        checks.redis = { status: "up", latency_ms: Math.round(performance.now() - redisStart) };
-      } catch (err) {
-        checks.redis = { status: "down", error: "Failed to connect" };
-      }
-    }
-
-    const allUp = Object.values(checks).every((c) => c.status === "up");
-
-    return {
-      status: allUp ? "ok" : "degraded",
-      modules: registry.getLoadedNames(),
-      checks,
-      uptime: Math.round(process.uptime()),
-    };
-  })
+  // Health check -- no auth, no tenant context required.
+  // Kept intentionally minimal (status + uptime only) so the unauthenticated
+  // Docker/LB probe does not leak the loaded-module list or dependency topology
+  // (health-public-exposes-module-list). The full dependency/module breakdown
+  // lives behind the requireRole-gated /health/detailed endpoint.
+  .get("/health", () => ({
+    status: "ok",
+    uptime: Math.round(process.uptime()),
+  }))
   // Phase 22 / OPS-01 — bull-board mount (RBAC owner-only, CSP, readOnly env-driven).
   // Mounts AFTER /health (Docker probe stays unauthenticated) and BEFORE auth/tenant
   // middleware: bull-board owns its own auth derive via requireRole, and is
@@ -303,6 +276,11 @@ const app = new Elysia()
   // Auth routes -- mounted BEFORE tenant middleware so signup/login/OAuth
   // callbacks do NOT require tenant context (D-16)
   .use(authRoutes ?? new Elysia())
+  // Public Stripe webhook -- mounted in the PRE-TENANT band (alongside authRoutes)
+  // so unauthenticated provider callbacks are NOT rejected by the tenant derive
+  // (billing-webhook-mounted-inside-tenant-scope). The tenant-scoped billing
+  // commands/queries stay in billingApiRoutes, mounted after the handlerCtx derive.
+  .use(billingWebhookRoutes)
   // Tenant-scoped routes group -- requires authenticated session
   .use(tenantMiddleware)
   .derive({ as: "scoped" }, (ctx: any) => {
@@ -312,6 +290,9 @@ const app = new Elysia()
         tenantId,
         userId: ctx.userId,
         db: scopedDb(db, tenantId),
+        // Forward the live request headers so session-bound better-auth calls
+        // (auth commands/queries via auth.api.*) can resolve the caller (C2).
+        headers: ctx.request.headers,
         emit: (event: string, data: unknown) =>
           registry.getEventBus().emit(event, {
             ...((typeof data === "object" && data !== null) ? data : { data }),
@@ -324,15 +305,28 @@ const app = new Elysia()
   .use(billingApiRoutes ?? new Elysia())
   // Admin API routes (cross-tenant, owner-only)
   .use(adminRoutes)
-  // Owner-only route: delete tenant (per D-13, TNNT-04)
+  // Owner-only route: delete tenant (per D-13, TNNT-04).
+  // Dispatches the real auth:delete-tenant command with the tenant-scoped
+  // handlerCtx (which now carries the request session headers), so better-auth's
+  // deleteOrganization runs and the `tenant.deleted` domain event is emitted
+  // (api-delete-tenant-noop / tenant-delete-route-stub-returns-success).
   .group("/api", (group) =>
     group
       .use(requireRole("owner"))
-      .delete("/tenant", (ctx: any) => {
-        return {
-          message: "Tenant deletion initiated",
-          tenantId: ctx.tenantId,
-        };
+      .delete("/tenant", async (ctx: any) => {
+        const tenantId: string = ctx.tenantId;
+        const result = await registry
+          .getCqrs()
+          .execute<{ deleted: true }>(
+            "auth:delete-tenant",
+            { organizationId: tenantId },
+            ctx.handlerCtx,
+          );
+        if (!result.success) {
+          ctx.set.status = 500;
+          return { success: false, error: result.error };
+        }
+        return { deleted: true, tenantId };
       }),
   )
   // Non-auth, non-billing module routes (e.g., example)
@@ -347,7 +341,7 @@ const app = new Elysia()
 // {traceId, spanId} the ALS frame is seeded with. Downstream `tracer.startSpan`
 // and `propagation.inject(context.active(), ...)` then naturally inherit
 // obsContext.traceId end-to-end (producer span, BullMQ carrier, worker log line).
-Bun.serve({
+const server = Bun.serve({
   port: env.PORT,
   fetch(req) {
     const cookieHeader = req.headers.get("cookie");
@@ -422,6 +416,32 @@ Bun.serve({
 });
 
 logger.info({ port: env.PORT, role: env.INSTANCE_ROLE }, "Baseworks API started");
+
+// Graceful shutdown (api-no-graceful-shutdown) — mirror worker.ts:176-189.
+// On SIGTERM/SIGINT: stop accepting + drain in-flight requests, then close the
+// Redis connection(s) and the postgres.js pool before exiting, so rolling
+// deploys don't drop requests or leak connections. Guarded against double
+// invocation so a second signal can't re-enter teardown mid-flight.
+let shuttingDown = false;
+async function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  logger.info("API shutting down...");
+  try {
+    // Stop accepting new connections and let in-flight requests finish.
+    server.stop(true);
+    // Close Redis (shared queue connection) then the DB pool. Order matters:
+    // drain the server first so nothing else issues queries/commands.
+    await closeConnection();
+    await closeDb();
+  } catch (err) {
+    logger.error({ err: String(err) }, "Error during API shutdown");
+  } finally {
+    process.exit(0);
+  }
+}
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
 
 // Export app type for Eden Treaty (used by @baseworks/api-client)
 export type App = typeof app;

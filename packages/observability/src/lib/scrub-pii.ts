@@ -99,17 +99,23 @@ function redactString(s: string): string {
  * Recursive deep-walker. Returns a NEW value mirroring the input's shape
  * with redactions applied. Never mutates the input.
  */
-function walk(value: unknown): unknown {
+function walk(value: unknown, seen: WeakSet<object>): unknown {
   if (value == null) return value;
   if (typeof value === "string") return redactString(value);
-  if (Array.isArray(value)) return value.map(walk);
+  if (Array.isArray(value)) {
+    if (seen.has(value as object)) return "[circular]";
+    seen.add(value as object);
+    return value.map((v) => walk(v, seen));
+  }
   if (typeof value === "object") {
+    if (seen.has(value as object)) return "[circular]";
+    seen.add(value as object);
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
       if (DENY_SET.has(k.toLowerCase())) {
         out[k] = `[redacted:${k.toLowerCase()}]`;
       } else {
-        out[k] = walk(v);
+        out[k] = walk(v, seen);
       }
     }
     return out;
@@ -125,7 +131,7 @@ function walk(value: unknown): unknown {
  */
 export function scrubPii(event: PiiEvent | null | undefined): PiiEvent | null {
   if (event == null) return null;
-  const scrubbed = walk(event) as PiiEvent;
+  const scrubbed = walk(event, new WeakSet()) as PiiEvent;
   // Webhook route rule — drop request.data entirely when the URL matches
   // a webhook path. Webhook bodies carry provider secrets that must never
   // leave the service (Stripe/Pagar.me signing secrets, card_last4, etc.).

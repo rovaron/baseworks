@@ -50,23 +50,39 @@ function LoginPage() {
         password: values.password,
       });
 
-      if (result.error) {
-        toast.error(result.error.message || t("toast.invalidCredentials"));
+      if (result.error || !result.data?.user) {
+        toast.error(result.error?.message || t("toast.invalidCredentials"));
         return;
       }
 
-      // Check if user has admin/owner role by listing organizations
+      const userId = result.data.user.id;
+
+      // Resolve the owner role the same way AuthGuard does: organization.list()
+      // omits role info, so list orgs and check each member's role via
+      // getFullOrganization. Admit if the user is owner of any org.
       const orgsResult = await auth.organization.list();
 
-      if (orgsResult.error || !orgsResult.data) {
+      if (orgsResult.error || !orgsResult.data || orgsResult.data.length === 0) {
         toast.error(t("toast.noAdminPrivileges"));
         await auth.signOut();
         return;
       }
 
-      const hasOwnerRole = orgsResult.data.some(
-        (membership: any) => membership.role === "owner",
-      );
+      let hasOwnerRole = false;
+      for (const org of orgsResult.data) {
+        const fullOrg = await auth.organization.getFullOrganization({
+          query: { organizationId: org.id },
+        });
+        if (fullOrg.data) {
+          const member = fullOrg.data.members.find(
+            (m: any) => m.userId === userId,
+          );
+          if (member?.role === "owner") {
+            hasOwnerRole = true;
+            break;
+          }
+        }
+      }
 
       if (!hasOwnerRole) {
         toast.error(t("toast.noAdminPrivileges"));

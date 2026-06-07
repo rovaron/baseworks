@@ -14,8 +14,8 @@ const ListMembersInput = Type.Object({
  * found.
  *
  * @param input - ListMembersInput: organizationId (UUID)
- * @param ctx   - Handler context (unused; auth.api is not
- *   tenant-scoped)
+ * @param ctx   - Handler context; ctx.headers forwards the
+ *   authenticated session to auth.api
  * @returns Result<Member[]> -- array of member records with
  *   userId and role, or err if tenant not found
  *
@@ -24,11 +24,11 @@ const ListMembersInput = Type.Object({
  */
 export const listMembers = defineQuery(
   ListMembersInput,
-  async (input, _ctx) => {
+  async (input, ctx) => {
     try {
       const org = await auth.api.getFullOrganization({
         query: { organizationId: input.organizationId },
-        headers: new Headers(),
+        headers: ctx.headers ?? new Headers(),
       });
       if (!org) return err("Tenant not found");
       return ok(org.members || []);

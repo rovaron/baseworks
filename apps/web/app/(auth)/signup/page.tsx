@@ -29,6 +29,19 @@ import { auth } from "@/lib/api";
 import { env } from "@/lib/env";
 import { sanitizeInviteToken } from "@/lib/invite";
 
+/**
+ * Known better-auth signup error codes mapped to translation keys under the
+ * `auth.toast` namespace. Anything not in this map falls back to the generic
+ * `toast.somethingWentWrong` message so raw backend error strings are never
+ * surfaced to the user (web-signup-raw-server-error).
+ */
+const SIGNUP_ERROR_KEY_BY_CODE: Record<string, string> = {
+  USER_ALREADY_EXISTS: "emailAlreadyInUse",
+  PASSWORD_TOO_SHORT: "passwordTooShort",
+  PASSWORD_TOO_LONG: "passwordTooLong",
+  INVALID_EMAIL: "invalidEmail",
+};
+
 export default function SignupPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -63,7 +76,12 @@ export default function SignupPage() {
     });
 
     if (error) {
-      toast.error(error.message ?? t("toast.somethingWentWrong"));
+      const messageKey = error.code
+        ? SIGNUP_ERROR_KEY_BY_CODE[error.code]
+        : undefined;
+      toast.error(
+        messageKey ? t(`toast.${messageKey}`) : t("toast.somethingWentWrong"),
+      );
       return;
     }
 

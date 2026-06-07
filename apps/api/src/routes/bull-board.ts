@@ -9,7 +9,7 @@ import { createBullBoard } from "@bull-board/api";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
 import { ElysiaAdapter } from "@bull-board/elysia";
 import type { Queue } from "bullmq";
-import { requireRole } from "@baseworks/module-auth";
+import { requirePlatformAdmin } from "@baseworks/module-auth";
 import { env } from "@baseworks/config";
 
 // Resolve @bull-board/ui's installed dist directory at runtime. Bun's isolated
@@ -23,7 +23,7 @@ const uiBasePath = dirname(uiPkgPath);
  * Phase 22 / OPS-01 — Elysia plugin factory mounting bull-board at /admin/bull-board.
  *
  * Composition (D-03):
- *   .use(requireRole("owner"))           ← every request including HTML/CSS/JS gets RBAC
+ *   .use(requirePlatformAdmin())         ← every request including HTML/CSS/JS gets platform-admin gating
  *   .use(serverAdapter.registerPlugin()) ← bull-board's Elysia subtree
  *   .onAfterHandle(set CSP)              ← D-04 frame-ancestors (plugin-scoped per Pitfall 6)
  *
@@ -61,11 +61,12 @@ export async function createBullBoardPlugin(queues: Queue[]): Promise<Elysia> {
     },
   });
 
-  // D-03 + Pitfall 6 — requireRole composition: every request inside this plugin
-  // (HTML/CSS/JS/static) passes through the role derive. Returns 401 unauth, 403 wrong role.
+  // D-03 + Pitfall 6 — requirePlatformAdmin composition: every request inside this plugin
+  // (HTML/CSS/JS/static) passes through the platform-admin derive. Returns 401 unauth,
+  // 403 when the session email is not in the ADMIN_EMAILS allowlist.
   //
   // CSP via onRequest: set the header EARLY so it survives every downstream path,
-  // including the requireRole-throws-Unauthorized → global errorMiddleware → 401
+  // including the platform-admin-throws → global errorMiddleware → 401/403
   // response build. Elysia's response builder reads `set.headers` regardless of
   // whether onAfterHandle fires (which it does NOT for thrown handlers).
   // The plugin is named so set.headers mutations are scoped — CSP does NOT leak
@@ -74,6 +75,6 @@ export async function createBullBoardPlugin(queues: Queue[]): Promise<Elysia> {
     .onRequest(({ set }) => {
       set.headers["content-security-policy"] = `frame-ancestors ${frameAncestors}`;
     })
-    .use(requireRole("owner"))
+    .use(requirePlatformAdmin())
     .use(await serverAdapter.registerPlugin());
 }

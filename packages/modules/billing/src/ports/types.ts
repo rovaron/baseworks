@@ -166,6 +166,13 @@ export interface RawProviderEvent {
   id: string;
   type: string;
   data: unknown;
+  /**
+   * Provider-reported event timestamp (when the event occurred at the
+   * provider), parsed by the adapter during signature verification.
+   * Used for ordering guards instead of local wall-clock ingestion time.
+   * Optional because not every provider/event exposes it.
+   */
+  occurredAt?: Date;
 }
 
 /**

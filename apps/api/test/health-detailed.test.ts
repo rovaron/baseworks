@@ -87,6 +87,21 @@ function installRequireRoleMock() {
         },
       );
     },
+    // Platform-admin guard (operator-scope routes now gate on this instead of
+    // requireRole("owner")). Header-driven for tests: no header → 401,
+    // `x-test-role: owner` simulates a platform admin → 200, otherwise → 403.
+    requirePlatformAdmin: () => {
+      return new Elysia({ name: "fake-require-platform-admin" }).derive(
+        { as: "scoped" },
+        // biome-ignore lint/suspicious/noExplicitAny: test mock
+        ({ request }: any) => {
+          const role = request.headers.get("x-test-role");
+          if (!role) throw new Error("Unauthorized");
+          if (role !== "owner") throw new Error("Forbidden");
+          return { userId: "test-user" };
+        },
+      );
+    },
   }));
 }
 

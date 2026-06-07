@@ -57,7 +57,7 @@ export function mapStripeEvent(rawEvent: RawProviderEvent): NormalizedEvent {
       amount: object?.amount_due ?? object?.amount,
       currency: object?.currency,
     },
-    occurredAt: new Date(),
+    occurredAt: rawEvent.occurredAt ?? new Date(),
     raw: rawEvent,
   };
 }

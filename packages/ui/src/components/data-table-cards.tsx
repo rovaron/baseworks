@@ -151,21 +151,20 @@ export function DataTableCards<TData>({
       <div className="space-y-4">
         {rows.map((row) => {
           const isExpanded = expandedRowId === row.id;
+          const detailId = `card-detail-${row.id}`;
+
+          // Build a column.id -> cell map once per row (avoids quadratic find())
+          const cellById = new Map(
+            row.getVisibleCells().map((c) => [c.column.id, c])
+          );
 
           return (
-            <Card
-              key={row.id}
-              data-card=""
-              className="cursor-pointer"
-              onClick={() => handleCardClick(row.id, row.original)}
-            >
+            <Card key={row.id} data-card="">
               <CardContent className="p-4">
                 {/* Priority columns summary */}
                 <div className="space-y-1">
-                  {priorityColumns.map((col, idx) => {
-                    const cell = row
-                      .getVisibleCells()
-                      .find((c) => c.column.id === col.id);
+                  {priorityColumns.map((col) => {
+                    const cell = cellById.get(col.id);
                     if (!cell) return null;
 
                     const meta = getColumnMeta(col.columnDef);
@@ -199,26 +198,33 @@ export function DataTableCards<TData>({
                   })}
                 </div>
 
-                {/* Chevron indicator */}
+                {/* Chevron toggle */}
                 <div className="mt-2 flex justify-end">
-                  <ChevronDown
-                    className={cn(
-                      "h-4 w-4 text-muted-foreground transition-transform duration-200",
-                      isExpanded && "rotate-180"
-                    )}
+                  <button
+                    type="button"
+                    className="inline-flex items-center rounded-sm text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    onClick={() => handleCardClick(row.id, row.original)}
+                    aria-expanded={isExpanded}
+                    aria-controls={detailId}
                     aria-label={isExpanded ? "Hide details" : "Show details"}
-                  />
+                  >
+                    <ChevronDown
+                      className={cn(
+                        "h-4 w-4 transition-transform duration-200",
+                        isExpanded && "rotate-180"
+                      )}
+                      aria-hidden="true"
+                    />
+                  </button>
                 </div>
 
                 {/* Expanded detail columns */}
                 {isExpanded && (
-                  <>
+                  <div id={detailId}>
                     <div className="my-3 border-t" />
                     <div className="space-y-1">
                       {detailColumns.map((col) => {
-                        const cell = row
-                          .getVisibleCells()
-                          .find((c) => c.column.id === col.id);
+                        const cell = cellById.get(col.id);
                         if (!cell) return null;
 
                         return (
@@ -241,7 +247,7 @@ export function DataTableCards<TData>({
                         </div>
                       )}
                     </div>
-                  </>
+                  </div>
                 )}
               </CardContent>
             </Card>

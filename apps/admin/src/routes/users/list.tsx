@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -8,6 +8,8 @@ import { useTranslation } from "react-i18next";
 import {
   Badge,
   Button,
+  Card,
+  CardContent,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -39,18 +41,29 @@ export function Component() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(0);
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [banTarget, setBanTarget] = useState<User | null>(null);
   const [impersonateTarget, setImpersonateTarget] = useState<User | null>(null);
   const { t } = useTranslation("admin");
   const { t: tc } = useTranslation("common");
 
-  const { data: result, isLoading } = useQuery({
+  // Debounce the search input so the query is not refired on every keystroke.
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(0);
+    }, 300);
+    return () => clearTimeout(id);
+  }, [searchInput]);
+
+  const { data: result, isLoading, error, refetch } = useQuery({
     queryKey: ["admin", "users", page, search],
     queryFn: async () => {
       const res = await api.api.admin.users.get({
         query: { limit: PAGE_SIZE, offset: page * PAGE_SIZE, search },
       });
+      if (res.error) throw res.error;
       return res.data;
     },
   });
@@ -58,10 +71,11 @@ export function Component() {
   const banMutation = useMutation({
     mutationFn: async (user: User) => {
       const newBanned = !user.banned;
-      await (api.api.admin.users as any)({ id: user.id }).patch({
+      const res = await (api.api.admin.users as any)({ id: user.id }).patch({
         banned: newBanned,
         ...(newBanned ? { banReason: "Banned by admin" } : {}),
       });
+      if (res.error) throw new Error(res.error?.value?.message ?? "request failed");
     },
     onSuccess: (_, user) => {
       toast.success(user.banned ? t("users.toast.unbanned") : t("users.toast.banned"));
@@ -76,6 +90,7 @@ export function Component() {
   const impersonateMutation = useMutation({
     mutationFn: async (user: User) => {
       const res = await (api.api.admin.users as any)({ id: user.id }).impersonate.post({});
+      if (res.error) throw new Error(res.error?.value?.message ?? "request failed");
       return res.data;
     },
     onSuccess: () => {
@@ -158,6 +173,24 @@ export function Component() {
     },
   ];
 
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-semibold">{t("users.title")}</h1>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-sm text-muted-foreground mb-4">
+              {t("users.loadError")}
+            </p>
+            <Button variant="outline" onClick={() => refetch()}>
+              {tc("retry")}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">{t("users.title")}</h1>
@@ -172,11 +205,8 @@ export function Component() {
           data={users}
           isLoading={isLoading}
           searchPlaceholder={t("users.searchPlaceholder")}
-          searchValue={search}
-          onSearchChange={(v: string) => {
-            setSearch(v);
-            setPage(0);
-          }}
+          searchValue={searchInput}
+          onSearchChange={setSearchInput}
           pageCount={pageCount}
           pageIndex={page}
           onPaginationChange={setPage}

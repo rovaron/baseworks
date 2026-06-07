@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -8,6 +8,8 @@ import { useTranslation } from "react-i18next";
 import {
   Badge,
   Button,
+  Card,
+  CardContent,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -37,17 +39,28 @@ export function Component() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(0);
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [deactivateTarget, setDeactivateTarget] = useState<Tenant | null>(null);
   const { t } = useTranslation("admin");
   const { t: tc } = useTranslation("common");
 
-  const { data: result, isLoading } = useQuery({
+  // Debounce the search input so the query is not refired on every keystroke.
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(0);
+    }, 300);
+    return () => clearTimeout(id);
+  }, [searchInput]);
+
+  const { data: result, isLoading, error, refetch } = useQuery({
     queryKey: ["admin", "tenants", page, search],
     queryFn: async () => {
       const res = await api.api.admin.tenants.get({
         query: { limit: PAGE_SIZE, offset: page * PAGE_SIZE, search },
       });
+      if (res.error) throw res.error;
       return res.data;
     },
   });
@@ -140,6 +153,24 @@ export function Component() {
     },
   ];
 
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-semibold">{t("tenants.title")}</h1>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-sm text-muted-foreground mb-4">
+              {t("tenants.loadError")}
+            </p>
+            <Button variant="outline" onClick={() => refetch()}>
+              {tc("retry")}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">{t("tenants.title")}</h1>
@@ -154,8 +185,8 @@ export function Component() {
           data={tenants}
           isLoading={isLoading}
           searchPlaceholder={t("tenants.searchPlaceholder")}
-          searchValue={search}
-          onSearchChange={setSearch}
+          searchValue={searchInput}
+          onSearchChange={setSearchInput}
           pageCount={pageCount}
           pageIndex={page}
           onPaginationChange={setPage}

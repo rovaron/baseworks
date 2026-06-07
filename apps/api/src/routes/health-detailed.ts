@@ -3,7 +3,8 @@
 // Mounted at API root (NOT under /api/admin/) per D-08 — sits side-by-side with the
 // public /health Docker probe so operators can hit /health/detailed for the full
 // queue/worker/db/recentErrors/modules snapshot while liveness probes stay
-// unauthenticated. Gated by requireRole("owner") (D-07; T-22-04 mitigation).
+// unauthenticated. Gated by requirePlatformAdmin() — env-allowlist platform admins
+// only, NOT tenant owner role (authz-admin-owner-role-escalation; T-22-04 mitigation).
 //
 // All inputs flow through the `deps` parameter so the endpoint is purely a
 // composition surface — testable in isolation with fake queues, fake redis,
@@ -11,7 +12,7 @@
 import { Elysia } from "elysia";
 import type { Queue } from "bullmq";
 import type IORedis from "ioredis";
-import { requireRole } from "@baseworks/module-auth";
+import { requirePlatformAdmin } from "@baseworks/module-auth";
 import { readHeartbeats } from "@baseworks/observability";
 import type { RingBufferEntry } from "@baseworks/observability";
 import type { HealthAggregator } from "../core/health-aggregator";
@@ -40,7 +41,7 @@ export interface HealthDetailedDeps {
  */
 export function createHealthDetailedPlugin(deps: HealthDetailedDeps): Elysia {
   return new Elysia({ name: "health-detailed" })
-    .use(requireRole("owner"))
+    .use(requirePlatformAdmin())
     .get("/health/detailed", async () => {
       const agg = await deps.aggregator.aggregate();
 

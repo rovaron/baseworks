@@ -70,7 +70,8 @@
     "declineConfirmTitle": "Decline this invitation?",
     "declineConfirmBody": "You can ask for a new invitation later if you change your mind.",
     "declineConfirmButton": "Yes, Decline Invitation",
-    "declined": "Invitation declined"
+    "declined": "Invitation declined",
+    "error": "Could not accept the invitation. Please try again."
   },
   "cancel": {
     "confirmTitle": "Cancel this invitation?",

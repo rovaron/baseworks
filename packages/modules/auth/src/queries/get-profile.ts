@@ -6,6 +6,12 @@ import { env } from "@baseworks/config";
 
 const GetProfileInput = Type.Object({});
 
+// Memoized db instance shared across calls. `createDb` opens a new
+// postgres.js pool every time, so without this each profile read
+// would leak a pool. Resolved via the dynamic import below (kept for
+// test-mock isolation) and cached here on first use.
+let cachedDb: ReturnType<typeof createDb> | undefined;
+
 /**
  * Retrieve the authenticated user's profile by ctx.userId.
  *
@@ -32,9 +38,13 @@ const GetProfileInput = Type.Object({});
  * of module-cache state.
  *
  * In production this adds only a single module-registry lookup
- * per call (no I/O, no reconnect -- the postgres pool created by
- * `createDb` is still cached inside the dynamically-imported
- * module's closure).
+ * per call (no I/O, no reconnect). `createDb` itself is NOT cached
+ * by `@baseworks/db` -- it opens a fresh postgres.js pool on every
+ * invocation -- so we memoize the resolved db instance at module
+ * scope (`cachedDb` below) to ensure a single shared pool per
+ * process. The dynamic import is preserved purely for test-mock
+ * resolution; the memoized instance is whatever `createDb` returns
+ * (the test mock returns a stable stub, so caching is compatible).
  *
  * @param input - GetProfileInput (empty object)
  * @param ctx   - Handler context: userId (required for query),
@@ -61,7 +71,8 @@ export const getProfile = defineQuery(GetProfileInput, async (_input, ctx) => {
     const { eq: resolvedEq } = drizzleMod;
     const { env: resolvedEnv } = envMod;
 
-    const db = resolvedCreateDb(resolvedEnv.DATABASE_URL);
+    if (!cachedDb) cachedDb = resolvedCreateDb(resolvedEnv.DATABASE_URL);
+    const db = cachedDb;
 
     const users = await db
       .select({

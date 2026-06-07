@@ -28,7 +28,7 @@ export const deleteTenant = defineCommand(
     try {
       await auth.api.deleteOrganization({
         body: { organizationId: input.organizationId },
-        headers: new Headers(),
+        headers: ctx.headers ?? new Headers(),
       });
 
       ctx.emit("tenant.deleted", {

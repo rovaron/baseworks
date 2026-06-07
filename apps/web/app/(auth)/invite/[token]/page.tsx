@@ -24,8 +24,7 @@ import {
   DialogTitle,
   Skeleton,
 } from "@baseworks/ui";
-import { auth } from "@/lib/api";
-import { env } from "@/lib/env";
+import { auth, api } from "@/lib/api";
 
 interface InvitationData {
   id: string;
@@ -73,13 +72,18 @@ export default function InviteAcceptPage() {
   } = useQuery<InvitationData>({
     queryKey: ["invitation", token],
     queryFn: async () => {
-      const res = await fetch(
-        `${env.NEXT_PUBLIC_API_URL}/api/invitations/${token}`
-      );
-      if (!res.ok) {
+      const { data, error } = await (api.api.invitations as any)[token].get();
+      if (error) {
         throw new Error("invalid");
       }
-      return res.json();
+      if (
+        !data ||
+        typeof data !== "object" ||
+        typeof (data as InvitationData).status !== "string"
+      ) {
+        throw new Error("invalid");
+      }
+      return data as InvitationData;
     },
     retry: false,
   });
@@ -104,6 +108,8 @@ export default function InviteAcceptPage() {
         message.toLowerCase().includes("already member")
       ) {
         setAlreadyMember(true);
+      } else {
+        toast.error(t("accept.error"));
       }
       setIsAccepting(false);
     }

@@ -1,5 +1,6 @@
 import { Elysia } from "elysia";
 import { getErrorTracker } from "@baseworks/observability";
+import { AppError } from "@baseworks/shared";
 import { logger } from "../../lib/logger";
 
 /**
@@ -9,9 +10,10 @@ import { logger } from "../../lib/logger";
  * HTTP status mapping:
  * - VALIDATION errors -> 400 with `VALIDATION_ERROR` code and details
  * - NOT_FOUND errors -> 404 with `NOT_FOUND` code
- * - "Unauthorized" / "Missing tenant context" -> 401 with `UNAUTHORIZED`
- * - "No active tenant" -> 401 with `MISSING_TENANT_CONTEXT`
- * - "Forbidden" -> 403 with `FORBIDDEN` code
+ * - AppError (from @baseworks/shared) -> mapped via its `status`/`code`
+ *   (e.g. UnauthorizedError -> 401 UNAUTHORIZED,
+ *   NoActiveTenantError -> 401 MISSING_TENANT_CONTEXT,
+ *   ForbiddenError -> 403 FORBIDDEN)
  * - All other errors -> 500 with `INTERNAL_ERROR` (no details exposed)
  *
  * Detailed error messages and stack traces are logged server-side
@@ -45,11 +47,21 @@ export const errorMiddleware = new Elysia({ name: "error-handler" }).onError(
         };
 
       default: {
-        // Check for tenant context / auth errors from tenant middleware
-        if (
-          errMsg === "Missing tenant context" ||
-          errMsg === "Unauthorized"
-        ) {
+        // Typed application errors carry their own HTTP status + code.
+        // Map on those fields rather than matching the message text, which
+        // is brittle and breaks if a message is reworded.
+        if (error instanceof AppError) {
+          set.status = error.status;
+          return {
+            success: false,
+            error: error.code,
+          };
+        }
+
+        // Belt-and-suspenders: legacy throw sites that still raise plain
+        // Error("Unauthorized"/"No active tenant"/"Forbidden") keep mapping
+        // correctly during the transition to typed errors.
+        if (errMsg === "Unauthorized") {
           set.status = 401;
           return {
             success: false,

@@ -80,11 +80,10 @@ const SidebarProvider = React.forwardRef<
 
     // This is the internal state of the sidebar.
     // We use openProp and setOpenProp for control from outside the component.
-    const [_open, _setOpen] = React.useState(() => {
-      if (typeof window === "undefined") return defaultOpen
-      const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY)
-      return stored !== null ? stored === "true" : defaultOpen
-    })
+    // The initializer is deterministic (always defaultOpen) so the server and
+    // first client render agree — the persisted value is applied after mount in
+    // the effect below to avoid an SSR hydration mismatch.
+    const [_open, _setOpen] = React.useState(defaultOpen)
     const open = openProp ?? _open
     const setOpen = React.useCallback(
       (value: boolean | ((value: boolean) => boolean)) => {
@@ -123,6 +122,16 @@ const SidebarProvider = React.forwardRef<
       window.addEventListener("keydown", handleKeyDown)
       return () => window.removeEventListener("keydown", handleKeyDown)
     }, [toggleSidebar])
+
+    // Apply the persisted localStorage value after mount (client-only) so the
+    // initial render matches the server. Declared BEFORE the tablet-collapse
+    // effect so the tablet override (which also runs on mount) wins and the two
+    // effects do not fight. Skipped when the open state is externally controlled.
+    React.useEffect(() => {
+      if (openProp !== undefined) return
+      const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY)
+      if (stored !== null) _setOpen(stored === "true")
+    }, [openProp])
 
     // Collapse sidebar on tablet by default (unless externally controlled).
     React.useEffect(() => {
@@ -695,12 +704,14 @@ const SidebarMenuSkeleton = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
     showIcon?: boolean
+    index?: number
   }
->(({ className, showIcon = false, ...props }, ref) => {
-  // Random width between 50 to 90%.
-  const width = React.useMemo(() => {
-    return `${Math.floor(Math.random() * 40) + 50}%`
-  }, [])
+>(({ className, showIcon = false, index = 0, ...props }, ref) => {
+  // Deterministic width between 50% and 90%, derived from the item index so the
+  // server and client render identical markup (a per-render Math.random() would
+  // cause an SSR hydration mismatch). Cycles through a fixed set for variety.
+  const SKELETON_WIDTHS = ["50%", "65%", "80%", "70%", "90%", "55%", "85%", "60%"]
+  const width = SKELETON_WIDTHS[index % SKELETON_WIDTHS.length]
 
   return (
     <div

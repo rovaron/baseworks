@@ -5,6 +5,7 @@ import type {
   ErrorTrackerScope,
 } from "../ports/error-tracker";
 import type { LogLevel } from "../ports/types";
+import { scrubPii } from "./scrub-pii";
 
 /**
  * Phase 22 / D-15 — public snapshot entry shape.
@@ -85,14 +86,21 @@ export class RingBufferingErrorTracker implements ErrorTracker {
 
   private append(err: unknown, scope?: CaptureScope): void {
     const rawMessage = err instanceof Error ? err.message : String(err);
-    const message = rawMessage.slice(0, MAX_MESSAGE_LEN);
     const stack = err instanceof Error && err.stack ? err.stack : "";
     // First non-internal frame — strips node_modules paths.
-    const firstFrame = (
+    const rawFirstFrame = (
       stack.split("\n").slice(1).find((l) => !l.includes("node_modules")) ?? ""
-    )
-      .trim()
-      .slice(0, MAX_FRAME_LEN);
+    ).trim();
+    // Run both leaves through the shared PII scrubber BEFORE truncation/storage so
+    // the recent-errors snapshot honors the same redaction guarantees as the
+    // Sentry/pino paths. Scrub-then-truncate avoids slicing a PII pattern in half
+    // (which would defeat the regex match).
+    const scrubbed = scrubPii({
+      message: rawMessage,
+      firstFrame: rawFirstFrame,
+    }) as { message: string; firstFrame: string };
+    const message = scrubbed.message.slice(0, MAX_MESSAGE_LEN);
+    const firstFrame = scrubbed.firstFrame.slice(0, MAX_FRAME_LEN);
     const dedupKey = `${message}::${firstFrame}`;
     const sourceTag = scope?.tags?.source;
     const source: RingBufferEntry["source"] =

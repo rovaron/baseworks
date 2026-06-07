@@ -55,7 +55,7 @@ export const createInvitation = defineCommand(
           role: input.role,
           organizationId: input.organizationId,
         },
-        headers: new Headers(),
+        headers: ctx.headers ?? new Headers(),
       });
 
       ctx.emit("invitation.created", {

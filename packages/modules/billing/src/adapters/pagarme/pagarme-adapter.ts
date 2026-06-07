@@ -275,10 +275,14 @@ export class PagarmeAdapter implements PaymentProvider {
     }
 
     const event = JSON.parse(params.rawBody);
+    // Pagar.me places the event timestamp at the TOP LEVEL of the webhook
+    // envelope (created_at, ISO string), not inside data. Capture it so the
+    // normalizer can order events by provider time rather than ingestion time.
     return {
       id: event.id ?? event.data?.id ?? crypto.randomUUID(),
       type: event.type,
       data: event.data,
+      occurredAt: event.created_at ? new Date(event.created_at) : undefined,
     };
   }
 

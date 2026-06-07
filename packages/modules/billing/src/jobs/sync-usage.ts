@@ -1,5 +1,5 @@
-import { eq, and, sql } from "drizzle-orm";
-import { createDb } from "@baseworks/db";
+import { eq, and, sql, inArray } from "drizzle-orm";
+import { getDb } from "@baseworks/db";
 import { env } from "@baseworks/config";
 import { usageRecords, billingCustomers } from "../schema";
 import { getPaymentProvider } from "../provider-factory";
@@ -22,7 +22,7 @@ const logger = pino({ name: "billing-sync-usage" });
  * Per T-03-16: Processes all tenants (system-level job).
  */
 export async function syncUsage(_data: unknown): Promise<void> {
-  const db = createDb(env.DATABASE_URL);
+  const db = getDb(env.DATABASE_URL);
 
   // Query unsynced records grouped by tenantId and metric
   const unsyncedGroups = await db
@@ -30,6 +30,7 @@ export async function syncUsage(_data: unknown): Promise<void> {
       tenantId: usageRecords.tenantId,
       metric: usageRecords.metric,
       totalQuantity: sql<number>`sum(${usageRecords.quantity})::int`,
+      recordIds: sql<string[]>`array_agg(${usageRecords.id})`,
     })
     .from(usageRecords)
     .where(eq(usageRecords.syncedToProvider, false))
@@ -72,7 +73,10 @@ export async function syncUsage(_data: unknown): Promise<void> {
         timestamp: Math.floor(Date.now() / 1000),
       });
 
-      // Mark all matching records as synced
+      // Mark exactly the records that were summed as synced. Constraining the
+      // UPDATE to the IDs collected in the SELECT (via array_agg) prevents
+      // flipping rows inserted between the read and the write, which would
+      // otherwise silently drop their usage from billing.
       await db
         .update(usageRecords)
         .set({
@@ -83,7 +87,7 @@ export async function syncUsage(_data: unknown): Promise<void> {
           and(
             eq(usageRecords.tenantId, group.tenantId),
             eq(usageRecords.metric, group.metric),
-            eq(usageRecords.syncedToProvider, false),
+            inArray(usageRecords.id, group.recordIds),
           ),
         );
 
