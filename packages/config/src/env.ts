@@ -2,6 +2,14 @@ import { createEnv } from "@t3-oss/env-core";
 import { z } from "zod";
 
 /**
+ * Development-only fallback for BETTER_AUTH_SECRET shipped in
+ * docker-compose.yml. A production boot must never accept this publicly-known
+ * value — a known signing secret allows session/token forgery for any tenant
+ * (audit: docker-default-auth-secret-in-prod).
+ */
+const DEV_AUTH_SECRET_DEFAULT = "development-secret-at-least-32-chars-long";
+
+/**
  * Server environment schema with conditional validation for payment providers.
  *
  * PAYMENT_PROVIDER defaults to "stripe". When set to "pagarme", the env
@@ -14,8 +22,22 @@ const serverSchema = {
   REDIS_URL: z.string().url().optional(),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   INSTANCE_ROLE: z.enum(["api", "worker", "all"]).default("all"),
-  BETTER_AUTH_SECRET: z.string().min(32),
+  BETTER_AUTH_SECRET: z
+    .string()
+    .min(32)
+    // docker-default-auth-secret-in-prod: fail-closed if a production deploy
+    // is still using the committed dev default. Durable app-layer guard that
+    // protects every deploy path, not just docker-compose.yml.
+    .refine(
+      (v) =>
+        !(process.env.NODE_ENV === "production" && v === DEV_AUTH_SECRET_DEFAULT),
+      "BETTER_AUTH_SECRET must not be the development default in production",
+    ),
   BETTER_AUTH_URL: z.string().url().default("http://localhost:3000"),
+  // C5 — platform-admin allowlist. Comma-separated email addresses granted
+  // operator scope, independent of organization membership role. Parsed via
+  // getAdminEmails().
+  ADMIN_EMAILS: z.string().optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GITHUB_CLIENT_ID: z.string().optional(),
@@ -59,6 +81,18 @@ export const env = createEnv({
 });
 
 /**
+ * Parse the ADMIN_EMAILS allowlist into a normalized list of platform-admin
+ * email addresses (C5). The value is comma-separated; each entry is trimmed
+ * and lowercased, and empty entries are dropped. Returns [] when unset.
+ */
+export function getAdminEmails(): string[] {
+  return (env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter((email) => email.length > 0);
+}
+
+/**
  * Validate that the required payment provider secrets are present.
  * Must be called at startup to prevent runtime crashes on first billing operation.
  *
@@ -88,6 +122,22 @@ export function validatePaymentProviderEnv(): void {
     }
   }
 
+  // env-missing-webhook-secret-validation: a configured provider must also have
+  // its webhook signing secret, otherwise webhook verification fails (or worse,
+  // is silently skipped) the first time the provider POSTs an event.
+  if (provider === "pagarme" && !env.PAGARME_WEBHOOK_SECRET) {
+    if (isTest) {
+      console.warn(
+        "[env] WARNING: PAGARME_WEBHOOK_SECRET is not set (NODE_ENV=test).",
+      );
+    } else {
+      throw new Error(
+        "PAGARME_WEBHOOK_SECRET is required when PAYMENT_PROVIDER=pagarme. " +
+          "Set PAGARME_WEBHOOK_SECRET in your environment.",
+      );
+    }
+  }
+
   if (provider === "stripe" && !env.STRIPE_SECRET_KEY) {
     // WR-05: Must throw symmetrically with the Pagar.me branch -- a missing
     // Stripe key in a stripe-configured deployment is a fatal startup error.
@@ -99,6 +149,21 @@ export function validatePaymentProviderEnv(): void {
       throw new Error(
         "STRIPE_SECRET_KEY is required when PAYMENT_PROVIDER=stripe. " +
           "Set STRIPE_SECRET_KEY in your environment.",
+      );
+    }
+  }
+
+  // env-missing-webhook-secret-validation: mirror the Stripe secret-key check
+  // for the webhook signing secret used by stripe.webhooks.constructEvent().
+  if (provider === "stripe" && !env.STRIPE_WEBHOOK_SECRET) {
+    if (isTest) {
+      console.warn(
+        "[env] WARNING: STRIPE_WEBHOOK_SECRET is not set (NODE_ENV=test).",
+      );
+    } else {
+      throw new Error(
+        "STRIPE_WEBHOOK_SECRET is required when PAYMENT_PROVIDER=stripe. " +
+          "Set STRIPE_WEBHOOK_SECRET in your environment.",
       );
     }
   }
@@ -184,18 +249,27 @@ export function validateObservabilityEnv(): void {
   // .planning/phases/20.1-close-v13-milestone-gaps/20.1-CONTEXT.md.
 }
 
+/** The INSTANCE_ROLE union, reused to type role-aware helpers. */
+type InstanceRole = (typeof env)["INSTANCE_ROLE"];
+
 /**
  * Assert that REDIS_URL is present when the instance role requires it.
  * Roles "worker" and "all" need Redis for BullMQ job processing.
  *
- * @returns The validated REDIS_URL string
+ * env-assert-redis-unsafe-cast: the `role` parameter is typed as the
+ * INSTANCE_ROLE union (not bare `string`), and the previous `redisUrl as string`
+ * cast — which masked a possible `undefined` for the "api" role — is gone. For
+ * roles that require Redis the throw above proves `redisUrl` is set; the "api"
+ * role does not require Redis and must not consume the return value.
+ *
+ * @returns The validated REDIS_URL (empty string for the "api" role when unset)
  * @throws Error if REDIS_URL is missing for a role that requires it
  */
-export function assertRedisUrl(role: string, redisUrl?: string): string {
+export function assertRedisUrl(role: InstanceRole, redisUrl?: string): string {
   if ((role === "worker" || role === "all") && !redisUrl) {
     throw new Error(
       `REDIS_URL is required when INSTANCE_ROLE is "${role}". Set REDIS_URL in your environment.`,
     );
   }
-  return redisUrl as string;
+  return redisUrl ?? "";
 }

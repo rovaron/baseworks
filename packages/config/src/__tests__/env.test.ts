@@ -155,6 +155,7 @@ describe("validatePaymentProviderEnv", () => {
           NODE_ENV: "development",
           PAYMENT_PROVIDER: "stripe",
           STRIPE_SECRET_KEY: "sk_test_123",
+          STRIPE_WEBHOOK_SECRET: "whsec_test_123",
         },
         stdout: "pipe",
         stderr: "pipe",

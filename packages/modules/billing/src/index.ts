@@ -15,6 +15,16 @@ import { getBillingHistory } from "./queries/get-billing-history";
 export { registerBillingHooks } from "./hooks/on-tenant-created";
 
 /**
+ * Public payment-provider webhook plugin (C4 / billing-webhook-behind-tenant-middleware).
+ *
+ * Exported separately from the tenant-scoped `billingRoutes` so apps/api can
+ * mount it in the pre-tenant band -- BEFORE tenantMiddleware -- since provider
+ * webhook POSTs carry no session cookie and would otherwise be rejected by the
+ * tenant-scoped derive.
+ */
+export { billingWebhookRoutes } from "./routes";
+
+/**
  * Billing module definition following the Medusa-style module pattern.
  *
  * Per D-23: Module exports routes, commands, queries, jobs, events.

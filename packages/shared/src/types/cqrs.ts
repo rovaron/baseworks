@@ -24,6 +24,8 @@ export interface HandlerContext {
   userId?: string;
   /** Tenant-scoped Drizzle database instance (ScopedDb). */
   db: any;
+  /** Authenticated request headers, forwarded so better-auth can resolve the session. */
+  headers?: Headers;
   /** Emit a domain event to the typed event bus. */
   emit: (event: string, data: unknown) => void;
   /** Enqueue a background job via BullMQ. Optional; unavailable in test contexts. */

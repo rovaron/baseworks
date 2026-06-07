@@ -1,5 +1,5 @@
 export type { DbInstance } from "./connection";
-export { createDb } from "./connection";
+export { closeDb, createDb, getDb } from "./connection";
 export type { ScopedDb } from "./helpers/scoped-db";
 export { scopedDb } from "./helpers/scoped-db";
 export { unscopedDb } from "./helpers/unscoped-db";

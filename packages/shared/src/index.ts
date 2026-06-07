@@ -20,3 +20,10 @@ export type { TenantContext, AppContext } from "./types/context";
 export type { DomainEvents } from "./types/events";
 
 export { ok, err } from "./result";
+
+export {
+  AppError,
+  UnauthorizedError,
+  NoActiveTenantError,
+  ForbiddenError,
+} from "./errors";

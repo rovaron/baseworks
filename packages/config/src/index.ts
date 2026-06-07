@@ -1,1 +1,1 @@
-export { env, validatePaymentProviderEnv, validateObservabilityEnv, assertRedisUrl } from "./env";
+export { env, validatePaymentProviderEnv, validateObservabilityEnv, assertRedisUrl, getAdminEmails } from "./env";
