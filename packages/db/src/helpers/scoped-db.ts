@@ -62,7 +62,8 @@ export function scopedDb(db: DbInstance, tenantId: string): ScopedDb {
     update(table: any) {
       return {
         set(data: Record<string, any>) {
-          return db.update(table).set(data as any).where(eq(table.tenantId, tenantId)) as any;
+          const { tenantId: _omit, ...safe } = data;
+          return db.update(table).set(safe as any).where(eq(table.tenantId, tenantId)) as any;
         },
       };
     },

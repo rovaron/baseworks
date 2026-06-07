@@ -114,8 +114,9 @@ export class HealthAggregator {
     // HealthCheckResult instead of rejecting. The underlying contributor's
     // eventual settlement is absorbed silently because the race already
     // resolved. Avoids the unhandledRejection escape on late-settling promises.
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const timeoutP = new Promise<HealthCheckResult>((resolve) => {
-      setTimeout(
+      timer = setTimeout(
         () => resolve({ status: "unhealthy", details: { error: "timeout" } }),
         timeoutMs,
       );
@@ -127,6 +128,10 @@ export class HealthAggregator {
       status: "unhealthy" as HealthStatus,
       details: { error: err instanceof Error ? err.message : String(err) },
     }));
-    return Promise.race([checkP, timeoutP]);
+    try {
+      return await Promise.race([checkP, timeoutP]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
 }

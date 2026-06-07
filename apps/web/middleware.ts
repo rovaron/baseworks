@@ -1,3 +1,4 @@
+import { getSessionCookie } from "better-auth/cookies";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
@@ -10,7 +11,7 @@ import { NextRequest, NextResponse } from "next/server";
  * All API calls are still protected server-side by better-auth session validation.
  */
 export function middleware(request: NextRequest) {
-  const sessionCookie = request.cookies.get("better-auth.session_token");
+  const sessionCookie = getSessionCookie(request);
 
   // Root redirect: authenticated → dashboard, unauthenticated → login
   if (request.nextUrl.pathname === "/") {

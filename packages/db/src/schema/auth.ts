@@ -3,6 +3,7 @@ import {
   text,
   timestamp,
   boolean,
+  index,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -36,7 +37,10 @@ export const session = pgTable("session", {
     .notNull()
     .references(() => user.id),
   activeOrganizationId: text("active_organization_id"),
-});
+}, (t) => [
+  index("session_user_id_idx").on(t.userId),
+  index("session_active_org_id_idx").on(t.activeOrganizationId),
+]);
 
 export const account = pgTable("account", {
   id: text("id").primaryKey(),
@@ -54,7 +58,9 @@ export const account = pgTable("account", {
   password: text("password"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (t) => [
+  index("account_user_id_idx").on(t.userId),
+]);
 
 export const verification = pgTable("verification", {
   id: text("id").primaryKey(),
@@ -84,7 +90,10 @@ export const member = pgTable("member", {
     .references(() => user.id),
   role: text("role").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (t) => [
+  index("member_org_id_idx").on(t.organizationId),
+  index("member_user_id_idx").on(t.userId),
+]);
 
 export const invitation = pgTable("invitation", {
   id: text("id").primaryKey(),
@@ -98,4 +107,7 @@ export const invitation = pgTable("invitation", {
   inviterId: text("inviter_id")
     .notNull()
     .references(() => user.id),
-});
+}, (t) => [
+  index("invitation_org_id_idx").on(t.organizationId),
+  index("invitation_inviter_id_idx").on(t.inviterId),
+]);

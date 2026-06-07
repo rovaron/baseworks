@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { Loader2, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
 import {
   Avatar,
   AvatarFallback,
@@ -114,7 +115,7 @@ export default function InviteAcceptPage() {
       await auth.organization.rejectInvitation({ invitationId: token });
       setDeclined(true);
     } catch {
-      // Error declining -- still close dialog
+      toast.error(tc("error"));
     } finally {
       setIsDeclining(false);
       setShowDeclineDialog(false);

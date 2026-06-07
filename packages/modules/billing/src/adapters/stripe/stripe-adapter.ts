@@ -39,7 +39,10 @@ export class StripeAdapter implements PaymentProvider {
   private webhookSecret: string;
 
   constructor(config: { secretKey: string; webhookSecret: string }) {
-    this.stripe = new Stripe(config.secretKey, { typescript: true });
+    this.stripe = new Stripe(config.secretKey, {
+      apiVersion: "2025-02-24.acacia",
+      typescript: true,
+    });
     this.webhookSecret = config.webhookSecret;
   }
 

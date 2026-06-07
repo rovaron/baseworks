@@ -148,16 +148,23 @@ aggregator.register({
 aggregator.register({
   name: "queueDepth",
   check: async () => {
+    const perQueue = await Promise.all(
+      moduleQueues.map(async (q): Promise<"healthy" | "degraded" | "unhealthy"> => {
+        try {
+          const counts = await q.getJobCounts("waiting");
+          const waiting = counts.waiting ?? 0;
+          if (waiting >= 1000) return "unhealthy";
+          if (waiting >= 100) return "degraded";
+          return "healthy";
+        } catch {
+          return "unhealthy";
+        }
+      }),
+    );
     let worst: "healthy" | "degraded" | "unhealthy" = "healthy";
-    for (const q of moduleQueues) {
-      try {
-        const counts = await q.getJobCounts("waiting");
-        const waiting = counts.waiting ?? 0;
-        if (waiting >= 1000) worst = "unhealthy";
-        else if (waiting >= 100 && worst === "healthy") worst = "degraded";
-      } catch {
-        worst = "unhealthy";
-      }
+    for (const status of perQueue) {
+      if (status === "unhealthy") worst = "unhealthy";
+      else if (status === "degraded" && worst === "healthy") worst = "degraded";
     }
     return { status: worst };
   },

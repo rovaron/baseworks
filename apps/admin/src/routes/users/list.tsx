@@ -173,7 +173,10 @@ export function Component() {
           isLoading={isLoading}
           searchPlaceholder={t("users.searchPlaceholder")}
           searchValue={search}
-          onSearchChange={setSearch}
+          onSearchChange={(v: string) => {
+            setSearch(v);
+            setPage(0);
+          }}
           pageCount={pageCount}
           pageIndex={page}
           onPaginationChange={setPage}

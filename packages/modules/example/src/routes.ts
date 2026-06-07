@@ -12,8 +12,13 @@ import { listExamples } from "./queries/list-examples";
 export const exampleRoutes = new Elysia({ prefix: "/examples" })
   .post(
     "/",
-    async ({ handlerCtx, body }: any) => {
-      return createExample(body, handlerCtx);
+    async (ctx: any) => {
+      const result = await createExample(ctx.body, ctx.handlerCtx);
+      if (!result.success) {
+        ctx.set.status = 400;
+        return { success: false, error: result.error };
+      }
+      return { success: true, data: result.data };
     },
     {
       body: t.Object({
@@ -22,6 +27,11 @@ export const exampleRoutes = new Elysia({ prefix: "/examples" })
       }),
     },
   )
-  .get("/", async ({ handlerCtx }: any) => {
-    return listExamples({}, handlerCtx);
+  .get("/", async (ctx: any) => {
+    const result = await listExamples({}, ctx.handlerCtx);
+    if (!result.success) {
+      ctx.set.status = 400;
+      return { success: false, error: result.error };
+    }
+    return { success: true, data: result.data };
   });

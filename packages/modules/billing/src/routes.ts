@@ -2,7 +2,6 @@ import { Elysia, t } from "elysia";
 import { getPaymentProvider } from "./provider-factory";
 import { env } from "@baseworks/config";
 import { createDb, webhookEvents } from "@baseworks/db";
-import { eq } from "drizzle-orm";
 import { Queue } from "bullmq";
 import { createCheckoutSession } from "./commands/create-checkout-session";
 import { cancelSubscription } from "./commands/cancel-subscription";
@@ -79,24 +78,25 @@ export const billingRoutes = new Elysia({ prefix: "/api/billing" })
     const normalizedEvent = provider.normalizeEvent(rawEvent);
 
     // Idempotency check (D-11, T-03-05, T-10-03)
+    // Race-safe dedup: the DB unique constraint is the arbiter, not an
+    // application-level check-then-act. Insert with status "pending"
+    // (T-03-06: audit trail) and short-circuit on conflict.
     const db = createDb(env.DATABASE_URL);
-    const existing = await db
-      .select()
-      .from(webhookEvents)
-      .where(eq(webhookEvents.providerEventId, normalizedEvent.providerEventId))
-      .limit(1);
+    const inserted = await db
+      .insert(webhookEvents)
+      .values({
+        providerEventId: normalizedEvent.providerEventId,
+        eventType: normalizedEvent.type,
+        status: "pending",
+        payload: JSON.stringify(normalizedEvent.raw),
+      })
+      .onConflictDoNothing({ target: webhookEvents.providerEventId })
+      .returning({ id: webhookEvents.id });
 
-    if (existing.length > 0) {
+    if (inserted.length === 0) {
+      // Duplicate delivery already recorded -- ack without re-enqueueing
       return { received: true };
     }
-
-    // Insert event record with status "pending" (T-03-06: audit trail)
-    await db.insert(webhookEvents).values({
-      providerEventId: normalizedEvent.providerEventId,
-      eventType: normalizedEvent.type,
-      status: "pending",
-      payload: JSON.stringify(normalizedEvent.raw),
-    });
 
     // Enqueue for async processing (D-10, Pitfall 5 -- return 200 fast)
     const queue = getWebhookQueue();

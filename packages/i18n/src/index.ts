@@ -27,10 +27,12 @@ export { default as ptBRInvite } from "./locales/pt-BR/invite.json";
  */
 export async function getMessages(locale: Locale): Promise<Record<string, Record<string, unknown>>> {
   const messages: Record<string, Record<string, unknown>> = {};
-  for (const ns of namespaces) {
-    const mod = await import(`./locales/${locale}/${ns}.json`);
-    messages[ns] = mod.default;
-  }
+  await Promise.all(
+    namespaces.map(async (ns) => {
+      const mod = await import(`./locales/${locale}/${ns}.json`);
+      messages[ns] = mod.default;
+    }),
+  );
   return messages;
 }
 

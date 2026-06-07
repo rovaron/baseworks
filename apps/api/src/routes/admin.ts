@@ -11,6 +11,20 @@ function escapeLike(input: string): string {
 }
 
 /**
+ * Safely parse a stored metadata JSON string. Returns null on malformed JSON so
+ * a single corrupt row degrades gracefully instead of 500-ing the whole listing.
+ */
+function safeParseMetadata(raw: string | null, tenantId?: string): unknown {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    logger.warn({ tenantId }, "Failed to parse tenant metadata; returning null");
+    return null;
+  }
+}
+
+/**
  * Admin API routes for cross-tenant operations.
  *
  * Per D-16: These routes use raw db (not scopedDb) for cross-tenant queries.
@@ -81,7 +95,7 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
         name: t.name,
         slug: t.slug,
         createdAt: t.createdAt,
-        metadata: t.metadata ? JSON.parse(t.metadata) : null,
+        metadata: safeParseMetadata(t.metadata, t.id),
       })),
       total: totalResult?.count ?? 0,
     };
@@ -111,7 +125,7 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
         slug: tenant.slug,
         logo: tenant.logo,
         createdAt: tenant.createdAt,
-        metadata: tenant.metadata ? JSON.parse(tenant.metadata) : null,
+        metadata: safeParseMetadata(tenant.metadata, tenant.id),
         memberCount: memberCount[0]?.count ?? 0,
       },
     };

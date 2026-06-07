@@ -54,9 +54,11 @@ export function Component() {
 
   const deactivateMutation = useMutation({
     mutationFn: async (tenant: Tenant) => {
-      await (api.api.admin.tenants as any)({ id: tenant.id }).patch({
+      const res = await (api.api.admin.tenants as any)({ id: tenant.id }).patch({
         metadata: { deactivated: true, deactivatedAt: new Date().toISOString() },
       });
+      if (res.error) throw new Error(res.error?.value?.message ?? "request failed");
+      return res.data;
     },
     onSuccess: () => {
       toast.success(t("tenants.toast.deactivated"));

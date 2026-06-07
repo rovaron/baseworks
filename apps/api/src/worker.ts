@@ -130,7 +130,7 @@ logger.info(
 );
 
 // Health check HTTP server for Docker/infrastructure probes (D-06)
-const WORKER_HEALTH_PORT = Number(process.env.WORKER_HEALTH_PORT) || 3001;
+const WORKER_HEALTH_PORT = env.WORKER_HEALTH_PORT;
 
 const healthServer = Bun.serve({
   port: WORKER_HEALTH_PORT,

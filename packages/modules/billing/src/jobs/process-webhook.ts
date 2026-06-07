@@ -4,8 +4,12 @@ import {
   billingCustomers,
   webhookEvents,
 } from "@baseworks/db";
+import type { DbInstance } from "@baseworks/db";
 import { eq } from "drizzle-orm";
+import pino from "pino";
 import type { NormalizedEvent } from "../ports/types";
+
+const logger = pino({ name: "billing-process-webhook" });
 
 /**
  * Webhook event processing job handler.
@@ -87,14 +91,16 @@ export async function processWebhook(data: unknown): Promise<void> {
         break;
 
       case "payment.succeeded":
-        console.log(
-          `[BILLING] Payment succeeded for customer ${normalizedEvent.providerCustomerId}`,
+        logger.info(
+          { providerCustomerId: normalizedEvent.providerCustomerId },
+          "Payment succeeded",
         );
         break;
 
       case "payment.failed":
-        console.log(
-          `[BILLING] Payment failed for customer ${normalizedEvent.providerCustomerId}`,
+        logger.info(
+          { providerCustomerId: normalizedEvent.providerCustomerId },
+          "Payment failed",
         );
         break;
     }
@@ -124,7 +130,7 @@ export async function processWebhook(data: unknown): Promise<void> {
  * @param db - Database instance
  * @param normalizedEvent - Normalized checkout event
  */
-async function handleCheckoutCompleted(db: any, normalizedEvent: NormalizedEvent): Promise<void> {
+async function handleCheckoutCompleted(db: DbInstance, normalizedEvent: NormalizedEvent): Promise<void> {
   if (!normalizedEvent.providerCustomerId || !normalizedEvent.data.subscriptionId) return;
 
   await db
@@ -147,7 +153,7 @@ async function handleCheckoutCompleted(db: any, normalizedEvent: NormalizedEvent
  * @param eventTime - Event timestamp for ordering protection
  */
 async function handleSubscriptionCreated(
-  db: any,
+  db: DbInstance,
   normalizedEvent: NormalizedEvent,
   eventTime: Date,
 ): Promise<void> {
@@ -180,7 +186,7 @@ async function handleSubscriptionCreated(
  * @param eventTime - Event timestamp for ordering comparison
  */
 async function handleSubscriptionUpdated(
-  db: any,
+  db: DbInstance,
   normalizedEvent: NormalizedEvent,
   eventTime: Date,
 ): Promise<void> {
@@ -194,8 +200,13 @@ async function handleSubscriptionUpdated(
     .limit(1);
 
   if (existing?.lastEventAt && eventTime <= existing.lastEventAt) {
-    console.log(
-      `[BILLING] Skipping stale subscription.updated for ${normalizedEvent.providerCustomerId} (event: ${eventTime.toISOString()}, lastEventAt: ${existing.lastEventAt.toISOString()})`,
+    logger.info(
+      {
+        providerCustomerId: normalizedEvent.providerCustomerId,
+        eventTime: eventTime.toISOString(),
+        lastEventAt: existing.lastEventAt.toISOString(),
+      },
+      "Skipping stale subscription.updated",
     );
     return;
   }
@@ -222,7 +233,7 @@ async function handleSubscriptionUpdated(
  * @param eventTime - Event timestamp for ordering protection
  */
 async function handleSubscriptionDeleted(
-  db: any,
+  db: DbInstance,
   normalizedEvent: NormalizedEvent,
   eventTime: Date,
 ): Promise<void> {
