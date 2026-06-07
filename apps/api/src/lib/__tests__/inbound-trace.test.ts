@@ -62,4 +62,22 @@ describe("decideInboundTrace (Phase 20.1 D-12 — always-trust default)", () => 
     expect(a.traceId).not.toBe(b.traceId);
     expect(a.spanId).not.toBe(b.spanId);
   });
+
+  test("OBS_TRUST_INBOUND_TRACEPARENT=false → inbound IGNORED, fresh ids minted", () => {
+    const prev = process.env.OBS_TRUST_INBOUND_TRACEPARENT;
+    process.env.OBS_TRUST_INBOUND_TRACEPARENT = "false";
+    try {
+      const req = new Request("https://x.test/", {
+        headers: { traceparent: VALID_INBOUND },
+      });
+      const result = decideInboundTrace(req);
+      // The well-formed inbound id must NOT be adopted when trust is disabled.
+      expect(result.traceId).not.toBe("aabbccddeeff00112233445566778899");
+      expect(result.traceId).toMatch(/^[0-9a-f]{32}$/);
+      expect(result.spanId).toMatch(/^[0-9a-f]{16}$/);
+    } finally {
+      if (prev === undefined) delete process.env.OBS_TRUST_INBOUND_TRACEPARENT;
+      else process.env.OBS_TRUST_INBOUND_TRACEPARENT = prev;
+    }
+  });
 });

@@ -59,6 +59,10 @@ const serverSchema = {
   RELEASE: z.string().optional(),
   SENTRY_ENVIRONMENT: z.string().optional(),
   OBS_PII_DENY_EXTRA_KEYS: z.string().optional(),
+  // Trust inbound W3C traceparent headers (default "true" = v1.3 always-trust
+  // posture). Set "false" on public-internet ingress so the API ignores client
+  // traceparents and always mints fresh trace ids (api-traceparent-always-trusted).
+  OBS_TRUST_INBOUND_TRACEPARENT: z.enum(["true", "false"]).default("true"),
   RESEND_API_KEY: z.string().min(1).optional(),
   WEB_URL: z.string().url().default("http://localhost:3000"),
   ADMIN_URL: z.string().url().default("http://localhost:5173"),

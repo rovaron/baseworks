@@ -1,26 +1,33 @@
 /**
- * decideInboundTrace — Phase 20.1 D-12.
+ * decideInboundTrace — Phase 20.1 D-12 + audit trust-gate.
  *
- * Adopt inbound W3C traceparent if present (always-trust default for v1.3);
- * otherwise mint fresh server-side ids. Trust-gate (CIDR + trusted header)
- * deleted in Phase 20.1; revisit for production hardening (deferred per
- * 20.1-CONTEXT.md "Production trust hardening").
+ * Adopt an inbound W3C traceparent if present AND inbound trust is enabled;
+ * otherwise mint fresh server-side ids.
  *
- * SECURITY (TODO v1.4) — always-trusting an inbound traceparent is a
- * correlation-injection surface the moment this API is exposed to the public
- * internet (trace-graph poisoning + trace-join attacks). Safe for v1.3 because
- * ingress is not yet public. Re-introduce the CIDR + trusted-header gate
- * before public launch. Tracked in:
- *   .planning/todos/pending/2026-04-26-harden-inbound-traceparent-trust-gate.md
- * Source finding: 20.1-REVIEW.md WR-01.
+ * SECURITY (api-traceparent-always-trusted) — always-trusting an inbound
+ * traceparent is a correlation-injection surface once this API is public
+ * (trace-graph poisoning + trace-join attacks). The trust gate is now opt-out
+ * via `OBS_TRUST_INBOUND_TRACEPARENT` (validated in @baseworks/config). It
+ * DEFAULTS to "true" to preserve the documented v1.3 always-trust posture;
+ * set it to "false" on public-internet ingress so the API ignores client
+ * traceparents and always mints fresh ids. Source: 20.1-REVIEW.md WR-01.
  */
 const TRACEPARENT_RE = /^00-([0-9a-f]{32})-([0-9a-f]{16})-[0-9a-f]{2}$/;
+
+/**
+ * Whether to trust inbound traceparent headers. Reads process.env directly (not
+ * the parsed config) so the value is honored even in contexts that bypass the
+ * config barrel, and so it stays unit-testable. Default = trust (D-12).
+ */
+function trustsInboundTraceparent(): boolean {
+  return process.env.OBS_TRUST_INBOUND_TRACEPARENT !== "false";
+}
 
 export function decideInboundTrace(req: Request): {
   traceId: string;
   spanId: string;
 } {
-  const inbound = req.headers.get("traceparent");
+  const inbound = trustsInboundTraceparent() ? req.headers.get("traceparent") : null;
   if (inbound) {
     const m = TRACEPARENT_RE.exec(inbound);
     if (m) return { traceId: m[1], spanId: m[2] };
