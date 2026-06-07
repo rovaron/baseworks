@@ -1,4 +1,4 @@
-import { describe, test, expect, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 /**
  * Provider factory tests (PAY-05).
@@ -33,9 +33,7 @@ mock.module("stripe", () => ({
 }));
 
 // Now import provider-factory -- it will get our mocked @baseworks/config
-const { getPaymentProvider, resetPaymentProvider } = await import(
-  "../provider-factory"
-);
+const { getPaymentProvider, resetPaymentProvider } = await import("../provider-factory");
 
 describe("Provider Factory", () => {
   beforeEach(() => {
@@ -68,9 +66,7 @@ describe("Provider Factory", () => {
 
   test("throws on unknown PAYMENT_PROVIDER value", () => {
     mockEnv.PAYMENT_PROVIDER = "unknown";
-    expect(() => getPaymentProvider()).toThrow(
-      "Unknown payment provider: unknown",
-    );
+    expect(() => getPaymentProvider()).toThrow("Unknown payment provider: unknown");
   });
 
   test("caches provider instance (singleton)", () => {

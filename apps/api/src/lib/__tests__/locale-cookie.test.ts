@@ -1,5 +1,5 @@
-import { describe, test, expect } from "bun:test";
-import { parseNextLocaleCookie, hasNextLocaleCookie } from "../locale-cookie";
+import { describe, expect, test } from "bun:test";
+import { hasNextLocaleCookie, parseNextLocaleCookie } from "../locale-cookie";
 
 /**
  * Unit tests for parseNextLocaleCookie (Phase 19 / D-12).
@@ -19,9 +19,7 @@ describe("parseNextLocaleCookie", () => {
   });
 
   test("extracts NEXT_LOCALE=en from a mixed cookie header", () => {
-    expect(
-      parseNextLocaleCookie("foo=bar; NEXT_LOCALE=en; other=x"),
-    ).toBe("en");
+    expect(parseNextLocaleCookie("foo=bar; NEXT_LOCALE=en; other=x")).toBe("en");
   });
 
   test("extracts NEXT_LOCALE=pt-BR as the sole cookie", () => {
@@ -60,12 +58,8 @@ describe("parseNextLocaleCookie", () => {
     });
 
     test("malformed cookie embedded among valid cookies returns null instead of throwing", () => {
-      expect(() =>
-        parseNextLocaleCookie("foo=bar; NEXT_LOCALE=%E0%A4; other=x"),
-      ).not.toThrow();
-      expect(
-        parseNextLocaleCookie("foo=bar; NEXT_LOCALE=%E0%A4; other=x"),
-      ).toBeNull();
+      expect(() => parseNextLocaleCookie("foo=bar; NEXT_LOCALE=%E0%A4; other=x")).not.toThrow();
+      expect(parseNextLocaleCookie("foo=bar; NEXT_LOCALE=%E0%A4; other=x")).toBeNull();
     });
   });
 });

@@ -1,7 +1,7 @@
-import { describe, test, expect, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { assertResultErr, assertResultOk } from "../../../__test-utils__/assert-result";
 import { createMockContext, createMockDb } from "../../../__test-utils__/mock-context";
 import { createMockPaymentProvider } from "../../../__test-utils__/mock-payment-provider";
-import { assertResultOk, assertResultErr } from "../../../__test-utils__/assert-result";
 
 mock.module("@baseworks/config", () => ({
   env: {
@@ -72,9 +72,7 @@ describe("createOneTimePayment", () => {
     const mockDb = createMockDb({
       select: [{ providerCustomerId: "cus_123" }],
     });
-    mockProvider.createOneTimePayment = mock(() =>
-      Promise.reject(new Error("Payment failed")),
-    );
+    mockProvider.createOneTimePayment = mock(() => Promise.reject(new Error("Payment failed")));
     const ctx = createMockContext({ db: mockDb });
 
     const result = await createOneTimePayment(

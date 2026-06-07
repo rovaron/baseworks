@@ -1,4 +1,4 @@
-import { defaultLocale, locales, type Locale } from "@baseworks/i18n";
+import { defaultLocale, type Locale, locales } from "@baseworks/i18n";
 
 /**
  * Parse the NEXT_LOCALE cookie from a raw Cookie header value.
@@ -16,9 +16,7 @@ import { defaultLocale, locales, type Locale } from "@baseworks/i18n";
  * into a single outermost async boundary while keeping the module-auth
  * package free of any HTTP-layer concerns.
  */
-export function parseNextLocaleCookie(
-  cookieHeader: string | null,
-): Locale | null {
+export function parseNextLocaleCookie(cookieHeader: string | null): Locale | null {
   if (!cookieHeader) return null;
   const match = cookieHeader.match(/(?:^|;\s*)NEXT_LOCALE=([^;]+)/);
   if (!match) return null;
@@ -30,9 +28,7 @@ export function parseNextLocaleCookie(
     // through to defaultLocale per Phase 20.1 D-16 / H-01.
     return null;
   }
-  return (locales as readonly string[]).includes(value)
-    ? (value as Locale)
-    : null;
+  return (locales as readonly string[]).includes(value) ? (value as Locale) : null;
 }
 
 /**

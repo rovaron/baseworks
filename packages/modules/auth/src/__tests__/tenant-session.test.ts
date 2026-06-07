@@ -1,7 +1,7 @@
-import { describe, test, expect, beforeAll } from "bun:test";
-import { Elysia } from "elysia";
-import { sql } from "drizzle-orm";
+import { beforeAll, describe, expect, test } from "bun:test";
 import { createDb } from "@baseworks/db";
+import { sql } from "drizzle-orm";
+import { Elysia } from "elysia";
 
 /**
  * Integration tests for the tenant session flow.
@@ -18,8 +18,7 @@ import { createDb } from "@baseworks/db";
  */
 
 const TEST_DB_URL =
-  process.env.DATABASE_URL ??
-  "postgres://baseworks:baseworks@localhost:5432/baseworks";
+  process.env.DATABASE_URL ?? "postgres://baseworks:baseworks@localhost:5432/baseworks";
 
 let canConnect = false;
 let db: ReturnType<typeof createDb>;
@@ -49,9 +48,7 @@ async function createTestApp() {
   const { requireRole } = await import("../middleware");
 
   // Import the real tenant middleware (session-based)
-  const { tenantMiddleware } = await import(
-    "../../../../../apps/api/src/core/middleware/tenant"
-  );
+  const { tenantMiddleware } = await import("../../../../../apps/api/src/core/middleware/tenant");
 
   const app = new Elysia()
     // Health check -- no auth required
@@ -66,12 +63,10 @@ async function createTestApp() {
     }))
     // Owner-only route scoped via group
     .group("/api", (group) =>
-      group
-        .use(requireRole("owner"))
-        .delete("/tenant", (ctx: any) => ({
-          message: "Tenant deletion initiated",
-          tenantId: ctx.tenantId,
-        })),
+      group.use(requireRole("owner")).delete("/tenant", (ctx: any) => ({
+        message: "Tenant deletion initiated",
+        tenantId: ctx.tenantId,
+      })),
     );
 
   return { app, auth };
@@ -171,9 +166,7 @@ describe("tenant session flow", () => {
     }
 
     const { app } = await createTestApp();
-    const response = await app.handle(
-      new Request("http://localhost/api/protected"),
-    );
+    const response = await app.handle(new Request("http://localhost/api/protected"));
 
     // Should fail -- no session cookie means tenant middleware rejects
     // Error middleware should return non-200 status
@@ -223,12 +216,7 @@ describe("tenant session flow", () => {
     const { app } = await createTestApp();
     const email = `test-scoped-${Date.now()}@example.com`;
 
-    const { cookies } = await signUpUser(
-      app,
-      email,
-      "testpassword123",
-      "Test Scoped User",
-    );
+    const { cookies } = await signUpUser(app, email, "testpassword123", "Test Scoped User");
 
     // Access a tenant-scoped route with session cookies
     const response = await app.handle(
@@ -255,12 +243,7 @@ describe("RBAC enforcement", () => {
     const email = `test-owner-${Date.now()}@example.com`;
 
     // Sign up creates user as owner of auto-created org
-    const { cookies } = await signUpUser(
-      app,
-      email,
-      "testpassword123",
-      "Test Owner",
-    );
+    const { cookies } = await signUpUser(app, email, "testpassword123", "Test Owner");
 
     // Owner needs an active organization set for requireRole to work.
     // The tenant middleware auto-selects the first org, so the session

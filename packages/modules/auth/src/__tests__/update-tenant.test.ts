@@ -1,6 +1,6 @@
-import { describe, test, expect, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { assertResultErr, assertResultOk } from "../../../__test-utils__/assert-result";
 import { createMockContext } from "../../../__test-utils__/mock-context";
-import { assertResultOk, assertResultErr } from "../../../__test-utils__/assert-result";
 
 const mockUpdateOrganization = mock(() =>
   Promise.resolve({ id: "org-1", name: "Updated Org", slug: "updated-org" }),

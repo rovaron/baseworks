@@ -1,20 +1,16 @@
-import * as React from "react";
+import { Button, Card, CardContent, Skeleton } from "@baseworks/ui";
+import { AlertTriangle } from "lucide-react";
+import type * as React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Card,
-  CardContent,
-  Button,
-  Skeleton,
-} from "@baseworks/ui";
-import { AlertTriangle } from "lucide-react";
 
 /**
  * React 19 does not register `onError` for `<iframe>` elements through its synthetic event
  * system (error events don't bubble for iframes). This wrapper attaches the listener directly
  * via a ref so the error path can be triggered both by real network failures and by tests.
  */
-interface IframeProps extends Omit<React.IframeHTMLAttributes<HTMLIFrameElement>, "onError" | "onLoad"> {
+interface IframeProps
+  extends Omit<React.IframeHTMLAttributes<HTMLIFrameElement>, "onError" | "onLoad"> {
   onLoad?: () => void;
   onError?: () => void;
 }
@@ -36,8 +32,12 @@ function IframeWithErrorHandler({ onLoad, onError, ...rest }: IframeProps) {
       node.addEventListener("load", handleLoad);
       node.addEventListener("error", handleError);
     }
-    function handleLoad() { onLoadRef.current?.(); }
-    function handleError() { onErrorRef.current?.(); }
+    function handleLoad() {
+      onLoadRef.current?.();
+    }
+    function handleError() {
+      onErrorRef.current?.();
+    }
   }, []);
 
   useEffect(() => {
@@ -78,13 +78,8 @@ export function Component() {
         <h1 className="text-2xl font-medium">{t("jobs.title")}</h1>
         <Card>
           <CardContent className="py-12 text-center">
-            <AlertTriangle
-              className="mx-auto h-8 w-8 text-destructive mb-4"
-              aria-hidden
-            />
-            <p className="text-sm text-muted-foreground mb-4">
-              {t("jobs.loadError")}
-            </p>
+            <AlertTriangle className="mx-auto h-8 w-8 text-destructive mb-4" aria-hidden />
+            <p className="text-sm text-muted-foreground mb-4">{t("jobs.loadError")}</p>
             <Button variant="outline" onClick={reload}>
               {t("jobs.retry")}
             </Button>

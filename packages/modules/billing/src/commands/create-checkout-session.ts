@@ -1,7 +1,7 @@
+import { defineCommand, err, ok } from "@baseworks/shared";
 import { Type } from "@sinclair/typebox";
-import { defineCommand, ok, err } from "@baseworks/shared";
-import { billingCustomers } from "../schema";
 import { getPaymentProvider } from "../provider-factory";
+import { billingCustomers } from "../schema";
 
 const CreateCheckoutSessionInput = Type.Object({
   priceId: Type.String(),
@@ -49,10 +49,7 @@ export const createCheckoutSession = defineCommand(
     } catch (error: unknown) {
       // Phase 20.1 WR-02 — narrow `unknown` so non-Error throws fall back
       // to the generic message instead of TypeError on `.message`.
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Failed to create checkout session";
+      const message = error instanceof Error ? error.message : "Failed to create checkout session";
       return err(message || "Failed to create checkout session");
     }
   },

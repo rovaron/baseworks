@@ -1,4 +1,4 @@
-import { describe, test, expect, mock } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 
 // Mock @baseworks/config before anything else to avoid env validation crash
 mock.module("@baseworks/config", () => ({

@@ -1,6 +1,6 @@
-import { describe, test, expect, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
+import { type ObservabilityContext, obsContext } from "@baseworks/observability";
 import pino, { type Logger } from "pino";
-import { obsContext, type ObservabilityContext } from "@baseworks/observability";
 
 /**
  * Phase 19 Plan 03 Task 1 — pino mixin unit test suite (D-19, D-20).
@@ -216,7 +216,9 @@ describe("logger.ts production wiring smoke test", () => {
     );
     const text = await file.text();
     // The import must be present.
-    expect(text).toMatch(/import\s*\{\s*obsContext\s*\}\s*from\s*["']@baseworks\/observability["']/);
+    expect(text).toMatch(
+      /import\s*\{\s*obsContext\s*\}\s*from\s*["']@baseworks\/observability["']/,
+    );
     // The mixin option must be present with the verbatim arrow body.
     expect(text).toMatch(/mixin:\s*\(\)\s*=>\s*obsContext\.getStore\(\)\s*\?\?\s*\{\}/);
   });

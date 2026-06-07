@@ -1,5 +1,5 @@
-import pino from "pino";
 import { obsContext } from "@baseworks/observability";
+import pino from "pino";
 
 const level = process.env.LOG_LEVEL ?? "info";
 const isDev = process.env.NODE_ENV === "development";

@@ -1,8 +1,9 @@
 /// <reference types="vitest" />
 /// <reference types="@testing-library/jest-dom" />
-import * as React from "react";
-import { describe, expect, test, vi, beforeEach } from "vitest";
-import { act, render, screen, fireEvent } from "@testing-library/react";
+
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import type * as React from "react";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 // Stub useTranslation BEFORE importing the component so it picks up the mock.
 vi.mock("react-i18next", () => ({
@@ -13,9 +14,17 @@ vi.mock("react-i18next", () => ({
 
 // Stub @baseworks/ui to avoid pulling the entire shadcn surface in unit tests.
 vi.mock("@baseworks/ui", () => ({
-  Card: ({ children, ...p }: any) => <div data-testid="card" {...p}>{children}</div>,
+  Card: ({ children, ...p }: any) => (
+    <div data-testid="card" {...p}>
+      {children}
+    </div>
+  ),
   CardContent: ({ children, ...p }: any) => <div {...p}>{children}</div>,
-  Button: ({ children, onClick, ...p }: any) => <button onClick={onClick} {...p}>{children}</button>,
+  Button: ({ children, onClick, ...p }: any) => (
+    <button onClick={onClick} {...p}>
+      {children}
+    </button>
+  ),
   Skeleton: (p: any) => <div data-testid="skeleton" {...p} />,
 }));
 

@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
 /**
  * Tests for API and worker entrypoints.
@@ -13,16 +13,12 @@ describe("API entrypoint", () => {
     const { Elysia } = await import("elysia");
     const { errorMiddleware } = await import("../core/middleware/error");
 
-    const testApp = new Elysia()
-      .use(errorMiddleware)
-      .get("/health", () => ({
-        status: "ok",
-        modules: ["example"],
-      }));
+    const testApp = new Elysia().use(errorMiddleware).get("/health", () => ({
+      status: "ok",
+      modules: ["example"],
+    }));
 
-    const response = await testApp.handle(
-      new Request("http://localhost/health"),
-    );
+    const response = await testApp.handle(new Request("http://localhost/health"));
 
     expect(response.status).toBe(200);
     const body = await response.json();
@@ -38,7 +34,8 @@ describe("Worker entrypoint", () => {
       cwd: process.cwd(),
       env: {
         ...process.env,
-        DATABASE_URL: process.env.DATABASE_URL ?? "postgres://baseworks:baseworks@localhost:5432/baseworks",
+        DATABASE_URL:
+          process.env.DATABASE_URL ?? "postgres://baseworks:baseworks@localhost:5432/baseworks",
         NODE_ENV: "test",
         INSTANCE_ROLE: "worker",
         LOG_LEVEL: "info",

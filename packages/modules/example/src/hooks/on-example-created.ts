@@ -57,19 +57,14 @@ export function registerExampleHooks(eventBus: {
       const queue = getFollowupQueue();
       if (!queue) {
         // biome-ignore lint/suspicious/noConsole: graceful dev-without-Redis fallback
-        console.log(
-          `[example] Skipping process-followup enqueue for ${id} (REDIS_URL not set)`,
-        );
+        console.log(`[example] Skipping process-followup enqueue for ${id} (REDIS_URL not set)`);
         return;
       }
 
       await queue.add("example-process-followup", { exampleId: id, tenantId });
     } catch (err) {
       // biome-ignore lint/suspicious/noConsole: error path of a best-effort hook
-      console.error(
-        `[example] Failed to enqueue process-followup for ${id}:`,
-        err,
-      );
+      console.error(`[example] Failed to enqueue process-followup for ${id}:`, err);
     }
   });
 }

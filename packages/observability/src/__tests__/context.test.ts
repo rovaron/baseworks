@@ -1,13 +1,13 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { defaultLocale, type Locale } from "@baseworks/i18n";
 import {
-  obsContext,
   getObsContext,
-  setTenantContext,
-  setSpan,
-  setLocale,
   type ObservabilityContext,
+  obsContext,
+  setLocale,
+  setSpan,
+  setTenantContext,
 } from "../context";
 import type { SpanOptions } from "../ports/tracer";
 
@@ -84,9 +84,7 @@ describe("obsContext — Phase 19 / CTX-01 / D-06 ALS carrier", () => {
   });
 
   test("Test 7 (D-24 hygiene): context.ts source contains no banned ALS mutator", async () => {
-    const source = await Bun.file(
-      "packages/observability/src/context.ts",
-    ).text();
+    const source = await Bun.file("packages/observability/src/context.ts").text();
     // Construct the banned token dynamically so this test file itself is not
     // flagged by the Plan 08 grep rule (belt-and-suspenders for the repo-wide
     // `grep -rn "\\.enter{W}ith(" packages/` sweep — doc literal split).
@@ -120,12 +118,8 @@ describe("obsContext — barrel exports from @baseworks/observability", () => {
     }));
     const mod = await import(`../index?t=${Date.now()}`);
     expect(typeof (mod as { obsContext?: unknown }).obsContext).toBe("object");
-    expect(typeof (mod as { getObsContext?: unknown }).getObsContext).toBe(
-      "function",
-    );
-    expect(typeof (mod as { setTenantContext?: unknown }).setTenantContext).toBe(
-      "function",
-    );
+    expect(typeof (mod as { getObsContext?: unknown }).getObsContext).toBe("function");
+    expect(typeof (mod as { setTenantContext?: unknown }).setTenantContext).toBe("function");
     expect(typeof (mod as { setSpan?: unknown }).setSpan).toBe("function");
     expect(typeof (mod as { setLocale?: unknown }).setLocale).toBe("function");
     // ObservabilityContext is a type — not a runtime value; skip runtime check.

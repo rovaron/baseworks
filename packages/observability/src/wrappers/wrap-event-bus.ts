@@ -50,10 +50,7 @@ export interface EventBusLike {
  * @param tracer - Tracer used to open spans (Noop by default)
  * @returns The same bus instance, with emit/on wrapped
  */
-export function wrapEventBus<B extends EventBusLike>(
-  bus: B,
-  tracer: Tracer,
-): B {
+export function wrapEventBus<B extends EventBusLike>(bus: B, tracer: Tracer): B {
   const origEmit = bus.emit.bind(bus);
   const origOn = bus.on.bind(bus);
 

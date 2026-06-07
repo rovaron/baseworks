@@ -1,4 +1,4 @@
-import { uuid, varchar, timestamp } from "drizzle-orm/pg-core";
+import { timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
 /**
  * Return a UUID primary key column definition using `defaultRandom()`.

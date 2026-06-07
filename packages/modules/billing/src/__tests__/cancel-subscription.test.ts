@@ -1,7 +1,7 @@
-import { describe, test, expect, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { assertResultErr, assertResultOk } from "../../../__test-utils__/assert-result";
 import { createMockContext, createMockDb } from "../../../__test-utils__/mock-context";
 import { createMockPaymentProvider } from "../../../__test-utils__/mock-payment-provider";
-import { assertResultOk, assertResultErr } from "../../../__test-utils__/assert-result";
 
 mock.module("@baseworks/config", () => ({
   env: {
@@ -55,9 +55,7 @@ describe("cancelSubscription", () => {
     const mockDb = createMockDb({
       select: [{ providerSubscriptionId: "sub_123", currentPeriodEnd: new Date() }],
     });
-    mockProvider.cancelSubscription = mock(() =>
-      Promise.reject(new Error("Provider unavailable")),
-    );
+    mockProvider.cancelSubscription = mock(() => Promise.reject(new Error("Provider unavailable")));
     const ctx = createMockContext({ db: mockDb });
 
     const result = await cancelSubscription({}, ctx);

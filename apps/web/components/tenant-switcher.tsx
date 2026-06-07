@@ -1,16 +1,16 @@
 "use client";
 
-import { ChevronsUpDown, Check } from "lucide-react";
-import { useTranslations } from "next-intl";
 import {
+  Avatar,
+  AvatarFallback,
+  cn,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  Avatar,
-  AvatarFallback,
-  cn,
 } from "@baseworks/ui";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useTenant } from "./tenant-provider";
 
 function getInitials(name: string) {
@@ -35,6 +35,7 @@ export function TenantSwitcher() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
+          type="button"
           className={cn(
             "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm",
             "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
@@ -60,14 +61,10 @@ export function TenantSwitcher() {
             className="flex items-center gap-2"
           >
             <Avatar className="h-5 w-5">
-              <AvatarFallback className="text-[10px]">
-                {getInitials(tenant.name)}
-              </AvatarFallback>
+              <AvatarFallback className="text-[10px]">{getInitials(tenant.name)}</AvatarFallback>
             </Avatar>
             <span className="flex-1 truncate">{tenant.name}</span>
-            {activeTenant?.id === tenant.id && (
-              <Check className="h-4 w-4 shrink-0" />
-            )}
+            {activeTenant?.id === tenant.id && <Check className="h-4 w-4 shrink-0" />}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

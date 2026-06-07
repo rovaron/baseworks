@@ -118,9 +118,7 @@ describe("HealthAggregator — timeout (D-11 / Pitfall 4)", () => {
         name: "slow-throw",
         timeoutMs: 50,
         check: () =>
-          new Promise((_resolve, reject) =>
-            setTimeout(() => reject(new Error("late")), 200),
-          ),
+          new Promise((_resolve, reject) => setTimeout(() => reject(new Error("late")), 200)),
       });
       await agg.aggregate();
       // Wait past the slow promise's settlement window

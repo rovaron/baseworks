@@ -1,9 +1,9 @@
-import { describe, test, expect, beforeAll } from "bun:test";
-import { Elysia } from "elysia";
+import { beforeAll, describe, expect, test } from "bun:test";
 import { createDb } from "@baseworks/db";
 import { sql } from "drizzle-orm";
-import { adminRoutes } from "../routes/admin";
+import { Elysia } from "elysia";
 import { errorMiddleware } from "../core/middleware/error";
+import { adminRoutes } from "../routes/admin";
 
 /**
  * Integration tests verifying that requireRole("owner") protects all admin routes.
@@ -16,8 +16,7 @@ import { errorMiddleware } from "../core/middleware/error";
  */
 
 const TEST_DB_URL =
-  process.env.DATABASE_URL ??
-  "postgres://baseworks:baseworks@localhost:5432/baseworks";
+  process.env.DATABASE_URL ?? "postgres://baseworks:baseworks@localhost:5432/baseworks";
 
 let app: any;
 let canConnect = false;
@@ -68,9 +67,7 @@ describe("Admin routes: requireRole('owner') enforcement", () => {
         init.body = JSON.stringify(endpoint.body);
       }
 
-      const response = await app.handle(
-        new Request(`http://localhost${endpoint.path}`, init),
-      );
+      const response = await app.handle(new Request(`http://localhost${endpoint.path}`, init));
 
       // requireRole should reject with 401 (unauthenticated) or 403 (wrong role)
       expect([401, 403]).toContain(response.status);

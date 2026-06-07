@@ -1,6 +1,6 @@
-import { defineConfig } from "drizzle-kit";
-import { fileURLToPath } from "node:url";
 import { dirname, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { defineConfig } from "drizzle-kit";
 
 // Resolve schema/out paths against THIS file's directory so `bun run db:migrate`
 // works regardless of process.cwd() (drizzle-kit otherwise resolves against

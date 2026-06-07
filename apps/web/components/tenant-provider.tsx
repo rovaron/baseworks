@@ -1,13 +1,7 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  type ReactNode,
-} from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { createContext, type ReactNode, useCallback, useContext, useMemo } from "react";
 import { auth } from "@/lib/api";
 
 interface TenantContext {

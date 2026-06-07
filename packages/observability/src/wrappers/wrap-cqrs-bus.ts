@@ -29,9 +29,10 @@
  *   signature is LOCKED (D-18) — no new parameters. Consumers at
  *   apps/api/src/index.ts:46 and apps/api/src/worker.ts:41 are untouched.
  */
-import type { ErrorTracker } from "../ports/error-tracker";
+
 import { obsContext } from "../context";
 import { getTracer } from "../factory";
+import type { ErrorTracker } from "../ports/error-tracker";
 
 /**
  * Minimal shape the wrapper needs — the real CqrsBus class in
@@ -54,19 +55,12 @@ export interface BusLike {
  * @param tracker - ErrorTracker used to report thrown exceptions
  * @returns The same bus instance, with execute/query wrapped
  */
-export function wrapCqrsBus<B extends BusLike>(
-  bus: B,
-  tracker: ErrorTracker,
-): B {
+export function wrapCqrsBus<B extends BusLike>(bus: B, tracker: ErrorTracker): B {
   const tracer = getTracer();
   const origExecute = bus.execute.bind(bus);
   const origQuery = bus.query.bind(bus);
 
-  (bus as BusLike).execute = async (
-    command: string,
-    input: unknown,
-    ctx: unknown,
-  ) => {
+  (bus as BusLike).execute = async (command: string, input: unknown, ctx: unknown) => {
     const store = obsContext.getStore();
     return tracer.withSpan(
       "cqrs.command",
@@ -87,9 +81,7 @@ export function wrapCqrsBus<B extends BusLike>(
             },
             // ALS source of truth (D-17); ctx.tenantId is fallback for calls
             // dispatched outside a request frame (e.g., startup seed).
-            tenantId:
-              store?.tenantId ??
-              (ctx as { tenantId?: string | null })?.tenantId,
+            tenantId: store?.tenantId ?? (ctx as { tenantId?: string | null })?.tenantId,
           });
           throw err;
         }
@@ -105,11 +97,7 @@ export function wrapCqrsBus<B extends BusLike>(
     );
   };
 
-  (bus as BusLike).query = async (
-    queryName: string,
-    input: unknown,
-    ctx: unknown,
-  ) => {
+  (bus as BusLike).query = async (queryName: string, input: unknown, ctx: unknown) => {
     const store = obsContext.getStore();
     return tracer.withSpan(
       "cqrs.query",
@@ -126,9 +114,7 @@ export function wrapCqrsBus<B extends BusLike>(
               requestId: store?.requestId,
               traceId: store?.traceId,
             },
-            tenantId:
-              store?.tenantId ??
-              (ctx as { tenantId?: string | null })?.tenantId,
+            tenantId: store?.tenantId ?? (ctx as { tenantId?: string | null })?.tenantId,
           });
           throw err;
         }

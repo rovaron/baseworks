@@ -1,4 +1,4 @@
-import { describe, test, expect, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 const mockGetFullOrganization = mock(() => Promise.resolve(null));
 
@@ -38,10 +38,7 @@ describe("listMembers", () => {
       members,
     });
 
-    const result = await listMembers(
-      { organizationId: "org-1" },
-      createMockCtx(),
-    );
+    const result = await listMembers({ organizationId: "org-1" }, createMockCtx());
 
     expect(result.success).toBe(true);
     if (result.success) {
@@ -57,10 +54,7 @@ describe("listMembers", () => {
       members: undefined,
     });
 
-    const result = await listMembers(
-      { organizationId: "org-1" },
-      createMockCtx(),
-    );
+    const result = await listMembers({ organizationId: "org-1" }, createMockCtx());
 
     expect(result.success).toBe(true);
     if (result.success) {
@@ -71,10 +65,7 @@ describe("listMembers", () => {
   test("returns error when tenant not found", async () => {
     mockGetFullOrganization.mockResolvedValueOnce(null);
 
-    const result = await listMembers(
-      { organizationId: "nonexistent" },
-      createMockCtx(),
-    );
+    const result = await listMembers({ organizationId: "nonexistent" }, createMockCtx());
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -83,14 +74,9 @@ describe("listMembers", () => {
   });
 
   test("returns error when auth.api throws", async () => {
-    mockGetFullOrganization.mockRejectedValueOnce(
-      new Error("Connection refused"),
-    );
+    mockGetFullOrganization.mockRejectedValueOnce(new Error("Connection refused"));
 
-    const result = await listMembers(
-      { organizationId: "org-1" },
-      createMockCtx(),
-    );
+    const result = await listMembers({ organizationId: "org-1" }, createMockCtx());
 
     expect(result.success).toBe(false);
     if (!result.success) {

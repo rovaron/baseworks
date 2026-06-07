@@ -1,4 +1,4 @@
-import { describe, test, expect, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 const mockListOrganizations = mock(() => Promise.resolve([]));
 
@@ -67,9 +67,7 @@ describe("listTenants", () => {
   });
 
   test("returns error when auth.api throws", async () => {
-    mockListOrganizations.mockRejectedValueOnce(
-      new Error("Service unavailable"),
-    );
+    mockListOrganizations.mockRejectedValueOnce(new Error("Service unavailable"));
 
     const result = await listTenants({}, createMockCtx());
 

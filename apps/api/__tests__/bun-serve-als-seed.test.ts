@@ -17,20 +17,20 @@
  * barrel (which transitively imports `@baseworks/config` + t3-env) to satisfy
  * env validation in the test sandbox. Pattern from 19-05-SUMMARY.md.
  */
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
 import "../src/core/middleware/__tests__/_env-setup";
 
-import { Elysia } from "elysia";
-import {
-  obsContext,
-  getObsContext,
-  setTenantContext,
-  type ObservabilityContext,
-} from "@baseworks/observability";
 import { defaultLocale } from "@baseworks/i18n";
-import { parseNextLocaleCookie } from "../src/lib/locale-cookie";
+import {
+  getObsContext,
+  type ObservabilityContext,
+  obsContext,
+  setTenantContext,
+} from "@baseworks/observability";
+import { Elysia } from "elysia";
 import { decideInboundTrace } from "../src/lib/inbound-trace";
+import { parseNextLocaleCookie } from "../src/lib/locale-cookie";
 
 /**
  * In-process equivalent of the canonical Bun.serve fetch wrapper in
@@ -40,10 +40,7 @@ import { decideInboundTrace } from "../src/lib/inbound-trace";
  * (no CIDR / no trusted header), so the second `remoteAddr` argument is
  * gone. The helper signature in this test mirrors the production wrapper.
  */
-async function handleReq(
-  req: Request,
-  app: Elysia,
-): Promise<Response> {
+async function handleReq(req: Request, app: Elysia): Promise<Response> {
   const cookieHeader = req.headers.get("cookie");
   const locale = parseNextLocaleCookie(cookieHeader) ?? defaultLocale;
   const requestId = req.headers.get("x-request-id") ?? crypto.randomUUID();
@@ -145,18 +142,14 @@ describe("Bun.serve fetch wrapper + ALS seed (Plan 06 Task 1)", () => {
 
   test("Test 5 (D-12): absent cookie → ALS locale = defaultLocale", async () => {
     const app = buildProbeApp();
-    const res = await handleReq(
-      new Request("http://localhost/snapshot"),
-      app,
-    );
+    const res = await handleReq(new Request("http://localhost/snapshot"), app);
     const body = (await res.json()) as { locale: string };
     expect(body.locale).toBe(defaultLocale);
   });
 
   test("Test 6 (Phase 20.1 D-12): well-formed inbound traceparent is adopted", async () => {
     const app = buildProbeApp();
-    const inboundTp =
-      "00-aabbccddeeff00112233445566778899-1122334455667788-01";
+    const inboundTp = "00-aabbccddeeff00112233445566778899-1122334455667788-01";
     const res = await handleReq(
       new Request("http://localhost/snapshot", {
         headers: { traceparent: inboundTp },
@@ -207,11 +200,7 @@ describe("Bun.serve fetch wrapper + ALS seed (Plan 06 Task 1)", () => {
     ];
     expect(useMatches.length).toBeGreaterThanOrEqual(3);
     const order = useMatches.slice(0, 3).map((m) => m[1]);
-    expect(order).toEqual([
-      "errorMiddleware",
-      "observabilityMiddleware",
-      "requestTraceMiddleware",
-    ]);
+    expect(order).toEqual(["errorMiddleware", "observabilityMiddleware", "requestTraceMiddleware"]);
   });
 
   // Bonus coverage: Test 1 sanity — tenantId is null at seed time; setTenantContext
@@ -222,10 +211,7 @@ describe("Bun.serve fetch wrapper + ALS seed (Plan 06 Task 1)", () => {
       const ctx = getObsContext();
       return { tenantId: ctx?.tenantId ?? null, userId: ctx?.userId ?? null };
     });
-    const res = await handleReq(
-      new Request("http://localhost/probe"),
-      app,
-    );
+    const res = await handleReq(new Request("http://localhost/probe"), app);
     const body = (await res.json()) as {
       tenantId: string | null;
       userId: string | null;

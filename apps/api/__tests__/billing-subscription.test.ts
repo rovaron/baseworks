@@ -22,22 +22,21 @@
  * `packages/db/src/__tests__/scoped-db.test.ts`).
  */
 
-import { describe, test, expect, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 
 // Side-effect import: must run BEFORE any @baseworks/* barrel that reads
 // process.env via @t3-oss/env-core.
 import "../src/core/middleware/__tests__/_env-setup";
 
-import { Elysia } from "elysia";
-import { createDb, scopedDb, billingCustomers } from "@baseworks/db";
-import { sql, eq } from "drizzle-orm";
+import { billingCustomers, createDb, scopedDb } from "@baseworks/db";
 import billingModule from "@baseworks/module-billing";
+import { eq, sql } from "drizzle-orm";
+import { Elysia } from "elysia";
 
 const billingRoutes = billingModule.routes;
 
 const TEST_DB_URL =
-  process.env.DATABASE_URL ??
-  "postgres://baseworks:baseworks@localhost:5432/baseworks";
+  process.env.DATABASE_URL ?? "postgres://baseworks:baseworks@localhost:5432/baseworks";
 
 describe("GET /api/billing/subscription — no-billing-row tenant (Phase 20.1 SC#2)", () => {
   let canConnect = false;

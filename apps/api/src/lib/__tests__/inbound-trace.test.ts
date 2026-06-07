@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
 /**
  * Unit tests for decideInboundTrace (Phase 20.1 / D-12).
@@ -10,8 +10,7 @@ import { describe, test, expect } from "bun:test";
 
 import { decideInboundTrace } from "../inbound-trace";
 
-const VALID_INBOUND =
-  "00-aabbccddeeff00112233445566778899-1122334455667788-01";
+const VALID_INBOUND = "00-aabbccddeeff00112233445566778899-1122334455667788-01";
 
 describe("decideInboundTrace (Phase 20.1 D-12 — always-trust default)", () => {
   test("inbound traceparent present and well-formed → adopted", () => {
@@ -47,8 +46,7 @@ describe("decideInboundTrace (Phase 20.1 D-12 — always-trust default)", () => 
     // Spec only defines version 00 today; 01+ falls through to the fresh path.
     const req = new Request("https://x.test/", {
       headers: {
-        traceparent:
-          "01-aabbccddeeff00112233445566778899-1122334455667788-01",
+        traceparent: "01-aabbccddeeff00112233445566778899-1122334455667788-01",
       },
     });
     const result = decideInboundTrace(req);

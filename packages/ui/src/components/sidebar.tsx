@@ -260,6 +260,7 @@ const Sidebar = React.forwardRef<
               : "group-data-[collapsible=icon]:w-[--sidebar-width-icon]",
           )}
         />
+        {/* biome-ignore lint/a11y/noStaticElementInteractions: hover-to-expand is a pointer-only progressive enhancement on the desktop rail; the sidebar remains fully keyboard-navigable via its buttons, and the mouse handlers carry no semantic role */}
         <div
           className={cn(
             "fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] transition-[left,right,width] duration-200 ease-linear md:flex",

@@ -1,7 +1,7 @@
-import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import postgres from "postgres";
-import { drizzle } from "drizzle-orm/postgres-js";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 
 /**
  * Phase 20.1 Plan 01 D-03 — fresh-clone migration regression gate.
@@ -77,50 +77,44 @@ describe("fresh-clone migration baseline (Phase 20.1 D-03)", () => {
     await dropScratchDatabase();
   });
 
-  test(
-    "bun run db:migrate succeeds against an empty database",
-    async () => {
-      if (!canConnect) {
-        console.warn(
-          "SKIPPED: PostgreSQL unavailable (start: docker compose up -d postgres)",
-        );
-        return;
-      }
+  test("bun run db:migrate succeeds against an empty database", async () => {
+    if (!canConnect) {
+      console.warn("SKIPPED: PostgreSQL unavailable (start: docker compose up -d postgres)");
+      return;
+    }
 
-      const proc = Bun.spawn(["bun", "run", "db:migrate"], {
-        env: { ...process.env, DATABASE_URL: scratchUrl },
-        stdout: "pipe",
-        stderr: "pipe",
-      });
-      const exitCode = await proc.exited;
-      const stderr = await new Response(proc.stderr).text();
-      expect(exitCode, `db:migrate stderr: ${stderr}`).toBe(0);
+    const proc = Bun.spawn(["bun", "run", "db:migrate"], {
+      env: { ...process.env, DATABASE_URL: scratchUrl },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const exitCode = await proc.exited;
+    const stderr = await new Response(proc.stderr).text();
+    expect(exitCode, `db:migrate stderr: ${stderr}`).toBe(0);
 
-      const client = postgres(scratchUrl, { max: 1 });
-      try {
-        const db = drizzle(client);
-        const tables = (await db.execute(sql`
+    const client = postgres(scratchUrl, { max: 1 });
+    try {
+      const db = drizzle(client);
+      const tables = (await db.execute(sql`
           SELECT table_name FROM information_schema.tables
            WHERE table_schema = 'public'
            ORDER BY table_name
         `)) as Array<{ table_name: string }>;
-        const names = tables.map((r) => r.table_name);
-        expect(names).toContain("billing_customers");
-        expect(names).toContain("user");
-        expect(names).toContain("session");
-        expect(names).toContain("examples");
+      const names = tables.map((r) => r.table_name);
+      expect(names).toContain("billing_customers");
+      expect(names).toContain("user");
+      expect(names).toContain("session");
+      expect(names).toContain("examples");
 
-        const cols = (await db.execute(sql`
+      const cols = (await db.execute(sql`
           SELECT column_name FROM information_schema.columns
            WHERE table_name = 'billing_customers'
         `)) as Array<{ column_name: string }>;
-        const colNames = cols.map((r) => r.column_name);
-        expect(colNames).toContain("provider_customer_id");
-        expect(colNames).not.toContain("stripe_customer_id");
-      } finally {
-        await client.end({ timeout: 1 });
-      }
-    },
-    60_000,
-  );
+      const colNames = cols.map((r) => r.column_name);
+      expect(colNames).toContain("provider_customer_id");
+      expect(colNames).not.toContain("stripe_customer_id");
+    } finally {
+      await client.end({ timeout: 1 });
+    }
+  }, 60_000);
 });

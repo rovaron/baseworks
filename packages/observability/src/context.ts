@@ -72,10 +72,7 @@ export function getObsContext(): ObservabilityContext | undefined {
  * Silently no-ops outside a request frame — matches the defensive mixin
  * pattern used by the pino logger (Plan 02 / D-19).
  */
-export function setTenantContext(input: {
-  tenantId: string | null;
-  userId: string | null;
-}): void {
+export function setTenantContext(input: { tenantId: string | null; userId: string | null }): void {
   const store = obsContext.getStore();
   if (store) {
     store.tenantId = input.tenantId;

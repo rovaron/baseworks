@@ -1,4 +1,4 @@
-import { describe, test, expect, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 /**
  * get-profile uses direct DB access (not ctx.db or auth.api).
@@ -76,10 +76,7 @@ describe("getProfile", () => {
   });
 
   test("returns error when user not authenticated (no userId)", async () => {
-    const result = await getProfile(
-      {},
-      createMockCtx({ userId: undefined }),
-    );
+    const result = await getProfile({}, createMockCtx({ userId: undefined }));
 
     expect(result.success).toBe(false);
     if (!result.success) {

@@ -1,8 +1,8 @@
 import type { ModuleDefinition } from "@baseworks/shared";
-import { exampleRoutes } from "./routes";
 import { createExample } from "./commands/create-example";
-import { listExamples } from "./queries/list-examples";
 import { processFollowup } from "./jobs/process-followup";
+import { listExamples } from "./queries/list-examples";
+import { exampleRoutes } from "./routes";
 
 export { registerExampleHooks } from "./hooks/on-example-created";
 

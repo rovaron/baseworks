@@ -26,7 +26,6 @@
  */
 import * as Sentry from "@sentry/bun";
 import type { Transport } from "@sentry/core";
-import { buildInitOptions } from "./init-options";
 import type {
   Breadcrumb,
   CaptureScope,
@@ -34,6 +33,7 @@ import type {
   ErrorTrackerScope,
 } from "../../ports/error-tracker";
 import type { LogLevel } from "../../ports/types";
+import { buildInitOptions } from "./init-options";
 
 /**
  * Options for constructing a SentryErrorTracker. `kind` selects the target
@@ -139,8 +139,7 @@ export class SentryErrorTracker implements ErrorTracker {
         setUser: (user) => sentryScope.setUser(user),
         setTag: (key, value) => sentryScope.setTag(key, value),
         setExtra: (key, value) => sentryScope.setExtra(key, value),
-        setTenant: (tenantId) =>
-          sentryScope.setTag("tenantId", tenantId ?? ""),
+        setTenant: (tenantId) => sentryScope.setTag("tenantId", tenantId ?? ""),
       };
       result = fn(portScope);
     });

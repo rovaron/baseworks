@@ -1,5 +1,5 @@
-import { Type } from "@sinclair/typebox";
 import { defineQuery, ok } from "@baseworks/shared";
+import { Type } from "@sinclair/typebox";
 import { billingCustomers } from "../schema";
 
 const GetSubscriptionStatusInput = Type.Object({});

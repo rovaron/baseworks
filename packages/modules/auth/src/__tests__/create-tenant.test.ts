@@ -1,6 +1,6 @@
-import { describe, test, expect, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { assertResultErr, assertResultOk } from "../../../__test-utils__/assert-result";
 import { createMockContext } from "../../../__test-utils__/mock-context";
-import { assertResultOk, assertResultErr } from "../../../__test-utils__/assert-result";
 
 /**
  * Behavioral tests for the createTenant command handler.
@@ -46,9 +46,7 @@ describe("createTenant", () => {
     const result = await createTenant({ name: "My Company" }, ctx);
 
     assertResultOk(result);
-    expect(result.data).toEqual(
-      expect.objectContaining({ id: "org-1", name: "Test Org" }),
-    );
+    expect(result.data).toEqual(expect.objectContaining({ id: "org-1", name: "Test Org" }));
     expect(ctx.emit).toHaveBeenCalledWith("tenant.created", {
       tenantId: "org-1",
       createdBy: "user-1",
@@ -57,9 +55,7 @@ describe("createTenant", () => {
   });
 
   test("returns error when auth.api throws", async () => {
-    mockCreateOrganization.mockRejectedValueOnce(
-      new Error("Slug already taken"),
-    );
+    mockCreateOrganization.mockRejectedValueOnce(new Error("Slug already taken"));
 
     const ctx = createMockContext();
     const result = await createTenant({ name: "Duplicate" }, ctx);

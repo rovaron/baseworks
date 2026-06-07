@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { readRequestId } from "../request-id";
 
 /**
@@ -37,9 +37,7 @@ function reqWithRawHeader(name: string, raw: string): Request {
 
 describe("readRequestId — Phase 20.1 D-17 / H-02 validation", () => {
   test("valid id (alnum + _ + -) is preserved", () => {
-    expect(readRequestId(reqWith({ "x-request-id": "abc-123_XYZ" }))).toBe(
-      "abc-123_XYZ",
-    );
+    expect(readRequestId(reqWith({ "x-request-id": "abc-123_XYZ" }))).toBe("abc-123_XYZ");
   });
 
   test("UUID is preserved", () => {
@@ -52,16 +50,12 @@ describe("readRequestId — Phase 20.1 D-17 / H-02 validation", () => {
     // we pass a duck-typed Request that returns the raw attacker-controlled
     // string from headers.get — exercising the validator's CRLF defense
     // independent of any upstream Headers normalization.
-    const result = readRequestId(
-      reqWithRawHeader("x-request-id", "foo\n[CRITICAL] fake"),
-    );
+    const result = readRequestId(reqWithRawHeader("x-request-id", "foo\n[CRITICAL] fake"));
     expect(result).toMatch(UUID_RE);
   });
 
   test("id over 128 chars is rejected; falls through to fresh UUID", () => {
-    const result = readRequestId(
-      reqWith({ "x-request-id": "a".repeat(200) }),
-    );
+    const result = readRequestId(reqWith({ "x-request-id": "a".repeat(200) }));
     expect(result).toMatch(UUID_RE);
   });
 
@@ -70,9 +64,7 @@ describe("readRequestId — Phase 20.1 D-17 / H-02 validation", () => {
   });
 
   test("id with disallowed chars (semicolon) is rejected", () => {
-    const result = readRequestId(
-      reqWith({ "x-request-id": "foo;DROP TABLE users" }),
-    );
+    const result = readRequestId(reqWith({ "x-request-id": "foo;DROP TABLE users" }));
     expect(result).toMatch(UUID_RE);
   });
 });

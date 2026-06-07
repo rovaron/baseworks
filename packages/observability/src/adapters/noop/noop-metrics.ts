@@ -9,12 +9,7 @@
  * `throw` statements in this file.
  */
 
-import type {
-  Counter,
-  Gauge,
-  Histogram,
-  MetricsProvider,
-} from "../../ports/metrics";
+import type { Counter, Gauge, Histogram, MetricsProvider } from "../../ports/metrics";
 import type { Attributes } from "../../ports/types";
 
 /**
@@ -53,10 +48,7 @@ export class NoopMetricsProvider implements MetricsProvider {
    * @param _options - Instrument options (ignored)
    * @returns A NoopCounter instance
    */
-  counter(
-    _name: string,
-    _options?: { description?: string; unit?: string },
-  ): Counter {
+  counter(_name: string, _options?: { description?: string; unit?: string }): Counter {
     return new NoopCounter();
   }
 
@@ -67,10 +59,7 @@ export class NoopMetricsProvider implements MetricsProvider {
    * @param _options - Instrument options (ignored)
    * @returns A NoopHistogram instance
    */
-  histogram(
-    _name: string,
-    _options?: { description?: string; unit?: string },
-  ): Histogram {
+  histogram(_name: string, _options?: { description?: string; unit?: string }): Histogram {
     return new NoopHistogram();
   }
 
@@ -81,10 +70,7 @@ export class NoopMetricsProvider implements MetricsProvider {
    * @param _options - Instrument options (ignored)
    * @returns A NoopGauge instance
    */
-  gauge(
-    _name: string,
-    _options?: { description?: string; unit?: string },
-  ): Gauge {
+  gauge(_name: string, _options?: { description?: string; unit?: string }): Gauge {
     return new NoopGauge();
   }
 }

@@ -31,13 +31,9 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { getObsContext, obsContext, setTenantContext } from "@baseworks/observability";
 import { Elysia } from "elysia";
 import pino from "pino";
-import {
-  getObsContext,
-  obsContext,
-  setTenantContext,
-} from "@baseworks/observability";
 
 type Captured = Record<string, unknown>;
 
@@ -101,70 +97,54 @@ async function handle(
 }
 
 describe("CTX-01 / Success Criterion 5 — 100-RPS concurrent-tenant context bleed gate (D-27)", () => {
-  test(
-    "100 concurrent interleaved tenantA/tenantB requests — every response + log line carries correct tenantId",
-    async () => {
-      const captured: Captured[] = [];
-      const app = buildProbeApp(captured);
-      const jobs = Array.from({ length: N }, (_, i) => (i % 2 === 0 ? "A" : "B"));
-      const results = await Promise.all(jobs.map((t) => handle(app, t)));
+  test("100 concurrent interleaved tenantA/tenantB requests — every response + log line carries correct tenantId", async () => {
+    const captured: Captured[] = [];
+    const app = buildProbeApp(captured);
+    const jobs = Array.from({ length: N }, (_, i) => (i % 2 === 0 ? "A" : "B"));
+    const results = await Promise.all(jobs.map((t) => handle(app, t)));
 
-      // (1) Every response body reflects its own tenant.
-      for (let i = 0; i < N; i++) {
-        expect(results[i].body.tenantId).toBe(jobs[i]);
-        expect(results[i].body.requestId).toBe(results[i].requestId);
-      }
+    // (1) Every response body reflects its own tenant.
+    for (let i = 0; i < N; i++) {
+      expect(results[i].body.tenantId).toBe(jobs[i]);
+      expect(results[i].body.requestId).toBe(results[i].requestId);
+    }
 
-      // (2) Every captured log line reflects its own tenant (matched by requestId).
-      const requestIdToTenant = new Map(
-        results.map((r, i) => [r.requestId, jobs[i]]),
-      );
-      const probeLines = captured.filter((l) => l.at === "probe");
-      expect(probeLines.length).toBe(N);
-      for (const line of probeLines) {
-        const rid = line.requestId as string;
-        const expectedTenant = requestIdToTenant.get(rid);
-        expect(line.tenantId).toBe(expectedTenant as string);
-      }
-    },
-    30_000,
-  );
+    // (2) Every captured log line reflects its own tenant (matched by requestId).
+    const requestIdToTenant = new Map(results.map((r, i) => [r.requestId, jobs[i]]));
+    const probeLines = captured.filter((l) => l.at === "probe");
+    expect(probeLines.length).toBe(N);
+    for (const line of probeLines) {
+      const rid = line.requestId as string;
+      const expectedTenant = requestIdToTenant.get(rid);
+      expect(line.tenantId).toBe(expectedTenant as string);
+    }
+  }, 30_000);
 
-  test(
-    "100 sequential interleaved requests — same tenant invariant holds",
-    async () => {
-      const captured: Captured[] = [];
-      const app = buildProbeApp(captured);
-      const jobs = Array.from({ length: N }, (_, i) => (i % 2 === 0 ? "A" : "B"));
-      const results: Array<{
-        body: { tenantId: string; requestId: string };
-        requestId: string;
-      }> = [];
-      for (const t of jobs) {
-        results.push(await handle(app, t));
-      }
-      for (let i = 0; i < N; i++) {
-        expect(results[i].body.tenantId).toBe(jobs[i]);
-      }
-      // Log lines also consistent.
-      const probeLines = captured.filter((l) => l.at === "probe");
-      expect(probeLines.length).toBe(N);
-    },
-    30_000,
-  );
+  test("100 sequential interleaved requests — same tenant invariant holds", async () => {
+    const captured: Captured[] = [];
+    const app = buildProbeApp(captured);
+    const jobs = Array.from({ length: N }, (_, i) => (i % 2 === 0 ? "A" : "B"));
+    const results: Array<{
+      body: { tenantId: string; requestId: string };
+      requestId: string;
+    }> = [];
+    for (const t of jobs) {
+      results.push(await handle(app, t));
+    }
+    for (let i = 0; i < N; i++) {
+      expect(results[i].body.tenantId).toBe(jobs[i]);
+    }
+    // Log lines also consistent.
+    const probeLines = captured.filter((l) => l.at === "probe");
+    expect(probeLines.length).toBe(N);
+  }, 30_000);
 
-  test(
-    "completion time — 100 concurrent requests finish well under 30 seconds",
-    async () => {
-      const captured: Captured[] = [];
-      const app = buildProbeApp(captured);
-      const start = performance.now();
-      await Promise.all(
-        Array.from({ length: N }, (_, i) => handle(app, i % 2 === 0 ? "A" : "B")),
-      );
-      const dur = performance.now() - start;
-      expect(dur).toBeLessThan(30_000);
-    },
-    30_000,
-  );
+  test("completion time — 100 concurrent requests finish well under 30 seconds", async () => {
+    const captured: Captured[] = [];
+    const app = buildProbeApp(captured);
+    const start = performance.now();
+    await Promise.all(Array.from({ length: N }, (_, i) => handle(app, i % 2 === 0 ? "A" : "B")));
+    const dur = performance.now() - start;
+    expect(dur).toBeLessThan(30_000);
+  }, 30_000);
 });

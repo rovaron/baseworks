@@ -1,4 +1,4 @@
-import { Html, Head, Body, Container, Text, Button, Hr } from "@react-email/components";
+import { Body, Button, Container, Head, Hr, Html, Text } from "@react-email/components";
 
 /**
  * Pure presentation component for the team-invite email.
@@ -29,23 +29,30 @@ export function TeamInviteEmail({
     <Html>
       <Head />
       <Body style={{ fontFamily: "Arial, sans-serif", backgroundColor: "#f4f4f5" }}>
-        <Container style={{ maxWidth: "480px", margin: "0 auto", padding: "20px", backgroundColor: "#ffffff" }}>
-          <Text style={{ fontSize: "24px", fontWeight: "bold" }}>
-            {heading}
-          </Text>
-          <Text>
-            {body}
-          </Text>
+        <Container
+          style={{
+            maxWidth: "480px",
+            margin: "0 auto",
+            padding: "20px",
+            backgroundColor: "#ffffff",
+          }}
+        >
+          <Text style={{ fontSize: "24px", fontWeight: "bold" }}>{heading}</Text>
+          <Text>{body}</Text>
           <Button
             href={inviteLink}
-            style={{ backgroundColor: "#18181b", color: "#ffffff", padding: "12px 20px", borderRadius: "6px", textDecoration: "none" }}
+            style={{
+              backgroundColor: "#18181b",
+              color: "#ffffff",
+              padding: "12px 20px",
+              borderRadius: "6px",
+              textDecoration: "none",
+            }}
           >
             {ctaLabel}
           </Button>
           <Hr />
-          <Text style={{ color: "#71717a", fontSize: "14px" }}>
-            {footer}
-          </Text>
+          <Text style={{ color: "#71717a", fontSize: "14px" }}>{footer}</Text>
         </Container>
       </Body>
     </Html>

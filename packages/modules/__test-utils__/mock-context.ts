@@ -44,10 +44,9 @@ export function createMockDb(results?: {
   // also resolve to the same `selectResult`.
   const buildSelectThenable = () => {
     const thenableResult: any = {
-      then: (
-        onFulfilled?: (value: any[]) => unknown,
-        onRejected?: (reason: unknown) => unknown,
-      ) => Promise.resolve(selectResult).then(onFulfilled, onRejected),
+      // biome-ignore lint/suspicious/noThenProperty: intentional thenable that mocks Drizzle's awaitable query-builder
+      then: (onFulfilled?: (value: any[]) => unknown, onRejected?: (reason: unknown) => unknown) =>
+        Promise.resolve(selectResult).then(onFulfilled, onRejected),
       limit: mock(() => Promise.resolve(selectResult)),
       from: mock(() => ({
         where: mock(() => ({
@@ -84,9 +83,7 @@ export function createMockDb(results?: {
  * @param overrides - Optional partial HandlerContext to override defaults
  * @returns Complete HandlerContext suitable for unit tests
  */
-export function createMockContext(
-  overrides?: Partial<HandlerContext>,
-): HandlerContext {
+export function createMockContext(overrides?: Partial<HandlerContext>): HandlerContext {
   return {
     tenantId: "test-tenant-id",
     userId: "test-user-id",

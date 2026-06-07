@@ -1,4 +1,4 @@
-import { describe, test, expect, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { createMockContext } from "../../../__test-utils__/mock-context";
 
 const mockGetFullOrganization = mock(() => Promise.resolve(null));
@@ -27,10 +27,7 @@ describe("getTenant", () => {
     };
     mockGetFullOrganization.mockResolvedValueOnce(orgData);
 
-    const result = await getTenant(
-      { organizationId: "org-1" },
-      createMockContext(),
-    );
+    const result = await getTenant({ organizationId: "org-1" }, createMockContext());
 
     expect(result.success).toBe(true);
     if (result.success) {
@@ -45,10 +42,7 @@ describe("getTenant", () => {
   test("returns error when tenant not found", async () => {
     mockGetFullOrganization.mockResolvedValueOnce(null);
 
-    const result = await getTenant(
-      { organizationId: "nonexistent" },
-      createMockContext(),
-    );
+    const result = await getTenant({ organizationId: "nonexistent" }, createMockContext());
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -57,14 +51,9 @@ describe("getTenant", () => {
   });
 
   test("returns error when auth.api throws", async () => {
-    mockGetFullOrganization.mockRejectedValueOnce(
-      new Error("Network failure"),
-    );
+    mockGetFullOrganization.mockRejectedValueOnce(new Error("Network failure"));
 
-    const result = await getTenant(
-      { organizationId: "org-1" },
-      createMockContext(),
-    );
+    const result = await getTenant({ organizationId: "org-1" }, createMockContext());
 
     expect(result.success).toBe(false);
     if (!result.success) {

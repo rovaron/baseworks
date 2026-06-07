@@ -9,13 +9,14 @@
  *   mode: "uncaught" | "rejection"
  *   tracker-behavior: "ok" | "throw-on-capture"
  */
-import { installGlobalErrorHandlers } from "../../install-global-error-handlers";
+
 import type {
   Breadcrumb,
   ErrorTracker,
   ErrorTrackerScope,
   LogLevel,
 } from "../../../ports/error-tracker";
+import { installGlobalErrorHandlers } from "../../install-global-error-handlers";
 
 const mode = process.argv[2] ?? "uncaught";
 const behavior = process.argv[3] ?? "ok";
@@ -23,9 +24,7 @@ const behavior = process.argv[3] ?? "ok";
 class RecordingTracker implements ErrorTracker {
   readonly name = "recording";
   captureException(err: unknown): void {
-    process.stdout.write(
-      `captureException called with: ${(err as Error)?.message}\n`,
-    );
+    process.stdout.write(`captureException called with: ${(err as Error)?.message}\n`);
     if (behavior === "throw-on-capture") {
       throw new Error("tracker-internal-failure");
     }

@@ -28,11 +28,7 @@ async function spawnEnv(
     if (v !== undefined) env[k] = v;
   }
   const proc = Bun.spawn(
-    [
-      "bun",
-      "-e",
-      `import { env } from "@baseworks/config"; console.log(${exprToPrint});`,
-    ],
+    ["bun", "-e", `import { env } from "@baseworks/config"; console.log(${exprToPrint});`],
     {
       env,
       stdout: "pipe",
@@ -47,36 +43,36 @@ async function spawnEnv(
 }
 
 describe("BULL_BOARD_READ_ONLY env validation (Phase 22 / D-02)", () => {
-  test("accepts \"true\"", async () => {
+  test('accepts "true"', async () => {
     const { exitCode, stdout } = await spawnEnv(
       { BULL_BOARD_READ_ONLY: "true" },
-      'env.BULL_BOARD_READ_ONLY',
+      "env.BULL_BOARD_READ_ONLY",
     );
     expect(exitCode).toBe(0);
     expect(stdout.trim()).toBe("true");
   });
 
-  test("accepts \"false\"", async () => {
+  test('accepts "false"', async () => {
     const { exitCode, stdout } = await spawnEnv(
       { BULL_BOARD_READ_ONLY: "false" },
-      'env.BULL_BOARD_READ_ONLY',
+      "env.BULL_BOARD_READ_ONLY",
     );
     expect(exitCode).toBe(0);
     expect(stdout.trim()).toBe("false");
   });
 
-  test("rejects typo \"yes\" (crash-hard at boot)", async () => {
+  test('rejects typo "yes" (crash-hard at boot)', async () => {
     const { exitCode } = await spawnEnv(
       { BULL_BOARD_READ_ONLY: "yes" },
-      'env.BULL_BOARD_READ_ONLY',
+      "env.BULL_BOARD_READ_ONLY",
     );
     expect(exitCode).not.toBe(0);
   });
 
-  test("defaults to \"true\" when unset", async () => {
+  test('defaults to "true" when unset', async () => {
     const { exitCode, stdout } = await spawnEnv(
       { BULL_BOARD_READ_ONLY: undefined },
-      'env.BULL_BOARD_READ_ONLY',
+      "env.BULL_BOARD_READ_ONLY",
     );
     expect(exitCode).toBe(0);
     expect(stdout.trim()).toBe("true");
@@ -84,10 +80,10 @@ describe("BULL_BOARD_READ_ONLY env validation (Phase 22 / D-02)", () => {
 });
 
 describe("WORKER_HEARTBEAT_INTERVAL_MS env validation (Phase 22 / D-13)", () => {
-  test("accepts \"15000\" and coerces to number", async () => {
+  test('accepts "15000" and coerces to number', async () => {
     const { exitCode, stdout } = await spawnEnv(
       { WORKER_HEARTBEAT_INTERVAL_MS: "15000" },
-      'JSON.stringify({ v: env.WORKER_HEARTBEAT_INTERVAL_MS, t: typeof env.WORKER_HEARTBEAT_INTERVAL_MS })',
+      "JSON.stringify({ v: env.WORKER_HEARTBEAT_INTERVAL_MS, t: typeof env.WORKER_HEARTBEAT_INTERVAL_MS })",
     );
     expect(exitCode).toBe(0);
     const parsed = JSON.parse(stdout.trim());
@@ -95,18 +91,18 @@ describe("WORKER_HEARTBEAT_INTERVAL_MS env validation (Phase 22 / D-13)", () => 
     expect(parsed.t).toBe("number");
   });
 
-  test("rejects below min (\"500\")", async () => {
+  test('rejects below min ("500")', async () => {
     const { exitCode } = await spawnEnv(
       { WORKER_HEARTBEAT_INTERVAL_MS: "500" },
-      'env.WORKER_HEARTBEAT_INTERVAL_MS',
+      "env.WORKER_HEARTBEAT_INTERVAL_MS",
     );
     expect(exitCode).not.toBe(0);
   });
 
-  test("rejects above max (\"500000\")", async () => {
+  test('rejects above max ("500000")', async () => {
     const { exitCode } = await spawnEnv(
       { WORKER_HEARTBEAT_INTERVAL_MS: "500000" },
-      'env.WORKER_HEARTBEAT_INTERVAL_MS',
+      "env.WORKER_HEARTBEAT_INTERVAL_MS",
     );
     expect(exitCode).not.toBe(0);
   });
@@ -114,7 +110,7 @@ describe("WORKER_HEARTBEAT_INTERVAL_MS env validation (Phase 22 / D-13)", () => 
   test("defaults to 15000 when unset", async () => {
     const { exitCode, stdout } = await spawnEnv(
       { WORKER_HEARTBEAT_INTERVAL_MS: undefined },
-      'env.WORKER_HEARTBEAT_INTERVAL_MS',
+      "env.WORKER_HEARTBEAT_INTERVAL_MS",
     );
     expect(exitCode).toBe(0);
     expect(stdout.trim()).toBe("15000");

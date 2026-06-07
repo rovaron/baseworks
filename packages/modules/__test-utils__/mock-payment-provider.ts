@@ -10,14 +10,10 @@ import type { PaymentProvider } from "../billing/src/ports/payment-provider";
  * @param overrides - Optional partial PaymentProvider to override defaults
  * @returns Fully mocked PaymentProvider instance
  */
-export function createMockPaymentProvider(
-  overrides?: Partial<PaymentProvider>,
-): PaymentProvider {
+export function createMockPaymentProvider(overrides?: Partial<PaymentProvider>): PaymentProvider {
   return {
     name: "mock",
-    createCustomer: mock(() =>
-      Promise.resolve({ providerCustomerId: "cus_mock" }),
-    ),
+    createCustomer: mock(() => Promise.resolve({ providerCustomerId: "cus_mock" })),
     createSubscription: mock(() =>
       Promise.resolve({
         providerSubscriptionId: "sub_mock",
@@ -48,12 +44,8 @@ export function createMockPaymentProvider(
         url: "https://mock.co/checkout",
       }),
     ),
-    createPortalSession: mock(() =>
-      Promise.resolve({ url: "https://mock.co/portal" }),
-    ),
-    verifyWebhookSignature: mock(() =>
-      Promise.resolve({ id: "evt_mock", type: "test", data: {} }),
-    ),
+    createPortalSession: mock(() => Promise.resolve({ url: "https://mock.co/portal" })),
+    verifyWebhookSignature: mock(() => Promise.resolve({ id: "evt_mock", type: "test", data: {} })),
     normalizeEvent: mock(() => ({
       type: "checkout.completed" as const,
       providerEventId: "evt_mock",
@@ -63,9 +55,7 @@ export function createMockPaymentProvider(
       raw: {} as unknown,
     })),
     getInvoices: mock(() => Promise.resolve([])),
-    reportUsage: mock(() =>
-      Promise.resolve({ providerUsageRecordId: "ur_mock" }),
-    ),
+    reportUsage: mock(() => Promise.resolve({ providerUsageRecordId: "ur_mock" })),
     ...overrides,
   };
 }

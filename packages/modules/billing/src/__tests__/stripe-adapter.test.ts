@@ -1,6 +1,6 @@
-import { describe, test, expect, mock, beforeEach } from "bun:test";
-import type { RawProviderEvent } from "../ports/types";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { mapStripeEvent } from "../adapters/stripe/stripe-webhook-mapper";
+import type { RawProviderEvent } from "../ports/types";
 
 /**
  * Stripe adapter conformance tests (TEST-05).
@@ -10,9 +10,7 @@ import { mapStripeEvent } from "../adapters/stripe/stripe-webhook-mapper";
  */
 
 // Create mock functions that will be reused across tests
-const mockCustomersCreate = mock(() =>
-  Promise.resolve({ id: "cus_stripe_123" }),
-);
+const mockCustomersCreate = mock(() => Promise.resolve({ id: "cus_stripe_123" }));
 const mockSubscriptionsCreate = mock(() =>
   Promise.resolve({
     id: "sub_stripe_789",
@@ -63,9 +61,7 @@ const mockInvoicesList = mock(() =>
     ],
   }),
 );
-const mockCreateUsageRecord = mock(() =>
-  Promise.resolve({ id: "ur_stripe_123" }),
-);
+const mockCreateUsageRecord = mock(() => Promise.resolve({ id: "ur_stripe_123" }));
 const mockConstructEvent = mock((rawBody: string, _sig: string, _secret: string) => {
   const parsed = JSON.parse(rawBody);
   return {
@@ -180,9 +176,7 @@ describe("StripeAdapter", () => {
   });
 
   test("getSubscription returns null on error", async () => {
-    mockSubscriptionsRetrieve.mockImplementationOnce(() =>
-      Promise.reject(new Error("Not found")),
-    );
+    mockSubscriptionsRetrieve.mockImplementationOnce(() => Promise.reject(new Error("Not found")));
 
     const result = await adapter.getSubscription("sub_nonexistent");
     expect(result).toBeNull();

@@ -1,7 +1,7 @@
-import { describe, test, expect, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { assertResultErr, assertResultOk } from "../../../__test-utils__/assert-result";
 import { createMockContext, createMockDb } from "../../../__test-utils__/mock-context";
 import { createMockPaymentProvider } from "../../../__test-utils__/mock-payment-provider";
-import { assertResultOk, assertResultErr } from "../../../__test-utils__/assert-result";
 
 mock.module("@baseworks/config", () => ({
   env: {
@@ -66,9 +66,7 @@ describe("getBillingHistory", () => {
     const mockDb = createMockDb({
       select: [{ providerCustomerId: "cus_123" }],
     });
-    mockProvider.getInvoices = mock(() =>
-      Promise.reject(new Error("Stripe rate limited")),
-    );
+    mockProvider.getInvoices = mock(() => Promise.reject(new Error("Stripe rate limited")));
     const ctx = createMockContext({ db: mockDb });
 
     const result = await getBillingHistory({ limit: 10 }, ctx);

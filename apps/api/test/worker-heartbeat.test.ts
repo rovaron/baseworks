@@ -19,10 +19,7 @@
 import "../src/core/middleware/__tests__/_env-setup";
 
 import { afterEach, describe, expect, test } from "bun:test";
-import {
-  resolveInstanceId,
-  startHeartbeatPublisher,
-} from "@baseworks/observability";
+import { resolveInstanceId, startHeartbeatPublisher } from "@baseworks/observability";
 
 // -- Build a fake IORedis surface that records every call ---------------
 type SetCall = { key: string; value: string; mode: string; ttl: number };
@@ -116,10 +113,7 @@ describe("worker.ts heartbeat wire-up integration (EXT-02 / D-12..D-14)", () => 
 
     // Mirror exactly what apps/api/src/worker.ts passes:
     //   getQueues: () => workers.map((w) => w.name)
-    const fakeWorkers = [
-      { name: "billing:sync-subscription" },
-      { name: "email-send" },
-    ];
+    const fakeWorkers = [{ name: "billing:sync-subscription" }, { name: "email-send" }];
 
     const handle = startHeartbeatPublisher({
       redis,

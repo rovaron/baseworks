@@ -1,4 +1,4 @@
-import { describe, test, expect, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 const mockGetInvitation = mock(() => Promise.resolve(null));
 
@@ -39,10 +39,7 @@ describe("getInvitation", () => {
     };
     mockGetInvitation.mockResolvedValueOnce(invitation);
 
-    const result = await getInvitation(
-      { invitationId: "inv-1" },
-      createMockCtx(),
-    );
+    const result = await getInvitation({ invitationId: "inv-1" }, createMockCtx());
 
     expect(result.success).toBe(true);
     if (result.success) {
@@ -57,10 +54,7 @@ describe("getInvitation", () => {
   test("returns error when invitation not found", async () => {
     mockGetInvitation.mockResolvedValueOnce(null);
 
-    const result = await getInvitation(
-      { invitationId: "nonexistent" },
-      createMockCtx(),
-    );
+    const result = await getInvitation({ invitationId: "nonexistent" }, createMockCtx());
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -71,10 +65,7 @@ describe("getInvitation", () => {
   test("returns error when auth.api throws", async () => {
     mockGetInvitation.mockRejectedValueOnce(new Error("Database error"));
 
-    const result = await getInvitation(
-      { invitationId: "inv-1" },
-      createMockCtx(),
-    );
+    const result = await getInvitation({ invitationId: "inv-1" }, createMockCtx());
 
     expect(result.success).toBe(false);
     if (!result.success) {

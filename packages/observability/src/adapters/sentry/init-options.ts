@@ -26,8 +26,8 @@
  */
 import * as Sentry from "@sentry/bun";
 import type { Transport } from "@sentry/core";
-import { scrubPii } from "../../lib/scrub-pii";
 import type { PiiEvent } from "../../lib/scrub-pii";
+import { scrubPii } from "../../lib/scrub-pii";
 
 /**
  * Options accepted by `buildInitOptions`. A thin subset of Sentry.init opts
@@ -55,9 +55,7 @@ export interface SentryInitOpts {
  * @param opts - Adapter-level options (dsn, release, environment, transport)
  * @returns The exact InitOptions object to feed to `Sentry.init()`
  */
-export function buildInitOptions(
-  opts: SentryInitOpts,
-): Parameters<typeof Sentry.init>[0] {
+export function buildInitOptions(opts: SentryInitOpts): Parameters<typeof Sentry.init>[0] {
   return {
     dsn: opts.dsn,
     release: opts.release,

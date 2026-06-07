@@ -1,14 +1,14 @@
-import { describe, it, expect } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
 import {
   type ColumnDef,
-  getCoreRowModel,
-  useReactTable,
-  getSortedRowModel,
-  getFilteredRowModel,
   type ColumnFiltersState,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getSortedRowModel,
+  useReactTable,
 } from "@tanstack/react-table";
+import { fireEvent, render, screen } from "@testing-library/react";
 import * as React from "react";
+import { describe, expect, it } from "vitest";
 import { DataTableCards } from "../data-table-cards";
 
 type MockRow = {
@@ -61,7 +61,7 @@ const mockColumns: ColumnDef<MockRow, any>[] = [
   {
     id: "actions",
     header: "",
-    cell: () => <button>Edit</button>,
+    cell: () => <button type="button">Edit</button>,
     meta: { cardHidden: true },
   },
 ];
@@ -77,9 +77,7 @@ function TestWrapper({
   priorityCount?: number;
   columnFilters?: ColumnFiltersState;
 }) {
-  const [filters, setFilters] = React.useState<ColumnFiltersState>(
-    columnFilters ?? []
-  );
+  const [filters, setFilters] = React.useState<ColumnFiltersState>(columnFilters ?? []);
 
   const table = useReactTable({
     data,
@@ -144,11 +142,7 @@ describe("DataTableCards", () => {
   });
 
   it("renders filter chips for active column filters", () => {
-    render(
-      <TestWrapper
-        columnFilters={[{ id: "status", value: "active" }]}
-      />
-    );
+    render(<TestWrapper columnFilters={[{ id: "status", value: "active" }]} />);
 
     // Filter chip should show column name and filter value together
     expect(screen.getByText(/Status: active/i)).toBeInTheDocument();

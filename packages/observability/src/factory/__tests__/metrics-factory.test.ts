@@ -11,9 +11,9 @@
  * tests do not bleed state.
  */
 
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { NoopMetricsProvider } from "../../adapters/noop/noop-metrics";
-import { getMetrics, setMetrics, resetMetrics } from "../../factory";
+import { getMetrics, resetMetrics, setMetrics } from "../../factory";
 import type { MetricsProvider } from "../../ports/metrics";
 
 describe("metrics factory (OBS-02)", () => {

@@ -29,11 +29,13 @@ function hashFile(relPath: string): string {
   return createHash("sha256").update(buf).digest("hex");
 }
 
-// Phase-19 baselines — captured at Plan 19-08 task execution time.
-const CQRS_SHA256 =
-  "89a47de8ad2894d615a4b98de7dd9e84262cf1f68a827d2650f811a68bf1e449";
-const EVENT_BUS_SHA256 =
-  "19dfe7b51653dcfd3f1fa2b1c4df2527fcb56ec310a3adb3357ba9d616456604";
+// Baselines re-captured after the repo-wide LF line-ending normalization (audit
+// Phase 1: added .gitattributes `eol=lf` + `git add --renormalize`). The
+// Phase-19 hashes were computed against CRLF working-tree files on Windows; the
+// file CONTENTS are byte-identical apart from line endings, so the wrap-only
+// invariant still holds — only the canonical EOL changed.
+const CQRS_SHA256 = "20e882f65e7e6948a4fe0cd026c8f0efe6423476b463e27185429312a16ffa4a";
+const EVENT_BUS_SHA256 = "f37cccb87f33daa0165a291edf4c6bc44f13e64a038ec990172c5117c1b5b941";
 
 describe("TRC-02 — core/cqrs.ts + core/event-bus.ts byte-equal invariant (Plan 19-08)", () => {
   test("apps/api/src/core/cqrs.ts unchanged vs Phase-19 baseline", () => {

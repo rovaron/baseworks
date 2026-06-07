@@ -1,6 +1,6 @@
 import { describe, expect, it, mock, spyOn } from "bun:test";
-import { TypedEventBus } from "../event-bus";
 import { logger } from "../../lib/logger";
+import { TypedEventBus } from "../event-bus";
 
 describe("TypedEventBus", () => {
   it("should call registered subscriber when event is emitted", () => {

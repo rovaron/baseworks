@@ -1,4 +1,4 @@
-import { describe, test, expect, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 const mockListInvitations = mock(() => Promise.resolve([]));
 
@@ -34,10 +34,7 @@ describe("listInvitations", () => {
     ];
     mockListInvitations.mockResolvedValueOnce(invitations);
 
-    const result = await listInvitations(
-      { organizationId: "org-1" },
-      createMockCtx(),
-    );
+    const result = await listInvitations({ organizationId: "org-1" }, createMockCtx());
 
     expect(result.success).toBe(true);
     if (result.success) {
@@ -53,10 +50,7 @@ describe("listInvitations", () => {
   test("returns empty array when no invitations", async () => {
     mockListInvitations.mockResolvedValueOnce([]);
 
-    const result = await listInvitations(
-      { organizationId: "org-1" },
-      createMockCtx(),
-    );
+    const result = await listInvitations({ organizationId: "org-1" }, createMockCtx());
 
     expect(result.success).toBe(true);
     if (result.success) {
@@ -68,10 +62,7 @@ describe("listInvitations", () => {
   test("returns ok with empty array when auth.api returns null", async () => {
     mockListInvitations.mockResolvedValueOnce(null);
 
-    const result = await listInvitations(
-      { organizationId: "org-1" },
-      createMockCtx(),
-    );
+    const result = await listInvitations({ organizationId: "org-1" }, createMockCtx());
 
     expect(result.success).toBe(true);
     if (result.success) {
@@ -80,14 +71,9 @@ describe("listInvitations", () => {
   });
 
   test("returns error when auth.api throws", async () => {
-    mockListInvitations.mockRejectedValueOnce(
-      new Error("Permission denied"),
-    );
+    mockListInvitations.mockRejectedValueOnce(new Error("Permission denied"));
 
-    const result = await listInvitations(
-      { organizationId: "org-1" },
-      createMockCtx(),
-    );
+    const result = await listInvitations({ organizationId: "org-1" }, createMockCtx());
 
     expect(result.success).toBe(false);
     if (!result.success) {

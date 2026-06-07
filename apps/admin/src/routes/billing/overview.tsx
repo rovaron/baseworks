@@ -1,5 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
-import { useTranslation } from "react-i18next";
 import {
   Badge,
   Button,
@@ -16,6 +14,8 @@ import {
   TableRow,
 } from "@baseworks/ui";
 import { useIsMobile } from "@baseworks/ui/hooks/use-mobile";
+import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
 
 export function Component() {
@@ -43,9 +43,7 @@ export function Component() {
         <h1 className="text-2xl font-semibold">{t("billingOverview.title")}</h1>
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-sm text-muted-foreground mb-4">
-              {t("billingOverview.loadError")}
-            </p>
+            <p className="text-sm text-muted-foreground mb-4">{t("billingOverview.loadError")}</p>
             <Button variant="outline" onClick={() => refetch()}>
               {tc("retry")}
             </Button>
@@ -79,9 +77,7 @@ export function Component() {
   const recentSubscriptions = billing?.recentSubscriptions ?? [];
 
   const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
-      amount / 100,
-    );
+    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount / 100);
 
   const hasData = totalSubscribers > 0 || distribution.length > 0;
 
@@ -137,14 +133,14 @@ export function Component() {
             <div className="space-y-3">
               {distribution.map((plan: any) => {
                 const percentage =
-                  totalSubscribers > 0
-                    ? Math.round((plan.count / totalSubscribers) * 100)
-                    : 0;
+                  totalSubscribers > 0 ? Math.round((plan.count / totalSubscribers) * 100) : 0;
                 return (
                   <div key={plan.name} className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <span className="font-medium">{plan.name}</span>
-                      <Badge variant="secondary">{t("billingOverview.subscribers", { count: plan.count })}</Badge>
+                      <Badge variant="secondary">
+                        {t("billingOverview.subscribers", { count: plan.count })}
+                      </Badge>
                     </div>
                     <Badge variant="outline">{percentage}%</Badge>
                   </div>
@@ -168,11 +164,17 @@ export function Component() {
             {isMobile ? (
               <div className="space-y-3">
                 {recentSubscriptions.slice(0, 10).map((sub: any, i: number) => (
-                  <div key={sub.id ?? i} className="flex items-center justify-between rounded-lg border p-3">
+                  <div
+                    key={sub.id ?? i}
+                    className="flex items-center justify-between rounded-lg border p-3"
+                  >
                     <div className="min-w-0 space-y-1">
-                      <p className="truncate text-sm font-medium">{sub.tenantName ?? sub.tenantId}</p>
+                      <p className="truncate text-sm font-medium">
+                        {sub.tenantName ?? sub.tenantId}
+                      </p>
                       <p className="text-xs text-muted-foreground">
-                        {sub.plan} &middot; {sub.date ? new Date(sub.date).toLocaleDateString() : "N/A"}
+                        {sub.plan} &middot;{" "}
+                        {sub.date ? new Date(sub.date).toLocaleDateString() : "N/A"}
                       </p>
                     </div>
                     <Badge
@@ -200,16 +202,12 @@ export function Component() {
                       <TableCell>{sub.tenantName ?? sub.tenantId}</TableCell>
                       <TableCell>{sub.plan}</TableCell>
                       <TableCell>
-                        <Badge
-                          variant={sub.status === "active" ? "default" : "secondary"}
-                        >
+                        <Badge variant={sub.status === "active" ? "default" : "secondary"}>
                           {sub.status}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {sub.date
-                          ? new Date(sub.date).toLocaleDateString()
-                          : "N/A"}
+                        {sub.date ? new Date(sub.date).toLocaleDateString() : "N/A"}
                       </TableCell>
                     </TableRow>
                   ))}

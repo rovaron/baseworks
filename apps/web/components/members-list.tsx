@@ -1,10 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useTranslations } from "next-intl";
-import { toast } from "sonner";
-import { MoreHorizontal } from "lucide-react";
 import {
   Avatar,
   AvatarFallback,
@@ -28,8 +23,13 @@ import {
   TableHeader,
   TableRow,
 } from "@baseworks/ui";
-import { auth } from "@/lib/api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { MoreHorizontal } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useState } from "react";
+import { toast } from "sonner";
 import { useTenant } from "@/components/tenant-provider";
+import { auth } from "@/lib/api";
 
 const roleBadgeVariant = {
   owner: "outline",
@@ -145,9 +145,7 @@ export function MembersList() {
                       )}
                     </div>
                     <Badge
-                      variant={
-                        roleBadgeVariant[role as keyof typeof roleBadgeVariant] ?? "default"
-                      }
+                      variant={roleBadgeVariant[role as keyof typeof roleBadgeVariant] ?? "default"}
                       className="ml-auto sm:hidden"
                     >
                       {t(`roles.${role}` as any)}
@@ -156,9 +154,7 @@ export function MembersList() {
                 </TableCell>
                 <TableCell className="hidden sm:table-cell">
                   <Badge
-                    variant={
-                      roleBadgeVariant[role as keyof typeof roleBadgeVariant] ?? "default"
-                    }
+                    variant={roleBadgeVariant[role as keyof typeof roleBadgeVariant] ?? "default"}
                   >
                     {t(`roles.${role}` as any)}
                   </Badge>

@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { RingBufferingErrorTracker } from "../ring-buffer-error-tracker";
 import type {
   Breadcrumb,
   CaptureScope,
@@ -7,6 +6,7 @@ import type {
   ErrorTrackerScope,
 } from "../../ports/error-tracker";
 import type { LogLevel } from "../../ports/types";
+import { RingBufferingErrorTracker } from "../ring-buffer-error-tracker";
 
 interface FakeTracker extends ErrorTracker {
   captures: Array<{ err: unknown; scope?: CaptureScope }>;

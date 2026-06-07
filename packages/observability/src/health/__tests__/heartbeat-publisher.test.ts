@@ -209,9 +209,7 @@ describe("startHeartbeatPublisher — graceful shutdown (D-14)", () => {
     });
     await flush();
     await handle.stop(); // must not throw
-    const delWarn = log.warns.find((w) =>
-      String(w.message ?? "").includes("DEL failed"),
-    );
+    const delWarn = log.warns.find((w) => String(w.message ?? "").includes("DEL failed"));
     expect(delWarn).toBeDefined();
   });
 });

@@ -1,7 +1,3 @@
-import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { formatDistanceToNow, formatDuration, intervalToDuration } from "date-fns";
-import { useTranslation } from "react-i18next";
 import {
   Badge,
   Button,
@@ -9,10 +5,14 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Skeleton,
   cn,
+  Skeleton,
 } from "@baseworks/ui";
-import { RefreshCw, Layers, Cpu, Database, AlertTriangle, Boxes } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { formatDistanceToNow, formatDuration, intervalToDuration } from "date-fns";
+import { AlertTriangle, Boxes, Cpu, Database, Layers, RefreshCw } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 /** D-07 envelope shape — Phase 22 / OPS-03 */
 interface DetailedHealth {
@@ -334,10 +334,7 @@ export function Component() {
               ) : (
                 <ul className="space-y-2 max-h-72 overflow-y-auto text-sm">
                   {result.recentErrors.map((e, i) => (
-                    <li
-                      key={`${e.timestamp}-${i}`}
-                      className="border-b last:border-b-0 pb-2"
-                    >
+                    <li key={`${e.timestamp}-${i}`} className="border-b last:border-b-0 pb-2">
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <span>
                           {t(`systemHealth.recentErrors.source.${e.source}`)} ·{" "}

@@ -1,22 +1,12 @@
-import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import type { Processor } from "bullmq";
-import {
-  obsContext,
-  getObsContext,
-  type ObservabilityContext,
-} from "@baseworks/observability";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { defaultLocale } from "@baseworks/i18n";
-import {
-  propagation,
-  trace,
-  context,
-  ROOT_CONTEXT,
-  type Span,
-} from "@opentelemetry/api";
+import { getObsContext, type ObservabilityContext, obsContext } from "@baseworks/observability";
+import { context, propagation, ROOT_CONTEXT, type Span, trace } from "@opentelemetry/api";
+import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { W3CTraceContextPropagator } from "@opentelemetry/core";
 import { BasicTracerProvider } from "@opentelemetry/sdk-trace-base";
-import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
-import { wrapProcessorWithAls, createWorker } from "../index";
+import type { Processor } from "bullmq";
+import { createWorker, wrapProcessorWithAls } from "../index";
 import type { WorkerConfig } from "../types";
 
 /**
@@ -27,13 +17,14 @@ import type { WorkerConfig } from "../types";
  * covers the ALS frame contents and per-job isolation.
  */
 
-const fakeJob = (data: any = {}) => ({
-  id: "fake-id",
-  name: "fake-name",
-  queueName: "test-queue",
-  data,
-  attemptsMade: 0,
-}) as any;
+const fakeJob = (data: any = {}) =>
+  ({
+    id: "fake-id",
+    name: "fake-name",
+    queueName: "test-queue",
+    data,
+    attemptsMade: 0,
+  }) as any;
 
 describe("wrapProcessorWithAls — D-05 seed invariants", () => {
   // Plan 20-02 Rule 3 deviation: register an in-memory BasicTracerProvider +

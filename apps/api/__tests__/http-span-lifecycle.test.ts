@@ -19,32 +19,25 @@
  * Plan 05's observability.test.ts exercises the middleware in isolation; this
  * file is the integration-scale gate for the composed pipeline.
  */
-import {
-  describe,
-  test,
-  expect,
-  beforeEach,
-  afterEach,
-  mock,
-} from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
 // Set t3-env-required vars before the @baseworks/observability barrel loads
 // (which transitively imports @baseworks/config + t3-env). Bun hoists imports;
 // the side-effect module runs first.
 import "../src/core/middleware/__tests__/_env-setup";
 
-import { Elysia } from "elysia";
+import { defaultLocale } from "@baseworks/i18n";
 import {
-  obsContext,
-  setTracer,
-  resetTracer,
   type ObservabilityContext,
+  obsContext,
+  resetTracer,
   type Span,
   type SpanOptions,
+  setTracer,
   type Tracer,
 } from "@baseworks/observability";
+import { Elysia } from "elysia";
 import { parseNextLocaleCookie } from "../src/lib/locale-cookie";
-import { defaultLocale } from "@baseworks/i18n";
 
 // Recording tracer — mirrors the makeRecordingTracer() helper in
 // apps/api/src/core/middleware/__tests__/observability.test.ts (Plan 05).
@@ -63,11 +56,9 @@ function makeRecordingTracer(): { tracer: Tracer; spans: RecordedSpan[] } {
   const spans: RecordedSpan[] = [];
   const mkSpan = (rec: RecordedSpan): Span => ({
     end: () => rec.events.push({ type: "end", payload: null }),
-    setAttribute: (k, v) =>
-      rec.events.push({ type: "setAttribute", payload: { k, v } }),
+    setAttribute: (k, v) => rec.events.push({ type: "setAttribute", payload: { k, v } }),
     setStatus: (s) => rec.events.push({ type: "setStatus", payload: s }),
-    recordException: (err) =>
-      rec.events.push({ type: "recordException", payload: err }),
+    recordException: (err) => rec.events.push({ type: "recordException", payload: err }),
   });
   const tracer: Tracer = {
     name: "recording",
@@ -123,12 +114,8 @@ async function handleReq(
 // internal getTracer() call.
 async function buildOkApp(): Promise<Elysia> {
   const { errorMiddleware } = await import("../src/core/middleware/error");
-  const { observabilityMiddleware } = await import(
-    "../src/core/middleware/observability"
-  );
-  const { requestTraceMiddleware } = await import(
-    "../src/core/middleware/request-trace"
-  );
+  const { observabilityMiddleware } = await import("../src/core/middleware/observability");
+  const { requestTraceMiddleware } = await import("../src/core/middleware/request-trace");
   return new Elysia()
     .use(errorMiddleware)
     .use(observabilityMiddleware)
@@ -140,12 +127,8 @@ async function buildOkApp(): Promise<Elysia> {
 
 async function buildErrorApp(): Promise<Elysia> {
   const { errorMiddleware } = await import("../src/core/middleware/error");
-  const { observabilityMiddleware } = await import(
-    "../src/core/middleware/observability"
-  );
-  const { requestTraceMiddleware } = await import(
-    "../src/core/middleware/request-trace"
-  );
+  const { observabilityMiddleware } = await import("../src/core/middleware/observability");
+  const { requestTraceMiddleware } = await import("../src/core/middleware/request-trace");
   return new Elysia()
     .use(errorMiddleware)
     .use(observabilityMiddleware)
@@ -184,14 +167,11 @@ describe("HTTP span lifecycle — Bun.serve + observabilityMiddleware full pipel
   });
 
   test("Test 1 — well-formed inbound traceparent (Phase 20.1 D-12 always-trust): adopted, route-template span, outbound headers present", async () => {
-    const { decideInboundTrace } = await import(
-      `../src/lib/inbound-trace?t=${Date.now()}-t1`
-    );
+    const { decideInboundTrace } = await import(`../src/lib/inbound-trace?t=${Date.now()}-t1`);
     const app = await buildOkApp();
     const req = new Request("http://localhost/api/test/abc-123", {
       headers: {
-        traceparent:
-          "00-aabbccddeeff00112233445566778899-1122334455667788-01",
+        traceparent: "00-aabbccddeeff00112233445566778899-1122334455667788-01",
         "x-request-id": "r-test-1",
       },
     });
@@ -216,31 +196,23 @@ describe("HTTP span lifecycle — Bun.serve + observabilityMiddleware full pipel
     // the matched path. This is the authoritative cardinality-safe surface
     // per D-13.
     const routeAttr = spans[0].events.find(
-      (e) =>
-        e.type === "setAttribute" &&
-        (e.payload as { k: string }).k === "http.route",
+      (e) => e.type === "setAttribute" && (e.payload as { k: string }).k === "http.route",
     );
     expect((routeAttr?.payload as { v: unknown }).v).toBe("/api/test/:id");
 
     // http.method + http.status_code attributes.
     const methodAttr = spans[0].events.find(
-      (e) =>
-        e.type === "setAttribute" &&
-        (e.payload as { k: string }).k === "http.method",
+      (e) => e.type === "setAttribute" && (e.payload as { k: string }).k === "http.method",
     );
     expect((methodAttr?.payload as { v: unknown }).v).toBe("GET");
     const statusAttr = spans[0].events.find(
-      (e) =>
-        e.type === "setAttribute" &&
-        (e.payload as { k: string }).k === "http.status_code",
+      (e) => e.type === "setAttribute" && (e.payload as { k: string }).k === "http.status_code",
     );
     expect((statusAttr?.payload as { v: unknown }).v).toBe(200);
 
     // Outbound traceparent header — well-formed + adopted traceId (D-12 always-trust).
     const tpOut = res.headers.get("traceparent");
-    expect(tpOut).toMatch(
-      /^00-aabbccddeeff00112233445566778899-[0-9a-f]{16}-01$/,
-    );
+    expect(tpOut).toMatch(/^00-aabbccddeeff00112233445566778899-[0-9a-f]{16}-01$/);
     const traceIdOut = tpOut!.slice(3, 35);
     expect(traceIdOut).toBe("aabbccddeeff00112233445566778899");
 
@@ -252,9 +224,7 @@ describe("HTTP span lifecycle — Bun.serve + observabilityMiddleware full pipel
     // Phase 20.1 D-12 dropped the CIDR + trusted-header trust gate. The helper
     // now adopts any well-formed inbound traceparent and falls through to a
     // fresh trace only when the header is absent or fails the regex.
-    const { decideInboundTrace } = await import(
-      `../src/lib/inbound-trace?t=${Date.now()}-t2`
-    );
+    const { decideInboundTrace } = await import(`../src/lib/inbound-trace?t=${Date.now()}-t2`);
     const app = await buildOkApp();
     const req = new Request("http://localhost/api/test/abc-123", {
       headers: {
@@ -274,9 +244,7 @@ describe("HTTP span lifecycle — Bun.serve + observabilityMiddleware full pipel
   });
 
   test("Test 3 (W3) — exactly one x-request-id response header (composed D-23 single-writer invariant)", async () => {
-    const { decideInboundTrace } = await import(
-      `../src/lib/inbound-trace?t=${Date.now()}-t3`
-    );
+    const { decideInboundTrace } = await import(`../src/lib/inbound-trace?t=${Date.now()}-t3`);
     const app = await buildOkApp();
     const req = new Request("http://localhost/api/test/xyz", {
       headers: { "x-request-id": "r-test-3" },
@@ -311,9 +279,7 @@ describe("HTTP span lifecycle — Bun.serve + observabilityMiddleware full pipel
     // isolation (observabilityMiddleware mounted without errorMiddleware) —
     // the unit-scale invariant is covered there. This integration test
     // asserts the COMPOSED stack's actual lifecycle, which is what B3 gates.
-    const { decideInboundTrace } = await import(
-      `../src/lib/inbound-trace?t=${Date.now()}-t4`
-    );
+    const { decideInboundTrace } = await import(`../src/lib/inbound-trace?t=${Date.now()}-t4`);
     const app = await buildErrorApp();
     const req = new Request("http://localhost/api/test/err");
     const res = await handleReq(req, app, decideInboundTrace);
@@ -329,20 +295,14 @@ describe("HTTP span lifecycle — Bun.serve + observabilityMiddleware full pipel
 
     // http.status_code IS captured on the error path (onAfterResponse runs).
     const statusAttr = spans[0].events.find(
-      (e) =>
-        e.type === "setAttribute" &&
-        (e.payload as { k: string }).k === "http.status_code",
+      (e) => e.type === "setAttribute" && (e.payload as { k: string }).k === "http.status_code",
     );
     expect(statusAttr).toBeTruthy();
-    expect((statusAttr!.payload as { v: number }).v).toBeGreaterThanOrEqual(
-      400,
-    );
+    expect((statusAttr!.payload as { v: number }).v).toBeGreaterThanOrEqual(400);
   });
 
   test("Test 5 — every successful response has well-formed outbound traceparent", async () => {
-    const { decideInboundTrace } = await import(
-      `../src/lib/inbound-trace?t=${Date.now()}-t5`
-    );
+    const { decideInboundTrace } = await import(`../src/lib/inbound-trace?t=${Date.now()}-t5`);
     const app = await buildOkApp();
     const res = await handleReq(
       new Request("http://localhost/api/test/q"),
@@ -350,15 +310,11 @@ describe("HTTP span lifecycle — Bun.serve + observabilityMiddleware full pipel
       decideInboundTrace,
     );
     await flushAfterResponse();
-    expect(res.headers.get("traceparent")).toMatch(
-      /^00-[0-9a-f]{32}-[0-9a-f]{16}-01$/,
-    );
+    expect(res.headers.get("traceparent")).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-01$/);
   });
 
   test("Test 6 — 5 sequential requests produce 5 distinct outbound traceIds (no ALS-seed leak)", async () => {
-    const { decideInboundTrace } = await import(
-      `../src/lib/inbound-trace?t=${Date.now()}-t6`
-    );
+    const { decideInboundTrace } = await import(`../src/lib/inbound-trace?t=${Date.now()}-t6`);
     const app = await buildOkApp();
     const ids = new Set<string>();
     for (let i = 0; i < 5; i++) {

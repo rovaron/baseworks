@@ -1,11 +1,4 @@
-import {
-  describe,
-  test,
-  expect,
-  beforeEach,
-  afterEach,
-  mock,
-} from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { Elysia } from "elysia";
 
 // Set t3-env-required vars before the @baseworks/observability barrel loads
@@ -16,12 +9,12 @@ import { Elysia } from "elysia";
 import "./_env-setup";
 
 import {
+  type ObservabilityContext,
   obsContext,
   resetTracer,
-  setTracer,
-  type ObservabilityContext,
   type Span,
   type SpanOptions,
+  setTracer,
   type Tracer,
 } from "@baseworks/observability";
 import { observabilityMiddleware } from "../observability";
@@ -52,11 +45,9 @@ function makeRecordingTracer(): {
   const spans: RecordedSpan[] = [];
   const mkSpan = (rec: RecordedSpan): Span => ({
     end: () => rec.events.push({ type: "end", payload: null }),
-    setAttribute: (k, v) =>
-      rec.events.push({ type: "setAttribute", payload: { k, v } }),
+    setAttribute: (k, v) => rec.events.push({ type: "setAttribute", payload: { k, v } }),
     setStatus: (s) => rec.events.push({ type: "setStatus", payload: s }),
-    recordException: (err) =>
-      rec.events.push({ type: "recordException", payload: err }),
+    recordException: (err) => rec.events.push({ type: "recordException", payload: err }),
   });
   const tracer: Tracer = {
     name: "recording",
@@ -77,9 +68,7 @@ function makeRecordingTracer(): {
   return { tracer, spans };
 }
 
-function makeCtx(
-  overrides: Partial<ObservabilityContext> = {},
-): ObservabilityContext {
+function makeCtx(overrides: Partial<ObservabilityContext> = {}): ObservabilityContext {
   return {
     requestId: "r-test",
     traceId: "a".repeat(32),
@@ -120,49 +109,31 @@ describe("observabilityMiddleware — HTTP span lifecycle (D-21)", () => {
   });
 
   test("Test 1: opens exactly one server-kind span, name starts with 'GET', carries request.id", async () => {
-    const app = new Elysia()
-      .use(observabilityMiddleware)
-      .get("/test-a", () => "ok");
-    await callApp(
-      app,
-      new Request("http://localhost/test-a"),
-      makeCtx({ requestId: "REQ-1" }),
-    );
+    const app = new Elysia().use(observabilityMiddleware).get("/test-a", () => "ok");
+    await callApp(app, new Request("http://localhost/test-a"), makeCtx({ requestId: "REQ-1" }));
     await flushAfterResponse();
     expect(spans.length).toBe(1);
     expect(spans[0].name).toMatch(/^GET/);
     expect(spans[0].options?.kind).toBe("server");
     const reqIdAttr = spans[0].events.find(
-      (e) =>
-        e.type === "setAttribute" &&
-        (e.payload as { k: string }).k === "request.id",
+      (e) => e.type === "setAttribute" && (e.payload as { k: string }).k === "request.id",
     );
     // request.id may be set in startSpan options or as an attribute — both acceptable.
-    const startAttrs = (spans[0].options?.attributes ?? {}) as Record<
-      string,
-      unknown
-    >;
+    const startAttrs = (spans[0].options?.attributes ?? {}) as Record<string, unknown>;
     expect(reqIdAttr || startAttrs["request.id"] === "REQ-1").toBeTruthy();
   });
 
   test("Test 2: setSpan publishes traceId/spanId into ALS (seen in .onBeforeHandle)", async () => {
     let seenTraceIdInBeforeHandle: string | undefined;
-    const probeApp = new Elysia({ name: "als-probe" }).onBeforeHandle(
-      { as: "global" },
-      () => {
-        seenTraceIdInBeforeHandle = obsContext.getStore()?.traceId;
-      },
-    );
+    const probeApp = new Elysia({ name: "als-probe" }).onBeforeHandle({ as: "global" }, () => {
+      seenTraceIdInBeforeHandle = obsContext.getStore()?.traceId;
+    });
     const app = new Elysia()
       .use(observabilityMiddleware)
       .use(probeApp)
       .get("/test-a", () => "ok");
     const seededTrace = "c".repeat(32);
-    await callApp(
-      app,
-      new Request("http://localhost/test-a"),
-      makeCtx({ traceId: seededTrace }),
-    );
+    await callApp(app, new Request("http://localhost/test-a"), makeCtx({ traceId: seededTrace }));
     await flushAfterResponse();
     // setSpan should have mutated the ALS traceId — the probe sees the
     // seeded value (setSpan rewrites in place with the same traceId).
@@ -175,61 +146,35 @@ describe("observabilityMiddleware — HTTP span lifecycle (D-21)", () => {
       .get("/api/tenants/:id", ({ params }: { params: { id: string } }) => ({
         id: params.id,
       }));
-    await callApp(
-      app,
-      new Request("http://localhost/api/tenants/abc-123"),
-      makeCtx(),
-    );
+    await callApp(app, new Request("http://localhost/api/tenants/abc-123"), makeCtx());
     await flushAfterResponse();
     const routeAttr = spans[0].events.find(
-      (e) =>
-        e.type === "setAttribute" &&
-        (e.payload as { k: string }).k === "http.route",
+      (e) => e.type === "setAttribute" && (e.payload as { k: string }).k === "http.route",
     );
     expect(routeAttr).toBeTruthy();
-    expect((routeAttr!.payload as { v: unknown }).v).toBe(
-      "/api/tenants/:id",
-    );
+    expect((routeAttr!.payload as { v: unknown }).v).toBe("/api/tenants/:id");
   });
 
   test("Test 4: http.method attribute matches request method", async () => {
-    const app = new Elysia()
-      .use(observabilityMiddleware)
-      .post("/test-p", () => "ok");
-    await callApp(
-      app,
-      new Request("http://localhost/test-p", { method: "POST" }),
-      makeCtx(),
-    );
+    const app = new Elysia().use(observabilityMiddleware).post("/test-p", () => "ok");
+    await callApp(app, new Request("http://localhost/test-p", { method: "POST" }), makeCtx());
     await flushAfterResponse();
     const methodAttr = spans[0].events.find(
-      (e) =>
-        e.type === "setAttribute" &&
-        (e.payload as { k: string }).k === "http.method",
+      (e) => e.type === "setAttribute" && (e.payload as { k: string }).k === "http.method",
     );
     expect(methodAttr).toBeTruthy();
     expect((methodAttr!.payload as { v: unknown }).v).toBe("POST");
   });
 
   test("Test 5: onError records exception + sets error status; span still ends", async () => {
-    const app = new Elysia()
-      .use(observabilityMiddleware)
-      .get("/boom", () => {
-        throw new Error("explode");
-      });
-    await callApp(
-      app,
-      new Request("http://localhost/boom"),
-      makeCtx(),
-    );
+    const app = new Elysia().use(observabilityMiddleware).get("/boom", () => {
+      throw new Error("explode");
+    });
+    await callApp(app, new Request("http://localhost/boom"), makeCtx());
     await flushAfterResponse();
-    const recordExc = spans[0].events.find(
-      (e) => e.type === "recordException",
-    );
+    const recordExc = spans[0].events.find((e) => e.type === "recordException");
     const setErr = spans[0].events.find(
-      (e) =>
-        e.type === "setStatus" &&
-        (e.payload as { code: string }).code === "error",
+      (e) => e.type === "setStatus" && (e.payload as { code: string }).code === "error",
     );
     const ended = spans[0].events.find((e) => e.type === "end");
     expect(recordExc).toBeTruthy();
@@ -248,18 +193,14 @@ describe("observabilityMiddleware — HTTP span lifecycle (D-21)", () => {
     await callApp(app, new Request("http://localhost/ok"), makeCtx());
     await flushAfterResponse();
     const statusAttr = spans[0].events.find(
-      (e) =>
-        e.type === "setAttribute" &&
-        (e.payload as { k: string }).k === "http.status_code",
+      (e) => e.type === "setAttribute" && (e.payload as { k: string }).k === "http.status_code",
     );
     expect(statusAttr).toBeTruthy();
     expect((statusAttr!.payload as { v: unknown }).v).toBe(200);
   });
 
   test("Test 7: onAfterResponse sets tenant.id + user.id from ALS", async () => {
-    const app = new Elysia()
-      .use(observabilityMiddleware)
-      .get("/test-a", () => "ok");
+    const app = new Elysia().use(observabilityMiddleware).get("/test-a", () => "ok");
     await callApp(
       app,
       new Request("http://localhost/test-a"),
@@ -267,23 +208,17 @@ describe("observabilityMiddleware — HTTP span lifecycle (D-21)", () => {
     );
     await flushAfterResponse();
     const tenantAttr = spans[0].events.find(
-      (e) =>
-        e.type === "setAttribute" &&
-        (e.payload as { k: string }).k === "tenant.id",
+      (e) => e.type === "setAttribute" && (e.payload as { k: string }).k === "tenant.id",
     );
     const userAttr = spans[0].events.find(
-      (e) =>
-        e.type === "setAttribute" &&
-        (e.payload as { k: string }).k === "user.id",
+      (e) => e.type === "setAttribute" && (e.payload as { k: string }).k === "user.id",
     );
     expect((tenantAttr!.payload as { v: unknown }).v).toBe("T1");
     expect((userAttr!.payload as { v: unknown }).v).toBe("U1");
   });
 
   test("Test 8: tenant.id attribute OMITTED when ALS tenantId is null (pre-auth routes)", async () => {
-    const app = new Elysia()
-      .use(observabilityMiddleware)
-      .get("/test-a", () => "ok");
+    const app = new Elysia().use(observabilityMiddleware).get("/test-a", () => "ok");
     await callApp(
       app,
       new Request("http://localhost/test-a"),
@@ -291,23 +226,17 @@ describe("observabilityMiddleware — HTTP span lifecycle (D-21)", () => {
     );
     await flushAfterResponse();
     const tenantAttr = spans[0].events.find(
-      (e) =>
-        e.type === "setAttribute" &&
-        (e.payload as { k: string }).k === "tenant.id",
+      (e) => e.type === "setAttribute" && (e.payload as { k: string }).k === "tenant.id",
     );
     const userAttr = spans[0].events.find(
-      (e) =>
-        e.type === "setAttribute" &&
-        (e.payload as { k: string }).k === "user.id",
+      (e) => e.type === "setAttribute" && (e.payload as { k: string }).k === "user.id",
     );
     expect(tenantAttr).toBeUndefined();
     expect(userAttr).toBeUndefined();
   });
 
   test("Test 9: outbound traceparent header on Response (D-09)", async () => {
-    const app = new Elysia()
-      .use(observabilityMiddleware)
-      .get("/test-a", () => "ok");
+    const app = new Elysia().use(observabilityMiddleware).get("/test-a", () => "ok");
     const tid = "d".repeat(32);
     const sid = "e".repeat(16);
     const res = await callApp(
@@ -319,9 +248,7 @@ describe("observabilityMiddleware — HTTP span lifecycle (D-21)", () => {
   });
 
   test("Test 10: x-request-id header on Response (D-23 single-writer)", async () => {
-    const app = new Elysia()
-      .use(observabilityMiddleware)
-      .get("/test-a", () => "ok");
+    const app = new Elysia().use(observabilityMiddleware).get("/test-a", () => "ok");
     const res = await callApp(
       app,
       new Request("http://localhost/test-a"),
@@ -331,14 +258,8 @@ describe("observabilityMiddleware — HTTP span lifecycle (D-21)", () => {
   });
 
   test("Test 11: span.end called exactly once per request", async () => {
-    const app = new Elysia()
-      .use(observabilityMiddleware)
-      .get("/test-a", () => "ok");
-    await callApp(
-      app,
-      new Request("http://localhost/test-a"),
-      makeCtx(),
-    );
+    const app = new Elysia().use(observabilityMiddleware).get("/test-a", () => "ok");
+    await callApp(app, new Request("http://localhost/test-a"), makeCtx());
     await flushAfterResponse();
     const endEvents = spans[0].events.filter((e) => e.type === "end");
     expect(endEvents.length).toBe(1);
@@ -390,9 +311,7 @@ describe("observabilityMiddleware — B4 defensive-read invariant", () => {
       `../observability?t=${Date.now()}${Math.random()}`
     );
 
-    const app = new Elysia()
-      .use(freshMiddleware)
-      .get("/test-a", () => "ok");
+    const app = new Elysia().use(freshMiddleware).get("/test-a", () => "ok");
 
     // NOT wrapped in obsContext.run — ALS frame is absent.
     const res = await app.handle(new Request("http://localhost/test-a"));
@@ -404,9 +323,7 @@ describe("observabilityMiddleware — B4 defensive-read invariant", () => {
     expect(spans.length).toBe(0);
     // (c) warning logged once on derive.
     const warnLine = captured.find((l) =>
-      String(l.msg ?? "").includes(
-        "observabilityMiddleware invoked without obsContext",
-      ),
+      String(l.msg ?? "").includes("observabilityMiddleware invoked without obsContext"),
     );
     expect(warnLine).toBeTruthy();
     // (d) no outbound headers written (no seeded ids to write).
@@ -415,9 +332,7 @@ describe("observabilityMiddleware — B4 defensive-read invariant", () => {
   });
 
   test("Test 13: source has zero non-null assertions on ALS reads (byte-level grep)", async () => {
-    const src = await Bun.file(
-      "apps/api/src/core/middleware/observability.ts",
-    ).text();
+    const src = await Bun.file("apps/api/src/core/middleware/observability.ts").text();
     // No `store!.` or `getObsContext()!` anywhere in the file.
     expect(src).not.toMatch(/store!\./);
     expect(src).not.toMatch(/getObsContext\(\)!/);

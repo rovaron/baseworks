@@ -11,9 +11,9 @@
  * bleed state.
  */
 
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { NoopTracer } from "../../adapters/noop/noop-tracer";
-import { getTracer, setTracer, resetTracer } from "../../factory";
+import { getTracer, resetTracer, setTracer } from "../../factory";
 import type { Tracer } from "../../ports/tracer";
 
 describe("tracer factory (OBS-03)", () => {

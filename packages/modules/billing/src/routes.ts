@@ -108,7 +108,7 @@ export const billingWebhookRoutes = new Elysia({ prefix: "/api/billing" }).post(
     // Elysia may auto-parse JSON bodies, so clone the request to get raw text
     const rawBody = await ctx.request.clone().text();
 
-    let rawEvent;
+    let rawEvent: Awaited<ReturnType<typeof provider.verifyWebhookSignature>>;
     try {
       rawEvent = await provider.verifyWebhookSignature({ rawBody, signature: sig });
     } catch (err) {

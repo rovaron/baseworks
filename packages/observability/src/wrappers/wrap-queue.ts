@@ -21,20 +21,15 @@
  *
  * Single-wrap discipline: createQueue is the only wrap site.
  */
-import type { JobsOptions, Queue } from "bullmq";
-import {
-  context,
-  propagation,
-  SpanKind,
-  SpanStatusCode,
-  trace,
-} from "@opentelemetry/api";
+
+import { context, propagation, SpanKind, SpanStatusCode, trace } from "@opentelemetry/api";
 import {
   ATTR_MESSAGING_DESTINATION_NAME,
   ATTR_MESSAGING_MESSAGE_ID,
   ATTR_MESSAGING_OPERATION,
   ATTR_MESSAGING_SYSTEM,
 } from "@opentelemetry/semantic-conventions/incubating";
+import type { JobsOptions, Queue } from "bullmq";
 import { obsContext } from "../context";
 
 const TRACER_NAME = "baseworks.queue";

@@ -1,22 +1,22 @@
-import i18n from "i18next";
-import { initReactI18next } from "react-i18next";
 import {
   defaultLocale,
+  enAdmin,
+  enAuth,
+  enBilling,
+  enCommon,
+  enDashboard,
+  enInvite,
   locales,
   namespaces,
-  enCommon,
-  enAuth,
-  enDashboard,
-  enBilling,
-  enAdmin,
-  enInvite,
-  ptBRCommon,
-  ptBRAuth,
-  ptBRDashboard,
-  ptBRBilling,
   ptBRAdmin,
+  ptBRAuth,
+  ptBRBilling,
+  ptBRCommon,
+  ptBRDashboard,
   ptBRInvite,
 } from "@baseworks/i18n";
+import i18n from "i18next";
+import { initReactI18next } from "react-i18next";
 
 const resources = {
   en: {

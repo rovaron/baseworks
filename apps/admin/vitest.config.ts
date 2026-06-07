@@ -1,5 +1,5 @@
-import { defineConfig } from "vitest/config";
 import path from "path";
+import { defineConfig } from "vitest/config";
 
 // Phase 22 / OPS-02 — first React component tests in apps/admin.
 // Uses jsdom + @testing-library/react. Vite plugin chain is intentionally NOT included

@@ -15,15 +15,15 @@
  * between the 13 fixture runs the hub accumulates integrations and
  * transport state across calls (T-18-32).
  */
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as Sentry from "@sentry/bun";
-import { pino } from "pino";
 import type { Logger } from "pino";
-import { PII_FIXTURES, type PiiFixture } from "./pii-fixtures";
-import { PinoErrorTracker } from "../pino/pino-error-tracker";
-import { SentryErrorTracker } from "../sentry/sentry-error-tracker";
+import { pino } from "pino";
 import { NoopErrorTracker } from "../noop/noop-error-tracker";
+import { PinoErrorTracker } from "../pino/pino-error-tracker";
 import { makeTestTransport } from "../sentry/__tests__/test-transport";
+import { SentryErrorTracker } from "../sentry/sentry-error-tracker";
+import { PII_FIXTURES, type PiiFixture } from "./pii-fixtures";
 
 const TEST_DSN = "http://public@example.com/1";
 

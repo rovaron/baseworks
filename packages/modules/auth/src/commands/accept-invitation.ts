@@ -1,5 +1,5 @@
+import { defineCommand, err, ok } from "@baseworks/shared";
 import { Type } from "@sinclair/typebox";
-import { defineCommand, ok, err } from "@baseworks/shared";
 import { auth } from "../auth";
 
 const AcceptInvitationInput = Type.Object({
@@ -25,22 +25,19 @@ const AcceptInvitationInput = Type.Object({
  * Per INVT-04: Invited user can accept invite and join the
  * organization.
  */
-export const acceptInvitation = defineCommand(
-  AcceptInvitationInput,
-  async (input, ctx) => {
-    try {
-      const result = await auth.api.acceptInvitation({
-        body: { invitationId: input.invitationId },
-        headers: ctx.headers ?? new Headers(),
-      });
+export const acceptInvitation = defineCommand(AcceptInvitationInput, async (input, ctx) => {
+  try {
+    const result = await auth.api.acceptInvitation({
+      body: { invitationId: input.invitationId },
+      headers: ctx.headers ?? new Headers(),
+    });
 
-      ctx.emit("invitation.accepted", {
-        invitationId: input.invitationId,
-      });
+    ctx.emit("invitation.accepted", {
+      invitationId: input.invitationId,
+    });
 
-      return ok(result);
-    } catch (error: any) {
-      return err(error.message || "Failed to accept invitation");
-    }
-  },
-);
+    return ok(result);
+  } catch (error: any) {
+    return err(error.message || "Failed to accept invitation");
+  }
+});

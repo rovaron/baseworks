@@ -44,9 +44,7 @@ export interface HeartbeatPublisherHandle {
  * transitions worker from healthy → absent immediately on graceful shutdown).
  * SIGKILL'd workers leave the key for ≤ TTL — the irreducible window.
  */
-export function startHeartbeatPublisher(
-  opts: HeartbeatPublisherOptions,
-): HeartbeatPublisherHandle {
+export function startHeartbeatPublisher(opts: HeartbeatPublisherOptions): HeartbeatPublisherHandle {
   const key = `worker:heartbeat:${opts.instanceId}`;
   const ttlSec = Math.ceil((opts.intervalMs * 2) / 1000);
   const noopLogger = { warn: () => {} };
@@ -92,10 +90,7 @@ export function startHeartbeatPublisher(
       try {
         await opts.redis.del(key);
       } catch (err) {
-        log.warn(
-          { err: String(err), key },
-          "worker heartbeat DEL failed during shutdown",
-        );
+        log.warn({ err: String(err), key }, "worker heartbeat DEL failed during shutdown");
       }
     },
   };
@@ -109,13 +104,7 @@ export async function readHeartbeats(redis: IORedis): Promise<HeartbeatPayload[]
   const out: HeartbeatPayload[] = [];
   let cursor = "0";
   do {
-    const [next, keys] = await redis.scan(
-      cursor,
-      "MATCH",
-      "worker:heartbeat:*",
-      "COUNT",
-      100,
-    );
+    const [next, keys] = await redis.scan(cursor, "MATCH", "worker:heartbeat:*", "COUNT", 100);
     cursor = next;
     if (keys.length) {
       const values = await redis.mget(...keys);

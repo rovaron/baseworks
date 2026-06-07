@@ -1,9 +1,10 @@
 /// <reference types="vitest" />
 /// <reference types="@testing-library/jest-dom" />
-import * as React from "react";
-import { describe, expect, test, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen, waitFor } from "@testing-library/react";
+import type * as React from "react";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 vi.mock("react-i18next", () => ({
   useTranslation: (ns: string) => ({
@@ -16,12 +17,24 @@ vi.mock("react-i18next", () => ({
 }));
 
 vi.mock("@baseworks/ui", () => ({
-  Card: ({ children, ...p }: any) => <div data-testid="card" {...p}>{children}</div>,
+  Card: ({ children, ...p }: any) => (
+    <div data-testid="card" {...p}>
+      {children}
+    </div>
+  ),
   CardHeader: ({ children, ...p }: any) => <div {...p}>{children}</div>,
   CardTitle: ({ children, ...p }: any) => <div {...p}>{children}</div>,
   CardContent: ({ children, ...p }: any) => <div {...p}>{children}</div>,
-  Badge: ({ children, variant, ...p }: any) => <span data-variant={variant} {...p}>{children}</span>,
-  Button: ({ children, onClick, ...p }: any) => <button onClick={onClick} {...p}>{children}</button>,
+  Badge: ({ children, variant, ...p }: any) => (
+    <span data-variant={variant} {...p}>
+      {children}
+    </span>
+  ),
+  Button: ({ children, onClick, ...p }: any) => (
+    <button onClick={onClick} {...p}>
+      {children}
+    </button>
+  ),
   Skeleton: (p: any) => <div data-testid="skeleton" {...p} />,
   cn: (...a: any[]) => a.filter(Boolean).join(" "),
 }));
@@ -48,10 +61,36 @@ function makeEnvelope(over: Partial<any> = {}) {
       timestamp: new Date().toISOString(),
       uptime: 3600,
       queues: [
-        { name: "email-send", waiting: 5, active: 0, delayed: 0, completed: 100, failed: 0, status: "healthy", thresholds: { warn: 100, critical: 1000 } },
-        { name: "billing-sync", waiting: 150, active: 1, delayed: 0, completed: 50, failed: 2, status: "warning", thresholds: { warn: 100, critical: 1000 } },
+        {
+          name: "email-send",
+          waiting: 5,
+          active: 0,
+          delayed: 0,
+          completed: 100,
+          failed: 0,
+          status: "healthy",
+          thresholds: { warn: 100, critical: 1000 },
+        },
+        {
+          name: "billing-sync",
+          waiting: 150,
+          active: 1,
+          delayed: 0,
+          completed: 50,
+          failed: 2,
+          status: "warning",
+          thresholds: { warn: 100, critical: 1000 },
+        },
       ],
-      workers: [{ instanceId: "host-a", queues: ["email-send"], lastHeartbeat: new Date().toISOString(), ageSec: 5, status: "healthy" }],
+      workers: [
+        {
+          instanceId: "host-a",
+          queues: ["email-send"],
+          lastHeartbeat: new Date().toISOString(),
+          ageSec: 5,
+          status: "healthy",
+        },
+      ],
       db: { connected: true, lagMs: 23, status: "healthy" },
       recentErrors: [],
       modules: [
@@ -88,7 +127,9 @@ describe("/system route — /health/detailed consumer (OPS-03)", () => {
   test("renders title heading", async () => {
     renderWithClient(<Component />);
     await waitFor(() =>
-      expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("admin:systemHealth.title"),
+      expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+        "admin:systemHealth.title",
+      ),
     );
   });
 
@@ -102,7 +143,7 @@ describe("/system route — /health/detailed consumer (OPS-03)", () => {
     await waitFor(() => expect(screen.getAllByTestId("queue-card").length).toBe(2));
   });
 
-  test("queue with waiting=150 shows status \"warning\"", async () => {
+  test('queue with waiting=150 shows status "warning"', async () => {
     renderWithClient(<Component />);
     await waitFor(() => {
       const cards = screen.getAllByTestId("queue-card");
@@ -144,18 +185,23 @@ describe("/system route — /health/detailed consumer (OPS-03)", () => {
     (globalThis as any).fetch = vi.fn(async () => ({
       ok: true,
       status: 200,
-      json: async () => makeEnvelope({ db: { connected: false, lagMs: null, status: "unhealthy" } }),
+      json: async () =>
+        makeEnvelope({ db: { connected: false, lagMs: null, status: "unhealthy" } }),
     }));
     renderWithClient(<Component />);
     await waitFor(() =>
-      expect(screen.getByTestId("db-card").textContent).toContain("admin:systemHealth.db.lagUnavailable"),
+      expect(screen.getByTestId("db-card").textContent).toContain(
+        "admin:systemHealth.db.lagUnavailable",
+      ),
     );
   });
 
   test("recentErrors empty shows empty copy", async () => {
     renderWithClient(<Component />);
     await waitFor(() =>
-      expect(screen.getByTestId("errors-card").textContent).toContain("admin:systemHealth.recentErrors.empty"),
+      expect(screen.getByTestId("errors-card").textContent).toContain(
+        "admin:systemHealth.recentErrors.empty",
+      ),
     );
   });
 
@@ -186,14 +232,22 @@ describe("/system route — /health/detailed consumer (OPS-03)", () => {
   });
 
   test("fetch failure → page-level error card with retry button", async () => {
-    (globalThis as any).fetch = vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) }));
+    (globalThis as any).fetch = vi.fn(async () => ({
+      ok: false,
+      status: 500,
+      json: async () => ({}),
+    }));
     renderWithClient(<Component />);
     await waitFor(() => expect(screen.getByTestId("alert-icon")).toBeInTheDocument());
     expect(screen.getByRole("button", { name: "common:retry" })).toBeInTheDocument();
   });
 
   test("403 fetch shows forbidden copy WITHOUT retry button", async () => {
-    (globalThis as any).fetch = vi.fn(async () => ({ ok: false, status: 403, json: async () => ({}) }));
+    (globalThis as any).fetch = vi.fn(async () => ({
+      ok: false,
+      status: 403,
+      json: async () => ({}),
+    }));
     renderWithClient(<Component />);
     await waitFor(() =>
       expect(screen.queryByText("admin:systemHealth.errors.forbidden")).toBeInTheDocument(),

@@ -19,20 +19,18 @@
  */
 
 import { afterAll, describe, expect, test } from "bun:test";
-import { $ } from "bun";
-import { existsSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { $ } from "bun";
 
 const REPO_ROOT = join(import.meta.dir, "..", "..");
-const FIXTURE_PATH =
-  "scripts/__tests__/__fixtures__/direct-files-access-violation.ts";
+const FIXTURE_PATH = "scripts/__tests__/__fixtures__/direct-files-access-violation.ts";
 const FIXTURE_ABS = join(REPO_ROOT, FIXTURE_PATH);
 
 // Red-path temp fixture MUST live under packages/ or apps/ so the grep script
 // finds it, MUST use `.ts` suffix to match the script's --include filter, and
 // MUST be outside packages/modules/files/ (the allow-listed sanctioned path).
-const TMP_FIXTURE_REL =
-  "apps/api/src/__files_access_red_path_fixture_tmp__.ts";
+const TMP_FIXTURE_REL = "apps/api/src/__files_access_red_path_fixture_tmp__.ts";
 const TMP_FIXTURE_ABS = join(REPO_ROOT, TMP_FIXTURE_REL);
 
 afterAll(() => {
@@ -82,16 +80,21 @@ describe("D-17 two-layer no-direct-files-table-access ban (Plan 24-07)", () => {
   // B5 — the mandatory "Biome rule actually fires on the fixture" gate.
   test("B5: Biome GritQL rule fires on the red-path fixture (exit != 0 + rule id on output)", async () => {
     expect(existsSync(FIXTURE_ABS)).toBe(true);
-    const proc = await $`bunx biome check ${FIXTURE_PATH}`
-      .cwd(REPO_ROOT)
-      .nothrow()
-      .quiet();
-    const out = proc.stdout.toString() + proc.stderr.toString();
+    // The committed fixture lives under __fixtures__, which is excluded from
+    // Biome's file set so it does not fail the repo-wide `biome check .`.
+    // Copy it to a temp path Biome DOES scan so the GritQL plugin actually fires.
+    writeFileSync(TMP_FIXTURE_ABS, readFileSync(FIXTURE_ABS));
+    try {
+      const proc = await $`bunx biome check ${TMP_FIXTURE_REL}`.cwd(REPO_ROOT).nothrow().quiet();
+      const out = proc.stdout.toString() + proc.stderr.toString();
 
-    // (a) Biome must exit non-zero on the violation.
-    expect(proc.exitCode).not.toBe(0);
-    // (b) The rule id must appear on output — proves the GritQL rule actually
-    //     fired (not just that Biome found some OTHER issue in the fixture).
-    expect(out).toContain("no-direct-files-table-access");
+      // (a) Biome must exit non-zero on the violation.
+      expect(proc.exitCode).not.toBe(0);
+      // (b) The rule id must appear on output — proves the GritQL rule actually
+      //     fired (not just that Biome found some OTHER issue in the fixture).
+      expect(out).toContain("no-direct-files-table-access");
+    } finally {
+      unlinkSync(TMP_FIXTURE_ABS);
+    }
   });
 });
