@@ -27,15 +27,18 @@ describe("getInvitation", () => {
     mockGetInvitation.mockReset();
   });
 
-  test("returns invitation on success", async () => {
+  test("returns whitelisted invitation on success (strips extra fields)", async () => {
     const invitation = {
       id: "inv-1",
       email: "invited@test.com",
       role: "member",
       status: "pending",
       organizationId: "org-1",
+      inviterId: "user-9",
       organization: { name: "Test Org" },
-      inviter: { user: { name: "Admin User" } },
+      inviter: { user: { name: "Admin User", email: "admin@test.com" } },
+      // An internal field that must NOT leak through the public endpoint.
+      internalToken: "do-not-leak",
     };
     mockGetInvitation.mockResolvedValueOnce(invitation);
 
@@ -43,7 +46,18 @@ describe("getInvitation", () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data).toEqual(invitation);
+      expect(result.data).toEqual({
+        id: "inv-1",
+        organizationId: "org-1",
+        email: "invited@test.com",
+        role: "member",
+        status: "pending",
+        inviterId: "user-9",
+        organization: { name: "Test Org" },
+        inviter: { user: { name: "Admin User", email: "admin@test.com" } },
+      });
+      // The extra provider field is dropped by the whitelist.
+      expect((result.data as Record<string, unknown>).internalToken).toBeUndefined();
     }
     expect(mockGetInvitation).toHaveBeenCalledWith({
       query: { id: "inv-1" },

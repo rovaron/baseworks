@@ -29,15 +29,20 @@ export function tenantIdColumn() {
  * Return `createdAt` and `updatedAt` timestamp column definitions
  * with automatic `defaultNow()` values.
  *
- * Applied to all tables for audit trails. Both columns default to the
- * current timestamp at insert time. `updatedAt` should be updated by
- * application code on modifications.
+ * Applied to all tables for audit trails. Both columns default to the current
+ * timestamp at insert time; `updatedAt` is additionally auto-bumped on every
+ * Drizzle UPDATE via `$onUpdate`, so callers no longer have to remember to set
+ * it (timestamps-updatedat-no-onupdate). An explicit `updatedAt` in a `.set()`
+ * still takes precedence.
  *
  * @returns Object with `createdAt` and `updatedAt` Drizzle column builders
  */
 export function timestampColumns() {
   return {
     createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .notNull()
+      .$onUpdate(() => new Date()),
   };
 }
