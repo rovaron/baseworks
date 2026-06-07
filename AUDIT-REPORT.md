@@ -53,6 +53,55 @@ the review sections below for a deliberate decision, **not** silently shipped.
 | `ui-datatablecards-action-click-bubbles` | `packages/ui/src/components/data-table-cards.tsx` | The `onClick stopPropagation` on a plain `<div>` fixes a genuine bug (action clicks bubble to the row) but adds **2 new a11y lint diagnostics** (`noStaticElementInteractions`, `useKeyWithClickEvents`). Clean fix needs a11y-aware handling or a target-check in `handleCardClick`. |
 | `pino-major-drift` | `packages/modules/billing/package.json` | Bumping `pino ^9 → ^10` is a **major** dependency upgrade (potential breaking changes, never installed/tested) and would diverge billing from the monorepo's pino 9. Not a mechanical win — decide deliberately and run the install + tests. |
 
+## 🛠️ Full remediation campaign (stages A/B/C)
+
+After the initial 29 safe wins, a follow-up multi-agent campaign fixed the **majority of the
+remaining confirmed findings** (criticals, highs, mediums, most lows + several nits) across three
+verified stages. Every stage was baseline-diffed against the prior commit; the branch ends at:
+
+| Gate | Original `main` | Final | Net |
+|---|---|---|---|
+| `bun test` | 474 / 9 fail | **474 / 9 fail** | 0 regressions |
+| `bun run typecheck` | 118 errors | **113 errors** | −5 |
+| Commits | — | `139b7e1` → `a483502` (A) → `9d8d8b7` (B) → `85d5164` (C) | 4 |
+
+The 9 remaining test failures are pre-existing and environmental (no Postgres/Redis here).
+
+**Stage A — foundations:** `getDb()`/`closeDb()` pooled singleton + bounded pool opts;
+`HandlerContext.headers`; typed `AppError`/`Unauthorized`/`NoActiveTenant`/`Forbidden`; billing
+webhook split + hardening (503-before-insert, dup re-enqueue, 23505 race); env hardening
+(`ADMIN_EMAILS`, prod secret refine, webhook-secret validation); `requirePlatformAdmin()`.
+
+**Stage B — consumers:** pool-leak elimination across ~8 call sites; session-header threading
+through the auth query/command cluster; `requireRole("owner")` → `requirePlatformAdmin()` on
+operator surfaces; billing correctness (atomic `lastEventAt` UPDATEs on all 3 handlers,
+`payment.failed`→past_due, id-scoped sync-usage, idempotent provisioning, stable Stripe keys,
+provider `occurredAt`); API graceful shutdown + real tenant-delete + trimmed `/health`; scrub-pii
+cycle guard; registry throw-on-unknown; rate limiting; deterministic org select; frontend query
+error/retry states, invite toast, sidebar hydration, dark-mode tokens, keyboard-accessible
+DataTableCards (the proper fix for the earlier-reverted item).
+
+**Stage C — infra:** CI `ci` job (services + install/lint/typecheck/test); husky + lint-staged;
+Docker non-root + worker HEALTHCHECK; compose fail-closed secret + db/redis healthchecks; web +
+admin error boundaries; `.env.example` alignment; queue retention cap + override; api-client
+localhost warn; example schema reuse; repo-wide format normalization.
+
+### ⛔ Deliberately NOT applied (flagged for a human decision)
+
+These fight an explicit project contract/decision or exceed the safe-automation bar — they remain
+open in the sections below:
+
+| Finding | Why deferred |
+|---|---|
+| `cqrs-silent-handler-overwrite`, `eventbus-off-cannot-unsubscribe` | `core/cqrs.ts` + `core/event-bus.ts` are **frozen by the TRC-02 byte-equal invariant** (external wrap-only discipline). Fix belongs in the wrapper layer or needs a decision to unfreeze. |
+| `api-traceparent-always-trusted` | Contradicts the documented **D-12 always-trust** decision (hardening deferred per 20.1-CONTEXT). Needs a deliberate security call. |
+| `eventbus-fire-and-forget-no-durability`, full `billing-tenant-created-customer-no-retry` | Transactional-outbox / durable-job refactor — the report itself says route through a planned phase. Interim safe+idempotent+observable fix applied; durable queue still TODO. |
+| `auth-public-get-invitation-leaks-email` | Whitelisting the public response changes its shape and couples to the web accept page — needs a coordinated frontend + test change. |
+| `timestamps-updatedat-no-onupdate` | `$onUpdate` auto-bump is a real behavior change that perturbs Bun test-module ordering; needs a deliberate decision + suite fix. |
+| `pino-major-drift`, `zod-major-version-drift`, `lucide-react-drift`, `hookform-resolvers-drift` | Major/cross-package dependency version changes — require install + full regression, not a mechanical edit. |
+| Schema-index **migration** (billing/auth) | drizzle-kit's schema-path glob fails on Windows; generate via `bun run db:generate` on Linux/CI. Indexes apply via `db:push` in dev meanwhile. |
+| Repo-wide **biome cleanliness** | `bun run lint` runs `biome check .`; the repo carries pervasive intentional-`any` debt, so enable branch protection on the CI lint job only after a dedicated cleanup. |
+
 ## ✅ Auto-fixed (already applied on this branch)
 
 These were confirmed real, mechanical, and low-risk. Review the diff with `git diff main`.
