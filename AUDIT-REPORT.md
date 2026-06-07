@@ -99,7 +99,7 @@ open in the sections below:
 | `auth-public-get-invitation-leaks-email` | Whitelisting the public response changes its shape and couples to the web accept page — needs a coordinated frontend + test change. |
 | `timestamps-updatedat-no-onupdate` | `$onUpdate` auto-bump is a real behavior change that perturbs Bun test-module ordering; needs a deliberate decision + suite fix. |
 | `pino-major-drift`, `zod-major-version-drift`, `lucide-react-drift`, `hookform-resolvers-drift` | Major/cross-package dependency version changes — require install + full regression, not a mechanical edit. |
-| Schema-index **migration** (billing/auth) | drizzle-kit's schema-path glob fails on Windows; generate via `bun run db:generate` on Linux/CI. Indexes apply via `db:push` in dev meanwhile. |
+| ~~Schema-index **migration** (billing/auth)~~ | ✅ **RESOLVED** (`2b339de`). Root-caused the drizzle-kit Windows path-glob bug (#4997), fixed `drizzle.config.ts` (POSIX schema path + cwd-relative `out`), and generated migration `0003_audit_indexes.sql`. No version bump — 0.31.10 is already latest stable; the 1.0 beta still has the bug and is breaking. |
 | Repo-wide **biome cleanliness** | `bun run lint` runs `biome check .`; the repo carries pervasive intentional-`any` debt, so enable branch protection on the CI lint job only after a dedicated cleanup. |
 
 ## ✅ Auto-fixed (already applied on this branch)
