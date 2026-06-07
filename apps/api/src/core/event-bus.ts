@@ -15,6 +15,13 @@ import { logger } from "../lib/logger";
  */
 export class TypedEventBus {
   private emitter = new EventEmitter();
+  // Maps each (event → original handler → wrapped listener) so off() can remove
+  // the exact wrapper on() registered, instead of the original reference (which
+  // the emitter never saw). Without this, off() silently fails to unsubscribe.
+  private wrappers = new Map<
+    string,
+    Map<(data: any) => void | Promise<void>, (data: unknown) => void>
+  >();
 
   /**
    * Emit a typed domain event to all registered listeners.
@@ -50,7 +57,7 @@ export class TypedEventBus {
    * });
    */
   on(event: string, handler: (data: any) => void | Promise<void>): void {
-    this.emitter.on(event, (data: unknown) => {
+    const wrapped = (data: unknown) => {
       try {
         const result = handler(data);
         // Handle async errors
@@ -62,20 +69,34 @@ export class TypedEventBus {
       } catch (err) {
         logger.error({ err, event }, "Event subscriber error (sync)");
       }
-    });
+    };
+    let perEvent = this.wrappers.get(event);
+    if (!perEvent) {
+      perEvent = new Map();
+      this.wrappers.set(event, perEvent);
+    }
+    perEvent.set(handler, wrapped);
+    this.emitter.on(event, wrapped);
   }
 
   /**
-   * Remove a specific listener for an event.
-   *
-   * Note: due to the wrapping in `on()`, removing by handler
-   * reference requires the original wrapped function, not the
-   * user-provided callback.
+   * Remove a previously-registered listener using the ORIGINAL handler
+   * reference passed to `on()`. The wrapped listener actually held by the
+   * emitter is resolved via the per-event wrapper map.
    *
    * @param event - Event name to unsubscribe from
-   * @param handler - The exact listener function to remove
+   * @param handler - The original handler reference passed to `on()`
    */
-  off(event: string, handler: (...args: any[]) => void): void {
-    this.emitter.off(event, handler);
+  off(event: string, handler: (data: any) => void | Promise<void>): void {
+    const perEvent = this.wrappers.get(event);
+    const wrapped = perEvent?.get(handler);
+    if (perEvent && wrapped) {
+      this.emitter.off(event, wrapped);
+      perEvent.delete(handler);
+      if (perEvent.size === 0) this.wrappers.delete(event);
+    } else {
+      // Fallback: a listener added outside on() (raw reference).
+      this.emitter.off(event, handler as (data: unknown) => void);
+    }
   }
 }

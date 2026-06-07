@@ -71,6 +71,14 @@ export class ModuleRegistry {
    */
   async loadAll(): Promise<void> {
     for (const name of this.config.modules) {
+      // A module configured more than once loads only once; this dedupe means
+      // the duplicate-key guard below fires only for genuinely DISTINCT modules
+      // that collide on the same namespaced CQRS key.
+      if (this.loaded.has(name)) {
+        logger.warn({ module: name }, "Module already loaded -- skipping duplicate config entry");
+        continue;
+      }
+
       const importFn = moduleImportMap[name];
       if (!importFn) {
         logger.error({ module: name }, "Module not found in import map");
@@ -91,13 +99,27 @@ export class ModuleRegistry {
           );
         }
 
-        // Register commands
+        // Register commands. Throw on a duplicate key so two modules shipping
+        // the same namespaced handler fail boot loudly instead of one silently
+        // overwriting the other (cqrs-silent-handler-overwrite).
         for (const [key, handler] of Object.entries(def.commands ?? {})) {
+          if (this.cqrs.hasCommand(key)) {
+            throw new Error(
+              `Duplicate command key "${key}" registered by module "${name}". ` +
+                "Two modules cannot register the same namespaced CQRS command.",
+            );
+          }
           this.cqrs.registerCommand(key, handler);
         }
 
-        // Register queries
+        // Register queries (same duplicate-key guard as commands).
         for (const [key, handler] of Object.entries(def.queries ?? {})) {
+          if (this.cqrs.hasQuery(key)) {
+            throw new Error(
+              `Duplicate query key "${key}" registered by module "${name}". ` +
+                "Two modules cannot register the same namespaced CQRS query.",
+            );
+          }
           this.cqrs.registerQuery(key, handler);
         }
 

@@ -14,6 +14,12 @@
  *
  * If a FUTURE phase legitimately edits these files, update the hashes here AND
  * justify in the commit message + phase SUMMARY. Silent edits fail the gate.
+ *
+ * AUDIT UPDATE: `event-bus.ts` was DELIBERATELY edited (and re-baselined below)
+ * to fix `eventbus-off-cannot-unsubscribe` — on()/off() now track wrappers so a
+ * caller can actually unsubscribe. This was an approved, justified unfreeze. The
+ * gate is kept (re-baselined) to still catch future ACCIDENTAL edits. `cqrs.ts`
+ * remains truly wrap-only frozen — its duplicate-key guard lives in registry.ts.
  */
 
 import { describe, expect, test } from "bun:test";
@@ -35,7 +41,8 @@ function hashFile(relPath: string): string {
 // file CONTENTS are byte-identical apart from line endings, so the wrap-only
 // invariant still holds — only the canonical EOL changed.
 const CQRS_SHA256 = "20e882f65e7e6948a4fe0cd026c8f0efe6423476b463e27185429312a16ffa4a";
-const EVENT_BUS_SHA256 = "f37cccb87f33daa0165a291edf4c6bc44f13e64a038ec990172c5117c1b5b941";
+// Re-baselined after the approved unfreeze (off() unsubscribe fix).
+const EVENT_BUS_SHA256 = "88126f46d2ca7cb2c292856e653a645269e9542349ad4126bde12ff1bc3a4c27";
 
 describe("TRC-02 — core/cqrs.ts + core/event-bus.ts byte-equal invariant (Plan 19-08)", () => {
   test("apps/api/src/core/cqrs.ts unchanged vs Phase-19 baseline", () => {
