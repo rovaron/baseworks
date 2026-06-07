@@ -6,6 +6,7 @@ import { createOneTimePayment } from "./commands/create-one-time-payment";
 import { createPortalSession } from "./commands/create-portal-session";
 import { recordUsage } from "./commands/record-usage";
 import { processWebhook } from "./jobs/process-webhook";
+import { provisionCustomer } from "./jobs/provision-customer";
 import { sendEmail } from "./jobs/send-email";
 import { syncUsage } from "./jobs/sync-usage";
 import { getBillingHistory } from "./queries/get-billing-history";
@@ -54,6 +55,10 @@ export default {
     "billing-process-webhook": {
       queue: "billing-process-webhook",
       handler: processWebhook,
+    },
+    "billing-provision-customer": {
+      queue: "billing-provision-customer",
+      handler: provisionCustomer,
     },
     "billing-sync-usage": {
       queue: "billing-sync-usage",
