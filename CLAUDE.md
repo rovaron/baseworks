@@ -104,7 +104,7 @@ A production-grade monorepo starter kit for SaaS and freelance projects. It prov
 ### Validation & Schemas
 | Technology | Version | Purpose | Why | Confidence |
 |------------|---------|---------|-----|------------|
-| Zod | ^3.23+ | Runtime validation | Used by better-auth, drizzle-zod, and for CQRS command/query validation. Single validation library across the stack. | HIGH |
+| Zod | ^4.3+ | Runtime validation | Used by better-auth, drizzle-zod, and for CQRS command/query validation. Single validation library across the stack. Standardized on v4 — `better-auth@1.5+` depends on `zod@^4`, so all app packages pin `zod@4.3.6` to share one deduped instance (required for `zodResolver` / drizzle-zod type identity). | HIGH |
 ## Supporting Libraries
 ### State Management & Data Fetching (Frontend)
 | Library | Version | Purpose | When to Use | Confidence |
@@ -116,7 +116,7 @@ A production-grade monorepo starter kit for SaaS and freelance projects. It prov
 | Library | Version | Purpose | When to Use | Confidence |
 |---------|---------|---------|-------------|------------|
 | react-hook-form | ^7.53+ | Form management | All forms in both frontends. Uncontrolled by default (performant). | HIGH |
-| @hookform/resolvers | ^3.9+ | Validation bridge | Connects Zod schemas to react-hook-form. | HIGH |
+| @hookform/resolvers | ^5.0+ | Validation bridge | Connects Zod schemas to react-hook-form. v5 required for zod 4 compatibility. | HIGH |
 ### Tables & Data Display
 | Library | Version | Purpose | When to Use | Confidence |
 |---------|---------|---------|-------------|------------|
@@ -134,7 +134,7 @@ A production-grade monorepo starter kit for SaaS and freelance projects. It prov
 ### Environment & Config
 | Library | Version | Purpose | When to Use | Confidence |
 |---------|---------|---------|-------------|------------|
-| @t3-oss/env-nextjs | ^0.11+ | Env validation (Next.js) | Validates environment variables at build time in Next.js app. Zod-based. | MEDIUM |
+| @t3-oss/env-nextjs | ^0.13+ | Env validation (Next.js) | Validates environment variables at build time in Next.js app. Zod-based (v0.13+ supports zod 4). | MEDIUM |
 | @t3-oss/env-core | ^0.11+ | Env validation (backend) | Same validation for the Elysia backend. Single pattern across the monorepo. | MEDIUM |
 ### Date & Time
 | Library | Version | Purpose | When to Use | Confidence |
