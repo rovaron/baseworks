@@ -86,21 +86,47 @@ Docker non-root + worker HEALTHCHECK; compose fail-closed secret + db/redis heal
 admin error boundaries; `.env.example` alignment; queue retention cap + override; api-client
 localhost warn; example schema reuse; repo-wide format normalization.
 
-### ⛔ Deliberately NOT applied (flagged for a human decision)
+### 🧹 Follow-up campaign — `audit/full-scan-fix` (Phases 1–6)
 
-These fight an explicit project contract/decision or exceed the safe-automation bar — they remain
-open in the sections below:
+A second, user-directed campaign closed the entire deferred register above. Each phase was an
+atomic commit, verified by baseline-diffing the full toolchain against the prior commit.
 
-| Finding | Why deferred |
+| Gate | Baseline | Final | Net |
+|---|---|---|---|
+| `bun run test` (backend) | 478 / 9 fail | **478 / 9 fail** | 0 regressions |
+| `bun run typecheck` | 112 errors | **112 errors** | 0 new |
+| `apps/web` `tsc` | 26 (path-alias noise) | **26** | 0 new |
+| `bun run lint` | exit 0 | **exit 0** | clean |
+
+| Phase | Commit | Scope |
+|---|---|---|
+| 1 — Biome + line endings | `18901e9` | `.gitattributes` LF policy, Biome ignores + `noExplicitAny`→warn, lint green |
+| 2 — Frozen-core fixes | `4fad3c4` | registry dup-key guard, unfreeze `event-bus.ts` `off()`, TRC-02 re-baseline |
+| 3 — Inbound traceparent | `0eb16f1` | opt-in `OBS_TRUST_INBOUND_TRACEPARENT` trust gate |
+| 4 — Durable billing | `8b3478f` | `tenant.created` → BullMQ `billing-provision-customer` job |
+| 5 — Correctness | `da62ca2` | get-invitation whitelist, `updatedAt` `$onUpdate` |
+| 6 — Dependency alignment | `b8719c5` | zod 4 dedup, hookform/resolvers 5, pino 10, lucide 1.7, dead-dep removal |
+
+The 9 backend failures are pre-existing and environmental (no Postgres/Redis here). One ui
+`data-table-cards` assertion also fails at HEAD, independent of this campaign.
+
+### ✅ Deferred register — now CLOSED by the remediation campaign
+
+Every item that was previously deferred for a human decision has been resolved by the
+`audit/full-scan-fix` phase campaign (Phases 1–6 below), each with the user's explicit decision
+and baseline-diff verification. Nothing in this register remains open.
+
+| Finding | Resolution |
 |---|---|
-| `cqrs-silent-handler-overwrite`, `eventbus-off-cannot-unsubscribe` | `core/cqrs.ts` + `core/event-bus.ts` are **frozen by the TRC-02 byte-equal invariant** (external wrap-only discipline). Fix belongs in the wrapper layer or needs a decision to unfreeze. |
-| `api-traceparent-always-trusted` | Contradicts the documented **D-12 always-trust** decision (hardening deferred per 20.1-CONTEXT). Needs a deliberate security call. |
-| `eventbus-fire-and-forget-no-durability`, full `billing-tenant-created-customer-no-retry` | Transactional-outbox / durable-job refactor — the report itself says route through a planned phase. Interim safe+idempotent+observable fix applied; durable queue still TODO. |
-| `auth-public-get-invitation-leaks-email` | Whitelisting the public response changes its shape and couples to the web accept page — needs a coordinated frontend + test change. |
-| `timestamps-updatedat-no-onupdate` | `$onUpdate` auto-bump is a real behavior change that perturbs Bun test-module ordering; needs a deliberate decision + suite fix. |
-| `pino-major-drift`, `zod-major-version-drift`, `lucide-react-drift`, `hookform-resolvers-drift` | Major/cross-package dependency version changes — require install + full regression, not a mechanical edit. |
-| ~~Schema-index **migration** (billing/auth)~~ | ✅ **RESOLVED** (`2b339de`). Root-caused the drizzle-kit Windows path-glob bug (#4997), fixed `drizzle.config.ts` (POSIX schema path + cwd-relative `out`), and generated migration `0003_audit_indexes.sql`. No version bump — 0.31.10 is already latest stable; the 1.0 beta still has the bug and is breaking. |
-| Repo-wide **biome cleanliness** | `bun run lint` runs `biome check .`; the repo carries pervasive intentional-`any` debt, so enable branch protection on the CI lint job only after a dedicated cleanup. |
+| `cqrs-silent-handler-overwrite`, `eventbus-off-cannot-unsubscribe` | ✅ **RESOLVED** (P2 `4fad3c4`). Decision: guard in the **non-frozen** `core/registry.ts` (dup-key throw) + **unfreeze** `core/event-bus.ts` to track `original→wrapped` handlers so `off()` works; symmetric `off()` added to `wrapEventBus`. TRC-02 hash re-baselined **with justification** in `core-invariants.test.ts`. |
+| `api-traceparent-always-trusted` | ✅ **RESOLVED** (P3 `0eb16f1`). Re-introduced the trust lever as **opt-in**: `OBS_TRUST_INBOUND_TRACEPARENT` (default `"true"` preserves D-12); ops can set `"false"` to mint fresh ids. |
+| `eventbus-fire-and-forget-no-durability`, `billing-tenant-created-customer-no-retry` | ✅ **RESOLVED** (P4 `8b3478f`). `tenant.created` hook now **enqueues** a `billing-provision-customer` BullMQ job (idempotent handler, retry + DLQ via the worker); inline best-effort fallback only when no Redis. |
+| `auth-public-get-invitation-leaks-email` | ✅ **RESOLVED** (P5 `da62ca2`). Public response **whitelisted** to the accept-page contract (keeps `email` for signup prefill, strips internal fields); test asserts injected fields are dropped. |
+| `timestamps-updatedat-no-onupdate` | ✅ **RESOLVED** (P5 `da62ca2`). `$onUpdate(() => new Date())` re-added to `timestampColumns().updatedAt`; the Bun module-ordering fragility is gone now that `getDb()` is lazy — full suite 478/9 with it re-added. |
+| `pino-major-drift`, `zod-major-version-drift`, `lucide-react-drift`, `hookform-resolvers-drift` | ✅ **RESOLVED** (P6 `b8719c5`). Standardized on zod 4 (`zod@4.3.6` deduped workspace-wide), `@hookform/resolvers@^5`, `pino@^10`, `lucide-react@^1.7.0`; removed dead `ipaddr.js` + `nanoid`. typecheck/test/lint baselines held. |
+| Schema-index **migration** (billing/auth) | ✅ **RESOLVED** (`2b339de`). Root-caused the drizzle-kit Windows path-glob bug (#4997), fixed `drizzle.config.ts` (POSIX schema path + cwd-relative `out`), generated `0003_audit_indexes.sql`. |
+| Repo-wide **biome cleanliness** | ✅ **RESOLVED** (P1 `18901e9`). `.gitattributes` LF policy + `git add --renormalize`, Biome `files.includes` ignores + `noExplicitAny` → `warn`; `bun run lint` now exits 0. |
+| `ui-datatablecards-action-click-bubbles` | ✅ **RESOLVED** earlier (Stage B, `9d8d8b7`) with the keyboard-accessible DataTableCards fix. (NB: a separate pre-existing `data-table-cards.test.tsx` card-expand assertion fails at HEAD — unrelated to the deps work; tracked for a follow-up.) |
 
 ## ✅ Auto-fixed (already applied on this branch)
 
