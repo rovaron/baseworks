@@ -1,4 +1,14 @@
-import { bigint, index, jsonb, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  bigint,
+  check,
+  index,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 import { primaryKeyColumn, tenantIdColumn, timestampColumns } from "./base";
 
 /**
@@ -46,7 +56,7 @@ export const files = pgTable("files", {
     // D-03 — manifest of generated variants (Phase 28 consumer).
     transforms: jsonb("transforms").$type<FileTransform[]>().notNull().default([]),
     // D-01 — full lifecycle: 'pending' | 'uploaded' | 'transforming' | 'ready' | 'failed' | 'deleted'.
-    // CHECK constraint enforced in migration SQL (Drizzle 0.45 lacks ergonomic check() in builder).
+    // CHECK constraint expressed in the builder below via check() (WR-01).
     status: text("status").notNull().default("pending"),
     // text — references better-auth user.id (which is text, not uuid).
     uploadedByUserId: text("uploaded_by_user_id"),
@@ -55,18 +65,29 @@ export const files = pgTable("files", {
     ...timestampColumns(),
   },
   (t) => [
-    // Cross-tenant uniqueness guarantee: same bucket+key cannot be claimed
-    // by two tenants. Tenant prefix is informational, not authoritative
-    // (UPL-03 / Pitfall 1).
-    uniqueIndex("files_tenant_bucket_key_uq").on(t.tenantId, t.bucket, t.storageKey),
+    // Physical-object exclusivity (global, not per-tenant): a (bucket, storage_key)
+    // pair maps to exactly one row across ALL tenants, so no two files can ever
+    // point at the same physical object. The tenant prefix in the key is
+    // informational, not authoritative (UPL-03 / Pitfall 1); collision resistance
+    // comes from the mandatory nanoid(24) segment in buildStorageKey (Phase 26).
+    // Tenant READ isolation is provided by ScopedDb + the GritQL files-access ban,
+    // NOT by this index (CR-01: tenant_id must NOT be in the key).
+    uniqueIndex("files_bucket_key_uq").on(t.bucket, t.storageKey),
     // Owner-lookup index for `list-files-for-record` query (Phase 27 / ATT-01).
     index("files_owner_idx").on(t.tenantId, t.ownerModule, t.ownerRecordType, t.ownerRecordId),
     // Pending-cleanup index for hourly reap job (Phase 31 cleanup-pending).
     // D-04 — partial index on live rows; tombstones excluded so the index
-    // stays small as soft-delete tombstones accumulate.
-    // CONSTRAINT: partial-index WHERE clause cannot be expressed in the
-    // Drizzle table builder (0.45) — added directly in the migration SQL.
-    index("files_pending_status_idx").on(t.status, t.createdAt),
+    // stays small as soft-delete tombstones accumulate (WR-01: WHERE clause
+    // expressed in the builder, drizzle-orm 0.45 supports index().where()).
+    index("files_pending_status_idx")
+      .on(t.status, t.createdAt)
+      .where(sql`${t.deletedAt} IS NULL`),
+    // D-01 — status lifecycle CHECK, expressed in the builder so drizzle-kit
+    // snapshots stay accurate (WR-01).
+    check(
+      "files_status_check",
+      sql`${t.status} IN ('pending', 'uploaded', 'transforming', 'ready', 'failed', 'deleted')`,
+    ),
   ],
 );
 
@@ -86,5 +107,10 @@ export const tenantStorageUsage = pgTable("tenant_storage_usage", {
   // D-02 — race-safe quota counter (Phase 26 consumer).
   bytesPending: bigint("bytes_pending", { mode: "number" }).notNull().default(0),
   bytesLimit: bigint("bytes_limit", { mode: "number" }),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  // WR-04 — auto-bump on every Drizzle UPDATE (matches timestampColumns()); Phase 26
+  // quota UPSERTs that mutate bytes_used/bytes_pending no longer leave this stale.
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .notNull()
+    .$onUpdate(() => new Date()),
 });

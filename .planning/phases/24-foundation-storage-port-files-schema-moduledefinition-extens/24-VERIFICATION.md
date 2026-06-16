@@ -1,7 +1,8 @@
 ---
 phase: 24-foundation-storage-port-files-schema-moduledefinition-extens
 verified: 2026-06-11T00:00:00Z
-status: gaps_found
+status: gaps_resolved
+gaps_resolved_at: 2026-06-16
 score: 5/5 must-haves verified
 overrides_applied: 0
 gaps:
@@ -52,6 +53,22 @@ gaps:
 ---
 
 # Phase 24: Foundation Storage Port + Files Schema + ModuleDefinition Extension — Verification Report
+
+## Gap Closure (2026-06-16)
+
+All 4 gaps from the 2026-06-11 verification are resolved. Fixes live in `packages/db/src/schema/storage.ts`, new migration `0004_fix_files_index_check_partial.sql` (+ `.down.sql`), regenerated snapshot `meta/0004_snapshot.json`, and `package.json`.
+
+| Gap | Resolution | Evidence |
+|-----|-----------|----------|
+| **CR-01** (Critical) | Unique index changed to GLOBAL `files_bucket_key_uq` on `(bucket, storage_key)` — `tenant_id` removed from the key. Schema comment + T-24-02-01 threat-model entries corrected to state the index enforces physical-object exclusivity (not tenant read-isolation, which is ScopedDb + the GritQL ban). | `storage.ts` `uniqueIndex("files_bucket_key_uq").on(t.bucket, t.storageKey)`; migration 0004 drops old / creates new |
+| **WR-01** (Warning) | `check("files_status_check", …)` and `index(…).where(sql\`${t.deletedAt} IS NULL\`)` now expressed in the Drizzle builder. Snapshot `0004_snapshot.json` records both (`checkConstraints.files_status_check` + partial `where`), so future `drizzle-kit generate` diffs against accurate state — no silent drift. `bun drizzle-kit generate` re-run reports "No schema changes". | snapshot 0004 verified; clean re-generate |
+| **WR-03** (Warning) | `packages/storage packages/shared` added to root `test` script. | `package.json` line 22; `bun test packages/storage packages/shared` → 94 pass / 0 fail |
+| **WR-04** (Warning) | `tenant_storage_usage.updatedAt` now `.defaultNow().notNull().$onUpdate(() => new Date())` — matches `timestampColumns()`. No DDL change. | `storage.ts` |
+
+**Live-DB apply is pending** — Docker/Postgres was not running at closure time. Migration `0004` is journalled and idempotent (`DROP … IF EXISTS` / `DROP CONSTRAINT IF EXISTS` guards), so it applies cleanly to both the already-migrated dev DB and a fresh fork on the next `docker compose up && bun run db:migrate`. No further code action required.
+
+---
+
 
 **Phase Goal:** Lay the foundational types, schema, and registry hooks so subsequent phases plug into a stable contract — packages/storage/ workspace skeleton, FileStorage + ImageTransform ports, central files + tenant_storage_usage tables, ModuleDefinition.fileRelations field, env additions with crash-on-missing validation.
 **Verified:** 2026-06-11T00:00:00Z
