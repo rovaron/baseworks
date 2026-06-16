@@ -51,6 +51,67 @@ describe("env validation", () => {
     expect(result.port).toBe("number");
     expect(result.nodeEnv).toBe("test");
   });
+
+  // Phase 26 / QUO-01 — STORAGE_DEFAULT_QUOTA_BYTES default + coercion.
+  test("STORAGE_DEFAULT_QUOTA_BYTES defaults to 1 GiB and coerces overrides to number", async () => {
+    const proc = Bun.spawn(
+      [
+        "bun",
+        "-e",
+        'import { env } from "@baseworks/config"; console.log(JSON.stringify({ quota: env.STORAGE_DEFAULT_QUOTA_BYTES, type: typeof env.STORAGE_DEFAULT_QUOTA_BYTES }))',
+      ],
+      {
+        env: {
+          HOME: process.env.HOME,
+          PATH: process.env.PATH,
+          DATABASE_URL: "postgres://user:pass@localhost:5432/testdb",
+          BETTER_AUTH_SECRET: "a".repeat(32),
+          NODE_ENV: "test",
+          // No STORAGE_DEFAULT_QUOTA_BYTES -- should fall back to the default.
+        },
+        stdout: "pipe",
+        stderr: "pipe",
+        cwd: import.meta.dir + "/../../..",
+      },
+    );
+
+    const exitCode = await proc.exited;
+    const stdout = await new Response(proc.stdout).text();
+
+    expect(exitCode).toBe(0);
+    const result = JSON.parse(stdout.trim());
+    expect(result.type).toBe("number");
+    expect(result.quota).toBe(1073741824);
+  });
+
+  test("STORAGE_DEFAULT_QUOTA_BYTES honors an explicit override", async () => {
+    const proc = Bun.spawn(
+      [
+        "bun",
+        "-e",
+        'import { env } from "@baseworks/config"; console.log(String(env.STORAGE_DEFAULT_QUOTA_BYTES))',
+      ],
+      {
+        env: {
+          HOME: process.env.HOME,
+          PATH: process.env.PATH,
+          DATABASE_URL: "postgres://user:pass@localhost:5432/testdb",
+          BETTER_AUTH_SECRET: "a".repeat(32),
+          NODE_ENV: "test",
+          STORAGE_DEFAULT_QUOTA_BYTES: "524288000",
+        },
+        stdout: "pipe",
+        stderr: "pipe",
+        cwd: import.meta.dir + "/../../..",
+      },
+    );
+
+    const exitCode = await proc.exited;
+    const stdout = await new Response(proc.stdout).text();
+
+    expect(exitCode).toBe(0);
+    expect(stdout.trim()).toBe("524288000");
+  });
 });
 
 describe("validatePaymentProviderEnv", () => {

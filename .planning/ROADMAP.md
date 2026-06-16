@@ -119,7 +119,7 @@ Plans:
   3. 50-concurrent-uploads load test against a tenant at 95% quota proves the `bytes_pending` UPSERT pattern (or `SELECT ... FOR UPDATE`) prevents over-allocation — final `bytes_used + bytes_pending` ≤ `bytes_limit` after all concurrent requests resolve
   4. Files-module relations registry collects every module's `fileRelations` declaration at boot via the registry wiring from Phase 24; sign-upload looks up the relation by `(ownerModule, kind)` and rejects unknown pairs with HTTP 400
   5. Cross-module file logic uses `TypedEventBus` only — no direct imports between `packages/modules/files/` and any other module (verified by Biome import-graph rule); module-author DX is one `fileRelations` object on the descriptor
-**Plans:** TBD (populated by /gsd:plan-phase 26)
+**Plans:** 1/1 complete — executed from `26-PLAN-CONTRACT.md` (LOCKED). Complete (fully verified against live Postgres — Docker up). `packages/modules/files/` stood up (billing as analog): atomic conditional-UPDATE `reserveQuota`/`releaseQuota`, `buildStorageKey()` with mandatory `nanoid(24)`, `signUpload` command + `/api/files/sign-upload` route (quota_exceeded→413, else→400), tenant.created hook (idempotent `tenant_storage_usage` row), `fileRelationsRegistry` wired to boot, and a cross-module-import ban gate. `DATABASE_URL=… bun test packages/modules/files` → 22 pass / 0 fail; SC#3 50-concurrent race at 95% quota → accepted=25=headroom, rejected=25, final used+pending=limit exactly (zero over-allocation). Adversarial review: 0 blockers.
 **UI hint:** no
 
 #### Phase 27: Complete-Upload + Signed Read URLs + Delete + Generic Attachments
@@ -221,7 +221,7 @@ Plans:
 | 23. Runbooks, Alert Templates & Observability Docs | v1.3 | 5/5 | Complete | 2026-04-28 |
 | 24. Foundation: Storage Port + Files Schema | v1.4 | 7/7 | Complete   | 2026-06-11 |
 | 25. Test Infra + Three Storage Adapters | v1.4 | 1/1 | Complete (local-verified; S3/MinIO CI-gated) | 2026-06-16 |
-| 26. Files Module + Sign-Upload + Quota | v1.4 | 0/0 | Not started | - |
+| 26. Files Module + Sign-Upload + Quota | v1.4 | 1/1 | Complete (fully live-DB-verified) | 2026-06-16 |
 | 27. Complete-Upload + Read + Delete + Attachments | v1.4 | 0/0 | Not started | - |
 | 28. Image Transform Pipeline | v1.4 | 0/0 | Not started | - |
 | 29. Auth + Org Identity Asset Wiring | v1.4 | 0/0 | Not started | - |

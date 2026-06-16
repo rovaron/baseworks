@@ -203,6 +203,21 @@
         "elysia": "^1.4.0",
       },
     },
+    "packages/modules/files": {
+      "name": "@baseworks/module-files",
+      "version": "0.0.1",
+      "dependencies": {
+        "@baseworks/config": "workspace:*",
+        "@baseworks/db": "workspace:*",
+        "@baseworks/observability": "workspace:*",
+        "@baseworks/shared": "workspace:*",
+        "@baseworks/storage": "workspace:*",
+        "@sinclair/typebox": "0.34.49",
+        "drizzle-orm": "^0.45.0",
+        "elysia": "^1.4.0",
+        "nanoid": "^5.1.9",
+      },
+    },
     "packages/observability": {
       "name": "@baseworks/observability",
       "version": "0.0.1",
@@ -361,6 +376,8 @@
     "@baseworks/module-billing": ["@baseworks/module-billing@workspace:packages/modules/billing"],
 
     "@baseworks/module-example": ["@baseworks/module-example@workspace:packages/modules/example"],
+
+    "@baseworks/module-files": ["@baseworks/module-files@workspace:packages/modules/files"],
 
     "@baseworks/observability": ["@baseworks/observability@workspace:packages/observability"],
 

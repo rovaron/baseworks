@@ -13,9 +13,10 @@
     "db:migrate": "bun drizzle-kit migrate --config packages/db/drizzle.config.ts",
     "db:push": "bun drizzle-kit push --config packages/db/drizzle.config.ts",
     "prepare": "husky",
-    "lint": "biome check . && bun run lint:als && bun run lint:files-access",
+    "lint": "biome check . && bun run lint:als && bun run lint:files-access && bun run lint:cross-module",
     "lint:als": "bash scripts/lint-no-enterwith.sh",
     "lint:files-access": "bash scripts/lint-no-direct-files-access.sh",
+    "lint:cross-module": "bash scripts/lint-no-cross-module-imports.sh",
     "lint:fix": "biome check --write .",
     "typecheck": "tsc --noEmit",
     "validate": "bun scripts/validate-docs.ts",
@@ -34,7 +35,8 @@
     "*.{ts,tsx}": [
       "biome check --write --no-errors-on-unmatched",
       "bash scripts/lint-no-enterwith.sh",
-      "bash scripts/lint-no-direct-files-access.sh"
+      "bash scripts/lint-no-direct-files-access.sh",
+      "bash scripts/lint-no-cross-module-imports.sh"
     ]
   },
   "devDependencies": {

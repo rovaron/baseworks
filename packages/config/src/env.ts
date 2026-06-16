@@ -72,6 +72,11 @@ const serverSchema = {
   // Phase 22 D-13 — worker heartbeat interval. Min 1000ms (1s), max 300000ms (5min).
   // TTL on heartbeat keys is 2× this value; "stale" threshold is 2×, "dead" is 5×.
   WORKER_HEARTBEAT_INTERVAL_MS: z.coerce.number().min(1000).max(300_000).default(15_000),
+  // Phase 26 / QUO-01 — default per-tenant storage quota in bytes. Applied as the
+  // tenant_storage_usage.bytes_limit at tenant-creation time and used by
+  // reserveQuota()'s COALESCE(bytes_limit, default) for legacy/NULL-limit rows
+  // (D-11 per-tenant-override-or-env-default). Default 1 GiB (1073741824 bytes).
+  STORAGE_DEFAULT_QUOTA_BYTES: z.coerce.number().int().positive().default(1073741824),
 };
 
 export const env = createEnv({

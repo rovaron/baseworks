@@ -5,6 +5,7 @@ import { defaultLocale } from "@baseworks/i18n";
 import { requireRole } from "@baseworks/module-auth";
 import { billingWebhookRoutes, registerBillingHooks } from "@baseworks/module-billing";
 import { registerExampleHooks } from "@baseworks/module-example";
+import { registerFilesHooks } from "@baseworks/module-files";
 import {
   getErrorTracker,
   getTracer,
@@ -66,7 +67,7 @@ installGlobalErrorHandlers(errorTracker);
 // Create module registry -- auth module loaded alongside example
 const registry = new ModuleRegistry({
   role: env.INSTANCE_ROLE as "api" | "worker" | "all",
-  modules: ["auth", "billing", "example"],
+  modules: ["auth", "billing", "example", "files"],
 });
 
 // Load all configured modules
@@ -86,6 +87,10 @@ registerBillingHooks(registry.getEventBus());
 
 // Register example hooks (enqueue process-followup on example.created)
 registerExampleHooks(registry.getEventBus());
+
+// Phase 26 / QUO-01 — register files hooks (seed tenant_storage_usage row on
+// tenant.created, ON CONFLICT DO NOTHING; resilient, never crashes tenant creation)
+registerFilesHooks(registry.getEventBus());
 
 // Get module routes for direct .use() chaining
 const authRoutes = registry.getAuthRoutes();

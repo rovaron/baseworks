@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: File Storage & Uploads
 status: executing
-stopped_at: Phase 25 complete (local-verified; S3/MinIO CI-gated)
+stopped_at: Phase 26 complete (fully live-DB-verified; Docker up)
 last_updated: "2026-06-16T00:00:00.000Z"
 last_activity: 2026-06-16
 progress:
   total_phases: 8
-  completed_phases: 2
-  total_plans: 8
-  completed_plans: 8
-  percent: 25
+  completed_phases: 3
+  total_plans: 9
+  completed_plans: 9
+  percent: 38
 ---
 
 # Project State
@@ -21,21 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-05)
 
 **Core value:** Clone, configure, and start building a multitenant SaaS in minutes -- not weeks.
-**Current focus:** Phase 25 complete — test-infra-three-storage-adapters; Phase 26 (Files Module + Sign-Upload + Quota) is next.
+**Current focus:** Phase 26 complete — files-module-sign-upload-quota; Phase 27 (Complete-Upload + Read + Delete + Attachments) is next.
 
 ## Current Position
 
 Milestone: v1.4 File Storage & Uploads
-Phase: 25 (test-infra-three-storage-adapters) — COMPLETE (local-verified; S3/MinIO CI-gated)
-Plan: 1 of 1 (executed from 25-PLAN-CONTRACT.md)
-Status: Phase 25 closed — Local FS adapter, HMAC signing, CORS validator, and deterministic fixtures verified locally (83 pass / 21 skip / 0 fail); S3 + S3-compat conformance CI-gated on MinIO (validate.yml ci, Bun 1.3.x). Adversarial review: 0 blockers.
-Next: Phase 26 — Files Module Skeleton + Sign-Upload + Per-Tenant Quota (UPL-01, UPL-03, QUO-01, QUO-02, MOD-02)
+Phase: 26 (files-module-sign-upload-quota) — COMPLETE (fully live-DB-verified; Docker up)
+Plan: 1 of 1 (executed from 26-PLAN-CONTRACT.md)
+Status: Phase 26 closed — `packages/modules/files/` stood up (billing analog): atomic conditional-UPDATE `reserveQuota`/`releaseQuota`, `buildStorageKey()` with mandatory `nanoid(24)`, `signUpload` command + `/api/files/sign-upload` route (quota_exceeded→413), idempotent tenant.created `tenant_storage_usage` hook, `fileRelationsRegistry` wired to boot, cross-module-import ban gate. UNLIKE Phase 25, fully verified against live Postgres — `DATABASE_URL=… bun test packages/modules/files` → 22 pass / 0 fail; SC#3 50-concurrent race at 95% quota → accepted=25=headroom, rejected=25, final used+pending=limit exactly (zero over-allocation). Adversarial review: 0 blockers.
+Next: Phase 27 — Complete-Upload + Signed Read URLs + Delete + Generic Attachments (UPL-02, UPL-04, ATT-01, ATT-02, MOD-03)
 Last activity: 2026-06-16
 
-Progress (v1.4): [███-------] 2 of 8 phases (25%)
+Progress (v1.4): [████------] 3 of 8 phases (38%)
 
 ### Roadmap Evolution
 
+- **2026-06-16** — Phase 26 (Files Module + Sign-Upload + Per-Tenant Quota) closed. Executed from a single LOCKED `26-PLAN-CONTRACT.md`. UPL-01/UPL-03/QUO-01/QUO-02/MOD-02 satisfied: `packages/modules/files/` is the first end-to-end file flow (billing as the structural analog). Quota race-safety is a single atomic conditional `UPDATE` (Postgres EvalPlanQual recheck under the row write-lock) — no `SELECT … FOR UPDATE`, no read-modify-write. UNLIKE Phase 25 (Docker down ⇒ S3/MinIO CI-gated), Docker was UP so Phase 26 ran fully against live Postgres, including the SC#3 50-concurrent race: at 95% quota, accepted=25=headroom, rejected=25, final used+pending=limit exactly (zero over-allocation). 22 pass / 0 fail. Adversarial review: 0 blockers.
 - **2026-06-16** — Phase 25 (Test Infra + Three Storage Adapters) closed. Executed from a single LOCKED `25-PLAN-CONTRACT.md` rather than numbered sub-plans. FILE-02 + FILE-03 satisfied: three `FileStorage` adapters (Local/S3/S3-compat) proven equivalent by one shared `runFileStorageConformance` suite; Local + HMAC signing + CORS validator + deterministic fixtures verified locally; S3/S3-compat object-I/O conformance CI-gated on a MinIO service container (folded into `validate.yml` `ci`, not a separate workflow). Adversarial review: 0 blockers. One non-blocking follow-up: add the fixture-hash reproducibility test (`fixtures.test.ts`).
 - **2026-05-05** — v1.4 milestone roadmap created. 8 phases (24–31) derived from 25 requirements across 9 categories (FILE/UPL/IMG/QUO/MOD/IDA/ATT/UI/OPS). All 25 requirements mapped to exactly one phase, no orphans. Highest-risk phase is Phase 28 (Image Transform Pipeline) — sharp under Bun in Docker is the one MEDIUM-confidence stack item; the phase begins with a research spike (S-1) on the target Docker base image, with `imagescript` wired as the failover. One variance from research §7 proposal: FILE-02 moved from Phase 24 to Phase 25 (the conformance suite is the deliverable that proves the port, and it runs in Phase 25 against real adapters).
 - **2026-04-26** — Phase 20.1 inserted after Phase 20: Close v1.3 milestone gaps from observability UAT (URGENT). Bundles 3 todos: drizzle migration journal repair, billing `getSubscriptionStatus` TypeError fix, and obsContext.traceId ↔ OTel server-span trace_id bridge. All three surfaced during live v1.3 milestone UAT against a real Sentry DSN + authenticated session + BullMQ producer/consumer round-trip on 2026-04-26.
