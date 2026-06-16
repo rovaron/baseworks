@@ -8,6 +8,15 @@ export { ImagescriptImageTransform } from "./adapters/imagescript/image-transfor
 // Throwing-NotImplemented adapter scaffolds (Phase 24 / D-15 verbatim / D-16 parallel form).
 // Bodies in Phase 25 (FileStorage) / Phase 28 (ImageTransform).
 export { LocalFileStorage } from "./adapters/local/file-storage";
+// Local-adapter HMAC signature verifier (Phase 25 / D-25-01 / contract §1.5).
+// Public because the Phase 26 `/api/files/local/:bucket/:key` endpoint consumes
+// it to authenticate minted upload/read URLs. The minter (`signLocalUrl`) stays
+// internal — only the adapter mints; callers verify.
+export type {
+  VerifyLocalSignatureArgs,
+  VerifyLocalSignatureResult,
+} from "./adapters/local/signing";
+export { verifyLocalSignature } from "./adapters/local/signing";
 export { S3FileStorage } from "./adapters/s3/file-storage";
 export { S3CompatFileStorage } from "./adapters/s3-compat/file-storage";
 export { SharpImageTransform } from "./adapters/sharp/image-transform";

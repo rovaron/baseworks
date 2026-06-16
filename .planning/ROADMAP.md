@@ -105,7 +105,7 @@ Plans:
   3. Operator can copy CORS templates from `docs/integrations/file-storage/cors/{aws-s3,r2,minio,garage}.json` and `bun run validate-cors` asserts no wildcard origins, ETag in `ExposeHeaders`, and required PUT methods present
   4. Developer can sign a PUT upload via the Local adapter and the URL contains an HMAC `?sig=` short-lived token (NOT a guessable file ID); production-mode boot refuses `STORAGE_PROVIDER=local && NODE_ENV=production` with a clear error (Pitfall 14)
   5. Sharp fixture set committed under `packages/storage/__test-fixtures__/` (100×100 baseline, 5000×5000 photo, 50000×50000 decompression bomb, truncated, SVG-with-script) and consumed by both adapter conformance and Phase 28 transform tests
-**Plans:** TBD (populated by /gsd:plan-phase 25)
+**Plans:** 1/1 complete — executed from `25-PLAN-CONTRACT.md` (LOCKED). Complete (local-verified; S3/MinIO CI-gated). Local FS adapter, HMAC signing, CORS validator + 4 templates, and deterministic fixtures verified locally (`bun test packages/storage` → 83 pass / 21 skip / 0 fail); S3 (AWS) + S3-compat (MinIO) conformance gated behind `describe.skipIf` and run on the MinIO service container in CI (`validate.yml` `ci`, Bun 1.3.x).
 **UI hint:** no
 
 #### Phase 26: Files Module Skeleton + Sign-Upload + Per-Tenant Quota
@@ -220,7 +220,7 @@ Plans:
 | 22. Admin Ops Tooling | v1.3 | 6/6 | Complete | 2026-04-27 |
 | 23. Runbooks, Alert Templates & Observability Docs | v1.3 | 5/5 | Complete | 2026-04-28 |
 | 24. Foundation: Storage Port + Files Schema | v1.4 | 7/7 | Complete   | 2026-06-11 |
-| 25. Test Infra + Three Storage Adapters | v1.4 | 0/0 | Not started | - |
+| 25. Test Infra + Three Storage Adapters | v1.4 | 1/1 | Complete (local-verified; S3/MinIO CI-gated) | 2026-06-16 |
 | 26. Files Module + Sign-Upload + Quota | v1.4 | 0/0 | Not started | - |
 | 27. Complete-Upload + Read + Delete + Attachments | v1.4 | 0/0 | Not started | - |
 | 28. Image Transform Pipeline | v1.4 | 0/0 | Not started | - |

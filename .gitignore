@@ -8,5 +8,8 @@ bun.lockb
 *.tsbuildinfo
 .claude/worktrees/
 tmp/
+# Local file-storage adapter dev data (STORAGE_LOCAL_PATH default, Phase 25).
+# Anchored to repo root so it does NOT match packages/storage/.
+/storage/
 summary-content.txt
 write-summary.js

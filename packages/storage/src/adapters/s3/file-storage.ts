@@ -1,60 +1,45 @@
 /**
- * S3FileStorage adapter scaffold (Phase 24 / FILE-01 / D-15).
+ * Phase 25 / FILE-02 / FILE-03 — S3FileStorage (AWS S3) adapter (D-25-03).
  *
- * Phase 24 ships throwing-NotImplemented scaffolds so the factory contract
- * surface is verifiable end-to-end before Phase 25 fills the bodies. Phase 25
- * fills this with `Bun.S3Client`-backed AWS S3 operations.
+ * Wraps `Bun.S3Client` configured for AWS S3 (region-based addressing) and
+ * delegates all six `FileStorage` operations to the shared
+ * {@link BaseS3FileStorage} implementation. The only S3-vs-S3-compat difference
+ * lives in construction: this class reads AWS env (`AWS_REGION`), whereas
+ * `S3CompatFileStorage` reads `S3_ENDPOINT` + `S3_FORCE_PATH_STYLE`.
  *
- * Design rule: factory.getFileStorage() returns a real instance — never null —
- * so the contract surface is verifiable in Phase 24. Every method throws with
- * the EXACT verbatim D-15 message so accidental invocation produces actionable
- * guidance.
+ * Config source (matches `validateStorageEnv()` var names exactly):
+ *   - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `S3_BUCKET`.
  *
- * Message format (D-15 verbatim — CONTEXT line 50):
- *   `FileStorage.{method}: not yet implemented in Phase 24; arriving in Phase 25`
- * NO parenthetical adapter discriminator; adapter identity is preserved via
- * the stack-trace class name (this class) when the error is thrown. Error
- * strings are byte-identical to LocalFileStorage / S3CompatFileStorage.
+ * Construction is intentionally NON-throwing on missing env: the factory
+ * invariant (D-15) is that `getFileStorage()` ALWAYS returns a real instance, and
+ * `validateStorageEnv()` is the single hard boot gate that crashes (named-var
+ * message) when an `s3`-selected runtime is misconfigured. `Bun.S3Client`
+ * construction is pure/lazy (no network), so empty creds here only surface at the
+ * first real operation — never at construction or at presign minting.
+ *
+ * An optional `config` argument injects a pre-normalized {@link S3ClientConfig}
+ * (used by tests / DI) and bypasses env reads entirely.
+ *
+ * No `@baseworks/config` import (dependency-light, per contract). `Bun.S3Client`
+ * is a runtime built-in — no `@aws-sdk/*`.
  */
-import type { FileStorage, ObjectStat, SignedRead, SignedUpload } from "../../ports/file-storage";
+import type { FileStorage } from "../../ports/file-storage";
+import { BaseS3FileStorage, createS3Client, type S3ClientConfig } from "./shared-s3";
 
-export class S3FileStorage implements FileStorage {
+/** Build the AWS S3 client config from `process.env` (soft reads; see header). */
+function configFromEnv(): S3ClientConfig {
+  return {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? "",
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? "",
+    region: process.env.AWS_REGION ?? "",
+    bucket: process.env.S3_BUCKET ?? "",
+  };
+}
+
+export class S3FileStorage extends BaseS3FileStorage implements FileStorage {
   readonly name = "s3";
 
-  async signUpload(_args: {
-    bucket: string;
-    key: string;
-    mimeType: string;
-    maxByteSize: number;
-    expiresInSec: number;
-  }): Promise<SignedUpload> {
-    throw new Error(
-      "FileStorage.signUpload: not yet implemented in Phase 24; arriving in Phase 25",
-    );
-  }
-  async signRead(_args: {
-    bucket: string;
-    key: string;
-    expiresInSec: number;
-    responseContentDisposition?: string;
-  }): Promise<SignedRead> {
-    throw new Error("FileStorage.signRead: not yet implemented in Phase 24; arriving in Phase 25");
-  }
-  async stat(_args: { bucket: string; key: string }): Promise<ObjectStat | null> {
-    throw new Error("FileStorage.stat: not yet implemented in Phase 24; arriving in Phase 25");
-  }
-  async delete(_args: { bucket: string; key: string }): Promise<void> {
-    throw new Error("FileStorage.delete: not yet implemented in Phase 24; arriving in Phase 25");
-  }
-  async getObject(_args: { bucket: string; key: string }): Promise<Uint8Array> {
-    throw new Error("FileStorage.getObject: not yet implemented in Phase 24; arriving in Phase 25");
-  }
-  async putObject(_args: {
-    bucket: string;
-    key: string;
-    body: Uint8Array;
-    mimeType: string;
-  }): Promise<void> {
-    throw new Error("FileStorage.putObject: not yet implemented in Phase 24; arriving in Phase 25");
+  constructor(config?: S3ClientConfig) {
+    super(createS3Client(config ?? configFromEnv()));
   }
 }
