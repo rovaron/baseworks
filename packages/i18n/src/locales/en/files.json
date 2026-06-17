@@ -1,0 +1,31 @@
+{
+  "dropzone": "Drag an image here, or click to choose",
+  "browse": "Choose file",
+  "uploading": "Uploading… '{percent}'%",
+  "processing": "Processing…",
+  "done": "Uploaded",
+  "cancel": "Cancel",
+  "retry": "Retry",
+  "remove": "Remove",
+  "beforeUnload": "An upload is still in progress. Leave this page anyway?",
+  "errors": {
+    "oversize": "This file is too large. Please choose a smaller image.",
+    "wrong_mime": "Unsupported file type. Use a JPEG, PNG, or WebP image.",
+    "quota_exceeded": "Storage limit reached. Free up space and try again.",
+    "network": "Upload failed due to a network error. Please try again.",
+    "mime_mismatch": "The file content does not match an allowed image type.",
+    "sign_failed": "Could not start the upload. Please try again.",
+    "canceled": "Upload canceled.",
+    "unknown": "Something went wrong during the upload."
+  },
+  "avatar": {
+    "title": "Profile photo",
+    "description": "Upload a JPEG, PNG, or WebP image up to 5 MB. Square images look best.",
+    "current": "Current profile photo"
+  },
+  "logo": {
+    "title": "Organization logo",
+    "description": "Upload a JPEG, PNG, or WebP image up to 5 MB.",
+    "ownerOnly": "Only organization owners and admins can change the logo."
+  }
+}

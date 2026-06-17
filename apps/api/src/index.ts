@@ -337,6 +337,20 @@ const app = new Elysia()
       return { deleted: true, tenantId };
     }),
   )
+  // Phase 29 / IDA-01 — GET /api/profile (tenant-scoped, any authenticated
+  // member). Dispatches auth:get-profile with the scoped handlerCtx so its
+  // dispatch channel is present and avatarUrl resolves via files:list-for-record
+  // + files:get-read-url (zero auth<->files import). Eden type: api.api.profile.get().
+  .group("/api", (group) =>
+    group.get("/profile", async (ctx: any) => {
+      const result = await registry.getCqrs().execute("auth:get-profile", {}, ctx.handlerCtx);
+      if (!result.success) {
+        ctx.set.status = 401;
+        return { error: result.error };
+      }
+      return result.data;
+    }),
+  )
   // Non-auth, non-billing module routes (e.g., example)
   .use(registry.getModuleRoutes());
 

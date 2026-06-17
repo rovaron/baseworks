@@ -70,7 +70,9 @@ describe("getProfile", () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data).toEqual(profile);
+      // Phase 29 / IDA-01 — DTO is additive: avatarUrl is null when ctx.dispatch
+      // is absent (this bare-ctx mock has none), no throw.
+      expect(result.data).toEqual({ ...profile, avatarUrl: null });
     }
     expect(mockSelect).toHaveBeenCalled();
   });
@@ -94,5 +96,93 @@ describe("getProfile", () => {
     if (!result.success) {
       expect(result.error).toBe("User not found");
     }
+  });
+});
+
+describe("getProfile — avatarUrl via ctx.dispatch (Phase 29 / IDA-01)", () => {
+  const profile = {
+    id: "user-1",
+    name: "Test User",
+    email: "test@test.com",
+    image: null,
+    emailVerified: true,
+    createdAt: new Date("2024-01-01"),
+  };
+
+  beforeEach(() => {
+    mockSelect.mockClear();
+    mockSelectResult.length = 0;
+  });
+
+  test("resolves the signed URL of the LATEST uploaded/ready file (latest-wins)", async () => {
+    mockSelectResult.push(profile);
+    const dispatched: Array<{ command: string; input: any }> = [];
+    const dispatch = async (command: string, input: unknown) => {
+      dispatched.push({ command, input: input as any });
+      if (command === "files:list-for-record") {
+        // ORDER BY created_at ASC → last usable is the latest.
+        return {
+          success: true,
+          data: {
+            files: [
+              { fileId: "f0", status: "pending" },
+              { fileId: "f1", status: "uploaded" },
+              { fileId: "f2", status: "ready" },
+            ],
+          },
+        };
+      }
+      if (command === "files:get-read-url") {
+        return { success: true, data: { url: "https://signed.example/avatar?sig=xyz" } };
+      }
+      return { success: false, error: "COMMAND_NOT_FOUND" };
+    };
+
+    const result = await getProfile({}, createMockCtx({ userId: "user-1", dispatch }));
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).toEqual({
+        ...profile,
+        avatarUrl: "https://signed.example/avatar?sig=xyz",
+      });
+    }
+    // list called with the auth/user owner tuple; read-url called for the latest (f2).
+    expect(dispatched[0]).toEqual({
+      command: "files:list-for-record",
+      input: { ownerModule: "auth", ownerRecordType: "user", recordId: "user-1" },
+    });
+    expect(dispatched[1]).toEqual({
+      command: "files:get-read-url",
+      input: { fileId: "f2" },
+    });
+  });
+
+  test("avatarUrl is null when no uploaded/ready file exists (no read-url call)", async () => {
+    mockSelectResult.push(profile);
+    const dispatched: string[] = [];
+    const dispatch = async (command: string) => {
+      dispatched.push(command);
+      if (command === "files:list-for-record") {
+        return { success: true, data: { files: [{ fileId: "f0", status: "pending" }] } };
+      }
+      return { success: false, error: "COMMAND_NOT_FOUND" };
+    };
+
+    const result = await getProfile({}, createMockCtx({ userId: "user-1", dispatch }));
+
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.avatarUrl).toBeNull();
+    expect(dispatched).toEqual(["files:list-for-record"]); // never reached get-read-url
+  });
+
+  test("avatarUrl is null when the list dispatch fails", async () => {
+    mockSelectResult.push(profile);
+    const dispatch = async () => ({ success: false, error: "not_found" });
+
+    const result = await getProfile({}, createMockCtx({ userId: "user-1", dispatch }));
+
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.avatarUrl).toBeNull();
   });
 });

@@ -7,6 +7,7 @@ import { deleteTenant } from "./commands/delete-tenant";
 import { rejectInvitation } from "./commands/reject-invitation";
 import { updateProfile } from "./commands/update-profile";
 import { updateTenant } from "./commands/update-tenant";
+import { organizationFileRelation, userFileRelation } from "./file-relations";
 import { getInvitation } from "./queries/get-invitation";
 import { getProfile } from "./queries/get-profile";
 import { getTenant } from "./queries/get-tenant";
@@ -32,10 +33,18 @@ export { betterAuthPlugin, requirePlatformAdmin, requireRole } from "./middlewar
  * Queries: get-tenant, list-tenants, list-members, get-profile, list-invitations, get-invitation
  * Events: user.created, tenant.created, member.added, member.removed, tenant.deleted,
  *         invitation.created, invitation.accepted, invitation.rejected, invitation.cancelled
+ *
+ * Phase 29 / IDA-01, IDA-02 — fileRelations { user (avatar), organization (logo) }
+ * declared so the files module validates/cascades identity assets WITHOUT any
+ * auth<->files import (registry collected at boot; resolved via ctx.dispatch).
  */
 export default {
   name: "auth",
   routes: authRoutes,
+  fileRelations: {
+    user: userFileRelation,
+    organization: organizationFileRelation,
+  },
   commands: {
     "auth:create-tenant": createTenant,
     "auth:update-tenant": updateTenant,

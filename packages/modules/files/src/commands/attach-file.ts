@@ -19,11 +19,14 @@
 
 import { env } from "@baseworks/config";
 import { files, getDb } from "@baseworks/db";
+import { getErrorTracker } from "@baseworks/observability";
 import type { HandlerContext, Result } from "@baseworks/shared";
 import { defineCommand, err, ok } from "@baseworks/shared";
+import { getFileStorage } from "@baseworks/storage";
 import { Type } from "@sinclair/typebox";
 import { and, eq, sql } from "drizzle-orm";
 import { findRelationByRecordType } from "../lib/relation-lookup";
+import { type SoftDeleteCaptured, softDeleteRow } from "../lib/soft-delete";
 
 const AttachFileInput = Type.Object({
   fileId: Type.String({ minLength: 1 }),
@@ -52,6 +55,14 @@ type AttachFileResult = { fileId: string; ownerRecordId: string };
  *   3. Optional relation.canWrite gate → forbidden (403). Tenant scope already
  *      proved file ownership; this gates linking to a record the caller may not own.
  *   4. UPDATE owner_record_id (allowed while pending — attach may precede complete).
+ *
+ * Phase 29 / IDA-01 — cascade-on-replace: when the relation is
+ * `cardinality:"single"` (avatar/logo), linking the new row also soft-deletes
+ * (latest-wins) every OTHER live file for the same owner tuple inside ONE
+ * transaction, refunding `bytes_used` via the shared `softDeleteRow` primitive
+ * (SC#4). The locked page flow sign→PUT→complete→attach guarantees the new file
+ * is already `uploaded` before the prior is removed (no zero-avatar window).
+ * Best-effort physical delete + `file.deleted` emit run per sibling AFTER commit.
  */
 export const attachFileCommand = defineCommand(AttachFileInput, async (input, ctx) => {
   const db = getDb(env.DATABASE_URL);
@@ -82,11 +93,62 @@ export const attachFileCommand = defineCommand(AttachFileInput, async (input, ct
     if (!allowed) return err("forbidden");
   }
 
-  // 4. Link the row (updatedAt auto-bumps via $onUpdate). Tenant-scoped.
-  await db
-    .update(files)
-    .set({ ownerRecordId: input.ownerRecordId })
-    .where(and(eq(files.id, input.fileId), eq(files.tenantId, ctx.tenantId)));
+  // 4. Link the new row + (for cardinality:"single") cascade-soft-delete the
+  //    prior file(s) for this owner tuple, all in one transaction so the quota
+  //    refund is atomic with the tombstones (SC#4 conservation).
+  const removed: SoftDeleteCaptured[] = await db.transaction(
+    async (tx: any): Promise<SoftDeleteCaptured[]> => {
+      // Link the row (updatedAt auto-bumps via $onUpdate). Tenant-scoped.
+      await tx
+        .update(files)
+        .set({ ownerRecordId: input.ownerRecordId })
+        .where(and(eq(files.id, input.fileId), eq(files.tenantId, ctx.tenantId)));
+
+      if (relation?.cardinality !== "single") return [];
+
+      // Lock + read every OTHER live row for this owner tuple (FOR UPDATE
+      // serializes against concurrent attach/delete). Raw read (banned builder).
+      const siblings = (await tx.execute(sql`
+        SELECT id, bucket, storage_key, owner_module, owner_record_type, owner_record_id, byte_size, status, transforms
+          FROM files
+         WHERE tenant_id = ${ctx.tenantId}
+           AND owner_module = ${input.ownerModule}
+           AND owner_record_type = ${input.ownerRecordType}
+           AND owner_record_id = ${input.ownerRecordId}
+           AND id <> ${input.fileId}
+           AND deleted_at IS NULL
+         FOR UPDATE
+      `)) as any[];
+
+      const captured: SoftDeleteCaptured[] = [];
+      for (const s of siblings) {
+        captured.push(await softDeleteRow(tx, ctx.tenantId, s));
+      }
+      return captured;
+    },
+  );
+
+  // 5. Best-effort physical delete + lifecycle event per replaced sibling, AFTER
+  //    commit (matches delete-file R7 — the tombstone is authoritative; a failed
+  //    object delete leaves a sweepable orphan).
+  for (const c of removed) {
+    await getFileStorage()
+      .delete({ bucket: c.bucket, key: c.key })
+      .catch((e) => {
+        getErrorTracker().captureException(e, {
+          tenantId: ctx.tenantId,
+          tags: { module: "files", command: "attach-file" },
+        });
+      });
+    ctx.emit("file.deleted", {
+      fileId: c.fileId,
+      tenantId: ctx.tenantId,
+      ownerModule: c.ownerModule,
+      ownerRecordType: c.ownerRecordType,
+      ownerRecordId: c.ownerRecordId,
+      byteSize: c.byteSize,
+    });
+  }
 
   return ok<AttachFileResult>({ fileId: input.fileId, ownerRecordId: input.ownerRecordId });
 });

@@ -88,7 +88,37 @@ export const getProfile = defineQuery(GetProfileInput, async (_input, ctx) => {
       .limit(1);
 
     if (!users.length) return err("User not found");
-    return ok(users[0]);
+
+    // Phase 29 / IDA-01 — resolve the signed avatar URL from the LATEST uploaded
+    // user-kind file via ctx.dispatch ONLY (ZERO @baseworks/module-files import —
+    // the files<->auth ban, proven by lint:cross-module). The user relation's
+    // canRead (recordId === ctx.userId) passes because the dispatched read reuses
+    // this same handlerCtx (same userId). ctx.dispatch absent (bare-ctx tests) ⇒
+    // avatarUrl: null, no throw. avatarUrl is ALWAYS a signed, expiring read URL —
+    // never a raw storage_key/bucket.
+    let avatarUrl: string | null = null;
+    if (ctx.dispatch) {
+      const listed = await ctx.dispatch("files:list-for-record", {
+        ownerModule: "auth",
+        ownerRecordType: "user",
+        recordId: ctx.userId,
+      });
+      if (listed.success) {
+        const data = listed.data as {
+          files: Array<{ fileId: string; status: string }>;
+        };
+        // "latest wins" — list-for-record is ORDER BY created_at ASC, so the last
+        // usable (uploaded|ready) file is the most recent (denormalized accessor).
+        const usable = data.files.filter((f) => f.status === "uploaded" || f.status === "ready");
+        const latest = usable[usable.length - 1];
+        if (latest) {
+          const read = await ctx.dispatch("files:get-read-url", { fileId: latest.fileId });
+          if (read.success) avatarUrl = (read.data as { url: string }).url;
+        }
+      }
+    }
+
+    return ok({ ...users[0], avatarUrl });
   } catch (error: any) {
     return err(error.message || "Failed to get profile");
   }

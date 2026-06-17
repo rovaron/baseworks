@@ -76,6 +76,14 @@ export interface FileRelation {
   generateVariants?: ImageVariantSpec[];
   /** Cascade strategy when the owning record is deleted (Phase 27 / MOD-03). */
   onDelete?: "cascade" | "orphan";
+  /**
+   * Phase 29 / IDA-01 — relation cardinality per owner record. `"single"`
+   * (avatar/logo) makes `attach-file` cascade-soft-delete any prior live file
+   * for the same `(tenant, ownerModule, recordType, ownerRecordId)` tuple
+   * (latest-wins, refunding quota). `"many"` (default when omitted) keeps every
+   * attached file. Backward-compatible: all existing relations omit it ⇒ many.
+   */
+  cardinality?: "single" | "many";
   /** Per-request read-permission hook (Phase 27 / ATT-02). Return false → 404 (no existence leak). */
   canRead?: (ctx: any, recordId: string) => Promise<boolean>;
   /** Per-request write-permission hook (Phase 26 sign-upload). Return false → 403. */

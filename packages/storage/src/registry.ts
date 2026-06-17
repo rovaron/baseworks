@@ -32,6 +32,10 @@ const fileRelationSchema = z.object({
   maxByteSize: z.number().int().positive(),
   generateVariants: z.array(imageVariantSpecSchema).optional(),
   onDelete: z.enum(["cascade", "orphan"]).optional(),
+  // Phase 29 / IDA-01 — cardinality; z.object strips unknown keys, so this MUST
+  // be declared or `register()` would drop it and the cascade-on-replace
+  // (attach-file, cardinality:"single") would never fire.
+  cardinality: z.enum(["single", "many"]).optional(),
   // Hooks are functions — Zod can't enforce arity at runtime cheaply.
   canRead: z.any().optional(),
   canWrite: z.any().optional(),

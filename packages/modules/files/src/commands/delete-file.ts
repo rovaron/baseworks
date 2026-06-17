@@ -26,20 +26,17 @@
  */
 
 import { env } from "@baseworks/config";
-import { files, getDb } from "@baseworks/db";
+import { getDb } from "@baseworks/db";
 import { getErrorTracker } from "@baseworks/observability";
 import { defineCommand, err, ok } from "@baseworks/shared";
 import { getFileStorage } from "@baseworks/storage";
 import { Type } from "@sinclair/typebox";
-import { and, eq, isNull, sql } from "drizzle-orm";
-import { decrementUsed, sumTransformBytes } from "../lib/quota";
+import { sql } from "drizzle-orm";
+import { type SoftDeleteCaptured, softDeleteRow } from "../lib/soft-delete";
 
 const DeleteFileInput = Type.Object({
   fileId: Type.String({ minLength: 1 }),
 });
-
-/** Prior statuses that counted toward `bytes_used` (so deletion decrements it). */
-const COUNTED_STATUSES = new Set(["uploaded", "ready", "transforming"]);
 
 export const deleteFile = defineCommand(DeleteFileInput, async (input, ctx) => {
   const db = getDb(env.DATABASE_URL);
@@ -48,21 +45,15 @@ export const deleteFile = defineCommand(DeleteFileInput, async (input, ctx) => {
   // the tx so we can emit + best-effort-delete AFTER commit. Returned from the tx
   // (not a closure-scoped `let`, which TS narrows to `never` after the guard);
   // null when no live row matched → 404 (foreign-tenant id also lands here — R2).
-  type Captured = {
-    bucket: string;
-    key: string;
-    ownerModule: string;
-    ownerRecordType: string;
-    ownerRecordId: string;
-    byteSize: number;
-  };
-
-  const captured: Captured | null = await db.transaction(
-    async (tx: any): Promise<Captured | null> => {
+  // The tombstone + quota refund are the shared `softDeleteRow` primitive
+  // (lib/soft-delete.ts) — the SINGLE conservation code path also used by
+  // attach-file's cascade-on-replace (Phase 29 / SC#4).
+  const captured: SoftDeleteCaptured | null = await db.transaction(
+    async (tx: any): Promise<SoftDeleteCaptured | null> => {
       // 1. Lock + read the PRIOR state (R3) via raw SQL. FOR UPDATE serializes
       //    concurrent deletes of the same row.
       const rows = (await tx.execute(sql`
-      SELECT bucket, storage_key, owner_module, owner_record_type, owner_record_id, byte_size, status, transforms
+      SELECT id, bucket, storage_key, owner_module, owner_record_type, owner_record_id, byte_size, status, transforms
         FROM files
        WHERE id = ${input.fileId}
          AND tenant_id = ${ctx.tenantId}
@@ -72,39 +63,8 @@ export const deleteFile = defineCommand(DeleteFileInput, async (input, ctx) => {
       const prior = rows[0];
       if (!prior) return null; // no live row → 404
 
-      const wasCounted = COUNTED_STATUSES.has(prior.status);
-
-      // 2. Tombstone (idempotent: the deleted_at IS NULL predicate means a racing
-      //    delete that already committed updates 0 rows).
-      await tx
-        .update(files)
-        .set({ deletedAt: new Date(), status: "deleted" })
-        .where(
-          and(
-            eq(files.id, input.fileId),
-            eq(files.tenantId, ctx.tenantId),
-            isNull(files.deletedAt),
-          ),
-        );
-
-      // 3. Decrement counted usage only — the row's own byte_size PLUS the sum of
-      //    its generated-variant bytes (Phase 28: the transform job credited those
-      //    into bytes_used via addUsed, so the refund MUST debit them too or every
-      //    deletion of a transformed file permanently leaks its variant bytes —
-      //    SC#3 conservation).
-      if (wasCounted) {
-        const variantBytes = sumTransformBytes(prior.transforms);
-        await decrementUsed(tx, ctx.tenantId, Number(prior.byte_size) + variantBytes);
-      }
-
-      return {
-        bucket: prior.bucket,
-        key: prior.storage_key,
-        ownerModule: prior.owner_module,
-        ownerRecordType: prior.owner_record_type,
-        ownerRecordId: prior.owner_record_id,
-        byteSize: Number(prior.byte_size),
-      };
+      // 2/3. Tombstone + quota refund (own byte_size + Phase-28 variant bytes).
+      return softDeleteRow(tx, ctx.tenantId, prior);
     },
   );
 
