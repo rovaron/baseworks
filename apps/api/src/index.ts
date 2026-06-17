@@ -289,21 +289,27 @@ const app = new Elysia()
   .use(tenantMiddleware)
   .derive({ as: "scoped" }, (ctx: any) => {
     const tenantId: string = ctx.tenantId;
-    return {
-      handlerCtx: {
-        tenantId,
-        userId: ctx.userId,
-        db: scopedDb(db, tenantId),
-        // Forward the live request headers so session-bound better-auth calls
-        // (auth commands/queries via auth.api.*) can resolve the caller (C2).
-        headers: ctx.request.headers,
-        emit: (event: string, data: unknown) =>
-          registry.getEventBus().emit(event, {
-            ...(typeof data === "object" && data !== null ? data : { data }),
-            _requestId: ctx.requestId,
-          }),
-      } satisfies HandlerContext,
+    const handlerCtx: HandlerContext = {
+      tenantId,
+      userId: ctx.userId,
+      db: scopedDb(db, tenantId),
+      // Forward the live request headers so session-bound better-auth calls
+      // (auth commands/queries via auth.api.*) can resolve the caller (C2).
+      headers: ctx.request.headers,
+      emit: (event: string, data: unknown) =>
+        registry.getEventBus().emit(event, {
+          ...(typeof data === "object" && data !== null ? data : { data }),
+          _requestId: ctx.requestId,
+        }),
     };
+    // Phase 27 / ATT-01, ATT-02 — wire the cross-module dispatch channel. The
+    // closure references the SAME handlerCtx object, so a dispatched command
+    // receives a fully-formed context (dispatch included) and nested dispatch
+    // works. String dispatch through the bus is NOT a module import, so the
+    // cross-module-import ban (Phase 26 SC#5 / Phase 29 files<->auth) stays green.
+    handlerCtx.dispatch = (command: string, input: unknown) =>
+      registry.getCqrs().execute(command, input, handlerCtx);
+    return { handlerCtx };
   })
   // Billing HTTP routes (tenant-scoped commands/queries)
   .use(billingApiRoutes ?? new Elysia())

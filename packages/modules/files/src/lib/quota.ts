@@ -68,3 +68,53 @@ export async function releaseQuota(db: Db, tenantId: string, size: number): Prom
      WHERE tenant_id = ${tenantId}
   `);
 }
+
+/**
+ * Phase 27 / UPL-02 — move a completed upload's bytes from pending to used in
+ * ONE atomic statement. Called inside the complete-upload transaction with the
+ * `tx` passed as `db`.
+ *
+ * Releases EXACTLY the originally-RESERVED bytes from pending (the size the
+ * client claimed at sign-time) and adds the server-AUTHORITATIVE bytes (from
+ * `storage.stat()`) to used — that split is the whole point of size
+ * verification: pending was reserved against the claim, used reflects reality.
+ * GREATEST(...,0) guards pending underflow.
+ *
+ * Risk R1: if the client under-claimed (authoritative > reserved), bytes_used
+ * can exceed what was reserved by up to relation.maxByteSize per file — bounded
+ * by the complete-upload step-6 per-file cap. Stricter delta re-reservation is
+ * deferred to Phase 31.
+ */
+export async function markUploaded(
+  db: Db,
+  tenantId: string,
+  reservedSize: number,
+  authoritativeSize: number,
+): Promise<void> {
+  await db.execute(sql`
+    UPDATE tenant_storage_usage
+       SET bytes_pending = GREATEST(bytes_pending - ${reservedSize}, 0),
+           bytes_used    = bytes_used + ${authoritativeSize},
+           updated_at    = now()
+     WHERE tenant_id = ${tenantId}
+  `);
+}
+
+/**
+ * Phase 27 / UPL-04 — decrement counted (bytes_used) storage for a tenant.
+ * Used by the delete and cascade-soft-delete paths once a row that was actually
+ * counted toward usage (prior status ∈ {uploaded,ready,transforming}) is
+ * tombstoned. `size` is the row's byte_size (delete) or the SUM of counted
+ * rows' byte_size (cascade). GREATEST(...,0) guards against underflow.
+ *
+ * Pending rows are NOT decremented here — their bytes live in bytes_pending and
+ * are the Phase 31 cleanup job's concern (locked decision #5).
+ */
+export async function decrementUsed(db: Db, tenantId: string, size: number): Promise<void> {
+  await db.execute(sql`
+    UPDATE tenant_storage_usage
+       SET bytes_used  = GREATEST(bytes_used - ${size}, 0),
+           updated_at  = now()
+     WHERE tenant_id = ${tenantId}
+  `);
+}

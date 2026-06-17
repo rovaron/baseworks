@@ -77,6 +77,10 @@ const serverSchema = {
   // reserveQuota()'s COALESCE(bytes_limit, default) for legacy/NULL-limit rows
   // (D-11 per-tenant-override-or-env-default). Default 1 GiB (1073741824 bytes).
   STORAGE_DEFAULT_QUOTA_BYTES: z.coerce.number().int().positive().default(1073741824),
+  // Phase 27 / UPL-04 — signed READ-URL TTL in seconds. 5–15 min window; default
+  // 10 min. Bounds keep tokens short-lived (no long-lived shareable links) while
+  // leaving enough slack for a slow client to start the download.
+  STORAGE_SIGNED_URL_TTL_SEC: z.coerce.number().int().min(300).max(900).default(600),
 };
 
 export const env = createEnv({

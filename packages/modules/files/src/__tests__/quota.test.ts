@@ -19,7 +19,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { createDb, tenantStorageUsage } from "@baseworks/db";
 import { eq, inArray, sql } from "drizzle-orm";
-import { releaseQuota, reserveQuota } from "../lib/quota";
+import { decrementUsed, markUploaded, releaseQuota, reserveQuota } from "../lib/quota";
 
 const TEST_DB_URL =
   process.env.DATABASE_URL ?? "postgres://baseworks:baseworks@localhost:5432/baseworks";
@@ -143,6 +143,66 @@ describe("releaseQuota (live DB)", () => {
     await releaseQuota(db, tenantId, 999);
     const row = await readUsage(tenantId);
     expect(row?.bytesPending).toBe(0);
+  });
+});
+
+describe("markUploaded (live DB) — Phase 27 / UPL-02", () => {
+  test("moves the reserved bytes from pending to used (authoritative == reserved)", async () => {
+    const tenantId = newTenantId("mu_eq");
+    // 300 reserved as pending, nothing used yet.
+    await seedUsage(tenantId, 0, 300, 10_000);
+
+    await markUploaded(db, tenantId, 300, 300);
+
+    const row = await readUsage(tenantId);
+    expect(row?.bytesPending).toBe(0);
+    expect(row?.bytesUsed).toBe(300);
+  });
+
+  test("releases the RESERVED size from pending but adds the AUTHORITATIVE size to used", async () => {
+    const tenantId = newTenantId("mu_neq");
+    // Client claimed 300 (pending). Authoritative server size is 500 (under-claim).
+    await seedUsage(tenantId, 1_000, 300, 100_000);
+
+    await markUploaded(db, tenantId, 300, 500);
+
+    const row = await readUsage(tenantId);
+    // pending loses exactly the reserved 300; used gains the authoritative 500.
+    expect(row?.bytesPending).toBe(0);
+    expect(row?.bytesUsed).toBe(1_500);
+  });
+
+  test("GREATEST floors bytes_pending at 0 when reserved exceeds pending", async () => {
+    const tenantId = newTenantId("mu_floor");
+    await seedUsage(tenantId, 0, 100, 10_000);
+
+    await markUploaded(db, tenantId, 999, 100);
+
+    const row = await readUsage(tenantId);
+    expect(row?.bytesPending).toBe(0);
+    expect(row?.bytesUsed).toBe(100);
+  });
+});
+
+describe("decrementUsed (live DB) — Phase 27 / UPL-04", () => {
+  test("decrements bytes_used by the given size", async () => {
+    const tenantId = newTenantId("du");
+    await seedUsage(tenantId, 800, 0, 10_000);
+
+    await decrementUsed(db, tenantId, 300);
+
+    const row = await readUsage(tenantId);
+    expect(row?.bytesUsed).toBe(500);
+  });
+
+  test("GREATEST floors bytes_used at 0 (no underflow)", async () => {
+    const tenantId = newTenantId("du_floor");
+    await seedUsage(tenantId, 100, 0, 10_000);
+
+    await decrementUsed(db, tenantId, 999);
+
+    const row = await readUsage(tenantId);
+    expect(row?.bytesUsed).toBe(0);
   });
 });
 

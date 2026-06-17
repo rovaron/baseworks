@@ -215,6 +215,7 @@
         "@sinclair/typebox": "0.34.49",
         "drizzle-orm": "^0.45.0",
         "elysia": "^1.4.0",
+        "file-type": "22.0.0",
         "nanoid": "^5.1.9",
       },
     },

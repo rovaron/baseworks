@@ -133,7 +133,7 @@ Plans:
   3. Module author can call `attachFile(ctx, { ownerModule, ownerRecordType, ownerRecordId, fileId })` server-side; `GET /api/files/list-for-record?ownerModule=X&recordId=Y` returns the file list with per-relation `canRead` hooks enforcing access; cross-tenant attempt returns 404 (not 403, to avoid existence leak)
   4. Authorized user can `DELETE /api/files/:fileId` and the storage object + DB row are removed atomically (soft-delete pattern preserves audit trail); `tenant_storage_usage.bytes_used` decrements; `file.deleted` event emitted on TypedEventBus
   5. Cascade-on-delete works via event subscription — deleting a user fires `auth.user-deleted`, the files module subscribes and soft-deletes the user's owned files per the relation's `onDelete: 'cascade'` setting; orphan reconciliation job (Phase 31) sweeps any whose `(ownerModule, ownerRecordId)` no longer resolves
-**Plans:** TBD (populated by /gsd:plan-phase 27)
+**Plans:** 1/1 complete — executed from `27-PLAN-CONTRACT.md` (LOCKED). Complete (fully verified against live Postgres — Docker up). Closed the synchronous upload loop: `complete-upload` reads the AUTHORITATIVE size via `stat()` + `file-type@22.0.0` magic-byte check on the first 4 KiB (mismatch/oversize → delete object + DB row + release pending); `markUploaded` moves reserved-pending→authoritative-used in one atomic statement (count-once under concurrency); `read-url` mints a per-request signed GET with `STORAGE_SIGNED_URL_TTL_SEC` TTL (no `storageKey` ever in any `/api/files/*` body); soft-delete with `bytes_used` decrement + `file.deleted` event; generic `attachFile`/`list-for-record` made cross-module-invocable via a new string-keyed `ctx.dispatch` (NOT an import — both bans stay green); registry-derived cascade subscriber proven by an in-test `auth.user-deleted` emit (auth untouched — its emit lands in Phase 29). `DATABASE_URL=… bun test packages/modules/files` → 69 pass / 0 fail. Adversarial review: 1 blocker (R4 `file-type` not resolvable → dep added + `bun install`) + 5 warnings, all addressed.
 **UI hint:** no
 
 #### Phase 28: Image Transform Pipeline (sharp spike + imagescript fallback)
@@ -222,7 +222,7 @@ Plans:
 | 24. Foundation: Storage Port + Files Schema | v1.4 | 7/7 | Complete   | 2026-06-11 |
 | 25. Test Infra + Three Storage Adapters | v1.4 | 1/1 | Complete (local-verified; S3/MinIO CI-gated) | 2026-06-16 |
 | 26. Files Module + Sign-Upload + Quota | v1.4 | 1/1 | Complete (fully live-DB-verified) | 2026-06-16 |
-| 27. Complete-Upload + Read + Delete + Attachments | v1.4 | 0/0 | Not started | - |
+| 27. Complete-Upload + Read + Delete + Attachments | v1.4 | 1/1 | Complete (fully live-DB-verified) | 2026-06-16 |
 | 28. Image Transform Pipeline | v1.4 | 0/0 | Not started | - |
 | 29. Auth + Org Identity Asset Wiring | v1.4 | 0/0 | Not started | - |
 | 30. UI Uploader Component | v1.4 | 0/0 | Not started | - |

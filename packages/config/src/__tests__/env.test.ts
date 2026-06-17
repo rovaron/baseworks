@@ -112,6 +112,93 @@ describe("env validation", () => {
     expect(exitCode).toBe(0);
     expect(stdout.trim()).toBe("524288000");
   });
+
+  // Phase 27 / UPL-04 — STORAGE_SIGNED_URL_TTL_SEC default + bounds.
+  test("STORAGE_SIGNED_URL_TTL_SEC defaults to 600 and coerces to number", async () => {
+    const proc = Bun.spawn(
+      [
+        "bun",
+        "-e",
+        'import { env } from "@baseworks/config"; console.log(JSON.stringify({ ttl: env.STORAGE_SIGNED_URL_TTL_SEC, type: typeof env.STORAGE_SIGNED_URL_TTL_SEC }))',
+      ],
+      {
+        env: {
+          HOME: process.env.HOME,
+          PATH: process.env.PATH,
+          DATABASE_URL: "postgres://user:pass@localhost:5432/testdb",
+          BETTER_AUTH_SECRET: "a".repeat(32),
+          NODE_ENV: "test",
+          // No STORAGE_SIGNED_URL_TTL_SEC -- should fall back to the default.
+        },
+        stdout: "pipe",
+        stderr: "pipe",
+        cwd: import.meta.dir + "/../../..",
+      },
+    );
+
+    const exitCode = await proc.exited;
+    const stdout = await new Response(proc.stdout).text();
+
+    expect(exitCode).toBe(0);
+    const result = JSON.parse(stdout.trim());
+    expect(result.type).toBe("number");
+    expect(result.ttl).toBe(600);
+  });
+
+  test("STORAGE_SIGNED_URL_TTL_SEC honors an in-bounds override", async () => {
+    const proc = Bun.spawn(
+      [
+        "bun",
+        "-e",
+        'import { env } from "@baseworks/config"; console.log(String(env.STORAGE_SIGNED_URL_TTL_SEC))',
+      ],
+      {
+        env: {
+          HOME: process.env.HOME,
+          PATH: process.env.PATH,
+          DATABASE_URL: "postgres://user:pass@localhost:5432/testdb",
+          BETTER_AUTH_SECRET: "a".repeat(32),
+          NODE_ENV: "test",
+          STORAGE_SIGNED_URL_TTL_SEC: "900",
+        },
+        stdout: "pipe",
+        stderr: "pipe",
+        cwd: import.meta.dir + "/../../..",
+      },
+    );
+
+    const exitCode = await proc.exited;
+    const stdout = await new Response(proc.stdout).text();
+
+    expect(exitCode).toBe(0);
+    expect(stdout.trim()).toBe("900");
+  });
+
+  test("STORAGE_SIGNED_URL_TTL_SEC rejects an out-of-bounds value (< 300)", async () => {
+    const proc = Bun.spawn(
+      [
+        "bun",
+        "-e",
+        'import { env } from "@baseworks/config"; console.log(String(env.STORAGE_SIGNED_URL_TTL_SEC))',
+      ],
+      {
+        env: {
+          HOME: process.env.HOME,
+          PATH: process.env.PATH,
+          DATABASE_URL: "postgres://user:pass@localhost:5432/testdb",
+          BETTER_AUTH_SECRET: "a".repeat(32),
+          NODE_ENV: "test",
+          STORAGE_SIGNED_URL_TTL_SEC: "10",
+        },
+        stdout: "pipe",
+        stderr: "pipe",
+        cwd: import.meta.dir + "/../../..",
+      },
+    );
+
+    const exitCode = await proc.exited;
+    expect(exitCode).not.toBe(0);
+  });
 });
 
 describe("validatePaymentProviderEnv", () => {
