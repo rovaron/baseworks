@@ -1,14 +1,18 @@
 import { describe, expect, mock, test } from "bun:test";
+import * as realConfig from "@baseworks/config";
 import { defaultLocale, type Locale } from "@baseworks/i18n";
 
 // The auth barrel transitively imports `./auth` which imports @baseworks/config
 // (t3-env validation). The @baseworks/observability barrel transitively imports
-// scrub-pii which also imports @baseworks/config. Mock config + auth BEFORE any
-// SUT module is evaluated so env validation doesn't fire during a unit test.
-// Mirrors the pattern at packages/modules/auth/src/__tests__/accept-invitation.test.ts
-// (top-of-file mock.module + deferred dynamic import).
+// scrub-pii which also imports @baseworks/config. Mock config BEFORE any SUT
+// module is evaluated so we control the env, but SPREAD the real module first so
+// the mock keeps the FULL export surface (getAdminEmails, etc.). A partial mock
+// here both broke Test 4 (the auth barrel imports getAdminEmails) AND — because
+// bun's mock.module is process-global — leaked a getAdminEmails-less config into
+// every test file loaded after this one (timestamps-updatedat / mock-isolation).
 mock.module("@baseworks/config", () => ({
-  env: { OBS_PII_DENY_EXTRA_KEYS: "" },
+  ...realConfig,
+  env: { ...realConfig.env, OBS_PII_DENY_EXTRA_KEYS: "" },
 }));
 mock.module("../src/auth", () => ({
   auth: { api: {} },

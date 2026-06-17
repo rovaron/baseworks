@@ -28,6 +28,9 @@ describe("API entrypoint", () => {
 });
 
 describe("Worker entrypoint", () => {
+  // 15s test budget: the internal kill timer (below) must fire and the piped
+  // streams drain BEFORE bun's test timeout — a 5000ms kill under bun's default
+  // 5000ms test timeout was a race that timed out on slower/Windows hosts.
   test("worker starts without HTTP server and logs startup", async () => {
     // Spawn worker as subprocess with minimal env
     const proc = Bun.spawn(["bun", "run", "apps/api/src/worker.ts"], {
@@ -44,8 +47,9 @@ describe("Worker entrypoint", () => {
       stderr: "pipe",
     });
 
-    // Wait for startup (max 5 seconds)
-    const timeout = setTimeout(() => proc.kill(), 5000);
+    // Kill after 3s (well under the 15s test budget) — we only need enough
+    // output to confirm the worker entrypoint loads and starts NO HTTP server.
+    const timeout = setTimeout(() => proc.kill(), 3000);
 
     const stdout = await new Response(proc.stdout).text();
     const stderr = await new Response(proc.stderr).text();
@@ -61,5 +65,5 @@ describe("Worker entrypoint", () => {
     const noServer = !output.includes("Baseworks API started");
 
     expect(noServer).toBe(true);
-  });
+  }, 15000);
 });

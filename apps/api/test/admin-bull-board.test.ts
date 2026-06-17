@@ -187,7 +187,7 @@ describe("bull-board RBAC + CSP + readOnly (OPS-01 / D-02..D-04)", () => {
     expect(bullMQAdapterCalls[0].readOnlyMode).toBe(false);
   });
 
-  test("uiBasePath = 'node_modules/@bull-board/ui' (Pitfall 1 Bun workaround)", async () => {
+  test("uiBasePath resolves to the @bull-board/ui package dir (Bun isolated-install workaround)", async () => {
     installMocks();
     mock.module("@baseworks/config", () => ({
       env: {
@@ -199,7 +199,13 @@ describe("bull-board RBAC + CSP + readOnly (OPS-01 / D-02..D-04)", () => {
     const mod = await import(`../src/routes/bull-board${cacheBust}`);
     await mod.createBullBoardPlugin([]);
     const last = createBullBoardCalls[createBullBoardCalls.length - 1];
-    expect(last?.uiBasePath).toBe("node_modules/@bull-board/ui");
+    // bull-board.ts computes uiBasePath = dirname(Bun.resolveSync(
+    // "@bull-board/ui/package.json")) — an ABSOLUTE path, since Bun's isolated
+    // install does not hoist @bull-board/ui to the root node_modules. The old
+    // assertion (the stale hard-coded "node_modules/@bull-board/ui") contradicted
+    // the source's own comment. Assert it points at the package dir, OS-agnostic.
+    const normalized = String(last?.uiBasePath).replace(/\\/g, "/");
+    expect(normalized).toContain("@bull-board/ui");
   });
 
   test("CSP does NOT leak to other routes (Pitfall 6)", async () => {

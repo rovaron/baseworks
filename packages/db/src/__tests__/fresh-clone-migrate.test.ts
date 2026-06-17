@@ -64,22 +64,42 @@ async function createScratchDatabase(): Promise<void> {
 
 describe("fresh-clone migration baseline (Phase 20.1 D-03)", () => {
   let canConnect = false;
+  let canCreateDb = false;
 
   beforeAll(async () => {
     canConnect = await isPostgresAvailable();
     if (!canConnect) return;
-    await dropScratchDatabase();
-    await createScratchDatabase();
+    // The test needs CREATEDB to spin up a scratch database. CI's `postgres`
+    // superuser has it; a local dev role (e.g. `baseworks`) typically does NOT,
+    // so a "permission denied to create database" must SKIP (not fail) — same
+    // discipline as the PostgreSQL-unavailable path. Migration correctness is
+    // still exercised in CI where the privilege exists.
+    try {
+      await dropScratchDatabase();
+      await createScratchDatabase();
+      canCreateDb = true;
+    } catch (err) {
+      console.warn(
+        `SKIPPED: cannot create the scratch database (CREATEDB privilege required): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      canCreateDb = false;
+    }
   });
 
   afterAll(async () => {
-    if (!canConnect) return;
+    if (!canCreateDb) return;
     await dropScratchDatabase();
   });
 
   test("bun run db:migrate succeeds against an empty database", async () => {
     if (!canConnect) {
       console.warn("SKIPPED: PostgreSQL unavailable (start: docker compose up -d postgres)");
+      return;
+    }
+    if (!canCreateDb) {
+      console.warn("SKIPPED: role lacks CREATEDB; the fresh-clone baseline runs in CI (superuser)");
       return;
     }
 

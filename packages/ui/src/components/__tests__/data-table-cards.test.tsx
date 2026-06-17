@@ -6,7 +6,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import * as React from "react";
 import { describe, expect, it } from "vitest";
 import { DataTableCards } from "../data-table-cards";
@@ -121,10 +121,15 @@ describe("DataTableCards", () => {
     // Detail columns not visible initially
     expect(screen.queryByText("2024-01-01")).not.toBeInTheDocument();
 
-    // Click the first card to expand
+    // Expand the first card via its dedicated toggle button (aria-expanded /
+    // aria-controls / aria-label="Show details"). The [data-card] container
+    // itself has no click handler — clicking it is a no-op by design.
     const firstCard = screen.getByText("Alice").closest("[data-card]");
     expect(firstCard).toBeTruthy();
-    fireEvent.click(firstCard!);
+    const toggle = within(firstCard as HTMLElement).getByRole("button", {
+      name: /show details/i,
+    });
+    fireEvent.click(toggle);
 
     // Now detail column should be visible
     expect(screen.getByText("2024-01-01")).toBeInTheDocument();
