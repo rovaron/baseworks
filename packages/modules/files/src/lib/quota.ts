@@ -14,10 +14,23 @@
  * pass. No SELECT ... FOR UPDATE, no read-modify-write, no TOCTOU window.
  */
 
-import { type getDb, tenantStorageUsage } from "@baseworks/db";
+import { type FileTransform, type getDb, tenantStorageUsage } from "@baseworks/db";
 import { sql } from "drizzle-orm";
 
 type Db = ReturnType<typeof getDb>;
+
+/**
+ * Phase 28 / IMG-01 — Σ `byteSize` over a file's generated-variant manifest
+ * (`files.transforms` jsonb). 0 for an empty/absent manifest. Single source of
+ * truth for variant-byte accounting: the transform job CREDITS this sum into
+ * `bytes_used`, so every refund path (delete, cascade) MUST DEBIT the same sum
+ * alongside the row's own `byte_size` — otherwise deleting a transformed file
+ * leaks its variant bytes and drifts `bytes_used` upward forever (SC#3
+ * conservation invariant).
+ */
+export function sumTransformBytes(manifest: FileTransform[] | null | undefined): number {
+  return (manifest ?? []).reduce((acc, t) => acc + (t.byteSize ?? 0), 0);
+}
 
 /**
  * Atomically reserve `size` bytes of pending quota for `tenantId`.
@@ -114,6 +127,24 @@ export async function decrementUsed(db: Db, tenantId: string, size: number): Pro
   await db.execute(sql`
     UPDATE tenant_storage_usage
        SET bytes_used  = GREATEST(bytes_used - ${size}, 0),
+           updated_at  = now()
+     WHERE tenant_id = ${tenantId}
+  `);
+}
+
+/**
+ * Phase 28 / IMG-01 — apply a SIGNED delta to bytes_used for generated image
+ * variants. `delta` is `Σ new variant bytes − Σ previously-counted variant bytes`
+ * (the old sum read from the row's existing `transforms` manifest), so a BullMQ
+ * retry that regenerates the SAME deterministic keys nets a 0 delta and never
+ * double-counts (locked decision §5.2 / Risk #4). Call inside the same tx as the
+ * manifest UPDATE. GREATEST guards underflow when the delta is negative.
+ */
+export async function addUsed(db: Db, tenantId: string, delta: number): Promise<void> {
+  if (delta === 0) return;
+  await db.execute(sql`
+    UPDATE tenant_storage_usage
+       SET bytes_used  = GREATEST(bytes_used + ${delta}, 0),
            updated_at  = now()
      WHERE tenant_id = ${tenantId}
   `);

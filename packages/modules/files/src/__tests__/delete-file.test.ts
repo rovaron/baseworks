@@ -66,6 +66,7 @@ async function seedFile(args: {
   key: string;
   byteSize: number;
   status: string;
+  transforms?: Array<Record<string, unknown>>;
 }): Promise<string> {
   const [row] = await db
     .insert(files)
@@ -79,6 +80,7 @@ async function seedFile(args: {
       mimeType: "image/png",
       byteSize: args.byteSize,
       status: args.status,
+      ...(args.transforms ? { transforms: args.transforms as any } : {}),
     })
     .returning({ id: files.id });
   createdFileIds.add(row.id);
@@ -159,6 +161,38 @@ describe("deleteFile — soft-delete + decrement + event (Phase 27 / UPL-04, liv
     expect(ev?.data.fileId).toBe(fileId);
     expect(ev?.data.tenantId).toBe(tenantId);
     expect(ev?.data.ownerRecordId).toBe("rec1");
+  });
+
+  test("transformed row ⇒ byte_size + variant bytes BOTH refunded (SC#3 conservation)", async () => {
+    // Phase 28 regression: the transform job credits Σ variant bytes into
+    // bytes_used; deleting the file MUST debit byte_size AND the variant manifest
+    // sum, else variant bytes leak forever and drift the counter upward.
+    const tenantId = newTenantId("transformed");
+    const key = `${tenantId}/del/${crypto.randomUUID()}.png`;
+    const originalBytes = 1000;
+    const variants = [
+      { name: "thumb", storageKey: `${key}/thumb.webp`, mimeType: "image/webp", byteSize: 200 },
+      { name: "small", storageKey: `${key}/small.jpg`, mimeType: "image/jpeg", byteSize: 350 },
+    ];
+    const variantBytes = variants.reduce((a, v) => a + v.byteSize, 0); // 550
+    // Pre-upload baseline = 0; after upload+transform bytes_used = 1000 + 550.
+    await seedUsage(tenantId, originalBytes + variantBytes);
+    await storage.putObject({ bucket: "files", key, body: PNG, mimeType: "image/png" });
+    const fileId = await seedFile({
+      tenantId,
+      key,
+      byteSize: originalBytes,
+      status: "ready",
+      transforms: variants,
+    });
+
+    const emitted: Array<{ event: string; data: any }> = [];
+    const r = await deleteFile({ fileId }, ctxFor(tenantId, emitted));
+    expect(r.success).toBe(true);
+
+    expect((await readFileRow(fileId))?.status).toBe("deleted");
+    // Back to the pre-upload value (0) — original AND variant bytes both refunded.
+    expect(Number((await readUsage(tenantId))?.bytesUsed)).toBe(0);
   });
 
   test("pending row ⇒ soft-delete + emit, NO bytes_used decrement", async () => {

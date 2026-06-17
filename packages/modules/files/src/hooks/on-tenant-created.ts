@@ -25,11 +25,53 @@ import { env } from "@baseworks/config";
 import { getDb, tenantStorageUsage } from "@baseworks/db";
 import { getErrorTracker } from "@baseworks/observability";
 import { fileRelationsRegistry } from "@baseworks/storage";
+import { sql } from "drizzle-orm";
 import { cascadeSoftDelete } from "../lib/cascade";
+import { findRelationByRecordType } from "../lib/relation-lookup";
+
+/** Minimal BullMQ Queue surface this hook needs (avoids a direct `bullmq` type
+ *  dependency on the files package — the real Queue from `createQueue` satisfies
+ *  it; the worker carries bullmq transitively). */
+interface EnqueueOnlyQueue {
+  add: (name: string, data: unknown) => Promise<unknown>;
+}
 
 interface TenantCreatedEvent {
   tenantId: string;
   name?: string;
+}
+
+/**
+ * Phase 27 emit payload for `file.completed` (commands/complete-upload.ts).
+ */
+interface FileCompletedEvent {
+  fileId: string;
+  tenantId: string;
+  byteSize: number;
+  mimeType: string;
+}
+
+/**
+ * Phase 28 / IMG-01 — lazy BullMQ queue for the image-transform pipeline. Only
+ * created when REDIS_URL is set; in dev/test without Redis the subscriber skips
+ * (variants are best-effort, never block the upload flow). Unlike billing's
+ * provision hook we do NOT run inline — a synchronous sharp transform has no
+ * place in the API request/emit path (memory + latency).
+ *
+ * `createQueue` is imported DYNAMICALLY (not at module top-level) so that merely
+ * calling `registerFilesHooks` does not pull `@baseworks/queue` — which imports
+ * `wrapQueue` from `@baseworks/observability` — into the import graph. Tests that
+ * mock `@baseworks/observability` with a partial stub (tenant.created / cascade
+ * suites) would otherwise fail to resolve `wrapQueue`. The queue is only ever
+ * needed at enqueue time, deep inside the async `file.completed` handler.
+ */
+let transformQueue: EnqueueOnlyQueue | null = null;
+async function getTransformQueue(): Promise<EnqueueOnlyQueue | null> {
+  if (!transformQueue && env.REDIS_URL) {
+    const { createQueue } = await import("@baseworks/queue");
+    transformQueue = createQueue("image-transform", env.REDIS_URL);
+  }
+  return transformQueue;
 }
 
 /** Minimal event-bus surface the files hooks depend on (TypedEventBus satisfies it).
@@ -67,6 +109,55 @@ export function registerFilesHooks(eventBus: FilesEventBus): void {
       getErrorTracker().captureException(err, {
         tenantId,
         tags: { module: "files", hook: "tenant.created" },
+      });
+    }
+  });
+
+  // IMG-01 — enqueue async image-variant generation on a completed upload.
+  // file.completed is emitted by complete-upload AFTER the commit (API process).
+  // Best-effort: a throw here never crashes the upload flow (emit is
+  // fire-and-forget) — try/catch + ErrorTracker, mirroring the two subscribers
+  // above. Trace propagation is automatic (createQueue's Phase-20 producer
+  // wrapper injects _otel/_requestId/... from the active obsContext frame).
+  eventBus.on("file.completed", async (data: unknown) => {
+    const { fileId, tenantId, mimeType } = data as FileCompletedEvent;
+    try {
+      // GATE 1 — raster images only. SVG (image/svg+xml) is excluded here as
+      // defense-in-depth: the output port union already bans SVG (XSS) and the
+      // worker re-rejects non-raster sources, but refusing to enqueue it at all
+      // keeps a hostile vector (librsvg SSRF/external-entity load) out of the
+      // worker entirely.
+      if (!mimeType?.startsWith("image/")) return;
+      if (mimeType === "image/svg+xml") return;
+
+      // GATE 2 — the relation must declare generateVariants. Recover it from the
+      // row's (owner_module, owner_record_type) via a tenant-scoped 2-col read
+      // (allow-listed direct files access).
+      const db = getDb(env.DATABASE_URL);
+      const rows = (await db.execute(sql`
+        SELECT owner_module, owner_record_type
+          FROM files
+         WHERE id = ${fileId}
+           AND tenant_id = ${tenantId}
+           AND deleted_at IS NULL
+         LIMIT 1
+      `)) as unknown as Array<{ owner_module: string; owner_record_type: string }>;
+      const row = rows[0];
+      if (!row) return;
+
+      const relation = findRelationByRecordType(row.owner_module, row.owner_record_type);
+      if (!relation?.generateVariants?.length) return;
+
+      const queue = await getTransformQueue();
+      if (!queue) {
+        // Dev/no-Redis: skip silently (variants are best-effort; no inline sharp).
+        return;
+      }
+      await queue.add("files:transform-image", { fileId, tenantId });
+    } catch (err) {
+      getErrorTracker().captureException(err, {
+        tenantId,
+        tags: { module: "files", hook: "file.completed" },
       });
     }
   });

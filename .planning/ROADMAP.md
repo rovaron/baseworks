@@ -147,7 +147,7 @@ Plans:
   3. After a `file.uploaded` event for an image with declared `generateVariants`, a BullMQ `image-transform` job runs on the `image-transform` queue; consumer-side trace propagation reuses the Phase 20 wrapper so a single trace spans API → enqueue → transform worker; variant files are written and recorded in `files.transforms` jsonb manifest with deterministic keys
   4. Decompression-bomb prevention is enforced at three layers: (a) `image/*` >20MB rejected at `/complete` before sharp processes it; (b) sharp `limitInputPixels: 50_000_000` + `failOn: "warning"` set on every transform; (c) pre-flight `metadata()` check rejects files >50M pixels — proven by the 50000×50000 fixture from Phase 25 returning HTTP 413 + structured error
   5. EXIF strip verified on every variant (round-trip test reads metadata from a transformed output and asserts no GPS/camera-model fields); transform worker `concurrency: 2` capped to keep memory bounded; failed transforms emit `file.transform-failed` event without crashing the worker
-**Plans:** TBD (populated by /gsd:plan-phase 28)
+**Plans:** 1/1 complete — executed from `28-PLAN-CONTRACT.md` (LOCKED). Complete (sharp default verified on the Windows dev host — win32-x64 prebuilt loaded, conformance + smoke RAN, not skipped — AND CI/Docker-gated via the committed `bun-docker-spike.test.ts`; imagescript pure-JS fallback always-on). Spike S-1 GREEN (operator-verified inside `oven/bun:1`: `SHARP_OK bytes=86 fmt=webp w=50 isWebp=true`). IMG-01/IMG-02/IMG-03 satisfied: `SharpImageTransform` (default, EXIF-dropping, `limitInputPixels:50M + failOn:'warning'`) + `ImagescriptImageTransform` (fallback — encodes webp/jpeg/png, can't DECODE webp, header-only metadata so the bomb pre-flight never OOMs) both pass one shared `runImageTransformConformance` suite (sharp 18/18, imagescript 27/27); `file.completed` → BullMQ `image-transform` queue → worker (`concurrency:2`, Phase-20 trace propagation) writes variants at deterministic keys into `files.transforms` jsonb with a signed quota delta; 3-layer bomb defense ((a) image/* >20 MB rejected at `/complete`, (b) sharp pixel+warning guard, (c) worker `metadata()` pre-flight >50M → structured `file.transform-failed`, no crash) PROVEN by the 50000×50000 fixture; EXIF stripped from every variant (EXIF-bearing round-trip gate). Plus a worker source-format allow-list closing the librsvg SSRF surface. `bun test packages/modules/files` → 87 pass / 0 fail. Adversarial review: 2 blockers (librsvg source filter; dynamic `createQueue` import) + 4 warnings (event payload leak, retry quota double-count, layer-a MIME bypass, sharp host availability), all addressed.
 **UI hint:** no
 
 #### Phase 29: Auth & Org Identity Asset Wiring
@@ -223,7 +223,7 @@ Plans:
 | 25. Test Infra + Three Storage Adapters | v1.4 | 1/1 | Complete (local-verified; S3/MinIO CI-gated) | 2026-06-16 |
 | 26. Files Module + Sign-Upload + Quota | v1.4 | 1/1 | Complete (fully live-DB-verified) | 2026-06-16 |
 | 27. Complete-Upload + Read + Delete + Attachments | v1.4 | 1/1 | Complete (fully live-DB-verified) | 2026-06-16 |
-| 28. Image Transform Pipeline | v1.4 | 0/0 | Not started | - |
+| 28. Image Transform Pipeline | v1.4 | 1/1 | Complete (sharp host-verified + CI/Docker-gated) | 2026-06-17 |
 | 29. Auth + Org Identity Asset Wiring | v1.4 | 0/0 | Not started | - |
 | 30. UI Uploader Component | v1.4 | 0/0 | Not started | - |
 | 31. Cleanup + Operator Surface | v1.4 | 0/0 | Not started | - |

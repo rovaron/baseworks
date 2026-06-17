@@ -84,6 +84,7 @@ async function seedFile(args: {
   ownerRecordId: string;
   byteSize: number;
   status: string;
+  transforms?: Array<Record<string, unknown>>;
 }): Promise<string> {
   const [row] = await db
     .insert(files)
@@ -97,6 +98,7 @@ async function seedFile(args: {
       mimeType: "image/png",
       byteSize: args.byteSize,
       status: args.status,
+      ...(args.transforms ? { transforms: args.transforms as any } : {}),
     })
     .returning({ id: files.id });
   createdFileIds.add(row.id);
@@ -214,6 +216,38 @@ describe("cascade soft-delete subscriber (Phase 27 / MOD-03, SC#5, live DB)", ()
       expect(e.data.tenantId).toBe(tenantId);
       expect(e.data.ownerRecordId).toBe(U1);
     }
+  });
+
+  test("cascade refunds byte_size + variant bytes for a transformed row (SC#3 conservation)", async () => {
+    // Phase 28 regression: a transformed (status 'ready') file carries a variant
+    // manifest whose bytes were credited into bytes_used by the transform job. The
+    // cascade refund MUST debit byte_size AND the manifest sum, else variant bytes
+    // leak on owner deletion.
+    const tenantId = newTenantId("cascadexf");
+    const U2 = "U2";
+    const variants = [
+      { name: "thumb", storageKey: "k/thumb.webp", mimeType: "image/webp", byteSize: 120 },
+      { name: "small", storageKey: "k/small.jpg", mimeType: "image/jpeg", byteSize: 80 },
+    ];
+    const variantBytes = variants.reduce((a, v) => a + v.byteSize, 0); // 200
+    const original = 100;
+    const f = await seedFile({
+      tenantId,
+      ownerRecordType: CASCADE_RT,
+      ownerRecordId: U2,
+      byteSize: original,
+      status: "ready",
+      transforms: variants,
+    });
+    await seedUsage(tenantId, original + variantBytes); // 300
+
+    const bus = makeBus();
+    registerFilesHooks(bus);
+    await bus.emit(`${OWNER_MODULE}.${CASCADE_RT}-deleted`, { tenantId, recordId: U2 });
+
+    expect((await readFileRow(f))?.status).toBe("deleted");
+    // Full conservation: 300 − (100 + 200) = 0.
+    expect(Number((await readUsage(tenantId))?.bytesUsed)).toBe(0);
   });
 
   test("deletion event for a record that owns no files ⇒ no-op (no decrement, no emit)", async () => {

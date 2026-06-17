@@ -56,6 +56,16 @@ export const FIXTURES = {
     bytes: 148,
     sha256: "92c0b521d0e6f55bf3ce1b1447d1de92ff2163eb11a3d0d4727ac583c9a588e2",
   },
+  // Phase 28 / IMG-03 — 80x60 JPEG carrying real GPS + camera (Make/Model) EXIF.
+  // Generated with sharp `.withExif()` (NOT the dependency-light PNG generator);
+  // committed so the EXIF-strip conformance gate has a metadata-BEARING input on
+  // every host, independent of sharp being loadable. Both adapters decode JPEG.
+  "exif-bearing.jpg": {
+    bytes: 564,
+    sha256: "a627ef2502de79e01f2f3f4425f8f91752f39f15b0eec62fcaa8fb555c890aeb",
+    width: 80,
+    height: 60,
+  },
   "truncated.png": {
     bytes: 87,
     sha256: "4ee660124ba190377f499365949de3df8818f239e5f64f69f65f10c0399f4c1c",

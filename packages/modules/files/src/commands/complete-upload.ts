@@ -124,6 +124,26 @@ export const completeUpload = defineCommand(CompleteUploadInput, async (input, c
 
   const effectiveMime = verdict.effectiveMime;
 
+  // 6a. Phase 28 / IMG-01 — decompression-bomb defense LAYER (a): reject any
+  //     image/* over the absolute 20 MB image ceiling BEFORE it can be enqueued
+  //     to the transform worker (→ sharp never decodes it). This is a hard cap on
+  //     TOP of the relation's maxByteSize (which may be lower). The byte cap and
+  //     the 50 M PIXEL cap (layers b/c) are independent — a tiny-byte high-pixel
+  //     bomb slips past this and is caught in the worker's pre-flight.
+  //
+  //     CRITICAL: keyed off the AUTHORITATIVE `effectiveMime` (post magic-byte
+  //     sniff), NOT the client-claimed `row.mime_type`. A relation that allows
+  //     both an image and a non-image type would otherwise let a client claim a
+  //     non-image MIME (e.g. application/pdf) for a >20 MB PNG: the sign-time
+  //     claim skips this cap, magic-byte verification then resolves
+  //     effectiveMime=image/png, the row finalizes as a 25 MB image, and the
+  //     enqueue subscriber (which gates on effectiveMime) hands it to the worker —
+  //     exactly the large-byte case layer (a) exists to block. The byte cap and
+  //     the enqueue decision MUST use the same MIME source.
+  if (effectiveMime.startsWith("image/") && authoritativeSize > 20 * 1024 * 1024) {
+    return reject("image_too_large");
+  }
+
   // 7. SUCCESS — single transaction: flip the row to `uploaded` with the
   //    authoritative size + persisted MIME, and move pending→used atomically.
   //

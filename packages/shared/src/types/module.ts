@@ -12,6 +12,13 @@ export interface JobDefinition {
   queue: string;
   /** Async function that processes the job payload. */
   handler: (data: unknown) => Promise<void>;
+  /**
+   * Phase 28 / IMG-01 — optional BullMQ worker concurrency for this job's queue.
+   * The worker loop passes it to `createWorker` as `{ concurrency }`. When
+   * omitted the shared default (5) applies. The image-transform job declares 2
+   * to cap memory (each variant decodes a full image buffer in the worker).
+   */
+  concurrency?: number;
 }
 
 /**

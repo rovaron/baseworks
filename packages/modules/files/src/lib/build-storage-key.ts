@@ -40,6 +40,31 @@ export function buildStorageKey(args: {
 }
 
 /**
+ * Phase 28 / IMG-01 — deterministic storage key for a generated image variant.
+ *
+ * Derived purely from `{ originalKey, variantName, format }` so re-running the
+ * transform job OVERWRITES the same objects (never piles up duplicates → the
+ * manifest stays idempotent under BullMQ retry). The original extension is
+ * stripped and the variant is nested under a folder named after the original's
+ * id segment:
+ *   original: {tenant}/{module}/{kind}/{nanoid24}.png
+ *   variant:  {tenant}/{module}/{kind}/{nanoid24}/{variantName}.{ext}
+ *
+ * Like every storage key this MUST NEVER appear in an API response (FileTransform
+ * carries it for internal/manifest use only).
+ */
+export function variantStorageKey(
+  originalKey: string,
+  variantName: string,
+  format: "webp" | "jpeg" | "png",
+): string {
+  const ext = { webp: "webp", jpeg: "jpg", png: "png" }[format];
+  // Strip the original file extension (last dot-segment of the final path part).
+  const base = originalKey.replace(/\.[^/.]+$/, "");
+  return `${base}/${variantName}.${ext}`;
+}
+
+/**
  * Resolve the bucket for the files module. Single logical bucket; S3_BUCKET when
  * provider=s3/s3-compat, else the literal "files" (local adapter directory).
  *

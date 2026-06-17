@@ -42,11 +42,18 @@ const db = getDb(env.DATABASE_URL);
 // Create module registry in worker role (skips route attachment)
 const registry = new ModuleRegistry({
   role: "worker",
-  modules: ["example", "billing"],
+  modules: ["example", "billing", "files"],
 });
 
 // Load all configured modules
 await registry.loadAll();
+
+// Phase 28 / IMG-01 — bind the files module's transform-event sink to this
+// process's registry event bus so the image-transform job's lifecycle events
+// (file.transformed / file.transform-failed) are emitted + traced (wrapEventBus
+// below). Best-effort observability; no subscribers required in the worker.
+const { setTransformEventSink } = await import("@baseworks/module-files");
+setTransformEventSink((event, data) => registry.getEventBus().emit(event, data));
 
 // Phase 18 D-01 — wrap the CqrsBus so thrown handler exceptions are captured.
 // External wrapper; zero edits to apps/api/src/core/cqrs.ts (D-01 invariant).
@@ -80,6 +87,9 @@ for (const [name, def] of registry.getLoaded()) {
           }
         },
         redisUrl,
+        // Phase 28 / IMG-01 — honor a per-job concurrency cap (image-transform=2).
+        // Undefined for existing jobs → createWorker's default 5 applies.
+        { concurrency: jobDef.concurrency },
       );
 
       worker.on("failed", (job, err) => {

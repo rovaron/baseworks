@@ -74,6 +74,22 @@ fileRelationsRegistry.register("cu-tiny", "doc", {
   allowedMimeTypes: ["image/png"],
   maxByteSize: 10, // PNG (29B) exceeds this → file_too_large
 });
+// Phase 28 / IMG-01 bomb LAYER (a): relation cap (25 MB) sits ABOVE the absolute
+// 20 MB image ceiling so a 21 MB image passes step-5 (maxByteSize) and is caught
+// by the step-5a image-only byte cap → image_too_large (not file_too_large).
+fileRelationsRegistry.register("cu-bigimg", "image", {
+  recordType: "cu_bigimg",
+  allowedMimeTypes: ["image/png"],
+  maxByteSize: 25 * 1024 * 1024,
+});
+// Phase 28 / IMG-01 bomb LAYER (a) MIME-spoof regression: a relation allowing
+// BOTH a non-image and an image type with a cap above the 20 MB image ceiling.
+// Proves the byte cap keys off the AUTHORITATIVE effectiveMime, not the claim.
+fileRelationsRegistry.register("cu-spoof", "image", {
+  recordType: "cu_spoof",
+  allowedMimeTypes: ["application/pdf", "image/png"],
+  maxByteSize: 25 * 1024 * 1024,
+});
 
 function newTenantId(tag: string): string {
   const id = `cu27_${tag}_${crypto.randomUUID().slice(0, 12)}`;
@@ -249,6 +265,75 @@ describe("completeUpload — server-authoritative finalization (Phase 27 / UPL-0
     expect(r.success).toBe(false);
     if (!r.success) expect(r.error).toBe("file_too_large");
 
+    expect(await readFileRow(fileId)).toBeUndefined();
+    expect(await storage.stat({ bucket: "files", key })).toBeNull();
+    expect(Number((await readUsage(tenantId))?.bytesPending)).toBe(0);
+  });
+
+  test("image/* > 20 MB ⇒ reject 'image_too_large' (bomb LAYER a): object + row deleted", async () => {
+    // The 21 MB object passes the relation's 25 MB maxByteSize (step 5), then
+    // magic-byte verification resolves effectiveMime=image/png (real PNG header),
+    // and the absolute 20 MB image ceiling (step 6a, keyed on the AUTHORITATIVE
+    // effectiveMime) rejects it BEFORE any enqueue — the transform worker never
+    // sees it.
+    const tenantId = newTenantId("bigimg");
+    const key = `${tenantId}/cu/image/${crypto.randomUUID()}.png`;
+    const size = 21 * 1024 * 1024;
+    const body = new Uint8Array(size);
+    body.set(PNG, 0); // real PNG sig + IHDR → file-type sniffs image/png
+    await seedUsage(tenantId, 50);
+    await storage.putObject({ bucket: "files", key, body, mimeType: "image/png" });
+    const fileId = await seedFile({
+      tenantId,
+      ownerModule: "cu-bigimg",
+      ownerRecordType: "cu_bigimg",
+      key,
+      mimeType: "image/png",
+      byteSize: 50,
+      status: "pending",
+    });
+
+    const r = await completeUpload({ fileId }, ctxFor(tenantId, []));
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error).toBe("image_too_large");
+
+    // HARD-cleanup path ran: row + object gone, reservation released.
+    expect(await readFileRow(fileId)).toBeUndefined();
+    expect(await storage.stat({ bucket: "files", key })).toBeNull();
+    expect(Number((await readUsage(tenantId))?.bytesPending)).toBe(0);
+  });
+
+  test("MIME-SPOOF: client claims non-image for a >20 MB PNG ⇒ still 'image_too_large' (LAYER a, authoritative MIME)", async () => {
+    // Blocker regression: the 20 MB image cap MUST key off the AUTHORITATIVE
+    // effectiveMime (post magic-byte sniff), NOT the client-claimed mime_type.
+    // The relation allows BOTH application/pdf and image/png. A client signs the
+    // upload claiming application/pdf, then PUTs a 21 MB PNG. If the cap keyed off
+    // the claim it would skip (claim is not image/*), magic-verify would finalize
+    // it as a 21 MB image/png, and the enqueue subscriber (gating on
+    // effectiveMime) would hand the oversized image to the worker. With the cap
+    // keyed on effectiveMime it is rejected as image_too_large.
+    const tenantId = newTenantId("spoof");
+    const key = `${tenantId}/cu/image/${crypto.randomUUID()}.png`;
+    const size = 21 * 1024 * 1024;
+    const body = new Uint8Array(size);
+    body.set(PNG, 0); // real PNG → effectiveMime resolves to image/png
+    await seedUsage(tenantId, 50);
+    await storage.putObject({ bucket: "files", key, body, mimeType: "application/pdf" });
+    const fileId = await seedFile({
+      tenantId,
+      ownerModule: "cu-spoof",
+      ownerRecordType: "cu_spoof",
+      key,
+      mimeType: "application/pdf", // the spoofed client claim stored at sign-time
+      byteSize: 50,
+      status: "pending",
+    });
+
+    const r = await completeUpload({ fileId }, ctxFor(tenantId, []));
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error).toBe("image_too_large");
+
+    // Rejected + cleaned up — never finalized, never enqueued.
     expect(await readFileRow(fileId)).toBeUndefined();
     expect(await storage.stat({ bucket: "files", key })).toBeNull();
     expect(Number((await readUsage(tenantId))?.bytesPending)).toBe(0);

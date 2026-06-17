@@ -26,7 +26,7 @@
 
 import { files, type getDb } from "@baseworks/db";
 import { and, eq, isNull, sql } from "drizzle-orm";
-import { decrementUsed } from "./quota";
+import { decrementUsed, sumTransformBytes } from "./quota";
 
 type Db = ReturnType<typeof getDb>;
 
@@ -58,7 +58,7 @@ export async function cascadeSoftDelete(db: Db, args: CascadeSoftDeleteArgs): Pr
   await db.transaction(async (tx: any) => {
     // 1. Lock + read PRIOR state (R3). FOR UPDATE serializes concurrent cascades.
     const rows = (await tx.execute(sql`
-      SELECT id, byte_size, status
+      SELECT id, byte_size, status, transforms
         FROM files
        WHERE tenant_id = ${tenantId}
          AND owner_module = ${ownerModule}
@@ -83,9 +83,16 @@ export async function cascadeSoftDelete(db: Db, args: CascadeSoftDeleteArgs): Pr
         ),
       );
 
-    // 3. Refund only the bytes that were actually counted toward bytes_used.
+    // 3. Refund only the bytes that were actually counted toward bytes_used —
+    //    each counted row's own byte_size PLUS its generated-variant bytes (Phase
+    //    28: the transform job credited variants into bytes_used via addUsed, so
+    //    the cascade refund MUST debit them too or transformed files leak their
+    //    variant bytes on owner deletion — SC#3 conservation).
     const countedBytes = rows.reduce(
-      (sum, r) => (COUNTED_STATUSES.has(r.status) ? sum + Number(r.byte_size) : sum),
+      (sum, r) =>
+        COUNTED_STATUSES.has(r.status)
+          ? sum + Number(r.byte_size) + sumTransformBytes(r.transforms)
+          : sum,
       0,
     );
     if (countedBytes > 0) await decrementUsed(tx, tenantId, countedBytes);

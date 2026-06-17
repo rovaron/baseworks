@@ -28,7 +28,7 @@
  * Usage: `bun scripts/generate-fixtures.ts`  (idempotent).
  */
 import { createHash } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { deflateSync } from "node:zlib";
 
@@ -197,6 +197,20 @@ async function main(): Promise<void> {
     '<rect width="100" height="100" fill="#dc2626"/>' +
     "</svg>\n";
   await emit("svg-with-script.svg", Buffer.from(svg, "utf8"));
+
+  // 6. exif-bearing.jpg — Phase 28 / IMG-03 EXIF-strip conformance input. This is
+  //    an 80x60 JPEG carrying real GPS + camera (Make/Model) EXIF, produced OUT OF
+  //    BAND with sharp's `.withExif()` (this generator stays dependency-light — no
+  //    sharp). It is committed directly; we only re-HASH the existing file here so
+  //    re-running this script keeps the manifest complete instead of dropping it.
+  const exifName = "exif-bearing.jpg";
+  const exifBytes = await readFile(`${OUT_DIR}${exifName}`);
+  manifest[exifName] = {
+    bytes: exifBytes.length,
+    sha256: createHash("sha256").update(exifBytes).digest("hex"),
+    width: 80,
+    height: 60,
+  };
 
   // manifest.json — reproducibility oracle, keys sorted for stable diffs.
   const sortedManifest: Record<string, ManifestEntry> = {};

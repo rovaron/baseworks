@@ -32,7 +32,7 @@ import { defineCommand, err, ok } from "@baseworks/shared";
 import { getFileStorage } from "@baseworks/storage";
 import { Type } from "@sinclair/typebox";
 import { and, eq, isNull, sql } from "drizzle-orm";
-import { decrementUsed } from "../lib/quota";
+import { decrementUsed, sumTransformBytes } from "../lib/quota";
 
 const DeleteFileInput = Type.Object({
   fileId: Type.String({ minLength: 1 }),
@@ -62,7 +62,7 @@ export const deleteFile = defineCommand(DeleteFileInput, async (input, ctx) => {
       // 1. Lock + read the PRIOR state (R3) via raw SQL. FOR UPDATE serializes
       //    concurrent deletes of the same row.
       const rows = (await tx.execute(sql`
-      SELECT bucket, storage_key, owner_module, owner_record_type, owner_record_id, byte_size, status
+      SELECT bucket, storage_key, owner_module, owner_record_type, owner_record_id, byte_size, status, transforms
         FROM files
        WHERE id = ${input.fileId}
          AND tenant_id = ${ctx.tenantId}
@@ -87,8 +87,15 @@ export const deleteFile = defineCommand(DeleteFileInput, async (input, ctx) => {
           ),
         );
 
-      // 3. Decrement counted usage only.
-      if (wasCounted) await decrementUsed(tx, ctx.tenantId, Number(prior.byte_size));
+      // 3. Decrement counted usage only — the row's own byte_size PLUS the sum of
+      //    its generated-variant bytes (Phase 28: the transform job credited those
+      //    into bytes_used via addUsed, so the refund MUST debit them too or every
+      //    deletion of a transformed file permanently leaks its variant bytes —
+      //    SC#3 conservation).
+      if (wasCounted) {
+        const variantBytes = sumTransformBytes(prior.transforms);
+        await decrementUsed(tx, ctx.tenantId, Number(prior.byte_size) + variantBytes);
+      }
 
       return {
         bucket: prior.bucket,

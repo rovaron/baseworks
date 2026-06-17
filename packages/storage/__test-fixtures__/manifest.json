@@ -11,6 +11,12 @@
     "width": 50000,
     "height": 50000
   },
+  "exif-bearing.jpg": {
+    "bytes": 564,
+    "sha256": "a627ef2502de79e01f2f3f4425f8f91752f39f15b0eec62fcaa8fb555c890aeb",
+    "width": 80,
+    "height": 60
+  },
   "photo-5000x5000.png": {
     "bytes": 2213010,
     "sha256": "1f6ea0a8f702de23b67701bea455b85da83d2b4b887484c3579434259f132f59",

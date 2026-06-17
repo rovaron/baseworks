@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: File Storage & Uploads
 status: executing
-stopped_at: Phase 27 complete (fully live-DB-verified; Docker up)
-last_updated: "2026-06-16T00:00:00.000Z"
-last_activity: 2026-06-16
+stopped_at: Phase 28 complete (sharp host-verified + CI/Docker-gated; Docker up)
+last_updated: "2026-06-17T00:00:00.000Z"
+last_activity: 2026-06-17
 progress:
   total_phases: 8
-  completed_phases: 4
-  total_plans: 10
-  completed_plans: 10
-  percent: 50
+  completed_phases: 5
+  total_plans: 11
+  completed_plans: 11
+  percent: 63
 ---
 
 # Project State
@@ -21,21 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-05)
 
 **Core value:** Clone, configure, and start building a multitenant SaaS in minutes -- not weeks.
-**Current focus:** Phase 27 complete — complete-upload + read-url + delete + attach/list + cascade; Phase 28 (Image Transform Pipeline — sharp spike) is next.
+**Current focus:** Phase 28 complete — async image-variant pipeline (sharp default + imagescript fallback, BullMQ, 3-layer bomb defense, EXIF strip); Phase 29 (Auth & Org Identity Asset Wiring) is next.
 
 ## Current Position
 
 Milestone: v1.4 File Storage & Uploads
-Phase: 27 (complete-read-delete-attach) — COMPLETE (fully live-DB-verified; Docker up)
-Plan: 1 of 1 (executed from 27-PLAN-CONTRACT.md)
-Status: Phase 27 closed — synchronous upload loop closed end-to-end. `complete-upload` reads the AUTHORITATIVE size via `getFileStorage().stat()` (never the client's claim) + `file-type@22.0.0` magic-byte check on the first 4 KiB (mismatch/oversize → delete object + DB row + release pending); `markUploaded` moves reserved-pending→authoritative-used in ONE atomic statement (count-once under concurrency, proven by a concurrent-complete test); `read-url` mints a per-request signed GET with `STORAGE_SIGNED_URL_TTL_SEC` TTL (5–15 min); soft-delete with `bytes_used` decrement + `file.deleted` event; generic `attachFile`/`list-for-record` made cross-module-invocable via a new string-keyed `ctx.dispatch` on `HandlerContext` (NOT a module import — Phase 26 cross-module ban + Phase 29 files↔auth ban both stay green); registry-derived cascade subscriber (`registerFilesHooks`) proven by an in-test `auth.user-deleted` emit (auth untouched — its emit lands in Phase 29). No `storageKey`/`bucket` in any `/api/files/*` body (6-route no-leak scan). `DATABASE_URL=… bun test packages/modules/files` → 69 pass / 0 fail (231 expects). Adversarial review: 1 blocker (R4 — `file-type` not resolvable from the module dir → explicit dep + `bun install`) + 5 warnings (R1/R2/R3/R5/R6+R8), all addressed.
-Next: Phase 28 — Image Transform Pipeline (sharp spike S-1 + imagescript fallback) (IMG-01, IMG-02, IMG-03)
-Last activity: 2026-06-16
+Phase: 28 (image-transform-pipeline) — COMPLETE (sharp host-verified + CI/Docker-gated; Docker up)
+Plan: 1 of 1 (executed from 28-PLAN-CONTRACT.md)
+Status: Phase 28 closed — async image-variant generation wired end-to-end. Spike S-1 GREEN (operator-verified inside `oven/bun:1`: `SHARP_OK bytes=86 fmt=webp w=50 isWebp=true`); the durable gate artifact `sharp/__smoke__/bun-docker-spike.test.ts` is committed so CI/Docker re-run it. IMG-01/IMG-02/IMG-03 satisfied: `SharpImageTransform` (DEFAULT — drops metadata by default = EXIF strip; `limitInputPixels:50M + failOn:'warning'` on every resize) + `ImagescriptImageTransform` (env-selectable fallback — pure JS, encodes webp/jpeg/png, CANNOT decode webp, header-only `metadata()` so the bomb pre-flight never OOMs) both pass ONE shared `runImageTransformConformance` suite (resize + webp magic + EXIF strip + metadata) — sharp 18/18, imagescript 27/27. `file.completed` → enqueue on the `image-transform` BullMQ queue (dynamic `createQueue` import to keep `wrapQueue` out of the hooks import graph) → worker (`concurrency:2`) generates each variant at a DETERMINISTIC key, putObjects it, writes `files.transforms` jsonb + flips `status='ready'` with a SIGNED quota delta (retry-safe). Phase-20 trace propagation spans API→enqueue→worker. 3-layer decompression-bomb defense: (a) image/* >20 MB rejected at `/complete` on the authoritative `stat()` size; (b) sharp pixel+warning guard; (c) worker `metadata()` pre-flight >50M → structured `file.transform-failed` + `status='failed'`, NO throw/crash — PROVEN by the 50000×50000 fixture. Plus a worker source-format allow-list (`png/jpeg/webp/gif`) closing the librsvg SSRF surface, and svg refused at enqueue. EXIF stripped from every variant (EXIF-bearing round-trip gate asserts input HAS GPS+camera markers, output has none). `DATABASE_URL=… REDIS_URL=… bun test packages/modules/files` → 87 pass / 0 fail (313 expects). Sharp RAN on the Windows dev host (win32-x64 prebuilt loaded — not skipped). Adversarial review: 2 blockers (librsvg source-format filter; dynamic `createQueue` import) + 4 warnings (event payload leak → fixed reason code only; retry quota double-count → signed delta; layer-a MIME bypass → gate on `effectiveMime`; sharp host availability → `describe.skipIf` + Docker smoke gate), all addressed.
+Next: Phase 29 — Auth & Org Identity Asset Wiring (user avatars + org logos through auth's declared `fileRelations`) (IDA-01, IDA-02)
+Last activity: 2026-06-17
 
-Progress (v1.4): [█████-----] 4 of 8 phases (50%)
+Progress (v1.4): [██████----] 5 of 8 phases (63%)
 
 ### Roadmap Evolution
 
+- **2026-06-17** — Phase 28 (Image Transform Pipeline) closed. Executed from a single LOCKED `28-PLAN-CONTRACT.md`. IMG-01/IMG-02/IMG-03 satisfied. The phase-entry gate (spike S-1) was GREEN before any work — sharp resizes + encodes webp + reads metadata under Bun inside `oven/bun:1` (operator-verified: `SHARP_OK bytes=86 fmt=webp w=50 isWebp=true`) — so sharp stayed the DEFAULT adapter and was NOT re-litigated; the committed `bun-docker-spike.test.ts` makes CI/Docker re-run the proof. `imagescript` is the env-selectable pure-JS fallback: it CAN encode webp/jpeg/png but CANNOT decode webp (handled honestly via `caps.canDecodeWebp=false`, not faked), and its `metadata()` uses a dedicated header parser so the bomb pre-flight never OOMs. Both adapters pass one shared conformance suite. The async pipeline (`file.completed` → `image-transform` BullMQ queue → `concurrency:2` worker → `files.transforms` manifest at deterministic keys, Phase-20 trace propagation, signed retry-safe quota delta) and the 3-layer decompression-bomb defense (20 MB `/complete` cap → sharp `limitInputPixels:50M`+`failOn:'warning'` → worker `metadata()` >50M structured reject) are all proven, the latter by the 50000×50000 fixture returning `file.transform-failed` with no crash. EXIF is stripped from every variant (sharp drops metadata by default; verified by an EXIF-bearing round-trip gate). UNLIKE the worry that sharp might not load off-Docker, its win32-x64 prebuilt loaded on the Windows dev host so the sharp conformance + smoke RAN locally (18/18), not just in CI. `bun test packages/modules/files` → 87 pass / 0 fail. Adversarial review: 2 blockers (librsvg source-format allow-list; dynamic `createQueue` import to protect the hooks import graph) + 4 warnings, all addressed.
 - **2026-06-16** — Phase 27 (Complete-Upload + Signed Read URLs + Delete + Generic Attachments) closed. Executed from a single LOCKED `27-PLAN-CONTRACT.md`. UPL-02/UPL-04/ATT-01/ATT-02/MOD-03 satisfied: server-authoritative `/complete` (`stat()` size + `file-type` magic-byte on first 4 KiB; reject = delete object + row + release pending), per-request signed read URLs (`STORAGE_SIGNED_URL_TTL_SEC`, no raw key ever in a response), soft-delete with quota refund + `file.deleted` event, and the generic attach/list-for-record API. Cross-module invocation solved WITHOUT imports via a new string-keyed `ctx.dispatch` (`HandlerContext` + `apps/api` scoped derive self-reference) — satisfies both the Phase 26 cross-module ban and the Phase 29 files↔auth ban. Cascade-on-delete is a registry-derived event subscriber proven by an in-test emit (auth has no `user-deleted` producer until Phase 29; the `{tenantId,recordId}` contract is pinned here). Quota conservation: `markUploaded` decrements `bytes_pending` by the RESERVED size and increments `bytes_used` by the AUTHORITATIVE size in one atomic statement; the `status='pending'` guard makes completion count-once under concurrency. Fully verified against live Postgres with a temp-rooted LocalFileStorage — 69 pass / 0 fail. Adversarial review: 1 blocker + 5 warnings, all addressed.
 - **2026-06-16** — Phase 26 (Files Module + Sign-Upload + Per-Tenant Quota) closed. Executed from a single LOCKED `26-PLAN-CONTRACT.md`. UPL-01/UPL-03/QUO-01/QUO-02/MOD-02 satisfied: `packages/modules/files/` is the first end-to-end file flow (billing as the structural analog). Quota race-safety is a single atomic conditional `UPDATE` (Postgres EvalPlanQual recheck under the row write-lock) — no `SELECT … FOR UPDATE`, no read-modify-write. UNLIKE Phase 25 (Docker down ⇒ S3/MinIO CI-gated), Docker was UP so Phase 26 ran fully against live Postgres, including the SC#3 50-concurrent race: at 95% quota, accepted=25=headroom, rejected=25, final used+pending=limit exactly (zero over-allocation). 22 pass / 0 fail. Adversarial review: 0 blockers.
 - **2026-06-16** — Phase 25 (Test Infra + Three Storage Adapters) closed. Executed from a single LOCKED `25-PLAN-CONTRACT.md` rather than numbered sub-plans. FILE-02 + FILE-03 satisfied: three `FileStorage` adapters (Local/S3/S3-compat) proven equivalent by one shared `runFileStorageConformance` suite; Local + HMAC signing + CORS validator + deterministic fixtures verified locally; S3/S3-compat object-I/O conformance CI-gated on a MinIO service container (folded into `validate.yml` `ci`, not a separate workflow). Adversarial review: 0 blockers. One non-blocking follow-up: add the fixture-hash reproducibility test (`fixtures.test.ts`).
@@ -120,7 +121,7 @@ Items acknowledged and deferred at v1.3 milestone close on 2026-05-05. All are o
 
 ## Session Continuity
 
-Last session: 2026-06-16
-Stopped at: Phase 27 closed (complete-read-delete-attach; fully live-DB-verified, Docker up)
+Last session: 2026-06-17
+Stopped at: Phase 28 closed (image-transform-pipeline; sharp host-verified + CI/Docker-gated, Docker up)
 Resume file: None
-Next action: `/gsd:plan-phase 28` — Image Transform Pipeline. 3 requirements (IMG-01, IMG-02, IMG-03). PHASE-ENTRY GATE: research spike S-1 must be GREEN before any other work — `sharp` resizes the baseline fixture inside `oven/bun:1-debian-slim` (x64 + arm64) without native-binding errors; if RED, pivot to `imagescript` as default. This is the highest-risk phase of v1.4.
+Next action: `/gsd:plan-phase 29` — Auth & Org Identity Asset Wiring. 2 requirements (IDA-01, IDA-02). Wire the first real consumers: user avatars (variants 64/128/256/512 webp) + org logos (128/256 webp) flow through the auth module's declared `fileRelations`; SVG rejected at sign-time (XSS); zero direct import between files↔auth (Biome import-graph rule). UI hint: yes. Note: Phase 29 must add the `auth.user-deleted` producer conforming to the `{ tenantId, recordId }` cascade payload pinned in Phase 27.
