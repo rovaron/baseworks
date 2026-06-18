@@ -5,6 +5,7 @@ import {
   enBilling,
   enCommon,
   enDashboard,
+  enFiles,
   enInvite,
   locales,
   namespaces,
@@ -13,6 +14,7 @@ import {
   ptBRBilling,
   ptBRCommon,
   ptBRDashboard,
+  ptBRFiles,
   ptBRInvite,
 } from "@baseworks/i18n";
 import i18n from "i18next";
@@ -26,6 +28,7 @@ const resources = {
     billing: enBilling,
     admin: enAdmin,
     invite: enInvite,
+    files: enFiles,
   },
   "pt-BR": {
     common: ptBRCommon,
@@ -34,6 +37,7 @@ const resources = {
     billing: ptBRBilling,
     admin: ptBRAdmin,
     invite: ptBRInvite,
+    files: ptBRFiles,
   },
 };
 

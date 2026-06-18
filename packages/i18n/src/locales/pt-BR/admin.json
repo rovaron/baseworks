@@ -117,6 +117,42 @@
       "deactivateDialog": {
         "title": "Desativar tenant",
         "description": "Desativar {name} impedirá todos os membros de acessar a plataforma. Isso pode ser revertido."
+      },
+      "files": {
+        "title": "Arquivos",
+        "empty": "Nenhum arquivo para este inquilino.",
+        "uploadTitle": "Enviar arquivos",
+        "uploadHint": "JPEG, PNG, WebP ou PDF, até 10 MB cada.",
+        "columns": {
+          "name": "Nome",
+          "type": "Tipo",
+          "size": "Tamanho",
+          "status": "Status",
+          "created": "Criado em",
+          "actions": "Ações"
+        },
+        "view": "Ver {name}",
+        "delete": "Excluir {name}",
+        "variants": "{count} variantes",
+        "status": {
+          "pending": "Pendente",
+          "uploaded": "Enviado",
+          "transforming": "Processando",
+          "ready": "Pronto"
+        },
+        "deleteDialog": {
+          "title": "Excluir arquivo",
+          "description": "Excluir {name}? Esta ação não pode ser desfeita.",
+          "confirm": "Excluir",
+          "cancel": "Cancelar",
+          "deleting": "Excluindo..."
+        },
+        "toast": {
+          "uploaded": "Arquivo enviado.",
+          "deleted": "Arquivo excluído.",
+          "deleteFailed": "Não foi possível excluir o arquivo.",
+          "loadError": "Não foi possível carregar os arquivos."
+        }
       }
     },
     "toast": {

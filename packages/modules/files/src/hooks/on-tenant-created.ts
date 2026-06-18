@@ -74,6 +74,68 @@ async function getTransformQueue(): Promise<EnqueueOnlyQueue | null> {
   return transformQueue;
 }
 
+/**
+ * Phase 28 / IMG-01 + Phase 30 / UI-02 — gated image-transform enqueue, shared by
+ * the public `file.completed` subscriber AND the cross-tenant admin complete path
+ * (commands/admin-files.ts). The host route plugin (apps/api admin.ts) does NOT
+ * hold the registry event bus, so `adminCompleteUpload` cannot emit
+ * `file.completed`; instead it calls this helper directly. Extracting the gated
+ * body keeps ONE enqueue decision (no duplicated GATE logic) — behaviour for the
+ * public path is identical (verified by enqueue-on-completed.test.ts).
+ *
+ * Takes only `{ fileId, tenantId }`: the MIME, owner_module and owner_record_type
+ * are read authoritatively from the tenant-scoped row (the admin path has no
+ * event payload to pass them). All the original guards are preserved:
+ *   GATE 1 — raster images only; SVG excluded (librsvg SSRF / XSS vector never
+ *            reaches the worker).
+ *   GATE 2 — the recovered relation must declare `generateVariants`.
+ *   no-Redis silent skip (variants are best-effort; never block the upload flow).
+ *   try/catch + ErrorTracker (a throw here never crashes the caller).
+ */
+export async function enqueueTransform(args: { fileId: string; tenantId: string }): Promise<void> {
+  const { fileId, tenantId } = args;
+  try {
+    // Tenant-scoped 3-col read (allow-listed direct files access). mime_type is
+    // the AUTHORITATIVE persisted type (post magic-byte sniff for completed rows).
+    const db = getDb(env.DATABASE_URL);
+    const rows = (await db.execute(sql`
+      SELECT mime_type, owner_module, owner_record_type
+        FROM files
+       WHERE id = ${fileId}
+         AND tenant_id = ${tenantId}
+         AND deleted_at IS NULL
+       LIMIT 1
+    `)) as unknown as Array<{
+      mime_type: string;
+      owner_module: string;
+      owner_record_type: string;
+    }>;
+    const row = rows[0];
+    if (!row) return;
+
+    // GATE 1 — raster images only; SVG excluded (defense-in-depth, see header).
+    const mimeType = row.mime_type;
+    if (!mimeType?.startsWith("image/")) return;
+    if (mimeType === "image/svg+xml") return;
+
+    // GATE 2 — the relation must declare generateVariants.
+    const relation = findRelationByRecordType(row.owner_module, row.owner_record_type);
+    if (!relation?.generateVariants?.length) return;
+
+    const queue = await getTransformQueue();
+    if (!queue) {
+      // Dev/no-Redis: skip silently (variants are best-effort; no inline sharp).
+      return;
+    }
+    await queue.add("files:transform-image", { fileId, tenantId });
+  } catch (err) {
+    getErrorTracker().captureException(err, {
+      tenantId,
+      tags: { module: "files", hook: "file.completed" },
+    });
+  }
+}
+
 /** Minimal event-bus surface the files hooks depend on (TypedEventBus satisfies it).
  *  `emit` is optional so bare `{ on }` test doubles (Phase 26 tenant.created tests)
  *  still satisfy it; the cascade path falls back to a no-op when it is absent. */
@@ -115,51 +177,14 @@ export function registerFilesHooks(eventBus: FilesEventBus): void {
 
   // IMG-01 — enqueue async image-variant generation on a completed upload.
   // file.completed is emitted by complete-upload AFTER the commit (API process).
-  // Best-effort: a throw here never crashes the upload flow (emit is
-  // fire-and-forget) — try/catch + ErrorTracker, mirroring the two subscribers
-  // above. Trace propagation is automatic (createQueue's Phase-20 producer
-  // wrapper injects _otel/_requestId/... from the active obsContext frame).
+  // The gated enqueue body is the shared `enqueueTransform` helper (also called
+  // directly by the admin complete path, which has no event bus). Best-effort:
+  // enqueueTransform owns the try/catch + ErrorTracker, so a throw here never
+  // crashes the upload flow. Trace propagation is automatic (createQueue's
+  // Phase-20 producer wrapper injects _otel/_requestId/... from obsContext).
   eventBus.on("file.completed", async (data: unknown) => {
-    const { fileId, tenantId, mimeType } = data as FileCompletedEvent;
-    try {
-      // GATE 1 — raster images only. SVG (image/svg+xml) is excluded here as
-      // defense-in-depth: the output port union already bans SVG (XSS) and the
-      // worker re-rejects non-raster sources, but refusing to enqueue it at all
-      // keeps a hostile vector (librsvg SSRF/external-entity load) out of the
-      // worker entirely.
-      if (!mimeType?.startsWith("image/")) return;
-      if (mimeType === "image/svg+xml") return;
-
-      // GATE 2 — the relation must declare generateVariants. Recover it from the
-      // row's (owner_module, owner_record_type) via a tenant-scoped 2-col read
-      // (allow-listed direct files access).
-      const db = getDb(env.DATABASE_URL);
-      const rows = (await db.execute(sql`
-        SELECT owner_module, owner_record_type
-          FROM files
-         WHERE id = ${fileId}
-           AND tenant_id = ${tenantId}
-           AND deleted_at IS NULL
-         LIMIT 1
-      `)) as unknown as Array<{ owner_module: string; owner_record_type: string }>;
-      const row = rows[0];
-      if (!row) return;
-
-      const relation = findRelationByRecordType(row.owner_module, row.owner_record_type);
-      if (!relation?.generateVariants?.length) return;
-
-      const queue = await getTransformQueue();
-      if (!queue) {
-        // Dev/no-Redis: skip silently (variants are best-effort; no inline sharp).
-        return;
-      }
-      await queue.add("files:transform-image", { fileId, tenantId });
-    } catch (err) {
-      getErrorTracker().captureException(err, {
-        tenantId,
-        tags: { module: "files", hook: "file.completed" },
-      });
-    }
+    const { fileId, tenantId } = data as FileCompletedEvent;
+    await enqueueTransform({ fileId, tenantId });
   });
 
   // MOD-03 / SC#5 — generic cascade soft-delete. Derive one subscription per

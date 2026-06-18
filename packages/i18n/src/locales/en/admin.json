@@ -117,6 +117,42 @@
       "deactivateDialog": {
         "title": "Deactivate tenant",
         "description": "Deactivating {name} will prevent all members from accessing the platform. This can be reversed."
+      },
+      "files": {
+        "title": "Files",
+        "empty": "No files for this tenant.",
+        "uploadTitle": "Upload files",
+        "uploadHint": "JPEG, PNG, WebP or PDF, up to 10 MB each.",
+        "columns": {
+          "name": "Name",
+          "type": "Type",
+          "size": "Size",
+          "status": "Status",
+          "created": "Created",
+          "actions": "Actions"
+        },
+        "view": "View {name}",
+        "delete": "Delete {name}",
+        "variants": "{count} variants",
+        "status": {
+          "pending": "Pending",
+          "uploaded": "Uploaded",
+          "transforming": "Processing",
+          "ready": "Ready"
+        },
+        "deleteDialog": {
+          "title": "Delete file",
+          "description": "Delete {name}? This cannot be undone.",
+          "confirm": "Delete",
+          "cancel": "Cancel",
+          "deleting": "Deleting..."
+        },
+        "toast": {
+          "uploaded": "File uploaded.",
+          "deleted": "File deleted.",
+          "deleteFailed": "Could not delete the file.",
+          "loadError": "Could not load files."
+        }
       }
     },
     "toast": {

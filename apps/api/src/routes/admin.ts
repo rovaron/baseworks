@@ -1,6 +1,13 @@
 import { env } from "@baseworks/config";
 import { billingCustomers, getDb, member, organization, user } from "@baseworks/db";
 import { requirePlatformAdmin } from "@baseworks/module-auth";
+import {
+  adminCompleteUpload,
+  adminDeleteFile,
+  adminGetReadUrl,
+  adminListFilesForTenant,
+  adminSignUpload,
+} from "@baseworks/module-files";
 import { getRedisConnection } from "@baseworks/queue";
 import { count, eq, like, or, sql } from "drizzle-orm";
 import { Elysia, t } from "elysia";
@@ -8,7 +15,22 @@ import { logger } from "../lib/logger";
 
 /** Escape LIKE meta-characters to prevent search injection. */
 function escapeLike(input: string): string {
-  return input.replace(/[%_\\]/g, (c) => "\\" + c);
+  return input.replace(/[%_\\]/g, (c) => `\\${c}`);
+}
+
+/**
+ * Phase 30 / UI-02 — admin files error → HTTP status mapping (contract §2).
+ *   not_found                                  → 404
+ *   quota_exceeded | file_too_large |
+ *     image_too_large                          → 413
+ *   every other code                           → 400
+ */
+function mapFilesError(code: string): number {
+  if (code === "not_found") return 404;
+  if (code === "quota_exceeded" || code === "file_too_large" || code === "image_too_large") {
+    return 413;
+  }
+  return 400;
 }
 
 /**
@@ -137,6 +159,95 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
       }),
     },
   )
+
+  // --- Tenant Files (cross-tenant admin browser) ---
+  // Phase 30 / UI-02. Every route inherits the requirePlatformAdmin() gate at the
+  // top of this plugin (non-allowlisted session → 403, no session → 401; an
+  // org-owner is NEVER a platform operator). The TARGET tenant is ALWAYS the gated
+  // `:id` path param — the request body NEVER carries a tenantId (confused-deputy
+  // closed). storage_key/bucket never appear in any response.
+  .get(
+    "/tenants/:id/files",
+    async (ctx: any) => {
+      const limit = ctx.query?.limit !== undefined ? Number(ctx.query.limit) : undefined;
+      const offset = ctx.query?.offset !== undefined ? Number(ctx.query.offset) : undefined;
+      const r = await adminListFilesForTenant(ctx.params.id, { limit, offset });
+      if (!r.success) {
+        ctx.set.status = mapFilesError(r.error);
+        return { error: r.error };
+      }
+      return r.data;
+    },
+    {
+      query: t.Object({
+        limit: t.Optional(t.Numeric()),
+        offset: t.Optional(t.Numeric()),
+      }),
+    },
+  )
+
+  // Verify the target tenant exists (404) BEFORE reserving quota, so a typo'd id
+  // cannot create an orphan tenant_storage_usage row (R8). `kind` is fixed
+  // server-side to admin-attachment — NOT client-supplied.
+  .post(
+    "/tenants/:id/files/sign-upload",
+    async (ctx: any) => {
+      const [tenant] = await db
+        .select({ id: organization.id })
+        .from(organization)
+        .where(eq(organization.id, ctx.params.id))
+        .limit(1);
+      if (!tenant) {
+        ctx.set.status = 404;
+        return { error: "TENANT_NOT_FOUND" };
+      }
+
+      const r = await adminSignUpload(ctx.params.id, {
+        mimeType: ctx.body.mimeType,
+        byteSize: ctx.body.byteSize,
+        originalFilename: ctx.body.originalFilename,
+      });
+      if (!r.success) {
+        ctx.set.status = mapFilesError(r.error);
+        return { error: r.error };
+      }
+      return r.data;
+    },
+    {
+      body: t.Object({
+        mimeType: t.String({ minLength: 1 }),
+        byteSize: t.Integer({ minimum: 1 }),
+        originalFilename: t.Optional(t.String()),
+      }),
+    },
+  )
+
+  .post("/tenants/:id/files/:fileId/complete", async (ctx: any) => {
+    const r = await adminCompleteUpload(ctx.params.id, ctx.params.fileId);
+    if (!r.success) {
+      ctx.set.status = mapFilesError(r.error);
+      return { error: r.error };
+    }
+    return r.data;
+  })
+
+  .get("/tenants/:id/files/:fileId/read-url", async (ctx: any) => {
+    const r = await adminGetReadUrl(ctx.params.id, ctx.params.fileId);
+    if (!r.success) {
+      ctx.set.status = mapFilesError(r.error);
+      return { error: r.error };
+    }
+    return r.data;
+  })
+
+  .delete("/tenants/:id/files/:fileId", async (ctx: any) => {
+    const r = await adminDeleteFile(ctx.params.id, ctx.params.fileId);
+    if (!r.success) {
+      ctx.set.status = mapFilesError(r.error);
+      return { error: r.error };
+    }
+    return r.data;
+  })
 
   // --- User Management ---
   // Per T-4-03: Only select safe fields (no password hashes)

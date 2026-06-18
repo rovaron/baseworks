@@ -32,6 +32,17 @@ const ADMIN_ENDPOINTS: Array<{ method: string; path: string; body?: any }> = [
   { method: "POST", path: "/api/admin/users/fake-id/impersonate" },
   { method: "GET", path: "/api/admin/billing/overview" },
   { method: "GET", path: "/api/admin/system/health" },
+  // Phase 30 / UI-02 — cross-tenant admin files routes MUST inherit the
+  // requirePlatformAdmin() gate (an org-owner is NOT a platform operator).
+  { method: "GET", path: "/api/admin/tenants/fake-id/files" },
+  {
+    method: "POST",
+    path: "/api/admin/tenants/fake-id/files/sign-upload",
+    body: { mimeType: "image/png", byteSize: 1024 },
+  },
+  { method: "POST", path: "/api/admin/tenants/fake-id/files/fake-file/complete" },
+  { method: "GET", path: "/api/admin/tenants/fake-id/files/fake-file/read-url" },
+  { method: "DELETE", path: "/api/admin/tenants/fake-id/files/fake-file" },
 ];
 
 beforeAll(async () => {

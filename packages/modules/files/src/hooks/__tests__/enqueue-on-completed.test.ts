@@ -26,8 +26,12 @@ const queueAdd = mock(async () => ({ id: "job-1" }));
 const createQueueSpy = mock(() => ({ add: queueAdd }));
 const captureExceptionSpy = mock(() => {});
 
-// Fake DB — the subscriber reads owner_module / owner_record_type via raw SQL.
-const state: { row: { owner_module: string; owner_record_type: string } | null } = { row: null };
+// Fake DB — enqueueTransform reads mime_type / owner_module / owner_record_type
+// via raw SQL (the MIME gate is now driven by the authoritative row, not the
+// event payload — see enqueueTransform in on-tenant-created.ts).
+const state: {
+  row: { mime_type: string; owner_module: string; owner_record_type: string } | null;
+} = { row: null };
 const fakeDb: any = {
   async execute() {
     return state.row ? [{ ...state.row }] : [];
@@ -72,8 +76,12 @@ function getHandler(): (data: unknown) => Promise<void> {
   return captured;
 }
 
-function seedRow(ownerModule: string, recordType: string): { fileId: string; tenantId: string } {
-  state.row = { owner_module: ownerModule, owner_record_type: recordType };
+function seedRow(
+  ownerModule: string,
+  recordType: string,
+  mimeType: string,
+): { fileId: string; tenantId: string } {
+  state.row = { mime_type: mimeType, owner_module: ownerModule, owner_record_type: recordType };
   return { fileId: crypto.randomUUID(), tenantId: `enq28_${crypto.randomUUID().slice(0, 8)}` };
 }
 
@@ -90,19 +98,19 @@ afterEach(() => {
 
 describe("file.completed enqueue subscriber", () => {
   test("GATE 1: non-image MIME does not enqueue", async () => {
-    const { fileId, tenantId } = seedRow("enq-img", "enq_avatar");
+    const { fileId, tenantId } = seedRow("enq-img", "enq_avatar", "application/pdf");
     await handler({ fileId, tenantId, byteSize: 4, mimeType: "application/pdf" });
     expect(queueAdd).not.toHaveBeenCalled();
   });
 
   test("GATE 2: image whose relation declares no variants does not enqueue", async () => {
-    const { fileId, tenantId } = seedRow("enq-doc", "enq_doc");
+    const { fileId, tenantId } = seedRow("enq-doc", "enq_doc", "image/png");
     await handler({ fileId, tenantId, byteSize: 4, mimeType: "image/png" });
     expect(queueAdd).not.toHaveBeenCalled();
   });
 
   test("image + relation with variants enqueues files:transform-image", async () => {
-    const { fileId, tenantId } = seedRow("enq-img", "enq_avatar");
+    const { fileId, tenantId } = seedRow("enq-img", "enq_avatar", "image/png");
     await handler({ fileId, tenantId, byteSize: 4, mimeType: "image/png" });
     expect(queueAdd).toHaveBeenCalledTimes(1);
     expect(queueAdd).toHaveBeenCalledWith("files:transform-image", { fileId, tenantId });
