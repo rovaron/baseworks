@@ -10,7 +10,7 @@ export {
   invitation,
   member,
   organization,primaryKeyColumn, 
-  session,tenantIdColumn, tenantStorageUsage, timestampColumns, 
+  session,storageJobRuns, tenantIdColumn, tenantStorageUsage, timestampColumns,
   usageRecords,
   user,
   verification,

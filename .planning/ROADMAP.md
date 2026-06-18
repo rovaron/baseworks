@@ -6,7 +6,7 @@
 - ✅ **v1.1 Polish & Extensibility** -- Phases 6-12 (shipped 2026-04-16)
 - ✅ **v1.2 Documentation & Quality** -- Phases 13-16 (shipped 2026-04-21)
 - ✅ **v1.3 Observability & Operations** -- Phases 17-23 (shipped 2026-05-05)
-- 🚧 **v1.4 File Storage & Uploads** -- Phases 24-31 (in progress)
+- ✅ **v1.4 File Storage & Uploads** -- Phases 24-31 (shipped 2026-06-18)
 
 ## Phases
 
@@ -66,9 +66,9 @@ Full details: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md)
 
 </details>
 
-### 🚧 v1.4 File Storage & Uploads (in progress)
+### ✅ v1.4 File Storage & Uploads (SHIPPED 2026-06-18 — 8/8 phases)
 
-8 phases derived from 25 requirements across 9 categories (FILE/UPL/IMG/QUO/MOD/IDA/ATT/UI/OPS). Architectural keystone: single central `files` table + polymorphic `fileRelations` declared by modules (mirrors v1.3 Phase 22 health-contributor pattern). Adapter matrix: 3 `FileStorage` adapters (Local/S3/S3-compat) + 2 `ImageTransform` adapters (sharp/imagescript) under a new `packages/storage/` workspace.
+8 phases derived from 25 requirements across 9 categories (FILE/UPL/IMG/QUO/MOD/IDA/ATT/UI/OPS) — all 8 complete (Phase 21 carryover stack remains deferred to v1.4+/v1.5). Architectural keystone: single central `files` table + polymorphic `fileRelations` declared by modules (mirrors v1.3 Phase 22 health-contributor pattern). Adapter matrix: 3 `FileStorage` adapters (Local/S3/S3-compat) + 2 `ImageTransform` adapters (sharp/imagescript) under a new `packages/storage/` workspace. Closed with Phase 31 — storage `HealthContributor` in `/health/detailed`, four repeatable cron cleanup/reconciliation jobs (a NEW `JobDefinition.repeat` + `upsertJobScheduler` mechanism established here), 4 runbooks, 4 Sentry alert templates, and `docs/integrations/file-storage.md`. Repo health green at close: `bun run typecheck` exit 0, `bun run test`/`bun run lint` exit 0, `bun run validate` PASS, `build:admin`/`build:web` green.
 
 **Highest-risk phase: Phase 28 (Image Transform Pipeline)** — sharp under Bun + Docker is the one MEDIUM-confidence stack item; phase begins with a research spike on the target Docker base image. `imagescript` is the wired fallback.
 
@@ -189,7 +189,7 @@ Plans:
   3. Operator can import 2+ Sentry alert JSON templates from `docs/alerts/sentry/` (storage-quota at 90% + 100%, image-transform-failure-rate); each alert has a `runbook_url` pointing at an existing `docs/runbooks/*.md` file (CI gate enforced)
   4. Operator can read `docs/integrations/file-storage.md` and find: per-backend CORS config templates (AWS S3, R2, MinIO, Garage), bucket lifecycle policy snippets (`AbortIncompleteMultipartUpload` 7d, `tmp/` 1d), CDN/Cache-Control guidance, and Docker base-image pin guidance for sharp (`oven/bun:1-debian-slim`, NOT Alpine)
   5. Scheduled cleanup jobs run on cron: `cleanup:reap-pending-uploads` hourly (DELETEs `pending` files >1h old + decrements `bytes_pending`), `cleanup:reap-orphan-files` daily (sweeps files whose owner record no longer resolves), `cleanup:reap-soft-deleted` weekly (hard-DELETEs storage objects + DB rows past retention), `quota:reconcile-tenant-usage` daily (rebuilds `bytes_used` from `SUM(byte_size)` for drift correction); job runs surfaced in `/health/detailed`
-**Plans:** TBD (populated by /gsd:plan-phase 31)
+**Plans:** 1/1 complete — executed from `31-PLAN-CONTRACT.md` (LOCKED). Complete (live-DB-verified + CI gates green). QUO-03/OPS-01/OPS-02/OPS-03 satisfied — the v1.4 closing phase. Storage `HealthContributor` (`packages/modules/files/src/health/storage-health.ts`, `{name:"storage",timeoutMs:4000}`) declared as `health` on the files `ModuleDefinition` → auto-registered by `ModuleRegistry.loadAll()` (`registry.ts:128-130`); `/health/detailed.details.storage` reports `{provider, adapter(reachable/diskFreePct), quota(topTenants by bytes_used, pctUsed, tenantsAtWarn≥90%/tenantsAtLimit≥100%), jobs(last-run+staleness)}` with NO `storage_key`/`bucket` and a load-bearing 5s discipline (adapter probe `Promise.race`-resolves-unreachable on `STORAGE_HEALTH_PROBE_MS=1500`, DB reads parallel). The phase ESTABLISHED the repeatable-job mechanism that did not exist (`JobDefinition.repeat?` + `worker.ts` `queue.upsertJobScheduler`, idempotent by `jobName`) and added four cron jobs to the files module: `cleanup:reap-pending-uploads` hourly (DELETE…RETURNING + release-returned-only), `cleanup:reap-orphan-files` daily (CONSERVATIVE `ownerExists` backstop — REAP only on definitive `false`, `owner_record_id <> ''` guard against false-deleting unattached uploads, soft-delete via shared helper), `cleanup:reap-soft-deleted` weekly (`STORAGE_SOFT_DELETE_RETENTION_DAYS`, deletes primary + every `transforms[].storageKey`), `quota:reconcile-tenant-usage` daily (set-based UPDATE using the EXACT increment/refund counting model, `bytes_pending` untouched). Job runs persist to a new `storage_job_runs` table (migration `0005`) read by the contributor across the worker↔API process boundary. 4 runbooks + 4 Sentry alerts (CI-gated `runbook_url` cross-links) + `docs/integrations/file-storage.md` (CORS templates, lifecycle, CDN/Cache-Control, `oven/bun:1-debian-slim`-not-Alpine sharp pin). Phase 31 suites → 10/0; `worker-repeatable.test.ts` → 3/0; full files module → 108/0; `bun run validate` PASS; typecheck/lint/test exit 0. Adversarial review: 2 blockers (repeatable mechanism absent → established it; orphan false-delete via `''` sentinel → `owner_record_id <> ''` scan guard) + 1 warning (reconcile-formula divergence → identical counting model), all addressed.
 **UI hint:** no
 
 ## Progress
@@ -227,4 +227,4 @@ Plans:
 | 28. Image Transform Pipeline | v1.4 | 1/1 | Complete (sharp host-verified + CI/Docker-gated) | 2026-06-17 |
 | 29. Auth + Org Identity Asset Wiring (+ absorbed `<FileUpload>`) | v1.4 | 1/1 | Complete (backend live-DB-verified + UI vitest-axe; browser-E2E → HUMAN-UAT) | 2026-06-17 |
 | 30. Admin Tenant-Files Browser + Admin Upload | v1.4 | 1/1 | Complete (backend live-DB-verified + admin UI vitest; browser-E2E → HUMAN-UAT) | 2026-06-18 |
-| 31. Cleanup + Operator Surface | v1.4 | 0/0 | Not started | - |
+| 31. Cleanup + Operator Surface | v1.4 | 1/1 | Complete (live-DB-verified + CI gates green) | 2026-06-18 |

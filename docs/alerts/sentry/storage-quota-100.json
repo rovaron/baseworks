@@ -1,0 +1,25 @@
+{
+  "name": "Storage quota — tenant >= 100% (critical)",
+  "dataset": "metrics",
+  "query": "metric:storage.quota.pct",
+  "aggregate": "max(storage.quota.pct)",
+  "timeWindow": 30,
+  "thresholdType": 0,
+  "resolveThreshold": 0.95,
+  "triggers": [
+    {
+      "label": "critical",
+      "alertThreshold": 1.0,
+      "thresholdType": 0,
+      "actions": [{ "type": "email", "targetType": "team", "targetIdentifier": "OPERATOR_TEAM_ID" }]
+    }
+  ],
+  "projects": ["YOUR_PROJECT_SLUG"],
+  "environment": "production",
+  "runbook_url": "../../runbooks/storage-quota-exceeded.md",
+  "_baseworks_meta": {
+    "endpoint": "POST /api/0/organizations/{org}/alert-rules/",
+    "slo_note": "Critical when any tenant reaches 100% — sign-upload returns HTTP 413 quota_exceeded and uploads are blocked for that tenant. Forward-looking: requires custom-metrics wiring (v1.4+ OTLP) to emit storage.quota.pct. Until then, monitor via /health/detailed data.storage.quota.tenantsAtLimit (which also flips the storage contributor to degraded).",
+    "priority": "high"
+  }
+}

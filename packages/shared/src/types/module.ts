@@ -19,6 +19,17 @@ export interface JobDefinition {
    * to cap memory (each variant decodes a full image buffer in the worker).
    */
   concurrency?: number;
+  /**
+   * Phase 31 / OPS-02 — optional repeatable (cron) schedule for this job. When
+   * set, the worker boot loop registers it on the SAME queue via BullMQ
+   * `queue.upsertJobScheduler(jobName, { pattern }, { name, data: {} })`
+   * (idempotent by `schedulerId === jobName`, so redeploys never duplicate
+   * schedules). `pattern` is a standard 5-field cron string (cron-parser syntax,
+   * e.g. `"0 * * * *"` = top of every hour). Jobs without `repeat` are consumer-
+   * only and untouched (backward-compatible). Registration runs in the worker
+   * role only and is guarded so a scheduler failure never aborts consumer boot.
+   */
+  repeat?: { pattern: string };
 }
 
 /**
@@ -88,6 +99,17 @@ export interface FileRelation {
   canRead?: (ctx: any, recordId: string) => Promise<boolean>;
   /** Per-request write-permission hook (Phase 26 sign-upload). Return false → 403. */
   canWrite?: (ctx: any, recordId: string) => Promise<boolean>;
+  /**
+   * Phase 31 / OPS-02 — orphan-reaper owner-existence resolver. The daily
+   * `cleanup:reap-orphan-files` job deletes a file ONLY when this returns a
+   * definitive `false` (owner row provably gone — query succeeded, zero rows).
+   * Absent / `"unknown"` (query failed or indeterminate) / `true` (owner alive)
+   * ⇒ SKIP (never delete). Each owning module reads its OWN tables via the shared
+   * `@baseworks/db` schema (e.g. `SELECT 1 FROM "user" WHERE id = recordId`) —
+   * NOT a cross-module package import. Memoized per `(ownerModule, recordType,
+   * recordId)` within one reaper run.
+   */
+  ownerExists?: (args: { tenantId: string; recordId: string }) => Promise<boolean | "unknown">;
 }
 
 /**

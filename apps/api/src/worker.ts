@@ -15,7 +15,7 @@ import {
   wrapCqrsBus,
   wrapEventBus,
 } from "@baseworks/observability";
-import { closeConnection, createWorker, getRedisConnection } from "@baseworks/queue";
+import { closeConnection, createQueue, createWorker, getRedisConnection } from "@baseworks/queue";
 import { validateStorageEnv } from "@baseworks/storage";
 import type { Worker } from "bullmq";
 import { ModuleRegistry } from "./core/registry";
@@ -52,8 +52,12 @@ await registry.loadAll();
 // process's registry event bus so the image-transform job's lifecycle events
 // (file.transformed / file.transform-failed) are emitted + traced (wrapEventBus
 // below). Best-effort observability; no subscribers required in the worker.
-const { setTransformEventSink } = await import("@baseworks/module-files");
+const { setTransformEventSink, setCleanupEventSink } = await import("@baseworks/module-files");
 setTransformEventSink((event, data) => registry.getEventBus().emit(event, data));
+// Phase 31 / OPS-02 — bind the cleanup-event sink so the orphan reaper's
+// best-effort file.deleted events reach the registry event bus (emitted + traced
+// via wrapEventBus below). The DB tombstone remains authoritative.
+setCleanupEventSink((event, data) => registry.getEventBus().emit(event, data));
 
 // Phase 18 D-01 — wrap the CqrsBus so thrown handler exceptions are captured.
 // External wrapper; zero edits to apps/api/src/core/cqrs.ts (D-01 invariant).
@@ -109,6 +113,31 @@ for (const [name, def] of registry.getLoaded()) {
 
       workers.push(worker);
       logger.info({ module: name, job: jobName, queue: jobDef.queue }, "Worker started for job");
+
+      // Phase 31 / OPS-02 — register the repeatable schedule (if declared) on the
+      // SAME queue. upsertJobScheduler is idempotent by schedulerId (=== jobName),
+      // so redeploys never duplicate schedules — the load-bearing reason to use it
+      // over the deprecated queue.add(name, data, { repeat }). Guarded so a
+      // scheduler-registration failure never aborts consumer boot.
+      if (jobDef.repeat) {
+        try {
+          const scheduleQueue = createQueue(jobDef.queue, redisUrl);
+          await scheduleQueue.upsertJobScheduler(
+            jobName,
+            { pattern: jobDef.repeat.pattern },
+            { name: jobName, data: {} },
+          );
+          logger.info(
+            { module: name, job: jobName, queue: jobDef.queue, pattern: jobDef.repeat.pattern },
+            "Repeatable schedule registered",
+          );
+        } catch (err) {
+          logger.warn(
+            { module: name, job: jobName, queue: jobDef.queue, err: String(err) },
+            "Failed to register repeatable schedule (consumer still started)",
+          );
+        }
+      }
     }
   }
 }

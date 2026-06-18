@@ -3,6 +3,7 @@ import {
   bigint,
   check,
   index,
+  integer,
   jsonb,
   pgTable,
   text,
@@ -114,3 +115,29 @@ export const tenantStorageUsage = pgTable("tenant_storage_usage", {
     .notNull()
     .$onUpdate(() => new Date()),
 });
+
+/**
+ * Phase 31 / OPS-02, OPS-03 — last-run status of the cleanup/reconciliation jobs.
+ *
+ * The worker process (job handlers) and the API process (storage health
+ * contributor) are SEPARATE — last-run status must live in shared, durable
+ * storage that survives a Redis flush. One row per job (PK = job_name), upserted
+ * by `recordJobRun()` on BOTH success and failure; read by the health
+ * contributor's `readJobRuns()` to surface "job runs in /health/detailed".
+ *
+ * `detail` carries small structured context only (e.g. `{ error?, driftCorrectedBytes? }`)
+ * — NEVER a storage_key, bucket, or secret.
+ */
+export const storageJobRuns = pgTable(
+  "storage_job_runs",
+  {
+    jobName: text("job_name").primaryKey(),
+    lastRunAt: timestamp("last_run_at", { withTimezone: true }).notNull(),
+    status: text("status").notNull(),
+    itemsSwept: integer("items_swept").notNull().default(0),
+    durationMs: integer("duration_ms").notNull().default(0),
+    detail: jsonb("detail").notNull().default({}),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("storage_job_runs_status_check", sql`${t.status} IN ('ok', 'error')`)],
+);

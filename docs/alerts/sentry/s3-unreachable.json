@@ -1,0 +1,25 @@
+{
+  "name": "Storage adapter unreachable — object store down",
+  "dataset": "metrics",
+  "query": "metric:storage.adapter.reachable",
+  "aggregate": "min(storage.adapter.reachable)",
+  "timeWindow": 5,
+  "thresholdType": 1,
+  "resolveThreshold": 1,
+  "triggers": [
+    {
+      "label": "critical",
+      "alertThreshold": 1,
+      "thresholdType": 1,
+      "actions": [{ "type": "email", "targetType": "team", "targetIdentifier": "OPERATOR_TEAM_ID" }]
+    }
+  ],
+  "projects": ["YOUR_PROJECT_SLUG"],
+  "environment": "production",
+  "runbook_url": "../../runbooks/s3-unreachable.md",
+  "_baseworks_meta": {
+    "endpoint": "POST /api/0/organizations/{org}/alert-rules/",
+    "slo_note": "Critical when the storage adapter reachability gauge (1=reachable, 0=down) drops below 1 in a 5m window. thresholdType:1 = alert when value is BELOW the threshold. Forward-looking: requires custom-metrics wiring (v1.4+ OTLP) to emit storage.adapter.reachable from the health contributor probe. Until then, monitor via /health/detailed data.storage.adapter.reachable (false rolls the storage contributor to unhealthy). Same honest caveat as redis-down.json.",
+    "priority": "high"
+  }
+}

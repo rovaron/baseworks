@@ -19,7 +19,7 @@
 import { env } from "@baseworks/config";
 import { getDb, member } from "@baseworks/db";
 import type { FileRelation, HandlerContext } from "@baseworks/shared";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 /** Per-file caps (5 MiB each). */
 export const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
@@ -60,6 +60,17 @@ export const userFileRelation: FileRelation = {
   onDelete: "cascade",
   canRead: async (ctx, recordId) => recordId === ctx.userId,
   canWrite: async (ctx, recordId) => recordId === ctx.userId,
+  // Phase 31 / OPS-02 — orphan-reaper owner-existence. recordId === user.id.
+  // Reads auth's OWN `user` table from the shared @baseworks/db schema (no
+  // cross-module package import). Definitive boolean from a successful query;
+  // the reaper treats a thrown query as "unknown" ⇒ SKIP.
+  ownerExists: async ({ recordId }) => {
+    const db = getDb(env.DATABASE_URL);
+    const rows = (await db.execute(
+      sql`SELECT 1 FROM "user" WHERE id = ${recordId} LIMIT 1`,
+    )) as unknown as unknown[];
+    return rows.length > 0;
+  },
 };
 
 /** `auth:organization` — the tenant's logo. Member-read, owner/admin-write, single. */
@@ -76,4 +87,14 @@ export const organizationFileRelation: FileRelation = {
   // Any member of the active tenant may READ; owner/admin may WRITE.
   canRead: async (ctx, recordId) => recordId === ctx.tenantId,
   canWrite: async (ctx, recordId) => recordId === ctx.tenantId && (await isOwnerOrAdmin(ctx)),
+  // Phase 31 / OPS-02 — orphan-reaper owner-existence. recordId === organization.id
+  // (the tenant). Reads the shared `organization` table; definitive boolean from a
+  // successful query; a thrown query is treated as "unknown" ⇒ SKIP.
+  ownerExists: async ({ recordId }) => {
+    const db = getDb(env.DATABASE_URL);
+    const rows = (await db.execute(
+      sql`SELECT 1 FROM organization WHERE id = ${recordId} LIMIT 1`,
+    )) as unknown as unknown[];
+    return rows.length > 0;
+  },
 };

@@ -39,6 +39,10 @@ const fileRelationSchema = z.object({
   // Hooks are functions — Zod can't enforce arity at runtime cheaply.
   canRead: z.any().optional(),
   canWrite: z.any().optional(),
+  // Phase 31 / OPS-02 — orphan-reaper owner-existence resolver. A function;
+  // MUST be declared here or `register()` (z.object strips unknown keys) would
+  // drop it and the reaper would treat every relation as "no resolver" ⇒ SKIP.
+  ownerExists: z.any().optional(),
 });
 
 class FileRelationsRegistry {

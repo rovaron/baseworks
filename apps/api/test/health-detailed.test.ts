@@ -371,6 +371,79 @@ describe("/health/detailed — recentErrors (D-15)", () => {
   });
 });
 
+describe("/health/detailed — storage contributor surfacing (Phase 31 / QUO-03, OPS-03)", () => {
+  beforeEach(() => {
+    installRequireRoleMock();
+  });
+
+  test("storage contributor details (adapter/quota/jobs) surface at data.storage", async () => {
+    const storageContributor: HealthContributor = {
+      name: "storage",
+      check: async () => ({
+        status: "degraded",
+        details: {
+          provider: "local",
+          adapter: {
+            reachable: true,
+            kind: "local-disk",
+            detail: "disk-free 38%",
+            diskFreePct: 38,
+          },
+          quota: {
+            tenantCount: 2,
+            topTenants: [
+              { tenantId: "t-1", bytesUsed: 900, bytesLimit: 1000, pctUsed: 0.9 },
+              { tenantId: "t-2", bytesUsed: 10, bytesLimit: 1000, pctUsed: 0.01 },
+            ],
+            tenantsAtWarn: 1,
+            tenantsAtLimit: 0,
+          },
+          jobs: [
+            {
+              name: "cleanup:reap-pending-uploads",
+              lastRunAt: "2026-06-18T00:00:00.000Z",
+              status: "ok",
+              itemsSwept: 3,
+              durationMs: 12,
+              ageSec: 60,
+              stale: false,
+            },
+          ],
+        },
+      }),
+    };
+    const app = await buildApp({ contributors: [storageContributor] });
+    const res = await app.handle(
+      new Request("http://localhost/health/detailed", {
+        headers: { "x-test-role": "owner" },
+      }),
+    );
+    const body = await res.json();
+    expect(body.data.storage).toBeDefined();
+    expect(body.data.storage.status).toBe("degraded");
+    expect(body.data.storage.adapter.reachable).toBe(true);
+    expect(Array.isArray(body.data.storage.quota.topTenants)).toBe(true);
+    expect(body.data.storage.quota.topTenants[0].tenantId).toBe("t-1");
+    expect(Array.isArray(body.data.storage.jobs)).toBe(true);
+    expect(body.data.storage.jobs[0].name).toBe("cleanup:reap-pending-uploads");
+    // No storage_key / bucket / secrets leak into the operator surface.
+    const serialized = JSON.stringify(body.data.storage);
+    expect(serialized.includes("storage_key")).toBe(false);
+    expect(serialized.includes("bucket")).toBe(false);
+  });
+
+  test("no storage contributor registered → data.storage absent", async () => {
+    const app = await buildApp({});
+    const res = await app.handle(
+      new Request("http://localhost/health/detailed", {
+        headers: { "x-test-role": "owner" },
+      }),
+    );
+    const body = await res.json();
+    expect(Object.hasOwn(body.data, "storage")).toBe(false);
+  });
+});
+
 describe("/health/detailed — overall status (worst-of-N)", () => {
   beforeEach(() => {
     installRequireRoleMock();

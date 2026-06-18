@@ -81,6 +81,17 @@ const serverSchema = {
   // 10 min. Bounds keep tokens short-lived (no long-lived shareable links) while
   // leaving enough slack for a slow client to start the download.
   STORAGE_SIGNED_URL_TTL_SEC: z.coerce.number().int().min(300).max(900).default(600),
+  // Phase 31 / OPS-02 — retention window (days) for the weekly
+  // cleanup:reap-soft-deleted job. Tombstones (deleted_at) older than this are
+  // hard-deleted (storage objects + variant objects + DB row). Default 30.
+  STORAGE_SOFT_DELETE_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
+  // Phase 31 / OPS-03 — top-N tenants by bytes_used surfaced in the storage
+  // health contributor (/health/detailed). Default 10.
+  STORAGE_HEALTH_TOP_TENANTS: z.coerce.number().int().positive().default(10),
+  // Phase 31 / OPS-03 — internal adapter-reachability probe timeout (ms) for the
+  // storage health contributor. Kept well under the aggregator's 4s contributor
+  // race / 5s cache so a hung S3 stat() never consumes the whole budget. Default 1500.
+  STORAGE_HEALTH_PROBE_MS: z.coerce.number().int().positive().default(1500),
 };
 
 export const env = createEnv({

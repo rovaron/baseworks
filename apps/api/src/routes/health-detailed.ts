@@ -135,6 +135,22 @@ export function createHealthDetailedPlugin(deps: HealthDetailedDeps) {
         status: (dbContrib?.result.status ?? "unhealthy") as "healthy" | "degraded" | "unhealthy",
       };
 
+      // Storage status — read from the files module's "storage" contributor (Phase 31 /
+      // QUO-03 / OPS-03; the v1.4 follow-up the Phase 22 comment below deferred). The
+      // contributor (packages/modules/files/src/health/storage-health.ts) is auto-registered
+      // via def.health → ModuleRegistry.loadAll(). We mirror the "db" extraction above and
+      // expose its details (adapter / quota / jobs) at data.storage so operator runbooks'
+      // `jq '.data.storage.{adapter,quota,jobs[]}'` triage steps resolve. SC#1 + SC#5. The
+      // contributor's details carry NO storage_key/bucket/secrets (platform-admin-gated).
+      // `data.storage` is undefined when the files module is not loaded (no contributor).
+      const storageContrib = agg.contributors.find((c) => c.name === "storage");
+      const storage = storageContrib
+        ? {
+            status: storageContrib.result.status,
+            ...((storageContrib.result.details ?? {}) as Record<string, unknown>),
+          }
+        : undefined;
+
       // Modules — D-16 default (loaded modules without a contributor → "healthy").
       // In v1.3 ALL modules fall through to this default because no module ships a
       // HealthContributor. See 22-05-PLAN.md must_haves note + Plan 06 follow-up.
@@ -166,6 +182,7 @@ export function createHealthDetailedPlugin(deps: HealthDetailedDeps) {
           queues: queueResults,
           workers,
           db,
+          ...(storage ? { storage } : {}),
           recentErrors,
           modules,
         },
