@@ -6,6 +6,10 @@ dist/
 .DS_Store
 bun.lockb
 *.tsbuildinfo
+# Generated / tooling artifacts (not committed).
+.codegraph/
+.bg-shell/
+apps/web/next-env.d.ts
 .claude/worktrees/
 tmp/
 # Local file-storage adapter dev data (STORAGE_LOCAL_PATH default, Phase 25).
