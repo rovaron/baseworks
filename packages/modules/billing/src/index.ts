@@ -23,7 +23,10 @@ export { registerBillingHooks } from "./hooks/on-tenant-created";
  * webhook POSTs carry no session cookie and would otherwise be rejected by the
  * tenant-scoped derive.
  */
-export { billingWebhookRoutes } from "./routes";
+// `billingRoutes` re-exported so apps/api can mount the tenant-scoped plugin with
+// its precise Elysia type (preserving Eden Treaty inference); the module registry
+// erases it to `any` via ModuleDefinition.routes.
+export { billingRoutes, billingWebhookRoutes } from "./routes";
 
 /**
  * Billing module definition following the Medusa-style module pattern.

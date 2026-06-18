@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import type { auth as realAuth } from "../auth";
 
-const mockListOrganizations = mock(() => Promise.resolve([]));
+type Org = Awaited<ReturnType<typeof realAuth.api.listOrganizations>>[number];
+
+// `| null` mirrors the production guard `ok(orgs || [])`: the provider may
+// return null, which the query coerces to an empty array.
+const mockListOrganizations = mock((): Promise<Org[] | null> => Promise.resolve([]));
 
 mock.module("../auth", () => ({
   auth: {
@@ -28,9 +33,9 @@ describe("listTenants", () => {
   });
 
   test("returns list of tenants", async () => {
-    const orgs = [
-      { id: "org-1", name: "Org One", slug: "org-one" },
-      { id: "org-2", name: "Org Two", slug: "org-two" },
+    const orgs: Org[] = [
+      { id: "org-1", name: "Org One", slug: "org-one", createdAt: new Date() },
+      { id: "org-2", name: "Org Two", slug: "org-two", createdAt: new Date() },
     ];
     mockListOrganizations.mockResolvedValueOnce(orgs);
 

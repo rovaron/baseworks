@@ -169,7 +169,7 @@ export class ModuleRegistry {
    * Returns a single Elysia plugin that chains all non-auth, non-billing module routes.
    * Used in the app composition chain to preserve type inference for Eden Treaty.
    */
-  getModuleRoutes(): Elysia<any> {
+  getModuleRoutes() {
     const plugin = new Elysia({ name: "module-routes" });
 
     if (this.config.role === "worker") {

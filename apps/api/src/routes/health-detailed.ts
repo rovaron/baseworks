@@ -13,9 +13,9 @@
 import { requirePlatformAdmin } from "@baseworks/module-auth";
 import type { RingBufferEntry } from "@baseworks/observability";
 import { readHeartbeats } from "@baseworks/observability";
+import type { getRedisConnection } from "@baseworks/queue";
 import type { Queue } from "bullmq";
 import { Elysia } from "elysia";
-import type IORedis from "ioredis";
 import type { HealthAggregator } from "../core/health-aggregator";
 
 /** D-07 — per-queue thresholds (hardcoded; not env-tunable in v1.3 per D-09). */
@@ -25,7 +25,7 @@ const QUEUE_CRITICAL = 1000;
 export interface HealthDetailedDeps {
   aggregator: HealthAggregator;
   moduleQueues: Queue[];
-  redis: IORedis | null;
+  redis: ReturnType<typeof getRedisConnection> | null;
   heartbeatIntervalMs: number;
   loadedModuleNames: () => string[];
   /** Map of module name → status from contributor results. Empty/missing entries fall through to D-16 default ("healthy"). */
@@ -40,7 +40,7 @@ export interface HealthDetailedDeps {
  * inject the live aggregator + moduleQueues + redis connection at boot time,
  * and keeps the plugin testable with fakes (see apps/api/test/health-detailed.test.ts).
  */
-export function createHealthDetailedPlugin(deps: HealthDetailedDeps): Elysia {
+export function createHealthDetailedPlugin(deps: HealthDetailedDeps) {
   return new Elysia({ name: "health-detailed" })
     .use(requirePlatformAdmin())
     .get("/health/detailed", async () => {

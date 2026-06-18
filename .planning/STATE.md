@@ -33,6 +33,8 @@ Status (prior): Phase 29 closed — auth/org identity assets via declared `fileR
 Next: Phase 31 (final) — Cleanup, Reconciliation & Operator Surface: storage `HealthContributor` in `/health/detailed`, scheduled cleanup/reconciliation cron jobs (reap-pending, reap-orphan, reap-soft-deleted, reconcile-usage), runbooks + Sentry alert templates + file-storage integration docs (QUO-03, OPS-01, OPS-02, OPS-03). Carryover: confirm the `auth.user-deleted` cascade producer (`{tenantId,recordId}`, pinned Phase 27) lands within Phase 31 if not already emitted.
 Last activity: 2026-06-18
 
+Type-debt: CLEARED (2026-06-18) — repo-wide type-debt remediated; `bun run typecheck` (was 115 errors) and `cd apps/admin && bun run build` are now green (also `bun run build:web` green, `bun run test` 0 fail). No masking added (net `any` reduction); the admin `tsc -b` module-resolution gap noted in Phase 30 is fixed via the admin tsconfig backend `paths`. See `.planning/phases/typecheck-remediation/SUMMARY.md`.
+
 Progress (v1.4): [████████--] 7 of 8 phases (88%)
 
 ### Roadmap Evolution

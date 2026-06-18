@@ -2,7 +2,20 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { assertResultErr, assertResultOk } from "../../../__test-utils__/assert-result";
 import { createMockContext } from "../../../__test-utils__/mock-context";
 
-const mockCancelInvitation = mock(() => Promise.resolve({ cancelled: true }));
+// Shaped to match better-auth's cancelInvitation return type (the cancelled
+// invitation record) so the typed `toEqual` assertion below stays sound.
+const mockInvitation = {
+  id: "inv-1",
+  organizationId: "org-1",
+  email: "user@example.com",
+  role: "member" as const,
+  status: "canceled" as const,
+  inviterId: "user-1",
+  expiresAt: new Date("2030-01-01T00:00:00.000Z"),
+  createdAt: new Date("2025-01-01T00:00:00.000Z"),
+};
+
+const mockCancelInvitation = mock(() => Promise.resolve(mockInvitation));
 
 mock.module("../auth", () => ({
   auth: {
@@ -27,9 +40,9 @@ describe("cancelInvitation", () => {
     const result = await cancelInvitation(input, ctx);
     const data = assertResultOk(result);
 
-    expect(data).toEqual({ cancelled: true });
+    expect(data).toEqual(mockInvitation);
     expect(mockCancelInvitation).toHaveBeenCalledWith({
-      body: { invitationId: "inv-1", organizationId: "org-1" },
+      body: { invitationId: "inv-1" },
       headers: expect.any(Headers),
     });
     expect(mockEmit).toHaveBeenCalledWith("invitation.cancelled", {

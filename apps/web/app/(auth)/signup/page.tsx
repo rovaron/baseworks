@@ -20,6 +20,7 @@ import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -40,7 +41,7 @@ const SIGNUP_ERROR_KEY_BY_CODE: Record<string, string> = {
   INVALID_EMAIL: "invalidEmail",
 };
 
-export default function SignupPage() {
+function SignupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const inviteToken = sanitizeInviteToken(searchParams.get("invite"));
@@ -179,5 +180,15 @@ export default function SignupPage() {
         </Link>
       </CardFooter>
     </Card>
+  );
+}
+
+export const dynamic = "force-dynamic";
+
+export default function SignupPage() {
+  return (
+    <Suspense>
+      <SignupForm />
+    </Suspense>
   );
 }

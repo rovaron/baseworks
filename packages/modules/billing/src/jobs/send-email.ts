@@ -1,13 +1,14 @@
 import { env } from "@baseworks/config";
 import { defaultLocale, getMessages, interpolate, type Locale } from "@baseworks/i18n";
 import { render } from "@react-email/components";
+import type { ReactElement } from "react";
 import { Resend } from "resend";
 import { BillingNotificationEmail } from "../templates/billing-notification";
 import { PasswordResetEmail } from "../templates/password-reset";
 import { TeamInviteEmail } from "../templates/team-invite";
 import { WelcomeEmail } from "../templates/welcome";
 
-const templates: Record<string, (data: any) => JSX.Element> = {
+const templates: Record<string, (data: any) => ReactElement> = {
   welcome: (data) => WelcomeEmail(data),
   "password-reset": (data) => PasswordResetEmail(data),
   "magic-link": (data) => PasswordResetEmail({ ...data, userName: data.email }),

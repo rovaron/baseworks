@@ -130,7 +130,7 @@ describe("Email Job Handler", () => {
     // We can't easily override the mock, so we test the fallback path instead.
 
     // Test that unknown template with no API key still logs correctly
-    const logSpy = mock(() => {});
+    const logSpy = mock((_message: string) => {});
     const originalLog = console.log;
     console.log = logSpy;
 
@@ -143,7 +143,7 @@ describe("Email Job Handler", () => {
 
       // Without RESEND_API_KEY, it should log fallback (not throw)
       expect(logSpy).toHaveBeenCalledTimes(1);
-      const logMessage = logSpy.mock.calls[0][0] as string;
+      const logMessage = logSpy.mock.calls[0][0];
       expect(logMessage).toContain("[EMAIL] Skipping send");
       expect(logMessage).toContain("template=nonexistent-template");
     } finally {
@@ -152,7 +152,7 @@ describe("Email Job Handler", () => {
   });
 
   test("logs fallback when RESEND_API_KEY is not set", async () => {
-    const logSpy = mock(() => {});
+    const logSpy = mock((_message: string) => {});
     const originalLog = console.log;
     console.log = logSpy;
 
@@ -164,7 +164,7 @@ describe("Email Job Handler", () => {
       });
 
       expect(logSpy).toHaveBeenCalledTimes(1);
-      const logMessage = logSpy.mock.calls[0][0] as string;
+      const logMessage = logSpy.mock.calls[0][0];
       expect(logMessage).toContain("[EMAIL] Skipping send");
       expect(logMessage).toContain("template=welcome");
       expect(logMessage).toContain("to=test@example.com");

@@ -1,8 +1,25 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { assertResultErr, assertResultOk } from "../../../__test-utils__/assert-result";
 import { createMockContext } from "../../../__test-utils__/mock-context";
+import type { auth as realAuth } from "../auth";
 
-const mockRejectInvitation = mock(() => Promise.resolve({ rejected: true }));
+type RejectResult = Awaited<ReturnType<typeof realAuth.api.rejectInvitation>>;
+
+const rejectionResult: RejectResult = {
+  invitation: {
+    id: "inv-1",
+    organizationId: "org-1",
+    email: "invited@test.com",
+    role: "member",
+    status: "rejected",
+    inviterId: "user-9",
+    expiresAt: new Date(),
+    createdAt: new Date(),
+  },
+  member: null,
+};
+
+const mockRejectInvitation = mock((): Promise<RejectResult> => Promise.resolve(rejectionResult));
 
 mock.module("../auth", () => ({
   auth: {
@@ -27,7 +44,7 @@ describe("rejectInvitation", () => {
     const result = await rejectInvitation(input, ctx);
     const data = assertResultOk(result);
 
-    expect(data).toEqual({ rejected: true });
+    expect(data).toEqual(rejectionResult);
     expect(mockRejectInvitation).toHaveBeenCalledWith({
       body: { invitationId: "inv-1" },
       headers: expect.any(Headers),

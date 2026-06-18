@@ -45,8 +45,8 @@ describe("createTenant", () => {
     const ctx = createMockContext({ userId: "user-1" });
     const result = await createTenant({ name: "My Company" }, ctx);
 
-    assertResultOk(result);
-    expect(result.data).toEqual(expect.objectContaining({ id: "org-1", name: "Test Org" }));
+    const data = assertResultOk(result);
+    expect(data).toEqual(expect.objectContaining({ id: "org-1", name: "Test Org" }));
     expect(ctx.emit).toHaveBeenCalledWith("tenant.created", {
       tenantId: "org-1",
       createdBy: "user-1",

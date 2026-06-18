@@ -92,10 +92,17 @@ registerExampleHooks(registry.getEventBus());
 // tenant.created, ON CONFLICT DO NOTHING; resilient, never crashes tenant creation)
 registerFilesHooks(registry.getEventBus());
 
-// Get module routes for direct .use() chaining
-const authRoutes = registry.getAuthRoutes();
+// Get module routes for direct .use() chaining.
+// The registry getters erase the plugins to `any` (getAuthRoutes / ModuleDefinition.routes),
+// which would taint the whole App routes type and collapse Eden Treaty inference (.admin et al.).
+// Re-annotating the locals with the concrete plugin types via type-only `import(...)` queries
+// (zero runtime import — the modules are still sourced from the registry value) restores precise
+// inference without changing runtime behavior or eager-loading the billing plugin at boot.
+const authRoutes: typeof import("@baseworks/module-auth").authRoutes | null =
+  registry.getAuthRoutes();
 const billingModule = registry.getLoaded().get("billing");
-const billingApiRoutes = billingModule?.routes;
+const billingApiRoutes: typeof import("@baseworks/module-billing").billingRoutes | undefined =
+  billingModule?.routes;
 
 // Phase 22 / OPS-01 / Pitfall 10 — collect all module-registered queue names and construct
 // read-only Queue references for bull-board to introspect. The API process does NOT run

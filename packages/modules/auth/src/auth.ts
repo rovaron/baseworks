@@ -5,7 +5,6 @@ import { createQueue, getRedisConnection } from "@baseworks/queue";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { magicLink, organization } from "better-auth/plugins";
-import type { Queue } from "bullmq";
 import { nanoid } from "nanoid";
 import { getLocale } from "./locale-context";
 
@@ -14,8 +13,8 @@ import { getLocale } from "./locale-context";
  * Per D-22: Only created if REDIS_URL is available.
  * Falls back to console.log if Redis is not configured (dev/test).
  */
-let emailQueue: Queue | null = null;
-function getEmailQueue(): Queue | null {
+let emailQueue: ReturnType<typeof createQueue> | null = null;
+function getEmailQueue(): ReturnType<typeof createQueue> | null {
   if (!emailQueue && env.REDIS_URL) {
     emailQueue = createQueue("email-send", env.REDIS_URL);
   }

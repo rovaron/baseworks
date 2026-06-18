@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import type { auth as realAuth } from "../auth";
 
-const mockGetInvitation = mock(() => Promise.resolve(null));
+type Invitation = NonNullable<Awaited<ReturnType<typeof realAuth.api.getInvitation>>>;
+
+const mockGetInvitation = mock((): Promise<Invitation | null> => Promise.resolve(null));
 
 mock.module("../auth", () => ({
   auth: {
@@ -28,13 +31,24 @@ describe("getInvitation", () => {
   });
 
   test("returns whitelisted invitation on success (strips extra fields)", async () => {
-    const invitation = {
+    // The provider returns extra fields (organization/inviter/internalToken)
+    // beyond the base Invitation type; the query must whitelist them away.
+    const invitation: Invitation & {
+      organization?: { name?: string };
+      inviter?: { user?: { name?: string; email?: string } };
+      internalToken?: string;
+    } = {
       id: "inv-1",
       email: "invited@test.com",
       role: "member",
       status: "pending",
       organizationId: "org-1",
       inviterId: "user-9",
+      expiresAt: new Date(),
+      createdAt: new Date(),
+      organizationName: "Test Org",
+      organizationSlug: "test-org",
+      inviterEmail: "admin@test.com",
       organization: { name: "Test Org" },
       inviter: { user: { name: "Admin User", email: "admin@test.com" } },
       // An internal field that must NOT leak through the public endpoint.

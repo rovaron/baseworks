@@ -33,7 +33,7 @@ const uiBasePath = dirname(uiPkgPath);
  * @param queues - Module-collected BullMQ Queue refs to expose in the dashboard.
  * @returns Awaitable Elysia plugin ready to be mounted with `app.use(plugin)`.
  */
-export async function createBullBoardPlugin(queues: Queue[]): Promise<Elysia> {
+export async function createBullBoardPlugin(queues: Queue[]) {
   // D-04 — frame-ancestors: ADMIN_URL is the only allowed embedder. When unset,
   // degrade to 'none' (strictest possible — bull-board still serves but cannot be iframed).
   const frameAncestors = env.ADMIN_URL ? `'${env.ADMIN_URL}'` : "'none'";

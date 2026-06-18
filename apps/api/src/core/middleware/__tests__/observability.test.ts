@@ -80,8 +80,12 @@ function makeCtx(overrides: Partial<ObservabilityContext> = {}): ObservabilityCo
   };
 }
 
+// Structural param — only `.handle` is exercised here. Accepting the bare
+// `Elysia` type would reject the richly-typed instances produced by
+// `.use(observabilityMiddleware)` (whose `_obsSpan` derive makes the generic
+// positions invariant-incompatible with `Elysia<"">`).
 async function callApp(
-  app: Elysia,
+  app: { handle: (req: Request) => Promise<Response> },
   req: Request,
   seedCtx: ObservabilityContext,
 ): Promise<Response> {
@@ -186,7 +190,7 @@ describe("observabilityMiddleware — HTTP span lifecycle (D-21)", () => {
     const app = new Elysia()
       .use(observabilityMiddleware)
       .get("/ok", () => "ok")
-      .get("/notfound-custom", ({ set }: { set: { status: number } }) => {
+      .get("/notfound-custom", ({ set }) => {
         set.status = 404;
         return "nope";
       });

@@ -29,10 +29,12 @@ const CancelInvitationInput = Type.Object({
  */
 export const cancelInvitation = defineCommand(CancelInvitationInput, async (input, ctx) => {
   try {
+    // better-auth's cancelInvitation body only accepts invitationId; the
+    // organizationId stays in the input schema for authorization/event context
+    // (emitted below) but is not part of the better-auth API call.
     const result = await auth.api.cancelInvitation({
       body: {
         invitationId: input.invitationId,
-        organizationId: input.organizationId,
       },
       headers: ctx.headers ?? new Headers(),
     });

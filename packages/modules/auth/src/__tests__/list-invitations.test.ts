@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import type { auth as realAuth } from "../auth";
 
-const mockListInvitations = mock(() => Promise.resolve([]));
+type Invitation = Awaited<ReturnType<typeof realAuth.api.listInvitations>>[number];
+
+// `| null` mirrors the production guard `ok(invitations || [])`: the provider
+// may return null, which the query coerces to an empty array.
+const mockListInvitations = mock((): Promise<Invitation[] | null> => Promise.resolve([]));
 
 mock.module("../auth", () => ({
   auth: {
@@ -28,9 +33,27 @@ describe("listInvitations", () => {
   });
 
   test("returns invitations list", async () => {
-    const invitations = [
-      { id: "inv-1", email: "a@test.com", role: "member", status: "pending" },
-      { id: "inv-2", email: "b@test.com", role: "admin", status: "pending" },
+    const invitations: Invitation[] = [
+      {
+        id: "inv-1",
+        organizationId: "org-1",
+        email: "a@test.com",
+        role: "member",
+        status: "pending",
+        inviterId: "user-9",
+        expiresAt: new Date(),
+        createdAt: new Date(),
+      },
+      {
+        id: "inv-2",
+        organizationId: "org-1",
+        email: "b@test.com",
+        role: "admin",
+        status: "pending",
+        inviterId: "user-9",
+        expiresAt: new Date(),
+        createdAt: new Date(),
+      },
     ];
     mockListInvitations.mockResolvedValueOnce(invitations);
 

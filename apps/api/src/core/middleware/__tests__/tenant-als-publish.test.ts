@@ -36,14 +36,17 @@ function seed(overrides: Partial<ObservabilityContext> = {}): ObservabilityConte
 
 describe("request-trace.ts — D-23 (requestId from ALS; no x-request-id writer)", () => {
   test("Test 1: derive pulls requestId from ALS", async () => {
-    const { requestTraceMiddleware } = await import(`../request-trace?t=${Date.now()}`);
+    // Cache-busted dynamic import — cast to the static module type so the
+    // plugin's derived `requestId` flows into the handler context (a bare
+    // dynamic import resolves to `any`, dropping the derive types).
+    const { requestTraceMiddleware } = (await import(
+      `../request-trace?t=${Date.now()}`
+    )) as typeof import("../request-trace");
     let seenRequestId: string | undefined;
-    const app = new Elysia()
-      .use(requestTraceMiddleware)
-      .get("/probe", (ctx: { requestId: string }) => {
-        seenRequestId = ctx.requestId;
-        return "ok";
-      });
+    const app = new Elysia().use(requestTraceMiddleware).get("/probe", (ctx) => {
+      seenRequestId = ctx.requestId;
+      return "ok";
+    });
     await obsContext.run(seed({ requestId: "als-id" }), () =>
       app.handle(new Request("http://localhost/probe")),
     );
@@ -51,14 +54,14 @@ describe("request-trace.ts — D-23 (requestId from ALS; no x-request-id writer)
   });
 
   test("Test 2: fallback to 'unknown' when called outside an ALS frame", async () => {
-    const { requestTraceMiddleware } = await import(`../request-trace?t=${Date.now()}-b`);
+    const { requestTraceMiddleware } = (await import(
+      `../request-trace?t=${Date.now()}-b`
+    )) as typeof import("../request-trace");
     let seenRequestId: string | undefined;
-    const app = new Elysia()
-      .use(requestTraceMiddleware)
-      .get("/probe", (ctx: { requestId: string }) => {
-        seenRequestId = ctx.requestId;
-        return "ok";
-      });
+    const app = new Elysia().use(requestTraceMiddleware).get("/probe", (ctx) => {
+      seenRequestId = ctx.requestId;
+      return "ok";
+    });
     // NO obsContext.run wrapper — simulate running outside a seeded frame.
     await app.handle(new Request("http://localhost/probe"));
     expect(seenRequestId).toBe("unknown");

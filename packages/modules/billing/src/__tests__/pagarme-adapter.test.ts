@@ -13,7 +13,7 @@ import type { RawProviderEvent } from "../ports/types";
 const originalFetch = globalThis.fetch;
 
 function mockFetchResponse(data: any, status = 200) {
-  return mock(() =>
+  return mock((_url: string, _init: { method: string; body: string }) =>
     Promise.resolve(
       new Response(JSON.stringify(data), {
         status,
