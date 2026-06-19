@@ -15,6 +15,17 @@ import { Elysia } from "elysia";
  * 6. RBAC enforcement -- requireRole("owner") rejects non-owner roles (TNNT-04)
  *
  * Requires PostgreSQL for database-backed sessions. Tests skip gracefully if unavailable.
+ *
+ * ISOLATION (load-bearing — do not move back into ../__tests__): this suite imports
+ * the REAL `auth` instance and calls `auth.api.listOrganizations` (org plugin). The
+ * 13 command/query unit tests in ../__tests__ each `mock.module("../auth", …)` with a
+ * PARTIAL fake that omits the org-plugin API. bun's `mock.module` is process-global and
+ * never restored, and `bun test <dir>` registers every file's top-level mocks BEFORE
+ * running any test body — so when this file shares a process with the mockers, the fake
+ * auth leaks in and `listOrganizations` is undefined (manifests on CI's file order, not
+ * Windows'). That is why this lives in its own `__integration__/` directory and the root
+ * `package.json` "test" script runs it as a SEPARATE `bun test` invocation. Renaming /
+ * reordering does NOT fix it; process isolation does.
  */
 
 const TEST_DB_URL =
