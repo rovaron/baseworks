@@ -113,6 +113,12 @@ async function signUpUser(
   const setCookies = response.headers.getSetCookie?.() ?? [];
   const cookies = setCookies.map((c: string) => c.split(";")[0]).join("; ");
 
+  // DIAGNOSTIC (temporary): show every signup's status + cookie so a CI-only
+  // "no session" can be traced to the signup vs the later getSession.
+  console.error(
+    `[RBAC-DIAG signup] email=${email} status=${response.status} setCookieCount=${setCookies.length} cookieLen=${cookies.length} body=${(await response.clone().text()).slice(0, 120)}`,
+  );
+
   return { cookies, response };
 }
 
