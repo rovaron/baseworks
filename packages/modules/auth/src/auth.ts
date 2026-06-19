@@ -109,9 +109,14 @@ export const auth = betterAuth({
    * brute-force-sensitive auth paths. When a Redis-backed secondaryStorage is
    * configured we use `storage: "secondary-storage"` so limits are shared
    * across instances; otherwise better-auth falls back to its in-memory store.
+   *
+   * Disabled under NODE_ENV=test: the integration suites legitimately create
+   * many users in seconds, which trips the 5-signups/60s rule and leaves later
+   * signups without a session (a non-deterministic, storage-dependent failure —
+   * it surfaced only on CI's Redis-backed shared counter). Always on in dev/prod.
    */
   rateLimit: {
-    enabled: true,
+    enabled: env.NODE_ENV !== "test",
     window: 60,
     max: 100,
     ...(secondaryStorage ? { storage: "secondary-storage" as const } : {}),
