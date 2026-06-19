@@ -62,6 +62,15 @@ async function createTestApp() {
   const { tenantMiddleware } = await import("../../../../../apps/api/src/core/middleware/tenant");
 
   const app = new Elysia()
+    // DIAGNOSTIC (temporary): log the real throw location of any error so a
+    // CI-only 401 surfaces its origin (tenantMiddleware vs requireRole vs auth).
+    // Returns nothing → Elysia's default error handling is preserved.
+    .onError((ctx: any) => {
+      const e = ctx.error;
+      console.error(
+        `[RBAC-DIAG] code=${ctx.code} name=${e?.name} msg=${e?.message} status=${e?.status ?? ctx.set?.status} | ${(e?.stack ?? "").split("\n").slice(0, 5).join(" || ")}`,
+      );
+    })
     // Health check -- no auth required
     .get("/health", () => ({ status: "ok" }))
     // Auth routes -- before tenant middleware (signup/login bypass tenant context)
@@ -268,6 +277,10 @@ describe("RBAC enforcement", () => {
       }),
     );
 
+    // DIAGNOSTIC (temporary): surface what the owner DELETE actually returned on CI.
+    console.error(
+      `[RBAC-DIAG owner] status=${response.status} body=${await response.clone().text()}`,
+    );
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.message).toBe("Tenant deletion initiated");
