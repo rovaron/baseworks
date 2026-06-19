@@ -61,14 +61,34 @@ export function requireRole(...roles: string[]) {
   return new Elysia({ name: `require-role-${roles.join(",")}` }).derive(
     { as: "scoped" },
     async (ctx: any) => {
-      const session = await auth.api.getSession({
-        headers: ctx.request.headers,
-      });
-      if (!session) {
-        throw new UnauthorizedError();
+      // Prefer the tenant context that tenantMiddleware already resolved for
+      // THIS request (ctx.tenantId / ctx.userId). tenantMiddleware resolves the
+      // active org in-request — including when it had to auto-select and
+      // setActiveOrganization-write it — so reading it here avoids a
+      // read-after-write race: an immediate auth.api.getSession() can miss that
+      // just-written activeOrganizationId under better-auth's Redis
+      // secondaryStorage, which otherwise 401s a freshly-resolved owner (D-12).
+      // Fall back to a session lookup for routes that guard with requireRole but
+      // do NOT mount tenantMiddleware first (e.g. /api/invitations via
+      // betterAuthPlugin) — those flows have no auto-select-then-read, so no race.
+      let userId: string | undefined = ctx.userId ?? ctx.user?.id;
+      let activeOrgId: string | null | undefined =
+        ctx.tenantId ?? ctx.session?.activeOrganizationId;
+
+      if (!userId || !activeOrgId) {
+        const session = await auth.api.getSession({
+          headers: ctx.request.headers,
+        });
+        if (!session) {
+          throw new UnauthorizedError();
+        }
+        userId ??= session.user.id;
+        activeOrgId ??= session.session.activeOrganizationId;
       }
 
-      const activeOrgId = session.session.activeOrganizationId;
+      if (!userId) {
+        throw new UnauthorizedError();
+      }
       if (!activeOrgId) {
         // NoActiveTenantError maps to 401 (MISSING_TENANT_CONTEXT); the old
         // "No active organization" string fell through to a 500.
@@ -81,7 +101,7 @@ export function requireRole(...roles: string[]) {
         query: { organizationId: activeOrgId },
       });
 
-      const memberRecord = fullOrg?.members?.find((m: any) => m.userId === session.user.id);
+      const memberRecord = fullOrg?.members?.find((m: any) => m.userId === userId);
 
       if (!memberRecord || !roles.includes(memberRecord.role)) {
         throw new ForbiddenError();
