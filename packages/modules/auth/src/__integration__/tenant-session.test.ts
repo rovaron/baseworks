@@ -256,18 +256,11 @@ describe("RBAC enforcement", () => {
     // Sign up creates user as owner of auto-created org
     const { cookies } = await signUpUser(app, email, "testpassword123", "Test Owner");
 
-    // Owner needs an active organization set for requireRole to work.
-    // The tenant middleware auto-selects the first org, so the session
-    // should have activeOrganizationId set after the first tenant-scoped request.
-
-    // First, make a request to trigger activeOrg auto-selection
-    await app.handle(
-      new Request("http://localhost/api/protected", {
-        headers: { cookie: cookies },
-      }),
-    );
-
-    // Now the owner should be able to call DELETE /api/tenant
+    // No pre-flight "activate org" probe: the DELETE flows through
+    // tenantMiddleware, which resolves (auto-selecting if needed) the active org
+    // in-request, and requireRole reads that resolved tenant context. A separate
+    // probe request previously rotated the session server-side via
+    // setActiveOrganization, leaving this reused cookie stale on CI → 401.
     const response = await app.handle(
       new Request("http://localhost/api/tenant", {
         method: "DELETE",
@@ -298,14 +291,9 @@ describe("RBAC enforcement", () => {
       "RBAC Owner",
     );
 
-    // Trigger active org selection for owner
-    await app.handle(
-      new Request("http://localhost/api/protected", {
-        headers: { cookie: ownerCookies },
-      }),
-    );
-
-    // Get the owner's org
+    // Get the owner's org. listOrganizations returns it regardless of which org
+    // is "active", so no probe request is needed (a probe would rotate the
+    // owner's session server-side and leave ownerCookies stale on CI).
     const orgs = await auth.api.listOrganizations({
       headers: new Headers({ cookie: ownerCookies }),
     });
