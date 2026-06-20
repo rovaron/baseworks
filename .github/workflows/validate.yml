@@ -1,0 +1,145 @@
+name: Validate — docs + cross-link integrity
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Least-privilege: validator only checks out code and runs a script.
+# No need for write scopes on GITHUB_TOKEN.
+permissions:
+  contents: read
+
+jobs:
+  validate-docs:
+    name: Run scripts/validate-docs.ts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          # Pin to 1.3.x — the project requires Bun 1.2+ (text `bun.lock`
+          # lockfileVersion 1) and Bun 1.3 APIs (Bun.S3Client, Phase 25). The
+          # ci job below already pins 1.3.x; keep both in lockstep.
+          bun-version: "1.3.x"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run docs validator
+        run: bun run validate
+
+  ci:
+    name: Lint, typecheck & test
+    runs-on: ubuntu-latest
+    # Kept separate from validate-docs so a failure here is attributable to the
+    # code suite (lint/typecheck/test) rather than the docs validator.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      minio:
+        # MinIO backs the Phase 25 S3-compat storage conformance suite.
+        # The `edge-cicd` tag runs `minio server /data` by default, so it works
+        # as a bare service container — the standard `minio/minio` image needs a
+        # `server` command argument, which GitHub Actions service containers
+        # cannot supply.
+        image: minio/minio:edge-cicd
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/minio/health/live"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # Match the var names apps/api test setup + packages/config/src/env.ts expect.
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      REDIS_URL: redis://localhost:6379
+      # Required by packages/config/src/env.ts (no dev fallback under NODE_ENV=test).
+      # CI-only dummy — never a real secret. Must be >= 32 chars.
+      BETTER_AUTH_SECRET: ci-test-better-auth-secret-not-a-real-secret-0123456789
+      # Phase 25 / FILE-02 / FILE-03 — S3-compat conformance against MinIO.
+      # Setting S3_ENDPOINT + creds + S3_BUCKET un-skips the `describe.skipIf`
+      # gate in the s3-compat adapter tests so they run against the local MinIO
+      # service. AWS_REGION is intentionally NOT set here, so the real-AWS S3
+      # adapter suite stays skipped (it gates on AWS_REGION + creds + bucket).
+      S3_ENDPOINT: http://localhost:9000
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      S3_BUCKET: conformance
+      S3_FORCE_PATH_STYLE: "true"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          # Phase 25 / D-25-05: 1.3.x because the storage S3 / S3-compat adapters
+          # construct `Bun.S3Client` (Bun >= 1.2) and the repo uses the Bun 1.2+
+          # text `bun.lock`. Kept in lockstep with the validate-docs job above.
+          bun-version: "1.3.x"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Create MinIO bucket
+        # One-shot bootstrap so the S3-compat conformance suite has a target
+        # bucket. The AWS CLI is preinstalled on ubuntu-latest runners; it talks
+        # to MinIO via the path-style --endpoint-url.
+        run: aws --endpoint-url http://localhost:9000 s3 mb s3://conformance
+        env:
+          AWS_DEFAULT_REGION: us-east-1
+
+      - name: Run database migrations
+        run: bun run db:migrate
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Test
+        run: bun run test
+
+      # Optional: run the live AWS S3 conformance suite against a real bucket.
+      # Disabled by default so forks / credential-less PRs stay green. To enable,
+      # set the repo secrets below; the s3 adapter tests un-skip when AWS_REGION
+      # + creds + S3_BUCKET are present (distinct from the MinIO S3-compat path,
+      # which keys off S3_ENDPOINT).
+      # - name: Test (live AWS S3)
+      #   if: ${{ secrets.AWS_S3_LIVE == 'true' }}
+      #   run: bun test packages/storage
+      #   env:
+      #     AWS_REGION: ${{ secrets.AWS_REGION }}
+      #     S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+      #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_S3_ACCESS_KEY_ID }}
+      #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_S3_SECRET_ACCESS_KEY }}

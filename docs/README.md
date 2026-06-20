@@ -23,6 +23,17 @@ Start with `getting-started.md` to install the repo and run the dev server. Read
 | [integrations/email.md](./integrations/email.md) | Resend dispatcher, React Email templates, and adding a new template. |
 | [jsdoc-style-guide.md](./jsdoc-style-guide.md) | JSDoc conventions for source files (Phase 13 output). |
 
+## Operations
+
+| Document | Purpose |
+| --- | --- |
+| [observability/README.md](./observability/README.md) | Index for the observability concept docs (attributes, cardinality, trace propagation). |
+| [observability/attributes.md](./observability/attributes.md) | Glossary of legitimate context attributes (lives on span/log/metric, type, cardinality risk). |
+| [observability/cardinality.md](./observability/cardinality.md) | Cardinality rules + Baseworks-specific high-card values forbidden as metric labels. |
+| [observability/trace-propagation.md](./observability/trace-propagation.md) | Single-trace flow API → DB → enqueue → worker (Mermaid). |
+| [runbooks/](./runbooks/) | 9 incident runbooks (DB down, Redis down, queue backing up, webhook failures, auth outage, OTEL exporter failing, bull-board inaccessible, high error rate, slow checkout). |
+| [alerts/sentry/README.md](./alerts/sentry/README.md) | Sentry alert templates — import via sentry-cli api / curl / UI; SLO-burn-rate translation. |
+
 ## Tone
 
 All documents in this directory follow the technical-precise, API-reference tone established in [jsdoc-style-guide.md](./jsdoc-style-guide.md) §"General Rules" (lines 12-23). Sentences are declarative, present tense, active voice, and lead with domain terminology. Forbidden filler words: `b-a-s-i-c-a-l-l-y`, `s-i-m-p-l-y`, and the adverbial `j-u-s-t`. No emojis. No second-person exclamations. The `getting-started.md` document has discretion for a slightly warmer onboarding voice within these bounds (per D-11 and the Claude's Discretion note in `15-CONTEXT.md`).

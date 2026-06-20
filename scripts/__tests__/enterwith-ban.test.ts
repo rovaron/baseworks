@@ -30,9 +30,9 @@
  */
 
 import { afterAll, describe, expect, test } from "bun:test";
-import { $ } from "bun";
-import { existsSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { $ } from "bun";
 
 // Dynamic-token construction for the banned literal so THIS test file does
 // not self-flag on the grep / plugin gate.
@@ -40,8 +40,7 @@ const BANNED_METHOD = `${"enter"}${"With"}`; // -> "enterWith"
 const BANNED_TOKEN = `.${BANNED_METHOD}(`; // -> ".enterWith("
 
 const REPO_ROOT = join(import.meta.dir, "..", "..");
-const FIXTURE_PATH =
-  "packages/observability/src/__tests__/__fixtures__/enterwith-violation.ts";
+const FIXTURE_PATH = "packages/observability/src/__tests__/__fixtures__/enterwith-violation.ts";
 const FIXTURE_ABS = join(REPO_ROOT, FIXTURE_PATH);
 
 // Red-path temp fixture MUST use a `.ts` suffix (not `.ts.tmp`) so the grep
@@ -61,10 +60,11 @@ afterAll(() => {
 
 describe("CTX-01 three-layer enterWith ban (Plan 19-08 / D-24 / D-25 / D-26)", () => {
   test("repo has zero banned-token occurrences in packages/ or apps/ outside the fixture allow-list", async () => {
-    const result = await $`grep -rn ${BANNED_TOKEN} packages/ apps/ --include=${"*.ts"} --include=${"*.tsx"}`
-      .nothrow()
-      .cwd(REPO_ROOT)
-      .text();
+    const result =
+      await $`grep -rn ${BANNED_TOKEN} packages/ apps/ --include=${"*.ts"} --include=${"*.tsx"}`
+        .nothrow()
+        .cwd(REPO_ROOT)
+        .text();
     const nonFixtureMatches = result
       .trim()
       .split("\n")
@@ -74,10 +74,7 @@ describe("CTX-01 three-layer enterWith ban (Plan 19-08 / D-24 / D-25 / D-26)", (
 
   test("scripts/lint-no-enterwith.sh exits 0 against clean tree (fixture allow-listed)", async () => {
     expect(existsSync(FIXTURE_ABS)).toBe(true);
-    const proc = await $`bash scripts/lint-no-enterwith.sh`
-      .cwd(REPO_ROOT)
-      .nothrow()
-      .quiet();
+    const proc = await $`bash scripts/lint-no-enterwith.sh`.cwd(REPO_ROOT).nothrow().quiet();
     expect(proc.exitCode).toBe(0);
   });
 
@@ -87,18 +84,13 @@ describe("CTX-01 three-layer enterWith ban (Plan 19-08 / D-24 / D-25 / D-26)", (
     const offender = [
       "// Temporary fixture — Phase 19 Plan 08 grep-gate red-path test.",
       "// @ts-nocheck",
-      "const fakeAls = { [" +
-        JSON.stringify(BANNED_METHOD) +
-        "]: (_: unknown) => {} };",
+      "const fakeAls = { [" + JSON.stringify(BANNED_METHOD) + "]: (_: unknown) => {} };",
       `fakeAls${BANNED_TOKEN}{ tenantId: "TEST_FIXTURE_SHOULD_FAIL_LINT" });`,
       "",
     ].join("\n");
     writeFileSync(TMP_FIXTURE_ABS, offender);
 
-    const proc = await $`bash scripts/lint-no-enterwith.sh`
-      .cwd(REPO_ROOT)
-      .nothrow()
-      .quiet();
+    const proc = await $`bash scripts/lint-no-enterwith.sh`.cwd(REPO_ROOT).nothrow().quiet();
     expect(proc.exitCode).not.toBe(0);
     const out = proc.stdout.toString() + proc.stderr.toString();
     expect(out).toContain("__enterwith_red_path_fixture_tmp__.ts");
@@ -109,18 +101,23 @@ describe("CTX-01 three-layer enterWith ban (Plan 19-08 / D-24 / D-25 / D-26)", (
   // B5 — the mandatory "Biome rule actually fires on the fixture" gate.
   test("B5: Biome GritQL rule fires on the red-path fixture (exit != 0 + rule id + message on output)", async () => {
     expect(existsSync(FIXTURE_ABS)).toBe(true);
-    const proc = await $`bunx biome check ${FIXTURE_PATH}`
-      .cwd(REPO_ROOT)
-      .nothrow()
-      .quiet();
-    const out = proc.stdout.toString() + proc.stderr.toString();
+    // The committed fixture lives under __fixtures__, which is excluded from
+    // Biome's file set so it does not fail the repo-wide `biome check .`.
+    // Copy it to a temp path Biome DOES scan so the GritQL plugin actually fires.
+    writeFileSync(TMP_FIXTURE_ABS, readFileSync(FIXTURE_ABS));
+    try {
+      const proc = await $`bunx biome check ${TMP_FIXTURE_REL}`.cwd(REPO_ROOT).nothrow().quiet();
+      const out = proc.stdout.toString() + proc.stderr.toString();
 
-    // (a) Biome must exit non-zero on the violation.
-    expect(proc.exitCode).not.toBe(0);
-    // (b) The rule id must appear on output — proves the GritQL rule actually
-    //     fired (not just that Biome found some OTHER issue in the fixture).
-    expect(out).toContain("no-async-local-storage-enterWith");
-    // (c) The rule message marker (partial, excluding the banned literal).
-    expect(out).toContain("banned (CTX-01)");
+      // (a) Biome must exit non-zero on the violation.
+      expect(proc.exitCode).not.toBe(0);
+      // (b) The rule id must appear on output — proves the GritQL rule actually
+      //     fired (not just that Biome found some OTHER issue in the fixture).
+      expect(out).toContain("no-async-local-storage-enterWith");
+      // (c) The rule message marker (partial, excluding the banned literal).
+      expect(out).toContain("banned (CTX-01)");
+    } finally {
+      unlinkSync(TMP_FIXTURE_ABS);
+    }
   });
 });

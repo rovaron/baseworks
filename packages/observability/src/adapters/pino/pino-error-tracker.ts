@@ -59,10 +59,7 @@ const BREADCRUMB_BUFFER_SIZE = 10;
  * @param level - Port-level log severity
  * @returns Bound pino method that accepts `(obj, msg)` or `(msg)`
  */
-function pinoMethod(
-  logger: Logger,
-  level?: LogLevel,
-): (obj: unknown, msg?: string) => void {
+function pinoMethod(logger: Logger, level?: LogLevel): (obj: unknown, msg?: string) => void {
   switch (level) {
     case "fatal":
       return logger.fatal.bind(logger);

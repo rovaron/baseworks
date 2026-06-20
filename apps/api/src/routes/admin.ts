@@ -1,42 +1,65 @@
-import { Elysia, t } from "elysia";
-import { createDb, organization, user, member, billingCustomers } from "@baseworks/db";
 import { env } from "@baseworks/config";
-import { requireRole } from "@baseworks/module-auth";
-import { eq, like, or, count } from "drizzle-orm";
+import { billingCustomers, getDb, member, organization, user } from "@baseworks/db";
+import { requirePlatformAdmin } from "@baseworks/module-auth";
+import {
+  adminCompleteUpload,
+  adminDeleteFile,
+  adminGetReadUrl,
+  adminListFilesForTenant,
+  adminSignUpload,
+} from "@baseworks/module-files";
+import { getRedisConnection } from "@baseworks/queue";
+import { count, eq, like, or, sql } from "drizzle-orm";
+import { Elysia, t } from "elysia";
 import { logger } from "../lib/logger";
 
 /** Escape LIKE meta-characters to prevent search injection. */
 function escapeLike(input: string): string {
-  return input.replace(/[%_\\]/g, (c) => "\\" + c);
+  return input.replace(/[%_\\]/g, (c) => `\\${c}`);
+}
+
+/**
+ * Phase 30 / UI-02 — admin files error → HTTP status mapping (contract §2).
+ *   not_found                                  → 404
+ *   quota_exceeded | file_too_large |
+ *     image_too_large                          → 413
+ *   every other code                           → 400
+ */
+function mapFilesError(code: string): number {
+  if (code === "not_found") return 404;
+  if (code === "quota_exceeded" || code === "file_too_large" || code === "image_too_large") {
+    return 413;
+  }
+  return 400;
+}
+
+/**
+ * Safely parse a stored metadata JSON string. Returns null on malformed JSON so
+ * a single corrupt row degrades gracefully instead of 500-ing the whole listing.
+ */
+function safeParseMetadata(raw: string | null, tenantId?: string): unknown {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    logger.warn({ tenantId }, "Failed to parse tenant metadata; returning null");
+    return null;
+  }
 }
 
 /**
  * Admin API routes for cross-tenant operations.
  *
  * Per D-16: These routes use raw db (not scopedDb) for cross-tenant queries.
- * Per T-4-01: All routes protected by requireRole("owner").
+ * Per T-4-01: All routes protected by requirePlatformAdmin() (operator-scope,
+ *   distinct from per-organization "owner" — see finding authz-admin-owner-role-escalation).
  * Per T-4-03: User queries omit password hashes (select only safe fields).
  */
 
-const db = createDb(env.DATABASE_URL);
-
-/** Cached Redis connection for health checks to avoid per-request connection churn. */
-let healthRedis: any = null;
-
-async function getHealthRedis(redisUrl: string): Promise<any> {
-  if (healthRedis) return healthRedis;
-  const ioredis = await import("ioredis" as string);
-  const IORedis = ioredis.default || ioredis;
-  healthRedis = new IORedis(redisUrl, {
-    maxRetriesPerRequest: 1,
-    lazyConnect: true,
-  });
-  await healthRedis.connect();
-  return healthRedis;
-}
+const db = getDb(env.DATABASE_URL);
 
 export const adminRoutes = new Elysia({ prefix: "/api/admin" })
-  .use(requireRole("owner"))
+  .use(requirePlatformAdmin())
 
   // --- Tenant Management ---
   .get("/tenants", async (ctx: any) => {
@@ -44,17 +67,12 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
     const offset = Number(ctx.query?.offset) || 0;
     const search = ctx.query?.search as string | undefined;
 
-    let query = db
-      .select()
-      .from(organization);
+    let query = db.select().from(organization);
 
     if (search) {
       const sanitized = escapeLike(search);
       query = query.where(
-        or(
-          like(organization.name, `%${sanitized}%`),
-          like(organization.slug, `%${sanitized}%`),
-        ),
+        or(like(organization.name, `%${sanitized}%`), like(organization.slug, `%${sanitized}%`)),
       ) as typeof query;
     }
 
@@ -63,10 +81,7 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
     if (search) {
       const sanitized = escapeLike(search);
       countQuery = countQuery.where(
-        or(
-          like(organization.name, `%${sanitized}%`),
-          like(organization.slug, `%${sanitized}%`),
-        ),
+        or(like(organization.name, `%${sanitized}%`), like(organization.slug, `%${sanitized}%`)),
       ) as typeof countQuery;
     }
 
@@ -81,7 +96,7 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
         name: t.name,
         slug: t.slug,
         createdAt: t.createdAt,
-        metadata: t.metadata ? JSON.parse(t.metadata) : null,
+        metadata: safeParseMetadata(t.metadata, t.id),
       })),
       total: totalResult?.count ?? 0,
     };
@@ -111,34 +126,127 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
         slug: tenant.slug,
         logo: tenant.logo,
         createdAt: tenant.createdAt,
-        metadata: tenant.metadata ? JSON.parse(tenant.metadata) : null,
+        metadata: safeParseMetadata(tenant.metadata, tenant.id),
         memberCount: memberCount[0]?.count ?? 0,
       },
     };
   })
 
-  .patch("/tenants/:id", async (ctx: any) => {
-    const [tenant] = await db
-      .select()
-      .from(organization)
-      .where(eq(organization.id, ctx.params.id))
-      .limit(1);
+  .patch(
+    "/tenants/:id",
+    async (ctx) => {
+      const [tenant] = await db
+        .select()
+        .from(organization)
+        .where(eq(organization.id, ctx.params.id))
+        .limit(1);
 
-    if (!tenant) {
-      ctx.set.status = 404;
-      return { success: false, error: "TENANT_NOT_FOUND" };
+      if (!tenant) {
+        ctx.set.status = 404;
+        return { success: false, error: "TENANT_NOT_FOUND" };
+      }
+
+      await db
+        .update(organization)
+        .set({ metadata: JSON.stringify(ctx.body.metadata) })
+        .where(eq(organization.id, ctx.params.id));
+
+      return { success: true };
+    },
+    {
+      body: t.Object({
+        metadata: t.Record(t.String(), t.Any()),
+      }),
+    },
+  )
+
+  // --- Tenant Files (cross-tenant admin browser) ---
+  // Phase 30 / UI-02. Every route inherits the requirePlatformAdmin() gate at the
+  // top of this plugin (non-allowlisted session → 403, no session → 401; an
+  // org-owner is NEVER a platform operator). The TARGET tenant is ALWAYS the gated
+  // `:id` path param — the request body NEVER carries a tenantId (confused-deputy
+  // closed). storage_key/bucket never appear in any response.
+  .get(
+    "/tenants/:id/files",
+    async (ctx: any) => {
+      const limit = ctx.query?.limit !== undefined ? Number(ctx.query.limit) : undefined;
+      const offset = ctx.query?.offset !== undefined ? Number(ctx.query.offset) : undefined;
+      const r = await adminListFilesForTenant(ctx.params.id, { limit, offset });
+      if (!r.success) {
+        ctx.set.status = mapFilesError(r.error);
+        return { error: r.error };
+      }
+      return r.data;
+    },
+    {
+      query: t.Object({
+        limit: t.Optional(t.Numeric()),
+        offset: t.Optional(t.Numeric()),
+      }),
+    },
+  )
+
+  // Verify the target tenant exists (404) BEFORE reserving quota, so a typo'd id
+  // cannot create an orphan tenant_storage_usage row (R8). `kind` is fixed
+  // server-side to admin-attachment — NOT client-supplied.
+  .post(
+    "/tenants/:id/files/sign-upload",
+    async (ctx: any) => {
+      const [tenant] = await db
+        .select({ id: organization.id })
+        .from(organization)
+        .where(eq(organization.id, ctx.params.id))
+        .limit(1);
+      if (!tenant) {
+        ctx.set.status = 404;
+        return { error: "TENANT_NOT_FOUND" };
+      }
+
+      const r = await adminSignUpload(ctx.params.id, {
+        mimeType: ctx.body.mimeType,
+        byteSize: ctx.body.byteSize,
+        originalFilename: ctx.body.originalFilename,
+      });
+      if (!r.success) {
+        ctx.set.status = mapFilesError(r.error);
+        return { error: r.error };
+      }
+      return r.data;
+    },
+    {
+      body: t.Object({
+        mimeType: t.String({ minLength: 1 }),
+        byteSize: t.Integer({ minimum: 1 }),
+        originalFilename: t.Optional(t.String()),
+      }),
+    },
+  )
+
+  .post("/tenants/:id/files/:fileId/complete", async (ctx: any) => {
+    const r = await adminCompleteUpload(ctx.params.id, ctx.params.fileId);
+    if (!r.success) {
+      ctx.set.status = mapFilesError(r.error);
+      return { error: r.error };
     }
+    return r.data;
+  })
 
-    await db
-      .update(organization)
-      .set({ metadata: JSON.stringify(ctx.body.metadata) })
-      .where(eq(organization.id, ctx.params.id));
+  .get("/tenants/:id/files/:fileId/read-url", async (ctx: any) => {
+    const r = await adminGetReadUrl(ctx.params.id, ctx.params.fileId);
+    if (!r.success) {
+      ctx.set.status = mapFilesError(r.error);
+      return { error: r.error };
+    }
+    return r.data;
+  })
 
-    return { success: true };
-  }, {
-    body: t.Object({
-      metadata: t.Record(t.String(), t.Any()),
-    }),
+  .delete("/tenants/:id/files/:fileId", async (ctx: any) => {
+    const r = await adminDeleteFile(ctx.params.id, ctx.params.fileId);
+    if (!r.success) {
+      ctx.set.status = mapFilesError(r.error);
+      return { error: r.error };
+    }
+    return r.data;
   })
 
   // --- User Management ---
@@ -161,10 +269,7 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
     if (search) {
       const sanitized = escapeLike(search);
       query = query.where(
-        or(
-          like(user.name, `%${sanitized}%`),
-          like(user.email, `%${sanitized}%`),
-        ),
+        or(like(user.name, `%${sanitized}%`), like(user.email, `%${sanitized}%`)),
       ) as typeof query;
     }
 
@@ -173,10 +278,7 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
     if (search) {
       const sanitized = escapeLike(search);
       userCountQuery = userCountQuery.where(
-        or(
-          like(user.name, `%${sanitized}%`),
-          like(user.email, `%${sanitized}%`),
-        ),
+        or(like(user.name, `%${sanitized}%`), like(user.email, `%${sanitized}%`)),
       ) as typeof userCountQuery;
     }
 
@@ -226,33 +328,41 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
     };
   })
 
-  .patch("/users/:id", async (ctx: any) => {
-    const [foundUser] = await db
-      .select({ id: user.id })
-      .from(user)
-      .where(eq(user.id, ctx.params.id))
-      .limit(1);
+  .patch(
+    "/users/:id",
+    async (ctx) => {
+      const [foundUser] = await db
+        .select({ id: user.id })
+        .from(user)
+        .where(eq(user.id, ctx.params.id))
+        .limit(1);
 
-    if (!foundUser) {
-      ctx.set.status = 404;
-      return { success: false, error: "USER_NOT_FOUND" };
-    }
+      if (!foundUser) {
+        ctx.set.status = 404;
+        return { success: false, error: "USER_NOT_FOUND" };
+      }
 
-    // TODO: better-auth user table does not have a banned column by default.
-    // Implement via better-auth admin plugin or a custom banned column.
-    logger.info(
-      { targetUserId: ctx.params.id, banned: ctx.body.banned, reason: ctx.body.banReason },
-      "Admin user ban/unban action (not yet implemented)",
-    );
+      // TODO: better-auth user table does not have a banned column by default.
+      // Implement via better-auth admin plugin or a custom banned column.
+      logger.info(
+        { targetUserId: ctx.params.id, banned: ctx.body.banned, reason: ctx.body.banReason },
+        "Admin user ban/unban action (not yet implemented)",
+      );
 
-    ctx.set.status = 501;
-    return { success: false, error: "NOT_IMPLEMENTED", message: "User ban/unban is not yet implemented" };
-  }, {
-    body: t.Object({
-      banned: t.Boolean(),
-      banReason: t.Optional(t.String()),
-    }),
-  })
+      ctx.set.status = 501;
+      return {
+        success: false,
+        error: "NOT_IMPLEMENTED",
+        message: "User ban/unban is not yet implemented",
+      };
+    },
+    {
+      body: t.Object({
+        banned: t.Boolean(),
+        banReason: t.Optional(t.String()),
+      }),
+    },
+  )
 
   // Per T-4-05: Log impersonation events with admin and target user IDs
   .post("/users/:id/impersonate", async (ctx: any) => {
@@ -293,41 +403,68 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
 
   // --- Billing Overview ---
   .get("/billing/overview", async () => {
-    const customers = await db.select().from(billingCustomers);
+    // Aggregate in SQL so this endpoint stays bounded regardless of how many
+    // billing_customers rows exist (no unbounded SELECT * + in-JS counting).
+    const [totals] = await db
+      .select({
+        totalCustomers: count(),
+        // count(column) tallies non-null values → customers with a subscription.
+        totalSubscribers: count(billingCustomers.providerSubscriptionId),
+        activeSubscriptions:
+          sql<number>`count(*) filter (where ${billingCustomers.status} = 'active')`.mapWith(
+            Number,
+          ),
+      })
+      .from(billingCustomers);
 
-    const totalSubscribers = customers.filter((c) => c.providerSubscriptionId).length;
-    const activeSubscriptions = customers.filter((c) => c.status === "active");
+    // Subscription distribution by price/plan, grouped in SQL over active rows.
+    const planRows = await db
+      .select({
+        plan: billingCustomers.providerPriceId,
+        planCount: count(),
+      })
+      .from(billingCustomers)
+      .where(eq(billingCustomers.status, "active"))
+      .groupBy(billingCustomers.providerPriceId);
 
-    // Subscription distribution by price/plan
     const planDistribution: Record<string, number> = {};
-    for (const c of activeSubscriptions) {
-      const plan = c.providerPriceId || "unknown";
-      planDistribution[plan] = (planDistribution[plan] || 0) + 1;
+    for (const row of planRows) {
+      planDistribution[row.plan || "unknown"] = row.planCount;
     }
+
+    const activeSubscriptions = totals?.activeSubscriptions ?? 0;
 
     return {
       data: {
-        totalCustomers: customers.length,
-        totalSubscribers,
-        activeSubscriptions: activeSubscriptions.length,
-        mrrEstimate: activeSubscriptions.length, // Count-based; real MRR requires Stripe price lookup
+        totalCustomers: totals?.totalCustomers ?? 0,
+        totalSubscribers: totals?.totalSubscribers ?? 0,
+        activeSubscriptions,
+        mrrEstimate: activeSubscriptions, // Count-based; real MRR requires Stripe price lookup
         planDistribution,
       },
     };
   })
 
   // --- System Health ---
-  // Cached Redis connection for health checks to avoid connection churn (WR-04)
+  // Phase 22 / D-07 — DEPRECATED ALIAS. Use GET /health/detailed instead.
+  // Will be removed in v1.4 once Plan 22-06 migrates the admin UI to the new
+  // endpoint. The legacy `{ data: { uptime, timestamp, redis } }` shape is
+  // preserved verbatim for Eden Treaty client backwards compatibility — the
+  // `deprecated` + `deprecation` markers are added as SIBLING fields rather
+  // than replacing the envelope so external consumers that have not yet
+  // migrated keep working during the cutover. The full D-07 envelope (with
+  // queues, workers, db lag probe, recentErrors, modules) is at /health/detailed.
   .get("/system/health", async () => {
     const health: Record<string, any> = {
       uptime: process.uptime(),
       timestamp: new Date().toISOString(),
     };
 
-    // Check Redis connectivity if Redis is available
+    // Check Redis connectivity if Redis is available. Reuse the shared,
+    // typed BullMQ Redis singleton instead of an untyped ad-hoc dynamic import.
     if (env.REDIS_URL) {
       try {
-        const redis = await getHealthRedis(env.REDIS_URL);
+        const redis = getRedisConnection(env.REDIS_URL);
 
         // Get Redis memory info
         const info = await redis.info("memory");
@@ -337,13 +474,15 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
           usedMemory: usedMemoryMatch?.[1] || "unknown",
         };
       } catch {
-        // Reset cached connection on failure so next request retries
-        healthRedis = null;
         health.redis = { connected: false, error: "Failed to connect" };
       }
     } else {
       health.redis = { connected: false, error: "REDIS_URL not configured" };
     }
 
-    return { data: health };
+    return {
+      data: health,
+      deprecated: true,
+      deprecation: "Use /health/detailed instead. This route will be removed in v1.4.",
+    };
   });

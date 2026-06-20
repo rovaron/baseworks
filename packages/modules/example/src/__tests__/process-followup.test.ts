@@ -1,4 +1,4 @@
-import { describe, test, expect, spyOn } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { processFollowup } from "../jobs/process-followup";
 
 /**

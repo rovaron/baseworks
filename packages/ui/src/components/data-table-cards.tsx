@@ -1,22 +1,12 @@
 "use client";
 
-import * as React from "react";
-import {
-  type Table as ReactTable,
-  type Row,
-  flexRender,
-} from "@tanstack/react-table";
+import { flexRender, type Table as ReactTable, type Row } from "@tanstack/react-table";
 import { ChevronDown, X } from "lucide-react";
-import { Card, CardContent } from "./card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./select";
-import { Badge } from "./badge";
+import * as React from "react";
 import { cn } from "../lib/utils";
+import { Badge } from "./badge";
+import { Card, CardContent } from "./card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select";
 
 interface ColumnMeta {
   priority?: number;
@@ -64,8 +54,7 @@ export function DataTableCards<TData>({
     })
     .sort(
       (a, b) =>
-        (getColumnMeta(a.columnDef).priority ?? 0) -
-        (getColumnMeta(b.columnDef).priority ?? 0)
+        (getColumnMeta(a.columnDef).priority ?? 0) - (getColumnMeta(b.columnDef).priority ?? 0),
     );
 
   const detailColumns = allColumns.filter((col) => {
@@ -89,11 +78,7 @@ export function DataTableCards<TData>({
   const rows = table.getRowModel().rows;
 
   if (rows.length === 0) {
-    return (
-      <div className="py-8 text-center text-sm text-muted-foreground">
-        {emptyMessage}
-      </div>
-    );
+    return <div className="py-8 text-center text-sm text-muted-foreground">{emptyMessage}</div>;
   }
 
   return (
@@ -127,9 +112,7 @@ export function DataTableCards<TData>({
         <div className="flex flex-wrap gap-2">
           {columnFilters.map((filter) => {
             const col = allColumns.find((c) => c.id === filter.id);
-            const headerLabel = col
-              ? getHeaderString(col.columnDef.header)
-              : filter.id;
+            const headerLabel = col ? getHeaderString(col.columnDef.header) : filter.id;
             return (
               <Badge key={filter.id} variant="secondary">
                 {headerLabel}: {String(filter.value)}
@@ -151,21 +134,18 @@ export function DataTableCards<TData>({
       <div className="space-y-4">
         {rows.map((row) => {
           const isExpanded = expandedRowId === row.id;
+          const detailId = `card-detail-${row.id}`;
+
+          // Build a column.id -> cell map once per row (avoids quadratic find())
+          const cellById = new Map(row.getVisibleCells().map((c) => [c.column.id, c]));
 
           return (
-            <Card
-              key={row.id}
-              data-card=""
-              className="cursor-pointer"
-              onClick={() => handleCardClick(row.id, row.original)}
-            >
+            <Card key={row.id} data-card="">
               <CardContent className="p-4">
                 {/* Priority columns summary */}
                 <div className="space-y-1">
-                  {priorityColumns.map((col, idx) => {
-                    const cell = row
-                      .getVisibleCells()
-                      .find((c) => c.column.id === col.id);
+                  {priorityColumns.map((col) => {
+                    const cell = cellById.get(col.id);
                     if (!cell) return null;
 
                     const meta = getColumnMeta(col.columnDef);
@@ -174,10 +154,7 @@ export function DataTableCards<TData>({
                     if (meta.priority === 1) {
                       return (
                         <div key={col.id} className="text-sm font-semibold">
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </div>
                       );
                     }
@@ -189,36 +166,40 @@ export function DataTableCards<TData>({
                           {getHeaderString(col.columnDef.header)}:{" "}
                         </span>
                         <span className="text-sm">
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </span>
                       </div>
                     );
                   })}
                 </div>
 
-                {/* Chevron indicator */}
+                {/* Chevron toggle */}
                 <div className="mt-2 flex justify-end">
-                  <ChevronDown
-                    className={cn(
-                      "h-4 w-4 text-muted-foreground transition-transform duration-200",
-                      isExpanded && "rotate-180"
-                    )}
+                  <button
+                    type="button"
+                    className="inline-flex items-center rounded-sm text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    onClick={() => handleCardClick(row.id, row.original)}
+                    aria-expanded={isExpanded}
+                    aria-controls={detailId}
                     aria-label={isExpanded ? "Hide details" : "Show details"}
-                  />
+                  >
+                    <ChevronDown
+                      className={cn(
+                        "h-4 w-4 transition-transform duration-200",
+                        isExpanded && "rotate-180",
+                      )}
+                      aria-hidden="true"
+                    />
+                  </button>
                 </div>
 
                 {/* Expanded detail columns */}
                 {isExpanded && (
-                  <>
+                  <div id={detailId}>
                     <div className="my-3 border-t" />
                     <div className="space-y-1">
                       {detailColumns.map((col) => {
-                        const cell = row
-                          .getVisibleCells()
-                          .find((c) => c.column.id === col.id);
+                        const cell = cellById.get(col.id);
                         if (!cell) return null;
 
                         return (
@@ -227,21 +208,14 @@ export function DataTableCards<TData>({
                               {getHeaderString(col.columnDef.header)}:{" "}
                             </span>
                             <span className="text-sm">
-                              {flexRender(
-                                cell.column.columnDef.cell,
-                                cell.getContext()
-                              )}
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
                             </span>
                           </div>
                         );
                       })}
-                      {renderActions && (
-                        <div className="mt-2">
-                          {renderActions(row.original)}
-                        </div>
-                      )}
+                      {renderActions && <div className="mt-2">{renderActions(row.original)}</div>}
                     </div>
-                  </>
+                  </div>
                 )}
               </CardContent>
             </Card>

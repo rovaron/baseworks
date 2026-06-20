@@ -24,31 +24,28 @@
  * - D-12: @appsignal/opentelemetry-instrumentation-bullmq NOT installed (Phase 20).
  * - Issue 5 (Option A): role type is `"api" | "worker"`. Unset defaults to "api".
  */
-import { NodeSDK } from "@opentelemetry/sdk-node";
-import { resourceFromAttributes } from "@opentelemetry/resources";
-import {
-  ATTR_SERVICE_NAME,
-  ATTR_SERVICE_VERSION,
-} from "@opentelemetry/semantic-conventions";
-import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
+
 import { trace } from "@opentelemetry/api";
+import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
+import { resourceFromAttributes } from "@opentelemetry/resources";
+import { NodeSDK } from "@opentelemetry/sdk-node";
+import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from "@opentelemetry/semantic-conventions";
 
 // D-06 (strict): read env directly. Do NOT statically import @baseworks/config here.
 // Issue 5 (Option A): only "api" | "worker"; unset defaults to "api".
-const role: "api" | "worker" =
-  process.env.INSTANCE_ROLE === "worker" ? "worker" : "api";
+const role: "api" | "worker" = process.env.INSTANCE_ROLE === "worker" ? "worker" : "api";
 const isApiFlavour = role === "api";
 const serviceName = role === "worker" ? "baseworks-worker" : "baseworks-api";
 const serviceVersion = process.env.npm_package_version ?? "0.0.0";
 
 // D-04 + Pattern 3 matrix. Keep this list in sync with telemetry-instrumentations.test.ts.
 const instrumentations = getNodeAutoInstrumentations({
-  "@opentelemetry/instrumentation-http":    { enabled: isApiFlavour },
+  "@opentelemetry/instrumentation-http": { enabled: isApiFlavour },
   "@opentelemetry/instrumentation-ioredis": { enabled: true },
-  "@opentelemetry/instrumentation-pino":    { enabled: true },
-  "@opentelemetry/instrumentation-fs":      { enabled: false },
-  "@opentelemetry/instrumentation-dns":     { enabled: false },
-  "@opentelemetry/instrumentation-net":     { enabled: false },
+  "@opentelemetry/instrumentation-pino": { enabled: true },
+  "@opentelemetry/instrumentation-fs": { enabled: false },
+  "@opentelemetry/instrumentation-dns": { enabled: false },
+  "@opentelemetry/instrumentation-net": { enabled: false },
 });
 
 // Issue 7: NodeSDK constructed without any exporter property. Zero outbound
@@ -91,11 +88,7 @@ console.log("otel-selftest: ok");
 // Instrumentation interface. We filter on getConfig().enabled !== false so the line
 // lists only the actually-enabled members.
 const enabled = instrumentations
-  .filter(
-    (i) =>
-      (i as { getConfig?: () => { enabled?: boolean } }).getConfig?.().enabled !==
-      false,
-  )
+  .filter((i) => (i as { getConfig?: () => { enabled?: boolean } }).getConfig?.().enabled !== false)
   .map((i) => (i as { instrumentationName: string }).instrumentationName)
   .join(",");
 console.log(`instrumentations-loaded: ${enabled}`);

@@ -1,5 +1,5 @@
-import { Queue, Worker } from "bullmq";
-import type { Processor } from "bullmq";
+import { defaultLocale } from "@baseworks/i18n";
+import { type ObservabilityContext, obsContext, wrapQueue } from "@baseworks/observability";
 import {
   context,
   propagation,
@@ -14,16 +14,32 @@ import {
   ATTR_MESSAGING_OPERATION,
   ATTR_MESSAGING_SYSTEM,
 } from "@opentelemetry/semantic-conventions/incubating";
-import {
-  obsContext,
-  type ObservabilityContext,
-  wrapQueue,
-} from "@baseworks/observability";
-import { defaultLocale } from "@baseworks/i18n";
+import type { Processor } from "bullmq";
+import { Queue, Worker } from "bullmq";
 import { getRedisConnection } from "./connection";
-import type { WorkerConfig } from "./types";
+import type { QueueConfig, WorkerConfig } from "./types";
 
 const CONSUMER_TRACER_NAME = "baseworks.queue";
+
+/**
+ * Baseline per-queue job retention/retry policy. Retention is bounded by BOTH
+ * `age` (time) and `count` (cardinality) so the completed/failed sorted sets
+ * cannot grow unbounded under high throughput — whichever ceiling is hit first
+ * triggers eviction (`queue-removeon-no-count-cap`).
+ *
+ * - removeOnComplete: 3 days OR last 1000 jobs
+ * - removeOnFail: 7 days OR last 5000 jobs
+ * - attempts: 3 with exponential backoff starting at 1000ms
+ */
+const DEFAULT_JOB_OPTIONS = {
+  removeOnComplete: { age: 259200, count: 1000 },
+  removeOnFail: { age: 604800, count: 5000 },
+  attempts: 3,
+  backoff: {
+    type: "exponential",
+    delay: 1000,
+  },
+} as const;
 
 /**
  * Create a BullMQ Queue with sensible defaults and Phase 20 producer-side
@@ -34,23 +50,36 @@ const CONSUMER_TRACER_NAME = "baseworks.queue";
  *
  * D-09: when no obsContext frame is active, .add/.addBulk pass through unmodified.
  *
- * Defaults:
- * - removeOnComplete: 3 days (259200 seconds)
- * - removeOnFail: 7 days (604800 seconds)
+ * Defaults (see DEFAULT_JOB_OPTIONS):
+ * - removeOnComplete: 3 days (259200s) OR last 1000 jobs
+ * - removeOnFail: 7 days (604800s) OR last 5000 jobs
  * - attempts: 3 with exponential backoff starting at 1000ms
+ *
+ * Per-queue overrides (`queue-config-not-customizable`): pass an optional
+ * `config.defaultJobOptions` and it is merged field-by-field over the defaults,
+ * so overriding a single key (e.g. `removeOnComplete.age`) preserves the rest
+ * of the baseline policy — including the `count` retention ceilings.
  */
-export function createQueue(name: string, redisUrl: string): Queue {
+export function createQueue(name: string, redisUrl: string, config?: QueueConfig): Queue {
   const connection = getRedisConnection(redisUrl);
 
+  const override = config?.defaultJobOptions;
   const q = new Queue(name, {
     connection,
     defaultJobOptions: {
-      removeOnComplete: { age: 259200 },
-      removeOnFail: { age: 604800 },
-      attempts: 3,
+      ...DEFAULT_JOB_OPTIONS,
+      ...override,
+      removeOnComplete: {
+        ...DEFAULT_JOB_OPTIONS.removeOnComplete,
+        ...override?.removeOnComplete,
+      },
+      removeOnFail: {
+        ...DEFAULT_JOB_OPTIONS.removeOnFail,
+        ...override?.removeOnFail,
+      },
       backoff: {
-        type: "exponential",
-        delay: 1000,
+        ...DEFAULT_JOB_OPTIONS.backoff,
+        ...override?.backoff,
       },
     },
   });
@@ -159,5 +188,5 @@ export function createWorker(
   });
 }
 
-export { getRedisConnection, closeConnection } from "./connection";
-export type { QueueConfig, WorkerConfig, EmailJobData } from "./types";
+export { closeConnection, getRedisConnection } from "./connection";
+export type { EmailJobData, QueueConfig, WorkerConfig } from "./types";

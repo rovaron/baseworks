@@ -1,5 +1,5 @@
+import { defineCommand, err, ok } from "@baseworks/shared";
 import { Type } from "@sinclair/typebox";
-import { defineCommand, ok, err } from "@baseworks/shared";
 import { auth } from "../auth";
 
 const CancelInvitationInput = Type.Object({
@@ -27,26 +27,25 @@ const CancelInvitationInput = Type.Object({
  * management page.
  * Per INVT-05: Invitation management including cancellation.
  */
-export const cancelInvitation = defineCommand(
-  CancelInvitationInput,
-  async (input, ctx) => {
-    try {
-      const result = await auth.api.cancelInvitation({
-        body: {
-          invitationId: input.invitationId,
-          organizationId: input.organizationId,
-        },
-        headers: new Headers(),
-      });
-
-      ctx.emit("invitation.cancelled", {
+export const cancelInvitation = defineCommand(CancelInvitationInput, async (input, ctx) => {
+  try {
+    // better-auth's cancelInvitation body only accepts invitationId; the
+    // organizationId stays in the input schema for authorization/event context
+    // (emitted below) but is not part of the better-auth API call.
+    const result = await auth.api.cancelInvitation({
+      body: {
         invitationId: input.invitationId,
-        organizationId: input.organizationId,
-      });
+      },
+      headers: ctx.headers ?? new Headers(),
+    });
 
-      return ok(result);
-    } catch (error: any) {
-      return err(error.message || "Failed to cancel invitation");
-    }
-  },
-);
+    ctx.emit("invitation.cancelled", {
+      invitationId: input.invitationId,
+      organizationId: input.organizationId,
+    });
+
+    return ok(result);
+  } catch (error: any) {
+    return err(error.message || "Failed to cancel invitation");
+  }
+});

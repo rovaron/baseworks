@@ -1,18 +1,13 @@
 "use client";
 
-import { Suspense } from "react";
-import { useQueryState } from "nuqs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@baseworks/ui";
 import { useTranslations } from "next-intl";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@baseworks/ui";
-import { useTenant } from "@/components/tenant-provider";
+import { useQueryState } from "nuqs";
+import { Suspense } from "react";
+import { InviteDialog } from "@/components/invite-dialog";
 import { MembersList } from "@/components/members-list";
 import { PendingInvitations } from "@/components/pending-invitations";
-import { InviteDialog } from "@/components/invite-dialog";
+import { useTenant } from "@/components/tenant-provider";
 
 function SettingsContent() {
   const [tab, setTab] = useQueryState("tab", { defaultValue: "team" });

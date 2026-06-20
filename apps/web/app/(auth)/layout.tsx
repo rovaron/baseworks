@@ -1,5 +1,5 @@
-import { getTranslations } from "next-intl/server";
 import { SkipToContent } from "@baseworks/ui/components/skip-link";
+import { getTranslations } from "next-intl/server";
 
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
   const t = await getTranslations("common");

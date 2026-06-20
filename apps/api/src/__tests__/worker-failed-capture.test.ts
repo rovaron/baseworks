@@ -13,13 +13,9 @@
  * — worker.on('failed') is the single capture site to avoid
  * double-reporting.
  */
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { setErrorTracker, resetErrorTracker } from "@baseworks/observability";
-import type {
-  ErrorTracker,
-  CaptureScope,
-  ErrorTrackerScope,
-} from "@baseworks/observability";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import type { CaptureScope, ErrorTracker, ErrorTrackerScope } from "@baseworks/observability";
+import { resetErrorTracker, setErrorTracker } from "@baseworks/observability";
 import { logger } from "../lib/logger";
 
 /** Mirror of the worker.on('failed') body — kept in lockstep with worker.ts. */
@@ -30,10 +26,7 @@ function onFailed(
   jobName: string,
   tracker: ErrorTracker,
 ): void {
-  logger.error(
-    { job: job?.id, queue: jobDef.queue, err: String(err) },
-    "Job failed",
-  );
+  logger.error({ job: job?.id, queue: jobDef.queue, err: String(err) }, "Job failed");
   tracker.captureException(err, {
     tags: { queue: jobDef.queue },
     extra: { jobId: job?.id, jobName },
@@ -75,13 +68,7 @@ describe("worker.on('failed') — D-04 capture shape", () => {
 
   test("captureException called once with queue tag + jobId/jobName extras", () => {
     const err = new Error("boom");
-    onFailed(
-      { id: "job-1" },
-      err,
-      { queue: "test-queue" },
-      "handleProcessFollowup",
-      rec.tracker,
-    );
+    onFailed({ id: "job-1" }, err, { queue: "test-queue" }, "handleProcessFollowup", rec.tracker);
     expect(rec.calls.length).toBe(1);
     expect(rec.calls[0].err).toBe(err);
     expect(rec.calls[0].scope?.tags).toEqual({ queue: "test-queue" });

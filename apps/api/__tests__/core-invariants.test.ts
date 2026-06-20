@@ -14,6 +14,12 @@
  *
  * If a FUTURE phase legitimately edits these files, update the hashes here AND
  * justify in the commit message + phase SUMMARY. Silent edits fail the gate.
+ *
+ * AUDIT UPDATE: `event-bus.ts` was DELIBERATELY edited (and re-baselined below)
+ * to fix `eventbus-off-cannot-unsubscribe` — on()/off() now track wrappers so a
+ * caller can actually unsubscribe. This was an approved, justified unfreeze. The
+ * gate is kept (re-baselined) to still catch future ACCIDENTAL edits. `cqrs.ts`
+ * remains truly wrap-only frozen — its duplicate-key guard lives in registry.ts.
  */
 
 import { describe, expect, test } from "bun:test";
@@ -29,11 +35,14 @@ function hashFile(relPath: string): string {
   return createHash("sha256").update(buf).digest("hex");
 }
 
-// Phase-19 baselines — captured at Plan 19-08 task execution time.
-const CQRS_SHA256 =
-  "89a47de8ad2894d615a4b98de7dd9e84262cf1f68a827d2650f811a68bf1e449";
-const EVENT_BUS_SHA256 =
-  "19dfe7b51653dcfd3f1fa2b1c4df2527fcb56ec310a3adb3357ba9d616456604";
+// Baselines re-captured after the repo-wide LF line-ending normalization (audit
+// Phase 1: added .gitattributes `eol=lf` + `git add --renormalize`). The
+// Phase-19 hashes were computed against CRLF working-tree files on Windows; the
+// file CONTENTS are byte-identical apart from line endings, so the wrap-only
+// invariant still holds — only the canonical EOL changed.
+const CQRS_SHA256 = "20e882f65e7e6948a4fe0cd026c8f0efe6423476b463e27185429312a16ffa4a";
+// Re-baselined after the approved unfreeze (off() unsubscribe fix).
+const EVENT_BUS_SHA256 = "88126f46d2ca7cb2c292856e653a645269e9542349ad4126bde12ff1bc3a4c27";
 
 describe("TRC-02 — core/cqrs.ts + core/event-bus.ts byte-equal invariant (Plan 19-08)", () => {
   test("apps/api/src/core/cqrs.ts unchanged vs Phase-19 baseline", () => {

@@ -1,10 +1,11 @@
-import { betterAuth } from "better-auth";
-import { organization, magicLink } from "better-auth/plugins";
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { createDb } from "@baseworks/db";
 import { env } from "@baseworks/config";
-import { createQueue } from "@baseworks/queue";
-import type { Queue } from "bullmq";
+import { getDb } from "@baseworks/db";
+import { getErrorTracker } from "@baseworks/observability";
+import { createQueue, getRedisConnection } from "@baseworks/queue";
+import { betterAuth } from "better-auth";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { magicLink, organization } from "better-auth/plugins";
+import { nanoid } from "nanoid";
 import { getLocale } from "./locale-context";
 
 /**
@@ -12,15 +13,50 @@ import { getLocale } from "./locale-context";
  * Per D-22: Only created if REDIS_URL is available.
  * Falls back to console.log if Redis is not configured (dev/test).
  */
-let emailQueue: Queue | null = null;
-function getEmailQueue(): Queue | null {
+let emailQueue: ReturnType<typeof createQueue> | null = null;
+function getEmailQueue(): ReturnType<typeof createQueue> | null {
   if (!emailQueue && env.REDIS_URL) {
     emailQueue = createQueue("email-send", env.REDIS_URL);
   }
   return emailQueue;
 }
 
-const db = createDb(env.DATABASE_URL);
+const db = getDb(env.DATABASE_URL);
+
+/**
+ * Distributed rate-limit storage (security/api-no-rate-limiting).
+ *
+ * better-auth's built-in limiter defaults to per-process in-memory counters,
+ * which do not survive multi-instance deploys. When REDIS_URL is configured we
+ * back better-auth's `secondaryStorage` with the shared ioredis connection so
+ * auth rate limits (and sessions) are enforced consistently across instances.
+ * When REDIS_URL is unset (dev/test) we skip it entirely and fall back to the
+ * in-memory default so boot still works without Redis.
+ */
+// Lazily resolve the ioredis connection on FIRST use, never at module-eval time.
+// Opening the socket eagerly here would make every test file that imports the
+// auth module spawn a real Redis connection (and emit unhandled 'error' events
+// when Redis is absent), destabilizing the shared Bun test process.
+let _authRedis: ReturnType<typeof getRedisConnection> | undefined;
+function getAuthRedis() {
+  if (!_authRedis) _authRedis = getRedisConnection(env.REDIS_URL as string);
+  return _authRedis;
+}
+const secondaryStorage = env.REDIS_URL
+  ? {
+      get: async (key: string) => await getAuthRedis().get(key),
+      set: async (key: string, value: string, ttl?: number) => {
+        if (ttl) {
+          await getAuthRedis().set(key, value, "EX", ttl);
+        } else {
+          await getAuthRedis().set(key, value);
+        }
+      },
+      delete: async (key: string) => {
+        await getAuthRedis().del(key);
+      },
+    }
+  : undefined;
 
 /**
  * Conditional social providers -- only included if env vars are set.
@@ -28,17 +64,17 @@ const db = createDb(env.DATABASE_URL);
  */
 const socialProviders: Record<string, any> = {};
 
-if (env.GOOGLE_CLIENT_ID) {
+if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
   socialProviders.google = {
     clientId: env.GOOGLE_CLIENT_ID,
-    clientSecret: env.GOOGLE_CLIENT_SECRET!,
+    clientSecret: env.GOOGLE_CLIENT_SECRET,
   };
 }
 
-if (env.GITHUB_CLIENT_ID) {
+if (env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET) {
   socialProviders.github = {
     clientId: env.GITHUB_CLIENT_ID,
-    clientSecret: env.GITHUB_CLIENT_SECRET!,
+    clientSecret: env.GITHUB_CLIENT_SECRET,
   };
 }
 
@@ -63,6 +99,34 @@ export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
   }),
+  // Distributed session/rate-limit storage. Only wired when REDIS_URL is set
+  // (see `secondaryStorage` above); undefined in dev/test so boot still works.
+  ...(secondaryStorage ? { secondaryStorage } : {}),
+  /**
+   * Rate limiting (security/api-no-rate-limiting, gap-no-rate-limiting).
+   *
+   * Global default of 100 req / 60s, with tighter custom rules on the
+   * brute-force-sensitive auth paths. When a Redis-backed secondaryStorage is
+   * configured we use `storage: "secondary-storage"` so limits are shared
+   * across instances; otherwise better-auth falls back to its in-memory store.
+   *
+   * Disabled under NODE_ENV=test: the integration suites legitimately create
+   * many users in seconds, which trips the 5-signups/60s rule and leaves later
+   * signups without a session (a non-deterministic, storage-dependent failure —
+   * it surfaced only on CI's Redis-backed shared counter). Always on in dev/prod.
+   */
+  rateLimit: {
+    enabled: env.NODE_ENV !== "test",
+    window: 60,
+    max: 100,
+    ...(secondaryStorage ? { storage: "secondary-storage" as const } : {}),
+    customRules: {
+      "/sign-in/email": { window: 60, max: 5 },
+      "/sign-up/email": { window: 60, max: 5 },
+      "/forget-password": { window: 300, max: 3 },
+      "/magic-link": { window: 300, max: 3 },
+    },
+  },
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 8,
@@ -116,9 +180,7 @@ export const auth = betterAuth({
             },
           });
         } else {
-          console.log(
-            `[AUTH] Team invite for ${data.email} (locale=${locale}): ${inviteLink}`,
-          );
+          console.log(`[AUTH] Team invite for ${data.email} (locale=${locale}): ${inviteLink}`);
         }
       },
     }),
@@ -159,15 +221,26 @@ export const auth = betterAuth({
         after: async (user: any) => {
           try {
             const displayName = user.name || user.email.split("@")[0];
+            // Collision-resistant slug: an 8-hex-char id prefix alone is a
+            // realistic collision/idempotency hazard on retried signups, so we
+            // append a short nanoid suffix to keep personal-org slugs unique.
             await auth.api.createOrganization({
               body: {
                 name: `${displayName}'s Workspace`,
-                slug: `personal-${user.id.slice(0, 8)}`,
+                slug: `personal-${user.id.slice(0, 8)}-${nanoid(8)}`,
                 userId: user.id,
               },
             });
             console.log(`[AUTH] Auto-created personal tenant for user: ${user.id}`);
           } catch (error) {
+            // Surface the failure to the error tracker instead of swallowing it
+            // in a log: a swallowed failure here leaves the user with zero
+            // organizations and locked out by tenant middleware (no active
+            // tenant) with only a server log as evidence.
+            getErrorTracker().captureException(error, {
+              tags: { area: "auth", hook: "auto-create-tenant" },
+              extra: { userId: user.id },
+            });
             console.error("[AUTH] Failed to auto-create tenant for user:", user.id, error);
           }
         },

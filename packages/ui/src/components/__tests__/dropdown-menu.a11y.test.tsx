@@ -1,17 +1,17 @@
-import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import { axe } from "vitest-axe";
+import { Button } from "../button";
 import {
   DropdownMenu,
-  DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "../dropdown-menu";
-import { Button } from "../button";
 
 function expectNoSeriousViolations(results: Awaited<ReturnType<typeof axe>>) {
   const serious = results.violations.filter(
-    (v) => v.impact === "critical" || v.impact === "serious"
+    (v) => v.impact === "critical" || v.impact === "serious",
   );
   expect(serious).toHaveLength(0);
 }
@@ -27,7 +27,7 @@ describe("DropdownMenu a11y", () => {
           <DropdownMenuItem>Item 1</DropdownMenuItem>
           <DropdownMenuItem>Item 2</DropdownMenuItem>
         </DropdownMenuContent>
-      </DropdownMenu>
+      </DropdownMenu>,
     );
     const results = await axe(container);
     expectNoSeriousViolations(results);

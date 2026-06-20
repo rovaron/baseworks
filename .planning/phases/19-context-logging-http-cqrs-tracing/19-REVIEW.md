@@ -1,12 +1,15 @@
 ---
 phase: 19-context-logging-http-cqrs-tracing
-status: findings
+status: partially-resolved
 severity_critical: 0
 severity_high: 3
+severity_high_closed: 3
 severity_medium: 6
 severity_low: 7
 generated_by: gsd-code-reviewer
 generated_at: 2026-04-23T23:30:00Z
+last_updated: 2026-04-26T22:00:00Z
+note: "All 3 high-severity findings (H-01/H-02/H-03) CLOSED in Phase 20.1 Plan 04. Medium and low findings remain open for future hygiene phases."
 ---
 
 ## Summary
@@ -22,6 +25,7 @@ None.
 ### High
 
 #### H-01 — Malformed NEXT_LOCALE cookie crashes the request before ALS is seeded
+**Status:** CLOSED in Phase 20.1 Plan 04 — see commit `fix(20.1-04): H-01 — wrap decodeURIComponent in try/catch (D-16)` (2380481). Regression test at `apps/api/src/lib/__tests__/locale-cookie.test.ts` D-16/H-01 describe block (3 tests). Atomic per D-15.
 **File:** `apps/api/src/lib/locale-cookie.ts:25` (invoked from `apps/api/src/index.ts:171`)
 **Issue:** `parseNextLocaleCookie` calls `decodeURIComponent(match[1])` without a try/catch. A crafted cookie such as `NEXT_LOCALE=%ZZ` (or any unpaired `%`) throws `URIError: URI malformed`. That throw happens *inside* `Bun.serve.fetch` but *before* `obsContext.run(...)` executes (line 171 runs before line 174 in `apps/api/src/index.ts`). The Bun runtime therefore returns a 500 with no logged request-id, no trace, and no error-tracker scope — exactly the observability blind spot Phase 19 was meant to close. Any client can trigger this DoS-like log-silencing.
 **Fix:** Wrap the decode and fall back to `null` on error:
@@ -36,6 +40,7 @@ try {
 Add a test case `NEXT_LOCALE=%ZZ` → returns `null` (no throw).
 
 #### H-02 — Inbound `x-request-id` is trusted verbatim as the ALS seed
+**Status:** CLOSED in Phase 20.1 Plan 04 — see commit `fix(20.1-04): H-02 — validate inbound x-request-id length+charset (D-17)` (7921adf). New helper `apps/api/src/lib/request-id.ts` validates against `^[A-Za-z0-9_-]{1,128}$`; regression test at `apps/api/src/lib/__tests__/request-id.test.ts` (6 tests covering newline, length, semicolon, UUID-preserved, alnum-preserved, missing-header paths). Atomic per D-15.
 **File:** `apps/api/src/index.ts:172`
 **Issue:** `const requestId = req.headers.get("x-request-id") ?? crypto.randomUUID();` accepts arbitrary client-supplied strings. That value then flows into every pino log line via the mixin, the outbound `x-request-id` response header, and (via `extra.requestId`) into Sentry captures. Risks: (a) **log injection** — a header such as `x-request-id: foo\n[CRITICAL] fake alert` corrupts downstream log aggregators that don't JSON-parse; pino's JSON serializer escapes control chars so the risk is reduced but not eliminated for consumers that re-emit the field into plain-text contexts; (b) **correlation poisoning** — an attacker can pick a requestId that collides with another tenant's legitimate request, complicating incident forensics; (c) **cardinality** — unbounded string lengths inflate log volume and Redis/Postgres indices if operators write requestId anywhere. The rest of Phase 19 treats `requestId` as a trust boundary identifier (single-writer on response, tenant-correlated in Sentry), but the entry point accepts it unvalidated.
 **Fix:** Validate + bound the inbound header. Minimal:
@@ -47,6 +52,7 @@ const requestId = inboundId && VALID.test(inboundId) ? inboundId : crypto.random
 Consider logging a debug line when an invalid inbound id is rejected so operators can see the pattern.
 
 #### H-03 — Composed-stack error path leaves HTTP spans without `recordException` / `setStatus('error')`
+**Status:** CLOSED in Phase 20.1 Plan 04 — see commit `fix(20.1-04): H-03 — try/catch around app.handle with recordException + setStatus(ERROR) (D-18)` (0503d1a). Implemented Option A (cheapest) per the recommendation: try/catch landed in the Bun.serve fetch wrapper inside `apps/api/src/index.ts`, layered on top of Plan 03's `context.with(otelCtxWithReqSpan, ...)` / `obsContext.run(...)` structure. `trace.getActiveSpan()` reads the synthetic SpanContext D-11 publishes; `recordException` + `setStatus({code: SpanStatusCode.ERROR})` annotate it; bare `throw err` preserves Elysia's existing 500-response chain. Verified by `apps/api/__tests__/bun-serve-als-seed.test.ts` + `http-span-lifecycle.test.ts` + `observability-bullmq-trace.test.ts` + `worker-failed-capture.test.ts` (18/18 pass). Phase 19's ACCEPTED DEVIATION resolved. Atomic per D-15.
 **File:** `apps/api/src/core/middleware/observability.ts:112-124` (documented in `19-06-SUMMARY.md` Deviation #2)
 **Issue:** Under the production middleware order (`errorMiddleware → observabilityMiddleware → requestTraceMiddleware` per D-22), Elysia 1.4's onError chain halts after the first handler returns a response. `errorMiddleware` renders a 500 first, so `observabilityMiddleware.onError` never fires in the composed stack. Result: every 5xx HTTP span ends with `http.status_code=500` but NO exception record and NO error status — Tempo/OTEL exporters in Phase 21 will see these as green spans. The focus-area prompt explicitly asked whether the current design is acceptable.
 **Fix (pick one, plan-level decision):**

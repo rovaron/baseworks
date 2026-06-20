@@ -1,7 +1,7 @@
 import { env } from "@baseworks/config";
-import type { PaymentProvider } from "./ports/payment-provider";
-import { StripeAdapter } from "./adapters/stripe/stripe-adapter";
 import { PagarmeAdapter } from "./adapters/pagarme/pagarme-adapter";
+import { StripeAdapter } from "./adapters/stripe/stripe-adapter";
+import type { PaymentProvider } from "./ports/payment-provider";
 
 /**
  * Payment provider singleton factory (PAY-05).
@@ -39,14 +39,10 @@ export function getPaymentProvider(): PaymentProvider {
         const secretKey = env.STRIPE_SECRET_KEY;
         const webhookSecret = env.STRIPE_WEBHOOK_SECRET;
         if (!secretKey) {
-          throw new Error(
-            "STRIPE_SECRET_KEY is required when PAYMENT_PROVIDER=stripe",
-          );
+          throw new Error("STRIPE_SECRET_KEY is required when PAYMENT_PROVIDER=stripe");
         }
         if (!webhookSecret) {
-          throw new Error(
-            "STRIPE_WEBHOOK_SECRET is required when PAYMENT_PROVIDER=stripe",
-          );
+          throw new Error("STRIPE_WEBHOOK_SECRET is required when PAYMENT_PROVIDER=stripe");
         }
         providerInstance = new StripeAdapter({ secretKey, webhookSecret });
         break;
@@ -55,14 +51,10 @@ export function getPaymentProvider(): PaymentProvider {
         const secretKey = env.PAGARME_SECRET_KEY;
         const webhookSecret = env.PAGARME_WEBHOOK_SECRET;
         if (!secretKey) {
-          throw new Error(
-            "PAGARME_SECRET_KEY is required when PAYMENT_PROVIDER=pagarme",
-          );
+          throw new Error("PAGARME_SECRET_KEY is required when PAYMENT_PROVIDER=pagarme");
         }
         if (!webhookSecret) {
-          throw new Error(
-            "PAGARME_WEBHOOK_SECRET is required when PAYMENT_PROVIDER=pagarme",
-          );
+          throw new Error("PAGARME_WEBHOOK_SECRET is required when PAYMENT_PROVIDER=pagarme");
         }
         providerInstance = new PagarmeAdapter({ secretKey, webhookSecret });
         break;

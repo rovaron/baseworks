@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
 /**
  * OBS-04 / D-07 / D-09 — positive-path tests for validateObservabilityEnv().
@@ -155,9 +155,7 @@ describe("validateObservabilityEnv ERROR_TRACKER crash-hard (Phase 18 / D-09)", 
     const stderr = await new Response(proc.stderr).text();
 
     expect(exitCode).not.toBe(0);
-    expect(stderr).toContain(
-      "GLITCHTIP_DSN is required when ERROR_TRACKER=glitchtip",
-    );
+    expect(stderr).toContain("GLITCHTIP_DSN is required when ERROR_TRACKER=glitchtip");
   });
 
   test("does not throw when ERROR_TRACKER=pino (no required env)", async () => {
@@ -301,11 +299,7 @@ describe("validateObservabilityEnv ERROR_TRACKER crash-hard (Phase 18 / D-09)", 
 describe("ERROR_TRACKER enum widening (Phase 18 / D-06)", () => {
   test("accepts ERROR_TRACKER=pino", async () => {
     const proc = Bun.spawn(
-      [
-        "bun",
-        "-e",
-        'import { env } from "@baseworks/config"; console.log(env.ERROR_TRACKER)',
-      ],
+      ["bun", "-e", 'import { env } from "@baseworks/config"; console.log(env.ERROR_TRACKER)'],
       {
         env: { ...baseEnv, ERROR_TRACKER: "pino" },
         stdout: "pipe",
@@ -323,11 +317,7 @@ describe("ERROR_TRACKER enum widening (Phase 18 / D-06)", () => {
 
   test("accepts ERROR_TRACKER=sentry", async () => {
     const proc = Bun.spawn(
-      [
-        "bun",
-        "-e",
-        'import { env } from "@baseworks/config"; console.log(env.ERROR_TRACKER)',
-      ],
+      ["bun", "-e", 'import { env } from "@baseworks/config"; console.log(env.ERROR_TRACKER)'],
       {
         env: { ...baseEnv, ERROR_TRACKER: "sentry" },
         stdout: "pipe",
@@ -345,11 +335,7 @@ describe("ERROR_TRACKER enum widening (Phase 18 / D-06)", () => {
 
   test("accepts ERROR_TRACKER=glitchtip", async () => {
     const proc = Bun.spawn(
-      [
-        "bun",
-        "-e",
-        'import { env } from "@baseworks/config"; console.log(env.ERROR_TRACKER)',
-      ],
+      ["bun", "-e", 'import { env } from "@baseworks/config"; console.log(env.ERROR_TRACKER)'],
       {
         env: { ...baseEnv, ERROR_TRACKER: "glitchtip" },
         stdout: "pipe",
@@ -367,11 +353,7 @@ describe("ERROR_TRACKER enum widening (Phase 18 / D-06)", () => {
 
   test("rejects ERROR_TRACKER=bogus with Zod enum error", async () => {
     const proc = Bun.spawn(
-      [
-        "bun",
-        "-e",
-        'import { env } from "@baseworks/config"; console.log(env.ERROR_TRACKER)',
-      ],
+      ["bun", "-e", 'import { env } from "@baseworks/config"; console.log(env.ERROR_TRACKER)'],
       {
         env: { ...baseEnv, ERROR_TRACKER: "bogus" },
         stdout: "pipe",
@@ -386,11 +368,7 @@ describe("ERROR_TRACKER enum widening (Phase 18 / D-06)", () => {
 
   test("defaults ERROR_TRACKER to 'pino' when unset (Phase 18 widens Phase 17 'noop' default)", async () => {
     const proc = Bun.spawn(
-      [
-        "bun",
-        "-e",
-        'import { env } from "@baseworks/config"; console.log(env.ERROR_TRACKER)',
-      ],
+      ["bun", "-e", 'import { env } from "@baseworks/config"; console.log(env.ERROR_TRACKER)'],
       {
         env: { ...baseEnv },
         stdout: "pipe",
@@ -410,11 +388,7 @@ describe("ERROR_TRACKER enum widening (Phase 18 / D-06)", () => {
 describe("New Phase 18 env fields (D-09)", () => {
   test("SENTRY_DSN accepts a valid URL", async () => {
     const proc = Bun.spawn(
-      [
-        "bun",
-        "-e",
-        'import { env } from "@baseworks/config"; console.log(env.SENTRY_DSN)',
-      ],
+      ["bun", "-e", 'import { env } from "@baseworks/config"; console.log(env.SENTRY_DSN)'],
       {
         env: { ...baseEnv, SENTRY_DSN: "https://public@sentry.example.com/1" },
         stdout: "pipe",
@@ -432,11 +406,7 @@ describe("New Phase 18 env fields (D-09)", () => {
 
   test("SENTRY_DSN rejects non-URL strings", async () => {
     const proc = Bun.spawn(
-      [
-        "bun",
-        "-e",
-        'import { env } from "@baseworks/config"; console.log(env.SENTRY_DSN)',
-      ],
+      ["bun", "-e", 'import { env } from "@baseworks/config"; console.log(env.SENTRY_DSN)'],
       {
         env: { ...baseEnv, SENTRY_DSN: "not-a-url" },
         stdout: "pipe",
@@ -451,11 +421,7 @@ describe("New Phase 18 env fields (D-09)", () => {
 
   test("GLITCHTIP_DSN accepts a valid URL", async () => {
     const proc = Bun.spawn(
-      [
-        "bun",
-        "-e",
-        'import { env } from "@baseworks/config"; console.log(env.GLITCHTIP_DSN)',
-      ],
+      ["bun", "-e", 'import { env } from "@baseworks/config"; console.log(env.GLITCHTIP_DSN)'],
       {
         env: {
           ...baseEnv,
@@ -476,11 +442,7 @@ describe("New Phase 18 env fields (D-09)", () => {
 
   test("GLITCHTIP_DSN rejects non-URL strings", async () => {
     const proc = Bun.spawn(
-      [
-        "bun",
-        "-e",
-        'import { env } from "@baseworks/config"; console.log(env.GLITCHTIP_DSN)',
-      ],
+      ["bun", "-e", 'import { env } from "@baseworks/config"; console.log(env.GLITCHTIP_DSN)'],
       {
         env: { ...baseEnv, GLITCHTIP_DSN: "not-a-url" },
         stdout: "pipe",
@@ -495,11 +457,7 @@ describe("New Phase 18 env fields (D-09)", () => {
 
   test("RELEASE is an optional string (undefined when unset)", async () => {
     const proc = Bun.spawn(
-      [
-        "bun",
-        "-e",
-        'import { env } from "@baseworks/config"; console.log(String(env.RELEASE))',
-      ],
+      ["bun", "-e", 'import { env } from "@baseworks/config"; console.log(String(env.RELEASE))'],
       {
         env: { ...baseEnv },
         stdout: "pipe",
@@ -517,11 +475,7 @@ describe("New Phase 18 env fields (D-09)", () => {
 
   test("RELEASE accepts a short git SHA", async () => {
     const proc = Bun.spawn(
-      [
-        "bun",
-        "-e",
-        'import { env } from "@baseworks/config"; console.log(env.RELEASE)',
-      ],
+      ["bun", "-e", 'import { env } from "@baseworks/config"; console.log(env.RELEASE)'],
       {
         env: { ...baseEnv, RELEASE: "abc1234" },
         stdout: "pipe",

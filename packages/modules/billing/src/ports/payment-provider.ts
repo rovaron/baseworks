@@ -16,23 +16,23 @@
  */
 
 import type {
-  CreateCustomerParams,
-  ProviderCustomer,
-  CreateSubscriptionParams,
-  ProviderSubscription,
   CancelSubscriptionParams,
   ChangeSubscriptionParams,
-  CreateOneTimePaymentParams,
-  ProviderCheckoutSession,
   CreateCheckoutSessionParams,
+  CreateCustomerParams,
+  CreateOneTimePaymentParams,
   CreatePortalSessionParams,
-  ProviderPortalSession,
-  VerifyWebhookParams,
-  RawProviderEvent,
+  CreateSubscriptionParams,
   NormalizedEvent,
+  ProviderCheckoutSession,
+  ProviderCustomer,
   ProviderInvoice,
+  ProviderPortalSession,
+  ProviderSubscription,
+  RawProviderEvent,
   ReportUsageParams,
   ReportUsageResult,
+  VerifyWebhookParams,
 } from "./types";
 
 export interface PaymentProvider {
@@ -53,9 +53,7 @@ export interface PaymentProvider {
    * @param params - Provider customer ID and price/plan ID
    * @returns Subscription details including status and period
    */
-  createSubscription(
-    params: CreateSubscriptionParams,
-  ): Promise<ProviderSubscription>;
+  createSubscription(params: CreateSubscriptionParams): Promise<ProviderSubscription>;
 
   /**
    * Cancel an existing subscription.
@@ -71,9 +69,7 @@ export interface PaymentProvider {
    * @param params - Subscription ID and target price ID
    * @returns Updated subscription details after the change
    */
-  changeSubscription(
-    params: ChangeSubscriptionParams,
-  ): Promise<ProviderSubscription>;
+  changeSubscription(params: ChangeSubscriptionParams): Promise<ProviderSubscription>;
 
   /**
    * Retrieve a subscription by its provider-side ID.
@@ -81,9 +77,7 @@ export interface PaymentProvider {
    * @param providerSubscriptionId - External subscription ID
    * @returns Subscription details, or null if not found
    */
-  getSubscription(
-    providerSubscriptionId: string,
-  ): Promise<ProviderSubscription | null>;
+  getSubscription(providerSubscriptionId: string): Promise<ProviderSubscription | null>;
 
   /**
    * Create a checkout session for a one-time payment.
@@ -92,9 +86,7 @@ export interface PaymentProvider {
    *   URLs
    * @returns Checkout session with redirect URL
    */
-  createOneTimePayment(
-    params: CreateOneTimePaymentParams,
-  ): Promise<ProviderCheckoutSession>;
+  createOneTimePayment(params: CreateOneTimePaymentParams): Promise<ProviderCheckoutSession>;
 
   /**
    * Create a checkout session for subscription signup.
@@ -102,9 +94,7 @@ export interface PaymentProvider {
    * @param params - Customer ID, price ID, and redirect URLs
    * @returns Checkout session with redirect URL
    */
-  createCheckoutSession(
-    params: CreateCheckoutSessionParams,
-  ): Promise<ProviderCheckoutSession>;
+  createCheckoutSession(params: CreateCheckoutSessionParams): Promise<ProviderCheckoutSession>;
 
   /**
    * Create a customer portal session for self-service billing.
@@ -113,9 +103,7 @@ export interface PaymentProvider {
    * @returns Portal session with URL, or null if the provider
    *   does not support hosted portals
    */
-  createPortalSession(
-    params: CreatePortalSessionParams,
-  ): Promise<ProviderPortalSession | null>;
+  createPortalSession(params: CreatePortalSessionParams): Promise<ProviderPortalSession | null>;
 
   /**
    * Verify a webhook signature and extract the raw event.
@@ -123,9 +111,7 @@ export interface PaymentProvider {
    * @param params - Raw request body and signature header
    * @returns Verified raw provider event
    */
-  verifyWebhookSignature(
-    params: VerifyWebhookParams,
-  ): Promise<RawProviderEvent>;
+  verifyWebhookSignature(params: VerifyWebhookParams): Promise<RawProviderEvent>;
 
   /**
    * Normalize a raw provider event into a domain event.
@@ -142,10 +128,7 @@ export interface PaymentProvider {
    * @param limit - Maximum number of invoices to return
    * @returns List of invoice records
    */
-  getInvoices(
-    providerCustomerId: string,
-    limit: number,
-  ): Promise<ProviderInvoice[]>;
+  getInvoices(providerCustomerId: string, limit: number): Promise<ProviderInvoice[]>;
 
   /**
    * Report metered usage for a subscription item.
@@ -160,21 +143,21 @@ export interface PaymentProvider {
 
 // Re-export types for convenience
 export type {
-  CreateCustomerParams,
-  ProviderCustomer,
-  CreateSubscriptionParams,
-  ProviderSubscription,
   CancelSubscriptionParams,
   ChangeSubscriptionParams,
-  CreateOneTimePaymentParams,
-  ProviderCheckoutSession,
   CreateCheckoutSessionParams,
+  CreateCustomerParams,
+  CreateOneTimePaymentParams,
   CreatePortalSessionParams,
-  ProviderPortalSession,
-  VerifyWebhookParams,
-  RawProviderEvent,
+  CreateSubscriptionParams,
   NormalizedEvent,
+  ProviderCheckoutSession,
+  ProviderCustomer,
   ProviderInvoice,
+  ProviderPortalSession,
+  ProviderSubscription,
+  RawProviderEvent,
   ReportUsageParams,
   ReportUsageResult,
+  VerifyWebhookParams,
 } from "./types";

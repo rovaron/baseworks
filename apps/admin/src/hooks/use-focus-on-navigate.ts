@@ -1,5 +1,5 @@
-import { useLocation } from "react-router";
 import { useEffect, useRef } from "react";
+import { useLocation } from "react-router";
 
 export function useFocusOnNavigate() {
   const location = useLocation();

@@ -1,10 +1,16 @@
-import { Type } from "@sinclair/typebox";
-import { defineQuery, ok, err } from "@baseworks/shared";
-import { createDb, user as userTable } from "@baseworks/db";
-import { eq } from "drizzle-orm";
 import { env } from "@baseworks/config";
+import { createDb, user as userTable } from "@baseworks/db";
+import { defineQuery, err, ok } from "@baseworks/shared";
+import { Type } from "@sinclair/typebox";
+import { eq } from "drizzle-orm";
 
 const GetProfileInput = Type.Object({});
+
+// Memoized db instance shared across calls. `createDb` opens a new
+// postgres.js pool every time, so without this each profile read
+// would leak a pool. Resolved via the dynamic import below (kept for
+// test-mock isolation) and cached here on first use.
+let cachedDb: ReturnType<typeof createDb> | undefined;
 
 /**
  * Retrieve the authenticated user's profile by ctx.userId.
@@ -32,9 +38,13 @@ const GetProfileInput = Type.Object({});
  * of module-cache state.
  *
  * In production this adds only a single module-registry lookup
- * per call (no I/O, no reconnect -- the postgres pool created by
- * `createDb` is still cached inside the dynamically-imported
- * module's closure).
+ * per call (no I/O, no reconnect). `createDb` itself is NOT cached
+ * by `@baseworks/db` -- it opens a fresh postgres.js pool on every
+ * invocation -- so we memoize the resolved db instance at module
+ * scope (`cachedDb` below) to ensure a single shared pool per
+ * process. The dynamic import is preserved purely for test-mock
+ * resolution; the memoized instance is whatever `createDb` returns
+ * (the test mock returns a stable stub, so caching is compatible).
  *
  * @param input - GetProfileInput (empty object)
  * @param ctx   - Handler context: userId (required for query),
@@ -61,7 +71,8 @@ export const getProfile = defineQuery(GetProfileInput, async (_input, ctx) => {
     const { eq: resolvedEq } = drizzleMod;
     const { env: resolvedEnv } = envMod;
 
-    const db = resolvedCreateDb(resolvedEnv.DATABASE_URL);
+    if (!cachedDb) cachedDb = resolvedCreateDb(resolvedEnv.DATABASE_URL);
+    const db = cachedDb;
 
     const users = await db
       .select({
@@ -77,7 +88,37 @@ export const getProfile = defineQuery(GetProfileInput, async (_input, ctx) => {
       .limit(1);
 
     if (!users.length) return err("User not found");
-    return ok(users[0]);
+
+    // Phase 29 / IDA-01 — resolve the signed avatar URL from the LATEST uploaded
+    // user-kind file via ctx.dispatch ONLY (ZERO @baseworks/module-files import —
+    // the files<->auth ban, proven by lint:cross-module). The user relation's
+    // canRead (recordId === ctx.userId) passes because the dispatched read reuses
+    // this same handlerCtx (same userId). ctx.dispatch absent (bare-ctx tests) ⇒
+    // avatarUrl: null, no throw. avatarUrl is ALWAYS a signed, expiring read URL —
+    // never a raw storage_key/bucket.
+    let avatarUrl: string | null = null;
+    if (ctx.dispatch) {
+      const listed = await ctx.dispatch("files:list-for-record", {
+        ownerModule: "auth",
+        ownerRecordType: "user",
+        recordId: ctx.userId,
+      });
+      if (listed.success) {
+        const data = listed.data as {
+          files: Array<{ fileId: string; status: string }>;
+        };
+        // "latest wins" — list-for-record is ORDER BY created_at ASC, so the last
+        // usable (uploaded|ready) file is the most recent (denormalized accessor).
+        const usable = data.files.filter((f) => f.status === "uploaded" || f.status === "ready");
+        const latest = usable[usable.length - 1];
+        if (latest) {
+          const read = await ctx.dispatch("files:get-read-url", { fileId: latest.fileId });
+          if (read.success) avatarUrl = (read.data as { url: string }).url;
+        }
+      }
+    }
+
+    return ok({ ...users[0], avatarUrl });
   } catch (error: any) {
     return err(error.message || "Failed to get profile");
   }

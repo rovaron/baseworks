@@ -1,8 +1,8 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@baseworks/ui";
-import { useTenant } from "@/components/tenant-provider";
 import { useTranslations } from "next-intl";
+import { useTenant } from "@/components/tenant-provider";
 
 export default function DashboardPage() {
   const { activeTenant, isLoading } = useTenant();
@@ -31,9 +31,7 @@ export default function DashboardPage() {
               <CardTitle>{t("welcome", { tenantName })}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">
-                {t("welcomeDescription")}
-              </p>
+              <p className="text-muted-foreground">{t("welcomeDescription")}</p>
             </CardContent>
           </Card>
         )}

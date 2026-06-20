@@ -1,6 +1,6 @@
-import { describe, test, expect, mock, beforeEach } from "bun:test";
-import { createMockContext, createMockDb } from "../../../__test-utils__/mock-context";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { assertResultOk } from "../../../__test-utils__/assert-result";
+import { createMockContext, createMockDb } from "../../../__test-utils__/mock-context";
 
 mock.module("@baseworks/config", () => ({
   env: {
@@ -17,10 +17,7 @@ describe("recordUsage", () => {
     const mockDb = createMockDb();
     const ctx = createMockContext({ db: mockDb });
 
-    const result = await recordUsage(
-      { metric: "api_calls", quantity: 100 },
-      ctx,
-    );
+    const result = await recordUsage({ metric: "api_calls", quantity: 100 }, ctx);
     const data = assertResultOk(result);
 
     expect(data.recorded).toBe(true);
@@ -33,10 +30,7 @@ describe("recordUsage", () => {
     const mockDb = createMockDb();
     const ctx = createMockContext({ db: mockDb });
 
-    const result = await recordUsage(
-      { metric: "storage_gb", quantity: 1 },
-      ctx,
-    );
+    const result = await recordUsage({ metric: "storage_gb", quantity: 1 }, ctx);
     const data = assertResultOk(result);
 
     expect(data.recorded).toBe(true);
@@ -48,10 +42,7 @@ describe("recordUsage", () => {
     const mockDb = createMockDb();
     const ctx = createMockContext({ db: mockDb });
 
-    const result = await recordUsage(
-      { metric: "api_calls", quantity: 0 },
-      ctx,
-    );
+    const result = await recordUsage({ metric: "api_calls", quantity: 0 }, ctx);
 
     expect(result.success).toBe(false);
     expect((result as any).error).toContain("VALIDATION_ERROR");

@@ -1,25 +1,25 @@
-import { describe, test, expect, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { defaultLocale } from "@baseworks/i18n";
+// wrapQueue lands in Plan 20-02 — import path will resolve once that plan ships.
 import {
-  propagation,
-  trace,
-  context,
-  ROOT_CONTEXT,
-  SpanKind,
-  createTraceState,
-  type SpanContext,
-} from "@opentelemetry/api";
-import { W3CTraceContextPropagator } from "@opentelemetry/core";
-import { BasicTracerProvider } from "@opentelemetry/sdk-trace-base";
-import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
-import {
-  obsContext,
   getObsContext,
   type ObservabilityContext,
+  obsContext,
+  wrapQueue,
 } from "@baseworks/observability";
-import { defaultLocale } from "@baseworks/i18n";
-import type { Processor, Queue, JobsOptions } from "bullmq";
-// wrapQueue lands in Plan 20-02 — import path will resolve once that plan ships.
-import { wrapQueue } from "@baseworks/observability";
+import {
+  context,
+  createTraceState,
+  propagation,
+  ROOT_CONTEXT,
+  type SpanContext,
+  SpanKind,
+  trace,
+} from "@opentelemetry/api";
+import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
+import { W3CTraceContextPropagator } from "@opentelemetry/core";
+import { BasicTracerProvider } from "@opentelemetry/sdk-trace-base";
+import type { JobsOptions, Processor, Queue } from "bullmq";
 import { wrapProcessorWithAls } from "../index";
 
 /**
@@ -111,9 +111,7 @@ describe("Phase 20 carrier round-trip — D-07b smoke gate", () => {
     const data = calls[0]!.data;
     expect(data.foo).toBe(1);
     expect(typeof data._otel?.traceparent).toBe("string");
-    expect(data._otel.traceparent).toMatch(
-      /^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$/,
-    );
+    expect(data._otel.traceparent).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$/);
     expect(data._requestId).toBe("R-PRODUCER");
     expect(data._tenantId).toBe("T-1");
     expect(data._userId).toBe("U-1");

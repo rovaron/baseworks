@@ -1,17 +1,25 @@
 import "./telemetry";
-import { env, assertRedisUrl, validatePaymentProviderEnv, validateObservabilityEnv } from "@baseworks/config";
-import { createDb } from "@baseworks/db";
-import { createWorker, closeConnection } from "@baseworks/queue";
-import type { Worker } from "bullmq";
-import { ModuleRegistry } from "./core/registry";
-import { logger } from "./lib/logger";
+import {
+  assertRedisUrl,
+  env,
+  validateObservabilityEnv,
+  validatePaymentProviderEnv,
+} from "@baseworks/config";
+import { closeDb, getDb } from "@baseworks/db";
 import {
   getErrorTracker,
   getTracer,
   installGlobalErrorHandlers,
+  resolveInstanceId,
+  startHeartbeatPublisher,
   wrapCqrsBus,
   wrapEventBus,
 } from "@baseworks/observability";
+import { closeConnection, createQueue, createWorker, getRedisConnection } from "@baseworks/queue";
+import { validateStorageEnv } from "@baseworks/storage";
+import type { Worker } from "bullmq";
+import { ModuleRegistry } from "./core/registry";
+import { logger } from "./lib/logger";
 
 // Validate environment at startup (crashes on missing/invalid vars)
 const _env = env;
@@ -23,20 +31,33 @@ const redisUrl = assertRedisUrl(env.INSTANCE_ROLE, env.REDIS_URL);
 validatePaymentProviderEnv();
 // Phase 18 — crash-hard on missing DSN for the selected ERROR_TRACKER (D-09).
 validateObservabilityEnv();
+// Phase 24 — crash-hard on missing storage adapter env or production-local (D-13/D-14).
+validateStorageEnv();
 // Phase 18 D-02 — register global uncaughtException + unhandledRejection handlers.
 installGlobalErrorHandlers(getErrorTracker());
 
-// Create database instance
-const db = createDb(env.DATABASE_URL);
+// Create database instance (shared process-wide singleton pool)
+const db = getDb(env.DATABASE_URL);
 
 // Create module registry in worker role (skips route attachment)
 const registry = new ModuleRegistry({
   role: "worker",
-  modules: ["example", "billing"],
+  modules: ["example", "billing", "files"],
 });
 
 // Load all configured modules
 await registry.loadAll();
+
+// Phase 28 / IMG-01 — bind the files module's transform-event sink to this
+// process's registry event bus so the image-transform job's lifecycle events
+// (file.transformed / file.transform-failed) are emitted + traced (wrapEventBus
+// below). Best-effort observability; no subscribers required in the worker.
+const { setTransformEventSink, setCleanupEventSink } = await import("@baseworks/module-files");
+setTransformEventSink((event, data) => registry.getEventBus().emit(event, data));
+// Phase 31 / OPS-02 — bind the cleanup-event sink so the orphan reaper's
+// best-effort file.deleted events reach the registry event bus (emitted + traced
+// via wrapEventBus below). The DB tombstone remains authoritative.
+setCleanupEventSink((event, data) => registry.getEventBus().emit(event, data));
 
 // Phase 18 D-01 — wrap the CqrsBus so thrown handler exceptions are captured.
 // External wrapper; zero edits to apps/api/src/core/cqrs.ts (D-01 invariant).
@@ -70,13 +91,13 @@ for (const [name, def] of registry.getLoaded()) {
           }
         },
         redisUrl,
+        // Phase 28 / IMG-01 — honor a per-job concurrency cap (image-transform=2).
+        // Undefined for existing jobs → createWorker's default 5 applies.
+        { concurrency: jobDef.concurrency },
       );
 
       worker.on("failed", (job, err) => {
-        logger.error(
-          { job: job?.id, queue: jobDef.queue, err: String(err) },
-          "Job failed",
-        );
+        logger.error({ job: job?.id, queue: jobDef.queue, err: String(err) }, "Job failed");
         // Phase 18 D-04 — capture via ErrorTracker port. Single call site (this
         // loop) covers every module's jobs. Inner try/catch at line 45 stays
         // log-only to avoid double-reporting.
@@ -87,17 +108,36 @@ for (const [name, def] of registry.getLoaded()) {
       });
 
       worker.on("completed", (job) => {
-        logger.debug(
-          { job: job?.id, queue: jobDef.queue },
-          "Job completed",
-        );
+        logger.debug({ job: job?.id, queue: jobDef.queue }, "Job completed");
       });
 
       workers.push(worker);
-      logger.info(
-        { module: name, job: jobName, queue: jobDef.queue },
-        "Worker started for job",
-      );
+      logger.info({ module: name, job: jobName, queue: jobDef.queue }, "Worker started for job");
+
+      // Phase 31 / OPS-02 — register the repeatable schedule (if declared) on the
+      // SAME queue. upsertJobScheduler is idempotent by schedulerId (=== jobName),
+      // so redeploys never duplicate schedules — the load-bearing reason to use it
+      // over the deprecated queue.add(name, data, { repeat }). Guarded so a
+      // scheduler-registration failure never aborts consumer boot.
+      if (jobDef.repeat) {
+        try {
+          const scheduleQueue = createQueue(jobDef.queue, redisUrl);
+          await scheduleQueue.upsertJobScheduler(
+            jobName,
+            { pattern: jobDef.repeat.pattern },
+            { name: jobName, data: {} },
+          );
+          logger.info(
+            { module: name, job: jobName, queue: jobDef.queue, pattern: jobDef.repeat.pattern },
+            "Repeatable schedule registered",
+          );
+        } catch (err) {
+          logger.warn(
+            { module: name, job: jobName, queue: jobDef.queue, err: String(err) },
+            "Failed to register repeatable schedule (consumer still started)",
+          );
+        }
+      }
     }
   }
 }
@@ -107,8 +147,25 @@ logger.info(
   "Worker started",
 );
 
+// Phase 22 / EXT-02 / D-14 — start the worker heartbeat publisher AFTER
+// workers attach so getQueues() returns the actual queue list. The publisher
+// uses raw redis.set (NOT the queue producer wrapper — Phase 20 D-02
+// invariant; heartbeat is a self-report, not a producer/consumer pair).
+const heartbeat = startHeartbeatPublisher({
+  redis: getRedisConnection(redisUrl),
+  instanceId: resolveInstanceId(),
+  getQueues: () => workers.map((w) => w.name),
+  intervalMs: env.WORKER_HEARTBEAT_INTERVAL_MS,
+  version: env.RELEASE,
+  logger,
+});
+logger.info(
+  { intervalMs: env.WORKER_HEARTBEAT_INTERVAL_MS, instanceId: resolveInstanceId() },
+  "Worker heartbeat publisher started",
+);
+
 // Health check HTTP server for Docker/infrastructure probes (D-06)
-const WORKER_HEALTH_PORT = Number(process.env.WORKER_HEALTH_PORT) || 3001;
+const WORKER_HEALTH_PORT = env.WORKER_HEALTH_PORT;
 
 const healthServer = Bun.serve({
   port: WORKER_HEALTH_PORT,
@@ -118,7 +175,10 @@ const healthServer = Bun.serve({
       return new Response("Not Found", { status: 404 });
     }
 
-    const checks: Record<string, { status: string; error?: string; active?: number; queues?: string[] }> = {};
+    const checks: Record<
+      string,
+      { status: string; error?: string; active?: number; queues?: string[] }
+    > = {};
 
     // Redis connectivity
     try {
@@ -153,9 +213,15 @@ logger.info({ port: WORKER_HEALTH_PORT }, "Worker health server started");
 // Graceful shutdown handler
 async function shutdown() {
   logger.info("Worker shutting down...");
+  // Phase 22 / D-14 — clear heartbeat timer + DEL key BEFORE workers/redis close
+  // so the dashboard transitions worker → absent immediately on graceful stop
+  // (rather than waiting for TTL expiry).
+  await heartbeat.stop();
   healthServer.stop();
   await Promise.all(workers.map((w) => w.close()));
   await closeConnection();
+  // Drain the shared postgres pool so sockets are released on graceful stop.
+  await closeDb();
   process.exit(0);
 }
 

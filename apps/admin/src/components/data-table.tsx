@@ -1,4 +1,17 @@
 import {
+  Button,
+  DataTableCards,
+  Input,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@baseworks/ui";
+import { useIsMobile } from "@baseworks/ui/hooks/use-mobile";
+import {
   type ColumnDef,
   flexRender,
   getCoreRowModel,
@@ -6,21 +19,8 @@ import {
   type SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { useState } from "react";
 import { ArrowUpDown } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  Input,
-  Button,
-  Skeleton,
-  DataTableCards,
-} from "@baseworks/ui";
-import { useIsMobile } from "@baseworks/ui/hooks/use-mobile";
+import { useState } from "react";
 
 interface DataTableProps<TData> {
   columns: ColumnDef<TData, any>[];
@@ -89,9 +89,7 @@ export function DataTable<TData>({
                   <TableRow key={headerGroup.id}>
                     {headerGroup.headers.map((header) => (
                       <TableHead key={header.id}>
-                        {header.isPlaceholder ? null : (
-                          <Skeleton className="h-4 w-20" />
-                        )}
+                        {header.isPlaceholder ? null : <Skeleton className="h-4 w-20" />}
                       </TableHead>
                     ))}
                   </TableRow>

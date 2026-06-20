@@ -1,10 +1,10 @@
 import { Elysia, t } from "elysia";
 import { auth } from "./auth";
-import { betterAuthPlugin, requireRole } from "./middleware";
-import { createInvitation } from "./commands/create-invitation";
 import { cancelInvitation } from "./commands/cancel-invitation";
-import { listInvitations } from "./queries/list-invitations";
+import { createInvitation } from "./commands/create-invitation";
+import { betterAuthPlugin, requireRole } from "./middleware";
 import { getInvitation } from "./queries/get-invitation";
+import { listInvitations } from "./queries/list-invitations";
 
 /**
  * Auth routes plugin. Mounts better-auth's handler + invitation endpoints.
@@ -40,16 +40,31 @@ import { getInvitation } from "./queries/get-invitation";
  *   empty string for public/system calls
  * @param tenantId - Active organization ID from session, or
  *   empty string for public calls
+ * @param headers  - Live request headers, forwarded so
+ *   better-auth (auth.api.*) can resolve the caller's session.
+ *   Omitted for public/system calls that need no session.
  * @returns HandlerContext with null db and no-op emit
  */
-function makeCtx(userId: string, tenantId: string) {
+function makeCtx(userId: string, tenantId: string, headers?: Headers) {
   return {
     userId,
     tenantId,
     db: null as any,
     emit: (_event: string, _data: unknown) => {},
+    headers,
   };
 }
+
+/**
+ * In-flight resend guard. Prevents concurrent/duplicate resends
+ * (e.g. a double-clicked button or a retried request) for the same
+ * invitation from racing the cancel-then-create flow and leaving the
+ * org with duplicate pending invitations. Keyed by `${orgId}:${invitationId}`.
+ *
+ * Process-local by design: it is a pragmatic idempotency safeguard for the
+ * common double-submit case, not a distributed lock.
+ */
+const inFlightResends = new Set<string>();
 
 /**
  * Build the auth routes plugin.
@@ -68,18 +83,17 @@ function makeCtx(userId: string, tenantId: string) {
  * is always taken and behavior is unchanged.
  */
 const base = new Elysia({ name: "auth-routes" });
-const mounted =
-  typeof auth?.handler === "function" ? base.mount(auth.handler) : base;
+const mounted = typeof auth?.handler === "function" ? base.mount(auth.handler) : base;
 
 export const authRoutes = mounted
 
   // --- Public endpoint: get invitation details for accept page (no auth required) ---
   // Per D-05: invite accept page needs org name, inviter, role without auth
   // Per T-09-04: Returns only invitation details, no sensitive data
-  .get("/api/invitations/:id", async ({ params, set }) => {
+  .get("/api/invitations/:id", async ({ params, set, request }) => {
     const result = await getInvitation(
       { invitationId: params.id },
-      makeCtx("", ""),
+      makeCtx("", "", request.headers),
     );
     if (!result.success) {
       set.status = 404;
@@ -100,7 +114,7 @@ export const authRoutes = mounted
       // mode: "email" sends real email, "link" uses @internal placeholder
       .post(
         "/",
-        async ({ body, user, session, set }: any) => {
+        async ({ body, user, session, set, request }: any) => {
           const activeOrgId = session.activeOrganizationId;
           if (!activeOrgId) {
             set.status = 400;
@@ -113,7 +127,7 @@ export const authRoutes = mounted
               organizationId: activeOrgId,
               mode: body.mode,
             },
-            makeCtx(user.id, activeOrgId),
+            makeCtx(user.id, activeOrgId, request.headers),
           );
           if (!result.success) {
             set.status = 400;
@@ -134,7 +148,7 @@ export const authRoutes = mounted
       // List pending invitations for active org - per D-03, INVT-05
       .get(
         "/",
-        async ({ session, set }: any) => {
+        async ({ session, set, request }: any) => {
           const activeOrgId = session.activeOrganizationId;
           if (!activeOrgId) {
             set.status = 400;
@@ -142,7 +156,7 @@ export const authRoutes = mounted
           }
           const result = await listInvitations(
             { organizationId: activeOrgId },
-            makeCtx("", activeOrgId),
+            makeCtx("", activeOrgId, request.headers),
           );
           if (!result.success) {
             set.status = 400;
@@ -156,7 +170,7 @@ export const authRoutes = mounted
       // Cancel invitation - per D-12, INVT-05, T-09-07
       .delete(
         "/:id",
-        async ({ params, session, set }: any) => {
+        async ({ params, session, set, request }: any) => {
           const activeOrgId = session.activeOrganizationId;
           if (!activeOrgId) {
             set.status = 400;
@@ -164,7 +178,7 @@ export const authRoutes = mounted
           }
           const result = await cancelInvitation(
             { invitationId: params.id, organizationId: activeOrgId },
-            makeCtx("", activeOrgId),
+            makeCtx("", activeOrgId, request.headers),
           );
           if (!result.success) {
             set.status = 400;
@@ -179,47 +193,121 @@ export const authRoutes = mounted
       // Detects mode from stored email: @internal = link mode, else email mode
       .post(
         "/:id/resend",
-        async ({ params, session, set }: any) => {
+        async ({ params, session, set, request }: any) => {
           const activeOrgId = session.activeOrganizationId;
           if (!activeOrgId) {
             set.status = 400;
             return { success: false, error: "No active organization" };
           }
-          // Fetch existing invitation to get email and role
-          const getResult = await getInvitation(
-            { invitationId: params.id },
-            makeCtx("", ""),
-          );
-          if (!getResult.success) {
-            set.status = 404;
-            return { success: false, error: "Invitation not found" };
+
+          // Idempotency safeguard: collapse concurrent/duplicate resends for the
+          // same invitation (double-click, retried request) so they cannot race
+          // the cancel-then-create flow and leave duplicate pending invitations.
+          const idempotencyKey = `${activeOrgId}:${params.id}`;
+          if (inFlightResends.has(idempotencyKey)) {
+            set.status = 409;
+            return {
+              success: false,
+              error: "A resend for this invitation is already in progress",
+            };
           }
-          const inv = getResult.data as any;
-          // Cancel original invitation before creating replacement
-          const cancelResult = await cancelInvitation(
-            { invitationId: params.id, organizationId: activeOrgId },
-            makeCtx("", activeOrgId),
-          );
-          if (!cancelResult.success) {
-            set.status = 400;
-            return { success: false, error: "Failed to cancel original invitation before resend" };
+          inFlightResends.add(idempotencyKey);
+
+          try {
+            // Fetch existing invitation to get email and role
+            const getResult = await getInvitation(
+              { invitationId: params.id },
+              makeCtx("", "", request.headers),
+            );
+            if (!getResult.success) {
+              set.status = 404;
+              return { success: false, error: "Invitation not found" };
+            }
+            const inv = getResult.data as any;
+
+            // Detect mode from email: @internal = link mode, else email mode
+            const mode = inv.email.endsWith("@internal") ? "link" : "email";
+
+            if (mode === "link") {
+              // Link mode: the replacement uses a fresh unique @internal address,
+              // so there is no duplicate-pending conflict. Create FIRST; only then
+              // cancel the original. If create fails, the original stays intact and
+              // the caller still has a valid pending invitation (never zero).
+              const created = await createInvitation(
+                {
+                  email: undefined,
+                  role: inv.role,
+                  organizationId: activeOrgId,
+                  mode: "link",
+                },
+                makeCtx("", activeOrgId, request.headers),
+              );
+              if (!created.success) {
+                set.status = 400;
+                return { success: false, error: created.error };
+              }
+              // Replacement exists; best-effort cancel of the original. If the
+              // cancel fails the original simply lingers — the caller still has a
+              // valid pending invitation, so the resend is reported as success.
+              await cancelInvitation(
+                { invitationId: params.id, organizationId: activeOrgId },
+                makeCtx("", activeOrgId, request.headers),
+              );
+              return { success: true, data: created.data };
+            }
+
+            // Email mode: better-auth rejects a duplicate pending invite for the
+            // same email, so we cannot create-before-cancel. Cancel the original,
+            // then attempt the replacement. If the replacement fails, compensate by
+            // re-issuing the original (best-effort) so the caller is never left with
+            // zero valid pending invitations.
+            const cancelResult = await cancelInvitation(
+              { invitationId: params.id, organizationId: activeOrgId },
+              makeCtx("", activeOrgId, request.headers),
+            );
+            if (!cancelResult.success) {
+              set.status = 400;
+              return {
+                success: false,
+                error: "Failed to cancel original invitation before resend",
+              };
+            }
+
+            const created = await createInvitation(
+              {
+                email: inv.email,
+                role: inv.role,
+                organizationId: activeOrgId,
+                mode: "email",
+              },
+              makeCtx("", activeOrgId, request.headers),
+            );
+            if (!created.success) {
+              // Compensation: the original was already cancelled and the new
+              // invitation failed. Best-effort re-issue the original so the caller
+              // keeps exactly one valid pending invitation rather than zero.
+              const reissued = await createInvitation(
+                {
+                  email: inv.email,
+                  role: inv.role,
+                  organizationId: activeOrgId,
+                  mode: "email",
+                },
+                makeCtx("", activeOrgId, request.headers),
+              );
+              set.status = 400;
+              return {
+                success: false,
+                error: reissued.success
+                  ? "Resend failed; the original invitation was reissued."
+                  : "Resend failed and the original invitation could not be reissued. Please recreate it manually.",
+              };
+            }
+
+            return { success: true, data: created.data };
+          } finally {
+            inFlightResends.delete(idempotencyKey);
           }
-          // Detect mode from email: @internal = link mode, else email mode
-          const mode = inv.email.endsWith("@internal") ? "link" : "email";
-          const result = await createInvitation(
-            {
-              email: mode === "email" ? inv.email : undefined,
-              role: inv.role,
-              organizationId: activeOrgId,
-              mode,
-            },
-            makeCtx("", activeOrgId),
-          );
-          if (!result.success) {
-            set.status = 400;
-            return { success: false, error: result.error };
-          }
-          return { success: true, data: result.data };
         },
         { auth: true },
       ),

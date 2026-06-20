@@ -1,8 +1,4 @@
-import type {
-  RawProviderEvent,
-  NormalizedEvent,
-  NormalizedEventType,
-} from "../../ports/types";
+import type { NormalizedEvent, NormalizedEventType, RawProviderEvent } from "../../ports/types";
 
 /**
  * Stripe event type to NormalizedEventType mapping.
@@ -57,7 +53,7 @@ export function mapStripeEvent(rawEvent: RawProviderEvent): NormalizedEvent {
       amount: object?.amount_due ?? object?.amount,
       currency: object?.currency,
     },
-    occurredAt: new Date(),
+    occurredAt: rawEvent.occurredAt ?? new Date(),
     raw: rawEvent,
   };
 }

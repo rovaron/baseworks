@@ -54,7 +54,10 @@ export function scopedDb(db: DbInstance, tenantId: string): ScopedDb {
         values(data: Record<string, any> | Record<string, any>[]) {
           const inject = (row: Record<string, any>) => ({ ...row, tenantId });
           const injected = Array.isArray(data) ? data.map(inject) : inject(data);
-          return db.insert(table).values(injected as any).returning() as any;
+          return db
+            .insert(table)
+            .values(injected as any)
+            .returning() as any;
         },
       };
     },
@@ -62,7 +65,11 @@ export function scopedDb(db: DbInstance, tenantId: string): ScopedDb {
     update(table: any) {
       return {
         set(data: Record<string, any>) {
-          return db.update(table).set(data as any).where(eq(table.tenantId, tenantId)) as any;
+          const { tenantId: _omit, ...safe } = data;
+          return db
+            .update(table)
+            .set(safe as any)
+            .where(eq(table.tenantId, tenantId)) as any;
         },
       };
     },

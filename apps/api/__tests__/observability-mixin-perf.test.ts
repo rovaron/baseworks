@@ -38,8 +38,8 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import pino from "pino";
 import { obsContext } from "@baseworks/observability";
+import pino from "pino";
 
 // Silent stream — we are measuring mixin overhead only, not stdout throughput.
 const silentStream = { write: () => {} };
@@ -109,60 +109,53 @@ function timePerCall(logger: any, count: number, inFrame: boolean): number[] {
 }
 
 describe("D-28 — pino mixin regression gate (median integrated-time ≤3× baseline — W2)", () => {
-  test(
-    "median(real total) ≤ median(baseline total) × 3.0  (smooths Windows scheduling noise)",
-    () => {
-      // biome-ignore lint/suspicious/noExplicitAny: pino destination type.
-      const baseline = pino(
-        { level: "info", mixin: () => ({}) },
-        silentStream as any,
-      );
-      // biome-ignore lint/suspicious/noExplicitAny: pino destination type.
-      const real = pino(
-        { level: "info", mixin: () => obsContext.getStore() ?? {} },
-        silentStream as any,
-      );
+  test("median(real total) ≤ median(baseline total) × 3.0  (smooths Windows scheduling noise)", () => {
+    // biome-ignore lint/suspicious/noExplicitAny: pino destination type.
+    const baseline = pino({ level: "info", mixin: () => ({}) }, silentStream as any);
+    // biome-ignore lint/suspicious/noExplicitAny: pino destination type.
+    const real = pino(
+      { level: "info", mixin: () => obsContext.getStore() ?? {} },
+      silentStream as any,
+    );
 
-      const CALLS = 10_000;
-      const TRIALS = 20;
+    const CALLS = 10_000;
+    const TRIALS = 20;
 
-      // JIT warm-up — 5 trials of CALLS each.
-      for (let w = 0; w < 5; w++) {
-        timeTotalCall(baseline, CALLS, true);
-        timeTotalCall(real, CALLS, true);
-      }
+    // JIT warm-up — 5 trials of CALLS each.
+    for (let w = 0; w < 5; w++) {
+      timeTotalCall(baseline, CALLS, true);
+      timeTotalCall(real, CALLS, true);
+    }
 
-      const baselineTotals: number[] = [];
-      const realTotals: number[] = [];
-      for (let t = 0; t < TRIALS; t++) {
-        baselineTotals.push(timeTotalCall(baseline, CALLS, true));
-        realTotals.push(timeTotalCall(real, CALLS, true));
-      }
+    const baselineTotals: number[] = [];
+    const realTotals: number[] = [];
+    for (let t = 0; t < TRIALS; t++) {
+      baselineTotals.push(timeTotalCall(baseline, CALLS, true));
+      realTotals.push(timeTotalCall(real, CALLS, true));
+    }
 
-      const baselineMedian = median(baselineTotals);
-      const realMedian = median(realTotals);
-      const ratio = realMedian / baselineMedian;
+    const baselineMedian = median(baselineTotals);
+    const realMedian = median(realTotals);
+    const ratio = realMedian / baselineMedian;
 
-      // Per-call p99 informational capture (for retrospective tracking).
-      const basePerCall = timePerCall(baseline, CALLS, true);
-      const realPerCall = timePerCall(real, CALLS, true);
-      const p99Base = percentile(basePerCall, 0.99);
-      const p99Real = percentile(realPerCall, 0.99);
+    // Per-call p99 informational capture (for retrospective tracking).
+    const basePerCall = timePerCall(baseline, CALLS, true);
+    const realPerCall = timePerCall(real, CALLS, true);
+    const p99Base = percentile(basePerCall, 0.99);
+    const p99Real = percentile(realPerCall, 0.99);
 
-      // Sole hard gate (D-28, threshold corrected from 1.05 to 3.0 per Rule 1
-      // deviation): catch any ≥3× regression, tolerate intrinsic ALS-merge cost.
-      expect(ratio).toBeLessThanOrEqual(3.0);
+    // Sole hard gate (D-28, threshold corrected from 1.05 to 3.0 per Rule 1
+    // deviation): catch any ≥3× regression, tolerate intrinsic ALS-merge cost.
+    expect(ratio).toBeLessThanOrEqual(3.0);
 
-      // Informational logs — NOT asserted. Track for Phase 21 retrospective.
-      // biome-ignore lint/suspicious/noConsole: informational perf trace.
-      console.log(
-        `[D-28 perf gate] median total(${CALLS} calls): baseline=${baselineMedian.toFixed(2)}ms real=${realMedian.toFixed(2)}ms ratio=${ratio.toFixed(3)}`,
-      );
-      // biome-ignore lint/suspicious/noConsole: informational perf trace.
-      console.log(
-        `[D-28 perf gate] per-call p99: baseline=${p99Base.toFixed(4)}ms real=${p99Real.toFixed(4)}ms (informational; not asserted per W2)`,
-      );
-    },
-    60_000,
-  );
+    // Informational logs — NOT asserted. Track for Phase 21 retrospective.
+    // biome-ignore lint/suspicious/noConsole: informational perf trace.
+    console.log(
+      `[D-28 perf gate] median total(${CALLS} calls): baseline=${baselineMedian.toFixed(2)}ms real=${realMedian.toFixed(2)}ms ratio=${ratio.toFixed(3)}`,
+    );
+    // biome-ignore lint/suspicious/noConsole: informational perf trace.
+    console.log(
+      `[D-28 perf gate] per-call p99: baseline=${p99Base.toFixed(4)}ms real=${p99Real.toFixed(4)}ms (informational; not asserted per W2)`,
+    );
+  }, 60_000);
 });

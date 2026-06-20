@@ -1,5 +1,5 @@
+import { defineQuery, err, ok } from "@baseworks/shared";
 import { Type } from "@sinclair/typebox";
-import { defineQuery, ok, err } from "@baseworks/shared";
 import { auth } from "../auth";
 
 const ListMembersInput = Type.Object({
@@ -14,26 +14,23 @@ const ListMembersInput = Type.Object({
  * found.
  *
  * @param input - ListMembersInput: organizationId (UUID)
- * @param ctx   - Handler context (unused; auth.api is not
- *   tenant-scoped)
+ * @param ctx   - Handler context; ctx.headers forwards the
+ *   authenticated session to auth.api
  * @returns Result<Member[]> -- array of member records with
  *   userId and role, or err if tenant not found
  *
  * Per TNNT-03: Tenant member listing via CQRS query.
  * Per Pitfall 6: Uses auth.api, not scopedDb.
  */
-export const listMembers = defineQuery(
-  ListMembersInput,
-  async (input, _ctx) => {
-    try {
-      const org = await auth.api.getFullOrganization({
-        query: { organizationId: input.organizationId },
-        headers: new Headers(),
-      });
-      if (!org) return err("Tenant not found");
-      return ok(org.members || []);
-    } catch (error: any) {
-      return err(error.message || "Failed to list members");
-    }
-  },
-);
+export const listMembers = defineQuery(ListMembersInput, async (input, ctx) => {
+  try {
+    const org = await auth.api.getFullOrganization({
+      query: { organizationId: input.organizationId },
+      headers: ctx.headers ?? new Headers(),
+    });
+    if (!org) return err("Tenant not found");
+    return ok(org.members || []);
+  } catch (error: any) {
+    return err(error.message || "Failed to list members");
+  }
+});

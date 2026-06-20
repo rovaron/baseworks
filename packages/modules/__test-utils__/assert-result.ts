@@ -14,9 +14,7 @@ import type { Result } from "@baseworks/shared";
  */
 export function assertResultOk<T>(result: Result<T>): T {
   if (!result.success) {
-    throw new Error(
-      `Expected Result to be ok, but got error: ${result.error}`,
-    );
+    throw new Error(`Expected Result to be ok, but got error: ${result.error}`);
   }
   expect(result.success).toBe(true);
   return result.data;
@@ -33,10 +31,7 @@ export function assertResultOk<T>(result: Result<T>): T {
  * @param expectedError - Optional substring to match against the error message
  * @returns The error message string
  */
-export function assertResultErr(
-  result: Result<unknown>,
-  expectedError?: string,
-): string {
+export function assertResultErr(result: Result<unknown>, expectedError?: string): string {
   expect(result.success).toBe(false);
   if (!result.success) {
     if (expectedError) {

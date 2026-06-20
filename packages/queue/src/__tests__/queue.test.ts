@@ -1,4 +1,27 @@
-import { describe, test, expect, beforeEach, mock } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
+import type { JobsOptions, KeepJobs, Queue } from "bullmq";
+
+// `createQueue` returns the real bullmq `Queue` type, so `opts.defaultJobOptions`
+// is `JobsOptions | undefined` and `removeOnComplete`/`removeOnFail` widen to
+// `number | boolean | KeepJobs`. These helpers narrow at runtime before the
+// assertions read nested fields — a missing/wrong-shaped value throws, which
+// fails the test exactly as an undefined access would.
+function getDefaultJobOptions(queue: Queue): JobsOptions {
+  const opts = queue.opts.defaultJobOptions;
+  if (!opts) {
+    throw new Error("expected queue.opts.defaultJobOptions to be defined");
+  }
+  return opts;
+}
+
+function asKeepJobs(
+  value: number | boolean | KeepJobs | undefined,
+): Extract<KeepJobs, { age: number }> {
+  if (typeof value !== "object" || value === null || !("age" in value)) {
+    throw new Error(`expected a KeepJobs object with an 'age' field, got ${typeof value}`);
+  }
+  return value;
+}
 
 // Mock ioredis before importing our modules
 const mockQuit = mock(() => Promise.resolve("OK"));
@@ -130,28 +153,28 @@ describe("Queue Infrastructure", () => {
       await closeConnection();
 
       const queue = createQueue("test-queue", "redis://localhost:6379");
-      expect(queue.opts.defaultJobOptions.attempts).toBe(3);
+      expect(getDefaultJobOptions(queue).attempts).toBe(3);
     });
 
     test("sets removeOnComplete age to 3 days (259200s)", async () => {
       await closeConnection();
 
       const queue = createQueue("test-queue", "redis://localhost:6379");
-      expect(queue.opts.defaultJobOptions.removeOnComplete.age).toBe(259200);
+      expect(asKeepJobs(getDefaultJobOptions(queue).removeOnComplete).age).toBe(259200);
     });
 
     test("sets removeOnFail age to 7 days (604800s)", async () => {
       await closeConnection();
 
       const queue = createQueue("test-queue", "redis://localhost:6379");
-      expect(queue.opts.defaultJobOptions.removeOnFail.age).toBe(604800);
+      expect(asKeepJobs(getDefaultJobOptions(queue).removeOnFail).age).toBe(604800);
     });
 
     test("sets exponential backoff with 1000ms delay", async () => {
       await closeConnection();
 
       const queue = createQueue("test-queue", "redis://localhost:6379");
-      expect(queue.opts.defaultJobOptions.backoff).toEqual({
+      expect(getDefaultJobOptions(queue).backoff).toEqual({
         type: "exponential",
         delay: 1000,
       });

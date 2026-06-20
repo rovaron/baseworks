@@ -1,23 +1,27 @@
 import type { ModuleDefinition } from "@baseworks/shared";
-import { authRoutes } from "./routes";
-import { createTenant } from "./commands/create-tenant";
-import { updateTenant } from "./commands/update-tenant";
-import { deleteTenant } from "./commands/delete-tenant";
-import { updateProfile } from "./commands/update-profile";
-import { createInvitation } from "./commands/create-invitation";
 import { acceptInvitation } from "./commands/accept-invitation";
-import { rejectInvitation } from "./commands/reject-invitation";
 import { cancelInvitation } from "./commands/cancel-invitation";
-import { getTenant } from "./queries/get-tenant";
-import { listTenants } from "./queries/list-tenants";
-import { listMembers } from "./queries/list-members";
-import { getProfile } from "./queries/get-profile";
-import { listInvitations } from "./queries/list-invitations";
+import { createInvitation } from "./commands/create-invitation";
+import { createTenant } from "./commands/create-tenant";
+import { deleteTenant } from "./commands/delete-tenant";
+import { rejectInvitation } from "./commands/reject-invitation";
+import { updateProfile } from "./commands/update-profile";
+import { updateTenant } from "./commands/update-tenant";
+import { organizationFileRelation, userFileRelation } from "./file-relations";
 import { getInvitation } from "./queries/get-invitation";
+import { getProfile } from "./queries/get-profile";
+import { getTenant } from "./queries/get-tenant";
+import { listInvitations } from "./queries/list-invitations";
+import { listMembers } from "./queries/list-members";
+import { listTenants } from "./queries/list-tenants";
+import { authRoutes } from "./routes";
 
 export { auth } from "./auth";
-export { betterAuthPlugin, requireRole } from "./middleware";
 export { getLocale } from "./locale-context";
+export { betterAuthPlugin, requirePlatformAdmin, requireRole } from "./middleware";
+// Re-exported so apps/api can mount the plugin with its precise Elysia type
+// (preserving Eden Treaty inference); the registry's getAuthRoutes() erases it to `any`.
+export { authRoutes } from "./routes";
 
 /**
  * Auth module definition following the Medusa-style module pattern.
@@ -32,10 +36,18 @@ export { getLocale } from "./locale-context";
  * Queries: get-tenant, list-tenants, list-members, get-profile, list-invitations, get-invitation
  * Events: user.created, tenant.created, member.added, member.removed, tenant.deleted,
  *         invitation.created, invitation.accepted, invitation.rejected, invitation.cancelled
+ *
+ * Phase 29 / IDA-01, IDA-02 — fileRelations { user (avatar), organization (logo) }
+ * declared so the files module validates/cascades identity assets WITHOUT any
+ * auth<->files import (registry collected at boot; resolved via ctx.dispatch).
  */
 export default {
   name: "auth",
   routes: authRoutes,
+  fileRelations: {
+    user: userFileRelation,
+    organization: organizationFileRelation,
+  },
   commands: {
     "auth:create-tenant": createTenant,
     "auth:update-tenant": updateTenant,

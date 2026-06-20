@@ -1,9 +1,6 @@
-import { describe, test, expect, afterEach } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
+import type { ErrorTracker, ErrorTrackerScope } from "../../ports/error-tracker";
 import { installGlobalErrorHandlers } from "../install-global-error-handlers";
-import type {
-  ErrorTracker,
-  ErrorTrackerScope,
-} from "../../ports/error-tracker";
 
 function makeNoopTracker(): ErrorTracker {
   return {
@@ -44,12 +41,8 @@ describe("installGlobalErrorHandlers — in-process", () => {
       rejection: process.listenerCount("unhandledRejection"),
     };
     installGlobalErrorHandlers(makeNoopTracker());
-    expect(process.listenerCount("uncaughtException")).toBeGreaterThan(
-      before.uncaught,
-    );
-    expect(process.listenerCount("unhandledRejection")).toBeGreaterThan(
-      before.rejection,
-    );
+    expect(process.listenerCount("uncaughtException")).toBeGreaterThan(before.uncaught);
+    expect(process.listenerCount("unhandledRejection")).toBeGreaterThan(before.rejection);
   });
 
   test("idempotent — does not re-register for the same tracker instance", () => {
@@ -64,9 +57,7 @@ describe("installGlobalErrorHandlers — in-process", () => {
 describe("installGlobalErrorHandlers — subprocess crash", () => {
   // Bun.fileURLToPath handles platform path differences (Windows strips the
   // leading slash Bun.spawn would otherwise reject as "Module not found").
-  const harness = Bun.fileURLToPath(
-    new URL("./fixtures/crash-harness.ts", import.meta.url),
-  );
+  const harness = Bun.fileURLToPath(new URL("./fixtures/crash-harness.ts", import.meta.url));
 
   test("uncaughtException triggers captureException + flush(2000) + exit 1", async () => {
     const proc = Bun.spawn(["bun", "run", harness, "uncaught", "ok"], {
@@ -93,10 +84,10 @@ describe("installGlobalErrorHandlers — subprocess crash", () => {
   }, 10_000);
 
   test("tracker throwing from captureException still exits 1", async () => {
-    const proc = Bun.spawn(
-      ["bun", "run", harness, "uncaught", "throw-on-capture"],
-      { stdout: "pipe", stderr: "pipe" },
-    );
+    const proc = Bun.spawn(["bun", "run", harness, "uncaught", "throw-on-capture"], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
     const exitCode = await proc.exited;
     expect(exitCode).toBe(1);
   }, 10_000);

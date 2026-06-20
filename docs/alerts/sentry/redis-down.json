@@ -1,0 +1,31 @@
+{
+  "name": "Redis down — cache/queue backend",
+  "dataset": "metrics",
+  "query": "metric:health.redis.status",
+  "aggregate": "count()",
+  "timeWindow": 5,
+  "thresholdType": 0,
+  "resolveThreshold": 0,
+  "triggers": [
+    {
+      "label": "warning",
+      "alertThreshold": 1,
+      "thresholdType": 0,
+      "actions": []
+    },
+    {
+      "label": "critical",
+      "alertThreshold": 3,
+      "thresholdType": 0,
+      "actions": [{ "type": "email", "targetType": "team", "targetIdentifier": "OPERATOR_TEAM_ID" }]
+    }
+  ],
+  "projects": ["YOUR_PROJECT_SLUG"],
+  "environment": "production",
+  "runbook_url": "../../runbooks/redis-down.md",
+  "_baseworks_meta": {
+    "endpoint": "POST /api/0/organizations/{org}/alert-rules/",
+    "slo_note": "Fast-burn alert: 3 consecutive 5m windows with health.redis.status=down. Forward-looking: requires custom metrics wiring (v1.4+ OTLP). For v1.3, monitor via /health/detailed manually or convert to Issue Alert on `health.redis.status=down` log events.",
+    "priority": "high"
+  }
+}

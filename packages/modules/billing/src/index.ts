@@ -1,18 +1,32 @@
 import type { ModuleDefinition } from "@baseworks/shared";
-import { billingRoutes } from "./routes";
-import { processWebhook } from "./jobs/process-webhook";
-import { syncUsage } from "./jobs/sync-usage";
-import { sendEmail } from "./jobs/send-email";
-import { createCheckoutSession } from "./commands/create-checkout-session";
 import { cancelSubscription } from "./commands/cancel-subscription";
 import { changeSubscription } from "./commands/change-subscription";
+import { createCheckoutSession } from "./commands/create-checkout-session";
 import { createOneTimePayment } from "./commands/create-one-time-payment";
 import { createPortalSession } from "./commands/create-portal-session";
 import { recordUsage } from "./commands/record-usage";
-import { getSubscriptionStatus } from "./queries/get-subscription-status";
+import { processWebhook } from "./jobs/process-webhook";
+import { provisionCustomer } from "./jobs/provision-customer";
+import { sendEmail } from "./jobs/send-email";
+import { syncUsage } from "./jobs/sync-usage";
 import { getBillingHistory } from "./queries/get-billing-history";
+import { getSubscriptionStatus } from "./queries/get-subscription-status";
+import { billingRoutes } from "./routes";
 
 export { registerBillingHooks } from "./hooks/on-tenant-created";
+
+/**
+ * Public payment-provider webhook plugin (C4 / billing-webhook-behind-tenant-middleware).
+ *
+ * Exported separately from the tenant-scoped `billingRoutes` so apps/api can
+ * mount it in the pre-tenant band -- BEFORE tenantMiddleware -- since provider
+ * webhook POSTs carry no session cookie and would otherwise be rejected by the
+ * tenant-scoped derive.
+ */
+// `billingRoutes` re-exported so apps/api can mount the tenant-scoped plugin with
+// its precise Elysia type (preserving Eden Treaty inference); the module registry
+// erases it to `any` via ModuleDefinition.routes.
+export { billingRoutes, billingWebhookRoutes } from "./routes";
 
 /**
  * Billing module definition following the Medusa-style module pattern.
@@ -45,6 +59,10 @@ export default {
       queue: "billing-process-webhook",
       handler: processWebhook,
     },
+    "billing-provision-customer": {
+      queue: "billing-provision-customer",
+      handler: provisionCustomer,
+    },
     "billing-sync-usage": {
       queue: "billing-sync-usage",
       handler: syncUsage,
@@ -54,10 +72,5 @@ export default {
       handler: sendEmail,
     },
   },
-  events: [
-    "subscription.created",
-    "subscription.cancelled",
-    "payment.succeeded",
-    "payment.failed",
-  ],
+  events: ["subscription.created", "subscription.cancelled", "payment.succeeded", "payment.failed"],
 } satisfies ModuleDefinition;

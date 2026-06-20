@@ -1,5 +1,5 @@
+import { defineCommand, err, ok } from "@baseworks/shared";
 import { Type } from "@sinclair/typebox";
-import { defineCommand, ok, err } from "@baseworks/shared";
 import { auth } from "../auth";
 
 const DeleteTenantInput = Type.Object({
@@ -22,23 +22,20 @@ const DeleteTenantInput = Type.Object({
  * route level via requireRole("owner").
  * Per Pitfall 6: Uses auth.api, not scopedDb.
  */
-export const deleteTenant = defineCommand(
-  DeleteTenantInput,
-  async (input, ctx) => {
-    try {
-      await auth.api.deleteOrganization({
-        body: { organizationId: input.organizationId },
-        headers: new Headers(),
-      });
+export const deleteTenant = defineCommand(DeleteTenantInput, async (input, ctx) => {
+  try {
+    await auth.api.deleteOrganization({
+      body: { organizationId: input.organizationId },
+      headers: ctx.headers ?? new Headers(),
+    });
 
-      ctx.emit("tenant.deleted", {
-        tenantId: input.organizationId,
-        deletedBy: ctx.userId,
-      });
+    ctx.emit("tenant.deleted", {
+      tenantId: input.organizationId,
+      deletedBy: ctx.userId,
+    });
 
-      return ok({ deleted: true });
-    } catch (error: any) {
-      return err(error.message || "Failed to delete tenant");
-    }
-  },
-);
+    return ok({ deleted: true });
+  } catch (error: any) {
+    return err(error.message || "Failed to delete tenant");
+  }
+});

@@ -10,7 +10,9 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 
 ## Current State
 
-**Shipped:** v1.2 Documentation & Quality (2026-04-21). v1.3 in progress — Phase 17 (OTEL bootstrap + ports) complete 2026-04-22; Phase 18 (Error Tracking Adapters) complete 2026-04-23; Phase 19 (Context, Logging & HTTP/CQRS Tracing — unified ALS + pino mixin + Elysia middleware + CQRS/EventBus span wrappers + Biome GritQL `enterWith` ban) complete 2026-04-23; Phase 20 (BullMQ Trace Propagation — `wrapQueue` producer + extended `wrapProcessorWithAls` consumer, W3C carrier on `job.data._otel`, in-process E2E single-trace gate) complete 2026-04-26.
+**Shipped:** v1.3 Observability & Operations (2026-05-05) — 7 phases (21 deferred), 38 plans, 239 commits over 13 days. 21/28 v1.3 requirements satisfied; 5 deferred to v1.4 (Phase 21 — Sentry SaaS covers operator audience for hosted forks); 2 satisfied with operator UAT carryover (EXT-01 release-tag verification, OPS-02 manual iframe UAT).
+
+**Next milestone:** v1.4 — scope to be defined via `/gsd:new-milestone`. Carry-over candidates from v1.3: Phase 21 work (OTEL adapters + Grafana stack), 18-HUMAN-UAT.md production verification, 22-VERIFICATION.md manual UAT items, harden-inbound-traceparent-trust-gate todo.
 **Codebase:** ~20K lines TypeScript across apps/packages
 **Tech stack:** Bun + Elysia + Drizzle + PostgreSQL + BullMQ + Redis + Next.js 15 + Vite + React 19 + shadcn/ui + Tailwind 4 + better-auth + Stripe + Pagar.me + Docker + pino + next-intl + react-i18next + Vitest (jsdom)
 
@@ -35,7 +37,8 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 - Unit test coverage for every CQRS handler — 8 auth commands + 6 auth queries + 6 billing commands + 2 billing queries, Stripe adapter conformance at parity with Pagar.me, scoped-db edge cases, core infrastructure tests (56/56 auth tests + 21/21 UI tests passing)
 - Two-runner test orchestration via root `bun run test` — `bun test` for non-DOM + `vitest run` for React component a11y tests under jsdom
 - In-repo developer documentation — Getting Started, Architecture Overview (4 Mermaid diagrams), Add-a-Module tutorial, Configuration + Testing guides, and integration docs for better-auth, Stripe/Pagar.me, BullMQ, Resend/React Email (11 pages under `docs/`)
-- `scripts/validate-docs.ts` phase-close validator enforcing forbidden-import, secret-shape, and Mermaid floor invariants
+- `scripts/validate-docs.ts` phase-close validator enforcing forbidden-import, secret-shape, Mermaid floor (≥11), and runbook cross-link invariants — wired to `bun run validate` + `.github/workflows/validate.yml` CI gate
+- Operator surface: 9 incident runbooks + 9 Sentry alert JSON templates with import README + 4 observability concept docs (attributes/cardinality/trace-propagation/index) under `docs/observability` and `docs/runbooks` and `docs/alerts/sentry`
 
 ## Requirements
 
@@ -71,34 +74,59 @@ Clone, configure, and start building a multitenant SaaS in minutes — not weeks
 
 - ✓ Observability ports (Tracer / MetricsProvider / ErrorTracker) with Noop adapters + env-selected factory + OTEL NodeSDK bootstrapped line-1 in apps/api entrypoints — v1.3 (Phase 17; OBS-01..04)
 - ✓ Error tracking adapters: Sentry + GlitchTip (single class via `kind` tag) + pino-sink default fallback, with `scrubPii()` PII redaction (denylist + regex + webhook-route rule), global handlers (`uncaughtException`/`unhandledRejection`), `wrapCqrsBus()` throws-only capture, worker.on('failed') BullMQ capture, Elysia errorMiddleware A4 single-onError enrichment, and tag-push source-map upload workflow — v1.3 (Phase 18; ERR-01..04, EXT-01 — EXT-01 operator gate deferred to 18-HUMAN-UAT.md)
+- ✓ Unified observability context: single `AsyncLocalStorage<ObservabilityContext>` with Biome GritQL `enterWith` ban, Elysia `observabilityMiddleware` populating ALS per request (inbound `traceparent` honored or new trace started), pino logger mixin auto-injecting `{trace_id, span_id, requestId, tenantId}` on every log line — v1.3 (Phase 19; CTX-01..03)
+- ✓ HTTP and CQRS tracing: span-per-HTTP-request with method + route template + status code emitting outbound `traceparent`, external `wrapCqrsBus`/`wrapEventBus` wrappers emitting span-per-dispatch with correlation attributes — zero edits to existing handler/core files — v1.3 (Phase 19; TRC-01..02)
+- ✓ BullMQ trace propagation: `wrapQueue` producer injects W3C `traceparent` + `requestId` + `tenantId` into `job.data._otel`, `wrapProcessorWithAls` consumer extracts via `propagation.extract` and seeds `obsContext.run`; D-08 E2E test asserts single trace spans API → enqueue → worker — v1.3 (Phase 20; CTX-04, TRC-03 with Tempo visual deferred to v1.4)
+- ✓ Admin ops tooling: `@bull-board/elysia` mounted at `/admin/bull-board` behind `requireRole("owner")` + readOnly env + admin-origin CSP, vite admin sidebar entry rendering bull-board as same-origin iframe sharing better-auth cookie, `/health/detailed` endpoint with `HealthContributor` rollup pattern (worst-of-N aggregator, 5s cache, timeout-resolves-not-throws), worker heartbeat publisher (Redis SET `worker:heartbeat:{instanceId}` with TTL=2*interval, DEL on graceful shutdown) — v1.3 (Phase 22; OPS-01..04, EXT-02; manual iframe/cookie/locale UAT deferred to v1.4)
+- ✓ Operator runbook + alert template + observability docs set: 9 incident runbooks under `docs/runbooks/` (DB down, Redis down, queue backing up, webhook failures, auth outage, OTEL exporter failing, bull-board inaccessible, high error rate, slow checkout) using locked Trigger → Symptoms → Triage → Resolution → Escalation template, 9 Sentry alert JSON templates with `runbook_url` cross-links + import README, 4 observability concept docs under `docs/observability/` (attributes glossary, cardinality guide, trace-propagation flow, README index), `validate-docs.ts` 4th invariant enforcing runbook_url integrity wired to `bun run validate` + `.github/workflows/validate.yml` CI gate — v1.3 (Phase 23; DOC-03..04 — Grafana YAML scope dropped with Phase 21 deferral)
+- ✓ Tech-debt fixes mid-milestone (Phase 20.1 INSERTED 2026-04-26): drizzle migration journal repair (baseline reset to single `0000_red_lester.sql`), billing scopedDb misuse fix across 7 ctx.db handlers, obsContext.traceId↔OTel server-span bridge at Bun.serve fetch boundary (synthetic OTel SpanContext seed; CIDR trust gate dropped per OTel always-trust default for v1.3), Phase 19 H-01 (locale-cookie decodeURIComponent try/catch), H-02 (x-request-id charset+length validation), H-03 (Bun.serve fetch error-span recordException + setStatus) — v1.3
 
 ### Active
 
-**Milestone v1.3: Observability & Operations**
+**Milestone v1.4: File Storage & Uploads**
 
-**Goal:** Ship production-grade observability and ops tooling so operators running Baseworks can detect, diagnose, and resolve incidents without SSHing into boxes or grep-ing logs.
-
-**Architecture:** Port + adapters (matching the billing `PaymentProvider` pattern). Fork users pick backends via env var.
+**Goal:** Ship a typed file storage port with S3 + S3-compatible + local adapters, signed direct uploads, automatic image transforms via sharp, per-tenant quota tracking, and a reusable UI uploader component — so fork users inherit ready-to-use file handling for both identity assets (avatars, org logos) and tenant content (documents, photos, videos attached to records).
 
 **Target features:**
 
-- Error tracking via `ErrorTracker` port with Sentry + GlitchTip + Pino-sink adapters
-- Metrics via OTEL `MetricsProvider` port (counters, histograms, p50/p95/p99, DB pool, job throughput)
-- Distributed tracing — full OTEL spans across API → Drizzle → BullMQ enqueue → worker, context propagation, CQRS dispatch spans
-- Structured request/event logging upgrade — AsyncLocalStorage context carrier, correlation IDs propagated to worker jobs
-- Admin job monitor (bull-board embedded in admin dashboard, RBAC-gated)
-- Health dashboard upgrade (queue depth, worker heartbeat, DB lag, recent errors, per-module status)
-- Runbooks + alert playbook — `docs/runbooks/` + pre-built Grafana alert YAML + Sentry alert config templates
-- Local dev observability stack — `docker-compose.observability.yml` (Prometheus + Tempo + Loki + Grafana)
+- File storage port + 3 adapters: S3 (AWS), S3-compatible (configurable endpoint covering MinIO/Garage/Ceph/R2), Local (dev/self-host)
+- Signed direct upload flow — server signs short-lived PUT URLs with size + MIME-type constraints; browser uploads directly to storage; server records metadata on success
+- Signed read URLs for tenant-private file access (private buckets, short-lived GET URLs)
+- Image transforms via sharp — avatars and org logos auto-generate variants (e.g., 64/128/256/512 px) on upload; tenant content stored as-is
+- Per-tenant storage quota — bytes-used tracked in `tenant_storage_usage`, enforced at upload-signing time, surfaced in admin dashboard + `/health/detailed`
+- Module file-ownership pattern — modules declare file relations (e.g., billing attaches invoice PDFs to subscriptions); central `files` table with tenant + owner + key + metadata
+- Identity asset wiring — user avatar + org logo flows through auth + tenant settings UI
+- Generic tenant-attachments path — any module can attach files to its records via the shared adapter
+- Reusable UI uploader in `packages/ui` — drag-and-drop, progress bar, image preview; used by Next.js customer app and Vite admin app
+- Async image transform jobs via BullMQ — variant generation off the upload response path
 
 **Adapter matrix:**
 
 | Port | Adapters shipped |
 |------|------------------|
-| `ErrorTracker` | Sentry, GlitchTip, Pino-sink/noop |
-| `MetricsProvider` + `Tracer` | OTEL → self-hosted Grafana stack, Noop (off) |
+| `FileStorage` | S3 (AWS SDK), S3-compatible (S3 SDK with configurable endpoint), Local (Node FS) |
+| `ImageTransform` | sharp (with Bun-compat verification — fallback to imagescript/wasm-vips if needed) |
 
-**Key context:** Forward-looking — no specific past incidents driving scope. Must remain Bun-compatible (OTEL SDK for Node must work under Bun). Augments existing pino logging, does not replace it. Alert *wiring* is templates + runbooks, not a full in-app alert pipeline (deferred to v1.4+ if demand emerges).
+**Key context:**
+- Reuse existing patterns — port + adapters (matching PaymentProvider, ErrorTracker, Tracer), Drizzle schema with tenant_id scoping, BullMQ for async work
+- **Sharp under Bun** is a research item — verify Bun-native compatibility; fall back to imagescript/wasm-vips if not stable
+- Signed URL flow requires CORS config in the bucket — fork user gets boilerplate + docs
+- Quota tracking integrates with existing `/health/detailed` (Phase 22 pattern)
+- Storage usage tracked via Drizzle counter on every successful upload + cleanup on delete; reconcile job optional
+
+**Out of scope (v1.5+):**
+- Virus scanning (ClamAV/etc adapter) — deferred to a security-focused milestone
+- Video transcoding — depth issue, separate milestone
+- Bulk CSV/Excel imports — different problem domain (data import, not file storage)
+- Browser-side image cropping/editing — frontend feature, not starter-kit core
+- Multi-region replication — operational concern, not v1.4 scope
+- File-access audit log — folds into future audit-log milestone
+
+**Carry-over from v1.3 (NOT v1.4 scope, still pending):**
+- Phase 21 work (OTEL adapters + Grafana stack) — remains deferred; re-evaluate when fork-user demand emerges
+- 18-HUMAN-UAT.md operator gate — gates on first production deploy
+- 22-VERIFICATION.md manual UAT items — gates on staging deploy + browser testing
+- harden-inbound-traceparent-trust-gate todo — production trust hardening when high-volume traffic exposure becomes real
 
 ### Out of Scope
 
@@ -125,6 +153,8 @@ v1.0 shipped in 3 days (2026-04-05 to 2026-04-08) across 116 commits and 5 phase
 v1.1 shipped in 6 days (2026-04-08 to 2026-04-14) across 157 commits and 7 phases (24 plans). All 26 v1.1 requirements validated. Added +6,565 lines across 117 files.
 
 v1.2 shipped in 6 days (2026-04-16 to 2026-04-21) across 115 commits and 4 phases (19 plans). All 23 v1.2 requirements validated. Added +5,908 lines across 114 files. Milestone-close work surfaced and fixed three test-infrastructure bugs (Elysia `.mount()` guard against partial mocks, `get-profile` lazy dep resolution for `mock.module()`, `packages/ui` tests routed through Vitest+jsdom), leaving the suite at 56/56 auth + 21/21 UI passing at close.
+
+v1.3 shipped in 13 days (2026-04-22 to 2026-05-05) across 239 commits and 7 phases / 38 plans (Phase 21 deferred to v1.4+). 21/28 requirements satisfied with 5 deferred to v1.4 (Phase 21 — Sentry SaaS covers operator audience for hosted forks) and 2 satisfied with operator UAT carryover (EXT-01 release-tag verification, OPS-02 manual iframe UAT). Decimal Phase 20.1 inserted mid-milestone (2026-04-26) as urgent gap-closure after live UAT against real Sentry DSN + authenticated session + BullMQ producer/consumer round-trip surfaced 3 production-grade issues (drizzle journal repair, billing TypeError, obsContext↔OTel bridge). 8 known deferred items at close (see STATE.md `## Deferred Items` and MILESTONES.md v1.3 entry).
 
 ## Constraints
 
@@ -166,6 +196,15 @@ v1.2 shipped in 6 days (2026-04-16 to 2026-04-21) across 115 commits and 4 phase
 | Phase 16 content-drift fixes (docs-first over code-first) | Chose Option A: revise docs to match live `event-bus-hook` enqueue path rather than retrofit `ctx.enqueue`. Lower risk, preserves the working pattern | ✓ Good — 6 audit gaps closed, no new code paths introduced |
 | Phase 17 OTEL bootstrap: `NodeSDK` without `traceExporter` + dynamic `await import("@baseworks/config")` after `sdk.start()` (v1.3) | Zero-exporter keeps default-noop posture (T-17-03 noop egress); dynamic import preserves D-06 — config load must not run before OTEL patches require/import | ✓ Good — subprocess smoke tests confirm `otel-selftest: ok` with zero outbound traffic; all 4 instrumentation subtests pass |
 | Phase 17 `INSTANCE_ROLE` strict `'api' \| 'worker'` union, default 'api' (v1.3) | Two-role model matches Baseworks deployment reality; dropping the speculative 'all' role avoids a leaky abstraction ahead of real need | ✓ Good — role-branched instrumentation matrix cleanly gates HTTP to api only |
+| Defer Phase 21 (OTEL adapters + Grafana stack) to v1.4+ (2026-04-27) | Sentry SaaS already provides metrics/dashboards/alerts for hosted forks; the observability ports shipped in Phase 17 are vendor-agnostic, so a future fork wanting self-hosted Grafana can wire OTLP without touching application code. Cuts 1 phase from v1.3 scope; MET-01..03 + DOC-01..02 move to deferred. | Pending — re-evaluate when fork-user demand for self-hosted observability emerges |
+| Single `AsyncLocalStorage<ObservabilityContext>` for request-scoped trace correlation (v1.3 Phase 19) | Bridges OTel ambient context, pino log mixin, BullMQ job carriers, and CQRS dispatch spans through one storage primitive. Biome GritQL rule bans `enterWith` so context cannot escape via the unsafe API. | ✓ Good — every log line, every dispatch span, every BullMQ job inherits the same `{requestId, traceId, spanId, tenantId, userId}` |
+| External wrapper pattern for CqrsBus + EventBus tracing (v1.3 Phase 19) | `wrapCqrsBus(bus, tracker)` and `wrapEventBus(bus, tracker)` are external — zero edits to `apps/api/src/core/cqrs.ts` or `event-bus.ts`. Same instance the rest of the application reads is replaced at registry boot. | ✓ Good — D-01 invariant preserved end-to-end across Phase 18 + 19 + 20; instrumentation is removable without touching core |
+| Single `SentryErrorTracker` class serving both Sentry and GlitchTip via `kind` tag (v1.3 Phase 18) | Rather than two adapter classes implementing the port twice, one class with `kind: 'sentry' \| 'glitchtip'` covers both backends since GlitchTip's API is Sentry-compatible. Adapter conformance test runs the same fixture suite against both, proving parity by structural identity. | ✓ Good — ERR-01 and ERR-02 close simultaneously; future Sentry-compatible backends just add a kind value |
+| `scrubPii()` defense-in-depth: regex + denylist + webhook-route rule + per-adapter `beforeSend`/`beforeBreadcrumb` (v1.3 Phase 18) | Single redaction function called from PinoErrorTracker (input gate) AND in Sentry adapter's `beforeSend`/`beforeBreadcrumb` (output gate). Defense in depth: even if a future code path bypasses the input gate, Sentry sees redacted data. | ✓ Good — 39-test PII conformance suite covers 13 fixtures × 3 adapters; one fixture caught a `tenantId` regression in SentryErrorTracker.captureException |
+| Synthetic OTel SpanContext seed at Bun.serve fetch boundary (v1.3 Phase 20.1 D-11) | Phase 19 left `obsContext.traceId` and OTel server-span `traceId` divergent — log lines and Tempo traces did not correlate. Phase 20.1 wraps `app.handle` with `context.with(otelCtx, () => obsContext.run(seed, fn))` so OTel ambient context wraps the ALS seed; downstream tracer.startSpan and propagation.inject naturally inherit the request's traceId. | ✓ Good — SC#3 (single-trace continuity API → enqueue → worker) closed at production-code level; no per-adapter wiring needed |
+| Drop CIDR-based traceparent trust gate, adopt OTel always-trust default (v1.3 Phase 20.1 D-12) | OBS_TRUST_TRACEPARENT_FROM/HEADER env vars + ipaddr.js trust logic deleted. v1.3 trusts inbound traceparent unconditionally, matching OTel's default posture. Production trust hardening (CIDR allowlist or signed traceparent) deferred to a follow-up todo for v1.4+. | ⚠️ Revisit at v1.4 — `harden-inbound-traceparent-trust-gate` todo captures the trust-boundary work needed before high-volume production exposure |
+| 9 incident runbooks + 9 Sentry alert JSONs as the operator surface for v1.3 (v1.3 Phase 23) | Templates beat tooling: a fork user wanting Grafana can import the JSON; a fork user staying on Sentry can import the same JSON. `runbook_url` annotation links every alert to the matching `docs/runbooks/*.md`. CI's `validate-docs.ts` 4th invariant fails the build if a `runbook_url` points to a missing file. | ✓ Good — operator surface ships independent of any specific monitoring backend; CI gate prevents docs drift |
+| `HealthContributor` rollup pattern with worst-of-N + 5s cache + race-resolves-not-throws (v1.3 Phase 22) | Each module declares `def.health` returning a typed contribution; ModuleRegistry collects all contributors at boot; aggregator computes worst severity across all modules with a 5s cache and a `Promise.race` timeout that resolves (not throws) so a hung contributor doesn't block the whole `/health/detailed` response. | ✓ Good — one endpoint fans out across 4+ contributors with predictable bounded latency; module-author DX is one function shape |
 
 ## Evolution
 
@@ -185,4 +224,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-26 after Phase 20 (BullMQ Trace Propagation) completed — CTX-04 + TRC-03 satisfied at trace-data level (Tempo visual confirmation deferred to Phase 21 per CONTEXT D-08)*
+*Last updated: 2026-05-05 — v1.3 closed, v1.4 (File Storage & Uploads) goals defined. Active milestone targets a typed FileStorage port + S3/S3-compat/local adapters, signed direct uploads with image transforms, per-tenant quotas, and a reusable UI uploader.*

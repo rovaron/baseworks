@@ -27,10 +27,7 @@ export function installGlobalErrorHandlers(tracker: ErrorTracker): void {
   if (INSTALLED.has(tracker)) return;
   INSTALLED.add(tracker);
 
-  const handle = async (
-    err: unknown,
-    kind: "uncaughtException" | "unhandledRejection",
-  ) => {
+  const handle = async (err: unknown, kind: "uncaughtException" | "unhandledRejection") => {
     try {
       tracker.captureException(err, { extra: { handler: kind } });
       await tracker.flush(2000);

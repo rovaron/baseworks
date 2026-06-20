@@ -1,8 +1,8 @@
-import { describe, test, expect, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { and, eq, sql } from "drizzle-orm";
 import { createDb } from "../connection";
 import { scopedDb } from "../helpers/scoped-db";
 import { examples } from "../schema/example";
-import { eq, and, sql } from "drizzle-orm";
 
 /**
  * Integration tests for scopedDb tenant isolation.
@@ -10,7 +10,8 @@ import { eq, and, sql } from "drizzle-orm";
  * Tests will be skipped if PostgreSQL is unavailable.
  */
 
-const TEST_DB_URL = process.env.DATABASE_URL ?? "postgres://baseworks:baseworks@localhost:5432/baseworks";
+const TEST_DB_URL =
+  process.env.DATABASE_URL ?? "postgres://baseworks:baseworks@localhost:5432/baseworks";
 
 let db: ReturnType<typeof createDb>;
 let canConnect = false;
@@ -23,12 +24,8 @@ beforeAll(async () => {
     canConnect = true;
 
     // Clean up any previous test data
-    await db.delete(examples).where(
-      eq(examples.tenantId, "tenant-a"),
-    );
-    await db.delete(examples).where(
-      eq(examples.tenantId, "tenant-b"),
-    );
+    await db.delete(examples).where(eq(examples.tenantId, "tenant-a"));
+    await db.delete(examples).where(eq(examples.tenantId, "tenant-b"));
 
     // Seed test data for two tenants
     await db.insert(examples).values([
@@ -37,7 +34,10 @@ beforeAll(async () => {
       { tenantId: "tenant-b", title: "B-Item-1", description: "Tenant B first" },
     ]);
   } catch (e) {
-    console.warn("PostgreSQL unavailable -- scoped-db tests will be skipped:", (e as Error).message);
+    console.warn(
+      "PostgreSQL unavailable -- scoped-db tests will be skipped:",
+      (e as Error).message,
+    );
     canConnect = false;
   }
 });
@@ -77,9 +77,9 @@ describe("scopedDb", () => {
     expect(inserted.title).toBe("A-Inserted");
 
     // Cleanup the inserted row
-    await db.delete(examples).where(
-      and(eq(examples.tenantId, "tenant-a"), eq(examples.title, "A-Inserted")),
-    );
+    await db
+      .delete(examples)
+      .where(and(eq(examples.tenantId, "tenant-a"), eq(examples.title, "A-Inserted")));
   });
 
   test("select with tenant A does NOT return tenant B data", async () => {
@@ -161,7 +161,12 @@ describe("scopedDb", () => {
 describe("scopedDb edge cases", () => {
   test("exposes raw property for unscoped access", () => {
     // Create a minimal mock db to test structural properties
-    const mockDb = { select: () => {}, insert: () => {}, update: () => {}, delete: () => {} } as any;
+    const mockDb = {
+      select: () => {},
+      insert: () => {},
+      update: () => {},
+      delete: () => {},
+    } as any;
     const scoped = scopedDb(mockDb, "test-tenant");
 
     // raw should be the original unscoped db instance

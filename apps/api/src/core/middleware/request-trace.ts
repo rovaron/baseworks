@@ -1,5 +1,5 @@
-import { Elysia } from "elysia";
 import { getObsContext } from "@baseworks/observability";
+import { Elysia } from "elysia";
 import { createRequestLogger } from "../../lib/logger";
 
 /**

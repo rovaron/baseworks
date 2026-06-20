@@ -1,6 +1,6 @@
-import { describe, test, expect } from "bun:test";
-import authModule from "../index";
+import { describe, expect, test } from "bun:test";
 import * as authSchema from "@baseworks/db/src/schema/auth";
+import authModule from "../index";
 
 describe("auth module setup", () => {
   test("module definition has correct name", () => {

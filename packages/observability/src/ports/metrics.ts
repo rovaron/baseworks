@@ -80,10 +80,7 @@ export interface MetricsProvider {
    * @param options - Optional description and unit
    * @returns Histogram handle
    */
-  histogram(
-    name: string,
-    options?: { description?: string; unit?: string },
-  ): Histogram;
+  histogram(name: string, options?: { description?: string; unit?: string }): Histogram;
 
   /**
    * Get or create a gauge instrument.

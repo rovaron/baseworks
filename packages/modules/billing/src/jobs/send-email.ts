@@ -1,19 +1,15 @@
-import { Resend } from "resend";
-import { render } from "@react-email/components";
 import { env } from "@baseworks/config";
-import {
-  getMessages,
-  interpolate,
-  defaultLocale,
-  type Locale,
-} from "@baseworks/i18n";
-import { WelcomeEmail } from "../templates/welcome";
-import { PasswordResetEmail } from "../templates/password-reset";
+import { defaultLocale, getMessages, interpolate, type Locale } from "@baseworks/i18n";
+import { render } from "@react-email/components";
+import type { ReactElement } from "react";
+import { Resend } from "resend";
 import { BillingNotificationEmail } from "../templates/billing-notification";
+import { PasswordResetEmail } from "../templates/password-reset";
 import { TeamInviteEmail } from "../templates/team-invite";
+import { WelcomeEmail } from "../templates/welcome";
 
-const templates: Record<string, (data: any) => JSX.Element> = {
-  "welcome": (data) => WelcomeEmail(data),
+const templates: Record<string, (data: any) => ReactElement> = {
+  welcome: (data) => WelcomeEmail(data),
   "password-reset": (data) => PasswordResetEmail(data),
   "magic-link": (data) => PasswordResetEmail({ ...data, userName: data.email }),
   "billing-notification": (data) => BillingNotificationEmail(data),
@@ -24,7 +20,7 @@ const templates: Record<string, (data: any) => JSX.Element> = {
 };
 
 const subjects: Record<string, string> = {
-  "welcome": "Welcome to Baseworks!",
+  welcome: "Welcome to Baseworks!",
   "password-reset": "Reset Your Password",
   "magic-link": "Your Sign-in Link",
   "billing-notification": "Billing Update",
@@ -39,10 +35,7 @@ const subjects: Record<string, string> = {
  * Falls back to the raw role key if an unknown role arrives (defensive —
  * better-auth's organization plugin only emits owner/admin/member today).
  */
-function resolveRoleLabel(
-  messages: Record<string, Record<string, unknown>>,
-  role: string,
-): string {
+function resolveRoleLabel(messages: Record<string, Record<string, unknown>>, role: string): string {
   const roles = messages.invite?.roles as Record<string, string> | undefined;
   return roles?.[role] ?? role;
 }
@@ -79,7 +72,7 @@ async function resolveTeamInvite(data: {
   const fallback =
     locale === defaultLocale
       ? email
-      : (((await getMessages(defaultLocale)).invite?.email as typeof email));
+      : ((await getMessages(defaultLocale)).invite?.email as typeof email);
   const resolved = email ?? fallback;
   if (!resolved) {
     throw new Error(
@@ -126,7 +119,11 @@ async function resolveTeamInvite(data: {
  *   send time; other templates use hardcoded English.
  */
 export async function sendEmail(data: unknown): Promise<void> {
-  const { to, template, data: templateData } = data as {
+  const {
+    to,
+    template,
+    data: templateData,
+  } = data as {
     to: string;
     template: string;
     data: Record<string, unknown>;

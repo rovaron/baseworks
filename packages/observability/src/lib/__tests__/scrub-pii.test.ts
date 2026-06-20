@@ -17,9 +17,9 @@
  * takes effect, and the DENY_SET would already be built with the real env.
  */
 
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { PII_FIXTURES } from "../../adapters/__tests__/pii-fixtures";
-import { scrubPii, DEFAULT_DENY_KEYS } from "../scrub-pii";
+import { DEFAULT_DENY_KEYS, scrubPii } from "../scrub-pii";
 
 /**
  * Helper: build a single-key object, scrub it, and assert the value no longer

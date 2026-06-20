@@ -1,6 +1,6 @@
-import { describe, test, expect } from "bun:test";
-import { Glob } from "bun";
+import { describe, expect, test } from "bun:test";
 import { join, sep } from "node:path";
+import { Glob } from "bun";
 
 /**
  * Phase 19 Plan 03 Task 2 — CTX-03 call-site invariance gate.

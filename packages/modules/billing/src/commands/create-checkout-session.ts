@@ -1,8 +1,7 @@
+import { defineCommand, err, ok } from "@baseworks/shared";
 import { Type } from "@sinclair/typebox";
-import { defineCommand, ok, err } from "@baseworks/shared";
-import { billingCustomers } from "../schema";
 import { getPaymentProvider } from "../provider-factory";
-import { eq } from "drizzle-orm";
+import { billingCustomers } from "../schema";
 
 const CreateCheckoutSessionInput = Type.Object({
   priceId: Type.String(),
@@ -30,11 +29,9 @@ export const createCheckoutSession = defineCommand(
   CreateCheckoutSessionInput,
   async (input, ctx) => {
     try {
-      const [customer] = await ctx.db
-        .select()
-        .from(billingCustomers)
-        .where(eq(billingCustomers.tenantId, ctx.tenantId))
-        .limit(1);
+      // Phase 20.1 Plan 02 — Option A: scopedDb.select(table) auto-injects
+      // the tenantId predicate.
+      const [customer] = await ctx.db.select(billingCustomers).limit(1);
 
       if (!customer) {
         return err("BILLING_NOT_CONFIGURED");
@@ -49,8 +46,11 @@ export const createCheckoutSession = defineCommand(
       });
 
       return ok({ sessionId: session.sessionId, url: session.url });
-    } catch (error: any) {
-      return err(error.message || "Failed to create checkout session");
+    } catch (error: unknown) {
+      // Phase 20.1 WR-02 — narrow `unknown` so non-Error throws fall back
+      // to the generic message instead of TypeError on `.message`.
+      const message = error instanceof Error ? error.message : "Failed to create checkout session";
+      return err(message || "Failed to create checkout session");
     }
   },
 );

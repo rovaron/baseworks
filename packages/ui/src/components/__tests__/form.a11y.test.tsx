@@ -1,21 +1,14 @@
-import { describe, it, expect } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
-import { axe } from "vitest-axe";
 import * as React from "react";
 import { useForm } from "react-hook-form";
-import {
-  Form,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-} from "../form";
+import { describe, expect, it } from "vitest";
+import { axe } from "vitest-axe";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../form";
 import { Input } from "../input";
 
 function expectNoSeriousViolations(results: Awaited<ReturnType<typeof axe>>) {
   const serious = results.violations.filter(
-    (v) => v.impact === "critical" || v.impact === "serious"
+    (v) => v.impact === "critical" || v.impact === "serious",
   );
   expect(serious).toHaveLength(0);
 }

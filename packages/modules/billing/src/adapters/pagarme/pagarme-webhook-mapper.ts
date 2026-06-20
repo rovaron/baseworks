@@ -1,8 +1,4 @@
-import type {
-  RawProviderEvent,
-  NormalizedEvent,
-  NormalizedEventType,
-} from "../../ports/types";
+import type { NormalizedEvent, NormalizedEventType, RawProviderEvent } from "../../ports/types";
 
 /**
  * Pagar.me event type to NormalizedEventType mapping.
@@ -51,9 +47,7 @@ export function mapPagarmeEvent(rawEvent: RawProviderEvent): NormalizedEvent {
       subscriptionId: data?.subscription?.id ?? data?.id,
       priceId: data?.plan?.id,
       status: data?.status,
-      currentPeriodEnd: data?.current_period_end
-        ? new Date(data.current_period_end)
-        : undefined,
+      currentPeriodEnd: data?.current_period_end ? new Date(data.current_period_end) : undefined,
       amount: data?.amount ?? data?.last_transaction?.amount,
       currency: data?.currency ?? "BRL",
     },

@@ -1,22 +1,24 @@
-import i18n from "i18next";
-import { initReactI18next } from "react-i18next";
 import {
   defaultLocale,
+  enAdmin,
+  enAuth,
+  enBilling,
+  enCommon,
+  enDashboard,
+  enFiles,
+  enInvite,
   locales,
   namespaces,
-  enCommon,
-  enAuth,
-  enDashboard,
-  enBilling,
-  enAdmin,
-  enInvite,
-  ptBRCommon,
-  ptBRAuth,
-  ptBRDashboard,
-  ptBRBilling,
   ptBRAdmin,
+  ptBRAuth,
+  ptBRBilling,
+  ptBRCommon,
+  ptBRDashboard,
+  ptBRFiles,
   ptBRInvite,
 } from "@baseworks/i18n";
+import i18n from "i18next";
+import { initReactI18next } from "react-i18next";
 
 const resources = {
   en: {
@@ -26,6 +28,7 @@ const resources = {
     billing: enBilling,
     admin: enAdmin,
     invite: enInvite,
+    files: enFiles,
   },
   "pt-BR": {
     common: ptBRCommon,
@@ -34,6 +37,7 @@ const resources = {
     billing: ptBRBilling,
     admin: ptBRAdmin,
     invite: ptBRInvite,
+    files: ptBRFiles,
   },
 };
 

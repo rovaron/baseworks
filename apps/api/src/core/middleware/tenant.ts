@@ -1,6 +1,7 @@
-import { Elysia } from "elysia";
 import { auth } from "@baseworks/module-auth";
 import { setTenantContext } from "@baseworks/observability";
+import { NoActiveTenantError, UnauthorizedError } from "@baseworks/shared";
+import { Elysia } from "elysia";
 
 /**
  * Tenant context middleware. Derives tenantId from the authenticated
@@ -21,10 +22,14 @@ import { setTenantContext } from "@baseworks/observability";
  * to routes like /health or /api/auth/* registered before it).
  *
  * Per Pitfall 3: If activeOrganizationId is null (e.g., just
- * signed up), auto-selects the user's first organization.
+ * signed up), auto-selects the user's organization deterministically
+ * (orgs sorted by stable id so a multi-org user always binds to the
+ * same tenant), and self-heals by lazily creating a personal workspace
+ * if the user has zero organizations (e.g. the signup auto-create hook
+ * failed) so they are never permanently locked out.
  *
- * @throws Error("Unauthorized") if no valid session exists
- * @throws Error("No active tenant") if no organization is available
+ * @throws UnauthorizedError if no valid session exists
+ * @throws NoActiveTenantError if no organization is available
  */
 export const tenantMiddleware = new Elysia({ name: "tenant-context" }).derive(
   { as: "scoped" },
@@ -34,20 +39,24 @@ export const tenantMiddleware = new Elysia({ name: "tenant-context" }).derive(
     });
 
     if (!session) {
-      throw new Error("Unauthorized");
+      throw new UnauthorizedError();
     }
 
     let tenantId = session.session.activeOrganizationId;
 
     // Per Pitfall 3: activeOrganizationId may not be set after signup.
-    // Auto-select user's first org if no active org is set.
+    // Auto-select the user's org if no active org is set.
     if (!tenantId) {
       try {
         const orgs = await auth.api.listOrganizations({
           headers: request.headers,
         });
         if (orgs && orgs.length > 0) {
-          tenantId = orgs[0].id;
+          // Deterministic auto-select: sort by stable id so a user who
+          // belongs to multiple orgs always binds to the same tenant when
+          // no active org is set, instead of whatever order the API returns.
+          const [firstOrg] = [...orgs].sort((a, b) => a.id.localeCompare(b.id));
+          tenantId = firstOrg.id;
           // Try to set as active for future requests (non-blocking)
           try {
             await auth.api.setActiveOrganization({
@@ -57,6 +66,37 @@ export const tenantMiddleware = new Elysia({ name: "tenant-context" }).derive(
           } catch {
             // Non-fatal: we have tenantId for this request
           }
+        } else {
+          // Self-healing: the user has zero organizations (e.g. the signup
+          // auto-create hook threw and swallowed the error). Rather than
+          // lock them out permanently with "No active tenant", lazily create
+          // a personal workspace here. The slug mirrors the signup hook but
+          // uses a random suffix so retries don't collide on the 8-char id
+          // prefix.
+          try {
+            const displayName = session.user.name || session.user.email.split("@")[0];
+            const created = await auth.api.createOrganization({
+              headers: request.headers,
+              body: {
+                name: `${displayName}'s Workspace`,
+                slug: `personal-${session.user.id.slice(0, 8)}-${crypto.randomUUID().slice(0, 8)}`,
+                userId: session.user.id,
+              },
+            });
+            if (created) {
+              tenantId = created.id;
+              try {
+                await auth.api.setActiveOrganization({
+                  headers: request.headers,
+                  body: { organizationId: tenantId },
+                });
+              } catch {
+                // Non-fatal: we have tenantId for this request
+              }
+            }
+          } catch {
+            // If creation fails, fall through to the "No active tenant" throw.
+          }
         }
       } catch {
         // If listing fails, we have no tenant context
@@ -64,7 +104,7 @@ export const tenantMiddleware = new Elysia({ name: "tenant-context" }).derive(
     }
 
     if (!tenantId) {
-      throw new Error("No active tenant");
+      throw new NoActiveTenantError();
     }
 
     // Phase 19 D-04 — publish session-derived tenant/user into the unified

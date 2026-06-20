@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
 describe("workspace imports", () => {
   test("@baseworks/shared exports CQRS types and helpers", async () => {

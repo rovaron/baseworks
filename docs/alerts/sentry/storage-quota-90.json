@@ -1,0 +1,25 @@
+{
+  "name": "Storage quota — tenant >= 90% (warning)",
+  "dataset": "metrics",
+  "query": "metric:storage.quota.pct",
+  "aggregate": "max(storage.quota.pct)",
+  "timeWindow": 60,
+  "thresholdType": 0,
+  "resolveThreshold": 0.85,
+  "triggers": [
+    {
+      "label": "warning",
+      "alertThreshold": 0.9,
+      "thresholdType": 0,
+      "actions": [{ "type": "email", "targetType": "team", "targetIdentifier": "OPERATOR_TEAM_ID" }]
+    }
+  ],
+  "projects": ["YOUR_PROJECT_SLUG"],
+  "environment": "production",
+  "runbook_url": "../../runbooks/storage-quota-exceeded.md",
+  "_baseworks_meta": {
+    "endpoint": "POST /api/0/organizations/{org}/alert-rules/",
+    "slo_note": "Warning when any tenant's bytes_used / COALESCE(bytes_limit, STORAGE_DEFAULT_QUOTA_BYTES) reaches 90%. Forward-looking: requires custom-metrics wiring (v1.4+ OTLP) to emit storage.quota.pct per tenant. Until then, operators monitor via /health/detailed data.storage.quota.topTenants[].pctUsed (tenantsAtWarn). At the health level >=90% is informational only (no degrade); this Sentry alert is the actual warning surface.",
+    "priority": "medium"
+  }
+}

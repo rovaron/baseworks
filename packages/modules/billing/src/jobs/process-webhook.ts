@@ -1,11 +1,11 @@
 import { env } from "@baseworks/config";
-import {
-  createDb,
-  billingCustomers,
-  webhookEvents,
-} from "@baseworks/db";
-import { eq } from "drizzle-orm";
+import type { DbInstance } from "@baseworks/db";
+import { billingCustomers, getDb, webhookEvents } from "@baseworks/db";
+import { and, eq, isNull, lt, or } from "drizzle-orm";
+import pino from "pino";
 import type { NormalizedEvent } from "../ports/types";
+
+const logger = pino({ name: "billing-process-webhook" });
 
 /**
  * Webhook event processing job handler.
@@ -43,7 +43,7 @@ interface WebhookJobData {
  */
 export async function processWebhook(data: unknown): Promise<void> {
   const { eventId, normalizedEvent } = data as WebhookJobData;
-  const db = createDb(env.DATABASE_URL);
+  const db = getDb(env.DATABASE_URL);
 
   // Load the event from webhook_events table
   const [event] = await db
@@ -87,15 +87,14 @@ export async function processWebhook(data: unknown): Promise<void> {
         break;
 
       case "payment.succeeded":
-        console.log(
-          `[BILLING] Payment succeeded for customer ${normalizedEvent.providerCustomerId}`,
+        logger.info(
+          { providerCustomerId: normalizedEvent.providerCustomerId },
+          "Payment succeeded",
         );
         break;
 
       case "payment.failed":
-        console.log(
-          `[BILLING] Payment failed for customer ${normalizedEvent.providerCustomerId}`,
-        );
+        await handlePaymentFailed(db, normalizedEvent, eventTime);
         break;
     }
 
@@ -124,7 +123,10 @@ export async function processWebhook(data: unknown): Promise<void> {
  * @param db - Database instance
  * @param normalizedEvent - Normalized checkout event
  */
-async function handleCheckoutCompleted(db: any, normalizedEvent: NormalizedEvent): Promise<void> {
+async function handleCheckoutCompleted(
+  db: DbInstance,
+  normalizedEvent: NormalizedEvent,
+): Promise<void> {
   if (!normalizedEvent.providerCustomerId || !normalizedEvent.data.subscriptionId) return;
 
   await db
@@ -142,63 +144,21 @@ async function handleCheckoutCompleted(db: any, normalizedEvent: NormalizedEvent
  * Handle subscription.created: set subscription details on
  * billing customer.
  *
+ * Applies the same lastEventAt ordering guard as subscription.updated so a
+ * delayed/replayed create cannot clobber newer state. Implemented as a single
+ * atomic conditional UPDATE (WHERE lastEventAt IS NULL OR lastEventAt < eventTime)
+ * to avoid the read-then-write TOCTOU race.
+ *
  * @param db - Database instance
  * @param normalizedEvent - Normalized subscription event
  * @param eventTime - Event timestamp for ordering protection
  */
 async function handleSubscriptionCreated(
-  db: any,
+  db: DbInstance,
   normalizedEvent: NormalizedEvent,
   eventTime: Date,
 ): Promise<void> {
   if (!normalizedEvent.providerCustomerId) return;
-
-  const now = new Date();
-
-  await db
-    .update(billingCustomers)
-    .set({
-      providerSubscriptionId: normalizedEvent.data.subscriptionId ?? null,
-      providerPriceId: normalizedEvent.data.priceId ?? null,
-      status: normalizedEvent.data.status ?? "active",
-      currentPeriodEnd: normalizedEvent.data.currentPeriodEnd ?? null,
-      lastEventAt: eventTime,
-      updatedAt: now,
-    })
-    .where(eq(billingCustomers.providerCustomerId, normalizedEvent.providerCustomerId));
-}
-
-/**
- * Handle subscription.updated: update billing customer if event
- * is newer than the last processed event.
- *
- * Per Pitfall 3 (T-03-09): Only update if event timestamp >
- * lastEventAt to protect against out-of-order webhook delivery.
- *
- * @param db - Database instance
- * @param normalizedEvent - Normalized subscription event
- * @param eventTime - Event timestamp for ordering comparison
- */
-async function handleSubscriptionUpdated(
-  db: any,
-  normalizedEvent: NormalizedEvent,
-  eventTime: Date,
-): Promise<void> {
-  if (!normalizedEvent.providerCustomerId) return;
-
-  // Only update if this event is newer than the last processed event
-  const [existing] = await db
-    .select({ lastEventAt: billingCustomers.lastEventAt })
-    .from(billingCustomers)
-    .where(eq(billingCustomers.providerCustomerId, normalizedEvent.providerCustomerId))
-    .limit(1);
-
-  if (existing?.lastEventAt && eventTime <= existing.lastEventAt) {
-    console.log(
-      `[BILLING] Skipping stale subscription.updated for ${normalizedEvent.providerCustomerId} (event: ${eventTime.toISOString()}, lastEventAt: ${existing.lastEventAt.toISOString()})`,
-    );
-    return;
-  }
 
   await db
     .update(billingCustomers)
@@ -210,19 +170,70 @@ async function handleSubscriptionUpdated(
       lastEventAt: eventTime,
       updatedAt: new Date(),
     })
-    .where(eq(billingCustomers.providerCustomerId, normalizedEvent.providerCustomerId));
+    .where(
+      and(
+        eq(billingCustomers.providerCustomerId, normalizedEvent.providerCustomerId),
+        or(isNull(billingCustomers.lastEventAt), lt(billingCustomers.lastEventAt, eventTime)),
+      ),
+    );
+}
+
+/**
+ * Handle subscription.updated: update billing customer if event
+ * is newer than the last processed event.
+ *
+ * Per Pitfall 3 (T-03-09): Only update if event timestamp >
+ * lastEventAt to protect against out-of-order webhook delivery.
+ *
+ * Implemented as a single atomic conditional UPDATE
+ * (WHERE providerCustomerId = ... AND (lastEventAt IS NULL OR lastEventAt < eventTime))
+ * so two workers processing concurrent events for the same customer cannot
+ * both pass a read-side guard and let the stale write win (TOCTOU race).
+ * Matches 0 rows when the event is stale or no customer exists.
+ *
+ * @param db - Database instance
+ * @param normalizedEvent - Normalized subscription event
+ * @param eventTime - Event timestamp for ordering comparison
+ */
+async function handleSubscriptionUpdated(
+  db: DbInstance,
+  normalizedEvent: NormalizedEvent,
+  eventTime: Date,
+): Promise<void> {
+  if (!normalizedEvent.providerCustomerId) return;
+
+  await db
+    .update(billingCustomers)
+    .set({
+      providerSubscriptionId: normalizedEvent.data.subscriptionId ?? null,
+      providerPriceId: normalizedEvent.data.priceId ?? null,
+      status: normalizedEvent.data.status ?? "active",
+      currentPeriodEnd: normalizedEvent.data.currentPeriodEnd ?? null,
+      lastEventAt: eventTime,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(billingCustomers.providerCustomerId, normalizedEvent.providerCustomerId),
+        or(isNull(billingCustomers.lastEventAt), lt(billingCustomers.lastEventAt, eventTime)),
+      ),
+    );
 }
 
 /**
  * Handle subscription.cancelled: mark billing customer as
  * canceled.
  *
+ * Applies the same lastEventAt ordering guard (atomic conditional UPDATE) so a
+ * late/duplicated cancellation cannot flip an already-reactivated customer back
+ * to 'canceled'.
+ *
  * @param db - Database instance
  * @param normalizedEvent - Normalized cancellation event
  * @param eventTime - Event timestamp for ordering protection
  */
 async function handleSubscriptionDeleted(
-  db: any,
+  db: DbInstance,
   normalizedEvent: NormalizedEvent,
   eventTime: Date,
 ): Promise<void> {
@@ -235,5 +246,49 @@ async function handleSubscriptionDeleted(
       lastEventAt: eventTime,
       updatedAt: new Date(),
     })
-    .where(eq(billingCustomers.providerCustomerId, normalizedEvent.providerCustomerId));
+    .where(
+      and(
+        eq(billingCustomers.providerCustomerId, normalizedEvent.providerCustomerId),
+        or(isNull(billingCustomers.lastEventAt), lt(billingCustomers.lastEventAt, eventTime)),
+      ),
+    );
+}
+
+/**
+ * Handle payment.failed: drive the billing customer to 'past_due' so the
+ * product surfaces a dunning/grace state instead of silently ignoring a failed
+ * recurring charge.
+ *
+ * Uses the same atomic lastEventAt ordering guard as the subscription handlers
+ * so a stale/replayed failure cannot overwrite newer state.
+ *
+ * @param db - Database instance
+ * @param normalizedEvent - Normalized payment.failed event
+ * @param eventTime - Event timestamp for ordering protection
+ */
+async function handlePaymentFailed(
+  db: DbInstance,
+  normalizedEvent: NormalizedEvent,
+  eventTime: Date,
+): Promise<void> {
+  if (!normalizedEvent.providerCustomerId) return;
+
+  logger.warn(
+    { providerCustomerId: normalizedEvent.providerCustomerId },
+    "Payment failed -- marking customer past_due",
+  );
+
+  await db
+    .update(billingCustomers)
+    .set({
+      status: "past_due",
+      lastEventAt: eventTime,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(billingCustomers.providerCustomerId, normalizedEvent.providerCustomerId),
+        or(isNull(billingCustomers.lastEventAt), lt(billingCustomers.lastEventAt, eventTime)),
+      ),
+    );
 }

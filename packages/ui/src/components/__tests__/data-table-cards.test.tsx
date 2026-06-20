@@ -1,14 +1,14 @@
-import { describe, it, expect } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
 import {
   type ColumnDef,
-  getCoreRowModel,
-  useReactTable,
-  getSortedRowModel,
-  getFilteredRowModel,
   type ColumnFiltersState,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getSortedRowModel,
+  useReactTable,
 } from "@tanstack/react-table";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import * as React from "react";
+import { describe, expect, it } from "vitest";
 import { DataTableCards } from "../data-table-cards";
 
 type MockRow = {
@@ -61,7 +61,7 @@ const mockColumns: ColumnDef<MockRow, any>[] = [
   {
     id: "actions",
     header: "",
-    cell: () => <button>Edit</button>,
+    cell: () => <button type="button">Edit</button>,
     meta: { cardHidden: true },
   },
 ];
@@ -77,9 +77,7 @@ function TestWrapper({
   priorityCount?: number;
   columnFilters?: ColumnFiltersState;
 }) {
-  const [filters, setFilters] = React.useState<ColumnFiltersState>(
-    columnFilters ?? []
-  );
+  const [filters, setFilters] = React.useState<ColumnFiltersState>(columnFilters ?? []);
 
   const table = useReactTable({
     data,
@@ -123,10 +121,15 @@ describe("DataTableCards", () => {
     // Detail columns not visible initially
     expect(screen.queryByText("2024-01-01")).not.toBeInTheDocument();
 
-    // Click the first card to expand
+    // Expand the first card via its dedicated toggle button (aria-expanded /
+    // aria-controls / aria-label="Show details"). The [data-card] container
+    // itself has no click handler — clicking it is a no-op by design.
     const firstCard = screen.getByText("Alice").closest("[data-card]");
     expect(firstCard).toBeTruthy();
-    fireEvent.click(firstCard!);
+    const toggle = within(firstCard as HTMLElement).getByRole("button", {
+      name: /show details/i,
+    });
+    fireEvent.click(toggle);
 
     // Now detail column should be visible
     expect(screen.getByText("2024-01-01")).toBeInTheDocument();
@@ -144,11 +147,7 @@ describe("DataTableCards", () => {
   });
 
   it("renders filter chips for active column filters", () => {
-    render(
-      <TestWrapper
-        columnFilters={[{ id: "status", value: "active" }]}
-      />
-    );
+    render(<TestWrapper columnFilters={[{ id: "status", value: "active" }]} />);
 
     // Filter chip should show column name and filter value together
     expect(screen.getByText(/Status: active/i)).toBeInTheDocument();

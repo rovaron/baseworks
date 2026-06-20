@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { mapStripeEvent } from "../adapters/stripe/stripe-webhook-mapper";
 import type { RawProviderEvent } from "../ports/types";
 
@@ -9,10 +9,7 @@ import type { RawProviderEvent } from "../ports/types";
  * to provider-agnostic NormalizedEvent types.
  */
 
-function makeStripeEvent(
-  type: string,
-  object: Record<string, unknown> = {},
-): RawProviderEvent {
+function makeStripeEvent(type: string, object: Record<string, unknown> = {}): RawProviderEvent {
   return {
     id: `evt_test_${type.replace(/\./g, "_")}`,
     type,
@@ -152,10 +149,7 @@ describe("Webhook Normalization", () => {
   describe("Pagar.me", () => {
     const { mapPagarmeEvent } = require("../adapters/pagarme/pagarme-webhook-mapper");
 
-    function makePagarmeEvent(
-      type: string,
-      data: Record<string, unknown> = {},
-    ): RawProviderEvent {
+    function makePagarmeEvent(type: string, data: Record<string, unknown> = {}): RawProviderEvent {
       return {
         id: `hook_test_${type.replace(/\./g, "_")}`,
         type,

@@ -14,13 +14,9 @@
  * do not bleed state.
  */
 
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { NoopErrorTracker } from "../../adapters/noop/noop-error-tracker";
-import {
-  getErrorTracker,
-  setErrorTracker,
-  resetErrorTracker,
-} from "../../factory";
+import { getErrorTracker, resetErrorTracker, setErrorTracker } from "../../factory";
 import type { ErrorTracker } from "../../ports/error-tracker";
 
 describe("error tracker factory (OBS-01)", () => {

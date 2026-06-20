@@ -1,0 +1,36 @@
+{
+  "name": "Bull-board inaccessible — admin queue UI failures",
+  "actionMatch": "all",
+  "filterMatch": "all",
+  "frequency": 5,
+  "environment": "production",
+  "conditions": [
+    {
+      "id": "sentry.rules.conditions.event_frequency.EventFrequencyCondition",
+      "value": 5,
+      "interval": "5m"
+    }
+  ],
+  "filters": [
+    {
+      "id": "sentry.rules.filters.tagged_event.TaggedEventFilter",
+      "key": "route",
+      "match": "eq",
+      "value": "/admin/bull-board"
+    }
+  ],
+  "actions": [
+    {
+      "id": "sentry.mail.actions.NotifyEmailAction",
+      "targetType": "Team",
+      "fallthroughType": "AllMembers",
+      "targetIdentifier": "OPERATOR_TEAM_ID"
+    }
+  ],
+  "runbook_url": "../../runbooks/bull-board-inaccessible.md",
+  "_baseworks_meta": {
+    "endpoint": "POST /api/0/projects/{org}/{project}/rules/",
+    "slo_note": "Fires when >=5 bull-board-route 4xx events occur within a 5m window.",
+    "priority": "low"
+  }
+}

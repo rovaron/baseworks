@@ -1,0 +1,26 @@
+{
+  "name": "Slow checkout — p95 latency",
+  "dataset": "transactions",
+  "query": "event.type:transaction transaction:/api/billing/checkout",
+  "aggregate": "p95(transaction.duration)",
+  "timeWindow": 5,
+  "thresholdType": 0,
+  "resolveThreshold": 1500,
+  "triggers": [
+    { "label": "warning", "alertThreshold": 2000, "thresholdType": 0, "actions": [] },
+    {
+      "label": "critical",
+      "alertThreshold": 5000,
+      "thresholdType": 0,
+      "actions": [{ "type": "email", "targetType": "team", "targetIdentifier": "OPERATOR_TEAM_ID" }]
+    }
+  ],
+  "projects": ["YOUR_PROJECT_SLUG"],
+  "environment": "production",
+  "runbook_url": "../../runbooks/slow-checkout.md",
+  "_baseworks_meta": {
+    "endpoint": "POST /api/0/organizations/{org}/alert-rules/",
+    "slo_note": "Fast-burn alert: >=2% monthly latency budget over a 5m window. timeWindow=5 + alertThreshold gating equivalent to Prometheus `for: 5m`.",
+    "priority": "medium"
+  }
+}

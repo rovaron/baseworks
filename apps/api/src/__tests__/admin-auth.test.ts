@@ -1,9 +1,9 @@
-import { describe, test, expect, beforeAll } from "bun:test";
-import { Elysia } from "elysia";
+import { beforeAll, describe, expect, test } from "bun:test";
 import { createDb } from "@baseworks/db";
 import { sql } from "drizzle-orm";
-import { adminRoutes } from "../routes/admin";
+import { Elysia } from "elysia";
 import { errorMiddleware } from "../core/middleware/error";
+import { adminRoutes } from "../routes/admin";
 
 /**
  * Integration tests verifying that requireRole("owner") protects all admin routes.
@@ -16,8 +16,7 @@ import { errorMiddleware } from "../core/middleware/error";
  */
 
 const TEST_DB_URL =
-  process.env.DATABASE_URL ??
-  "postgres://baseworks:baseworks@localhost:5432/baseworks";
+  process.env.DATABASE_URL ?? "postgres://baseworks:baseworks@localhost:5432/baseworks";
 
 let app: any;
 let canConnect = false;
@@ -33,6 +32,17 @@ const ADMIN_ENDPOINTS: Array<{ method: string; path: string; body?: any }> = [
   { method: "POST", path: "/api/admin/users/fake-id/impersonate" },
   { method: "GET", path: "/api/admin/billing/overview" },
   { method: "GET", path: "/api/admin/system/health" },
+  // Phase 30 / UI-02 — cross-tenant admin files routes MUST inherit the
+  // requirePlatformAdmin() gate (an org-owner is NOT a platform operator).
+  { method: "GET", path: "/api/admin/tenants/fake-id/files" },
+  {
+    method: "POST",
+    path: "/api/admin/tenants/fake-id/files/sign-upload",
+    body: { mimeType: "image/png", byteSize: 1024 },
+  },
+  { method: "POST", path: "/api/admin/tenants/fake-id/files/fake-file/complete" },
+  { method: "GET", path: "/api/admin/tenants/fake-id/files/fake-file/read-url" },
+  { method: "DELETE", path: "/api/admin/tenants/fake-id/files/fake-file" },
 ];
 
 beforeAll(async () => {
@@ -68,9 +78,7 @@ describe("Admin routes: requireRole('owner') enforcement", () => {
         init.body = JSON.stringify(endpoint.body);
       }
 
-      const response = await app.handle(
-        new Request(`http://localhost${endpoint.path}`, init),
-      );
+      const response = await app.handle(new Request(`http://localhost${endpoint.path}`, init));
 
       // requireRole should reject with 401 (unauthenticated) or 403 (wrong role)
       expect([401, 403]).toContain(response.status);

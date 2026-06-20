@@ -1,6 +1,6 @@
 import { describe, expect, it, spyOn } from "bun:test";
-import { ModuleRegistry } from "../registry";
 import { logger } from "../../lib/logger";
+import { ModuleRegistry } from "../registry";
 
 describe("ModuleRegistry", () => {
   it("should load example module and register its commands and queries", async () => {
@@ -21,13 +21,16 @@ describe("ModuleRegistry", () => {
     expect(registry.getLoadedNames()).toEqual([]);
   });
 
-  it("should skip and log error for non-existent module", async () => {
+  it("should throw for a non-existent configured module (no partial init)", async () => {
     const errorSpy = spyOn(logger, "error").mockImplementation(() => {});
 
     const registry = new ModuleRegistry({ role: "api", modules: ["nonexistent"] });
-    await registry.loadAll();
-
-    expect(registry.getLoaded().size).toBe(0);
+    // loadAll now fails loudly on a configured module with no import-map entry
+    // (matches its JSDoc "Throws on module load failure to prevent partial
+    // initialization") instead of silently skipping it.
+    await expect(registry.loadAll()).rejects.toThrow(
+      /no entry in the static import map|configured but has no entry/,
+    );
     expect(errorSpy).toHaveBeenCalled();
 
     errorSpy.mockRestore();

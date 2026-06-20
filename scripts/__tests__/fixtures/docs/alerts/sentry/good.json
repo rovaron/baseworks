@@ -1,0 +1,7 @@
+{
+  "name": "test-good-alert",
+  "runbook_url": "../../runbooks/other.md",
+  "_baseworks_meta": {
+    "slo_note": "Test fixture — runbook_url resolves to a real file."
+  }
+}

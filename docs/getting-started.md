@@ -58,6 +58,18 @@ bun db:migrate
 
 `bun db:migrate` runs the Drizzle migrator against `DATABASE_URL`. For a clean development database you may use `bun db:push` instead to push the current schema without creating a migration file.
 
+### Resetting the database after a migration baseline reset (Phase 20.1)
+
+If you cloned Baseworks before 2026-04-26, the migration history was reset to a single `0000_*.sql` baseline reflecting the current `provider_*` schema (per Phase 20.1 D-01/D-02). The new baseline assumes a fresh empty database; existing local checkouts must wipe their Postgres volume before re-applying migrations:
+
+```bash
+docker compose down -v        # destroys the local Postgres volume (all dev data lost)
+docker compose up -d postgres # boots a fresh empty Postgres
+bun run db:migrate            # applies the new baseline (single 0000 migration)
+```
+
+Fresh clones do not need this step — `bun docker:up` followed by `bun db:migrate` is sufficient. The `docker compose down -v` step is destructive: it removes the named Docker volume backing the local Postgres container, deleting all rows in every dev table. Do not run it against any database you care about.
+
 ## 5. Run the API server
 
 ```bash

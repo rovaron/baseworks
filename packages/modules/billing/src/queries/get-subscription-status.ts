@@ -1,7 +1,6 @@
-import { Type } from "@sinclair/typebox";
 import { defineQuery, ok } from "@baseworks/shared";
+import { Type } from "@sinclair/typebox";
 import { billingCustomers } from "../schema";
-import { eq } from "drizzle-orm";
 
 const GetSubscriptionStatusInput = Type.Object({});
 
@@ -24,11 +23,10 @@ const GetSubscriptionStatusInput = Type.Object({});
 export const getSubscriptionStatus = defineQuery(
   GetSubscriptionStatusInput,
   async (_input, ctx) => {
-    const [record] = await ctx.db
-      .select()
-      .from(billingCustomers)
-      .where(eq(billingCustomers.tenantId, ctx.tenantId))
-      .limit(1);
+    // Phase 20.1 Plan 02 — Option A: scopedDb.select(table) auto-injects the
+    // `WHERE tenantId = ctx.tenantId` predicate. Calling `.select()` with no
+    // argument used to crash inside Drizzle's `getTableColumns(undefined)`.
+    const [record] = await ctx.db.select(billingCustomers).limit(1);
 
     if (!record) {
       return ok({

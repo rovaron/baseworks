@@ -1,17 +1,11 @@
-import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import { axe } from "vitest-axe";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "../sheet";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "../sheet";
 
 function expectNoSeriousViolations(results: Awaited<ReturnType<typeof axe>>) {
   const serious = results.violations.filter(
-    (v) => v.impact === "critical" || v.impact === "serious"
+    (v) => v.impact === "critical" || v.impact === "serious",
   );
   expect(serious).toHaveLength(0);
 }
@@ -27,7 +21,7 @@ describe("Sheet a11y", () => {
           </SheetHeader>
           <p>Sheet body content</p>
         </SheetContent>
-      </Sheet>
+      </Sheet>,
     );
     const results = await axe(container);
     expectNoSeriousViolations(results);

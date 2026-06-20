@@ -1,6 +1,6 @@
 import { describe, expect, it, mock, spyOn } from "bun:test";
-import { TypedEventBus } from "../event-bus";
 import { logger } from "../../lib/logger";
+import { TypedEventBus } from "../event-bus";
 
 describe("TypedEventBus", () => {
   it("should call registered subscriber when event is emitted", () => {
@@ -90,18 +90,31 @@ describe("TypedEventBus edge cases", () => {
     errorSpy.mockRestore();
   });
 
-  it("off does not remove user-provided callback due to wrapping", () => {
-    // The TypedEventBus wraps handlers in on(), so off() with the original
-    // function reference will not remove the wrapped listener. This test
-    // documents that behavior.
+  it("off removes the listener using the original handler reference", () => {
+    // on() tracks each original handler -> wrapped listener, so off() with the
+    // ORIGINAL reference now correctly unsubscribes (eventbus-off-cannot-unsubscribe).
     const bus = new TypedEventBus();
     const handler = mock(() => {});
 
     bus.on("off.test", handler);
-    bus.off("off.test", handler); // This removes by reference, but the wrapper is different
+    bus.off("off.test", handler);
 
-    // Handler is still called because off() cannot match the wrapped function
+    // Handler must NOT be called — off() removed the wrapped listener.
     bus.emit("off.test", { data: 1 });
-    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledTimes(0);
+  });
+
+  it("off only removes the targeted handler, leaving others subscribed", () => {
+    const bus = new TypedEventBus();
+    const keep = mock(() => {});
+    const drop = mock(() => {});
+
+    bus.on("multi", keep);
+    bus.on("multi", drop);
+    bus.off("multi", drop);
+    bus.emit("multi", { data: 1 });
+
+    expect(drop).toHaveBeenCalledTimes(0);
+    expect(keep).toHaveBeenCalledTimes(1);
   });
 });

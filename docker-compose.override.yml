@@ -1,0 +1,20 @@
+# docker-compose.override.yml — LOCAL DEVELOPMENT ONLY
+#
+# Docker Compose auto-loads this file for `docker compose up`, layering it on
+# top of docker-compose.yml. It supplies a development BETTER_AUTH_SECRET so the
+# fail-closed base compose still boots with a single command locally, and sets
+# NODE_ENV=development for the app services.
+#
+# DO NOT use this file in production. In prod, deploy with only docker-compose.yml
+# (e.g. `docker compose -f docker-compose.yml up`) and provide a real
+# BETTER_AUTH_SECRET via the environment / secrets manager.
+services:
+  api:
+    environment:
+      NODE_ENV: development
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-development-secret-at-least-32-chars-long}
+
+  worker:
+    environment:
+      NODE_ENV: development
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-development-secret-at-least-32-chars-long}

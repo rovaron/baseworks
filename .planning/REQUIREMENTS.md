@@ -1,78 +1,87 @@
-# Requirements: Baseworks v1.3 Observability & Operations
+# Requirements: Baseworks v1.4 File Storage & Uploads
 
-**Defined:** 2026-04-21
+**Defined:** 2026-05-05
 **Core Value:** Clone, configure, and start building a multitenant SaaS in minutes — not weeks.
-**Milestone Goal:** Ship production-grade observability and ops tooling so operators running Baseworks can detect, diagnose, and resolve incidents without SSHing into boxes or grep-ing logs.
-**Architecture:** Port + adapters (matching `PaymentProvider` pattern). Adapters env-selected at startup.
+**Milestone Goal:** Ship a typed `FileStorage` port with S3 + S3-compatible + Local adapters, signed direct uploads, automatic image transforms via sharp (with `imagescript` fallback), per-tenant quota tracking, and a reusable UI uploader component — so fork users inherit ready-to-use file handling for both identity assets (avatars, org logos) and tenant content (documents, photos, videos attached to records).
+**Architecture:** Port + adapters (matching `PaymentProvider`, `ErrorTracker`, `Tracer` patterns). Single central `files` table with polymorphic `fileRelations` declared by modules.
 
-## v1.3 Requirements
+## v1.4 Requirements
 
-### OBS — Observability Ports & Bootstrap
+### FILE — File Storage Core
 
-- [x] **OBS-01**: Operator can use a typed `ErrorTracker` port with a Noop adapter that mirrors the GlitchTip API surface (capture exception/message/breadcrumb/context) and is factory-selected at startup by `@t3-oss/env-core` config
-- [x] **OBS-02**: Operator can use a typed `MetricsProvider` port (counter/histogram/gauge) with a Noop adapter, factory-selected at startup
-- [x] **OBS-03**: Operator can use a typed `Tracer` port (startSpan/withSpan/inject/extract) with a Noop adapter, factory-selected at startup
-- [x] **OBS-04**: Operator sees the OTEL SDK bootstrapped as the first-imports in `apps/api` and `apps/worker` entrypoints (programmatic `NodeSDK`, no `--require`), with a Bun smoke-test gate in CI verifying each auto-instrumentation loads without crashing
+- [x] **FILE-01**: Operator can configure storage backend via env (`STORAGE_PROVIDER=local|s3|s3-compat`); factory selects adapter at startup; missing required env crashes at boot with a clear error
+- [ ] **FILE-02**: Developer sees a typed `FileStorage` port with `signUpload`/`signRead`/`stat`/`delete`/`getObject`/`putObject`; conformance test suite proves all 3 adapters behave identically (mirrors PaymentProvider Stripe↔Pagar.me parity from v1.1)
+- [ ] **FILE-03**: Operator can run all 3 adapters — Local (dev), AWS S3 (cloud), S3-compatible (self-hosted MinIO/Garage/Ceph/R2 via configurable endpoint + path-style)
 
-### ERR — Error Tracking
+### UPL — Upload Flow
 
-- [ ] **ERR-01**: Operator can enable Sentry error capture via `SENTRY_DSN` env var; the Sentry adapter uses `@sentry/bun`, captures uncaught exceptions + CQRS handler errors + BullMQ job failures, and uploads source maps on release tag
-- [ ] **ERR-02**: Operator can point the same adapter at GlitchTip via DSN swap; adapter-conformance test proves parity with Sentry
-- [x] **ERR-03**: Operator sees the Pino-sink Error fallback adapter active when no DSN is configured, writing errors to pino at ERROR level without any external dependency
-- [ ] **ERR-04**: Operator sees errors reported with context (tenant_id, user_id, request_id, command/query name) and with webhook/auth/payment payloads scrubbed — verified by an adapter-conformance test that feeds known-PII fixtures and asserts they are redacted
+- [ ] **UPL-01**: Frontend can upload a file via signed direct PUT URL — server signs short-lived URL with size + MIME constraints; browser PUTs directly to storage; CORS config templates shipped per backend
+- [ ] **UPL-02**: Server verifies upload completion via S3 `HEAD` (authoritative byteSize, never the client-reported value) and magic-byte MIME check via `file-type`; mismatched checksum or MIME triggers object delete + DB cleanup
+- [ ] **UPL-03**: Storage keys are unguessable — `buildStorageKey()` is the only constructor; mandatory nanoid(24) segment; tenant prefix is informational, not authoritative for cross-tenant authorization
+- [ ] **UPL-04**: Developer can delete a file via authorized API; tenant-scoped permission verified; storage object + DB row removed atomically; quota decremented
 
-### CTX — Context & Logging Upgrade
+### IMG — Image Transforms
 
-- [x] **CTX-01**: Operator sees a single `AsyncLocalStorage<ObservabilityContext>` carrying `{requestId, traceId, spanId, tenantId, userId}`, with a Biome/ESLint rule banning `enterWith` (only `.run()` permitted)
-- [x] **CTX-02**: Operator sees an Elysia `observabilityMiddleware` that populates the ALS on every request, reading inbound `traceparent` or starting a new trace, and derives tenant/user from the existing tenant middleware
-- [x] **CTX-03**: Operator sees every pino log line include `trace_id`, `span_id`, `requestId`, and `tenantId` via a logger mixin — no call-site changes required across any existing handler
-- [ ] **CTX-04**: Operator sees BullMQ enqueue wrap inject W3C `traceparent` + `requestId` into job data, and workers reconstitute ALS context via `obsContext.run(...)` on job pickup — verified by an end-to-end test that asserts a single trace spans API request → enqueued job → worker processing
+- [ ] **IMG-01**: Operator gets typed `ImageTransform` port with `sharp` adapter (default) and `imagescript` fallback (selectable via `IMAGE_TRANSFORM_PROVIDER` env); subprocess smoke test gates the transform phase (Phase 17-style verification)
+- [ ] **IMG-02**: Image uploads with declared variants generate variant files asynchronously via BullMQ `image-transform` queue; transforms recorded in `files.transforms` jsonb; consumer-side trace propagation reuses Phase 20 wrapper
+- [ ] **IMG-03**: Decompression-bomb prevention enforced — pre-flight metadata check rejects files exceeding 50M pixels; sharp `limitInputPixels` set; EXIF strip on every transform; `image/*` >20MB rejected before sharp processes
 
-### TRC — Distributed Tracing
+### QUO — Per-Tenant Quota
 
-- [x] **TRC-01**: Operator sees a span per HTTP request with method + route template + status code, accepting inbound W3C `traceparent` and emitting it on outbound responses
-- [x] **TRC-02**: Operator sees the `CqrsBus` and `EventBus` externally wrapped so every command/query dispatch and every event publish emits a span with correlation attributes — without any edit to existing handler or core files
-- [ ] **TRC-03**: Operator sees BullMQ enqueue + process instrumented with W3C context propagation (via `@appsignal/opentelemetry-instrumentation-bullmq` or hand-rolled equivalent), with a Bun smoke test as merge gate; enqueue spans linked to process spans in Tempo
+- [ ] **QUO-01**: Operator sees per-tenant storage usage tracked in `tenant_storage_usage` (atomic increment on upload completion, decrement on delete)
+- [ ] **QUO-02**: Sign-upload denies uploads that would exceed quota; race-safe via `bytes_pending` UPSERT pattern (or `SELECT ... FOR UPDATE`); default quota configurable via env (`STORAGE_DEFAULT_QUOTA_BYTES`); 50-concurrent-uploads load-test gate enforces correctness
+- [ ] **QUO-03**: `/health/detailed` exposes storage health contributor (top-N tenants by usage, % quota used); Sentry alert templates fire at 90% and 100% quota; nightly reconciliation job rebuilds `bytes_used` from `SUM(byte_size)` for drift correction
 
-### MET — Metrics
+### MOD — Module File-Ownership
 
-- [ ] **MET-01**: Operator can enable OTLP/HTTP-proto export to an OTEL Collector via env var; Noop adapter is the default with zero overhead
-- [ ] **MET-02**: Operator sees RED metrics (rate, errors, duration p50/p95/p99) per Elysia route template and per CQRS command/query name — with a unit test asserting no `tenant_id`/`user_id`/URL-path labels escape onto metrics
-- [ ] **MET-03**: Operator sees USE metrics for DB connection pool, Redis, and BullMQ queues (depth, active, failed/sec) — aggregate only, never per-tenant; cardinality guardrails enforced by OTEL Views + collector filters
+- [x] **MOD-01**: Module author declares `fileRelations` in `ModuleDefinition` — `{ recordType, allowedMimeTypes, maxByteSize, generateVariants?, onDelete?, canRead?, canWrite? }`
+- [ ] **MOD-02**: Files module collects relations at boot via the registry (mirrors Phase 22 health-contributor pattern); cross-module file logic uses `TypedEventBus`, not direct imports between modules
+- [ ] **MOD-03**: Cascade-on-delete via event subscription (e.g., `auth.user-deleted`); orphan reconciliation job sweeps files whose `(ownerModule, ownerRecordId)` no longer resolves; soft-delete pattern preserves audit trail
 
-### OPS — Admin Ops Tooling
+### IDA — Identity Assets
 
-- [ ] **OPS-01**: Operator sees `@bull-board/elysia` mounted at `/admin/bull-board` behind `requireRole("owner")`, with read-only mode enabled by default via feature-flag env and admin-origin CSP
-- [ ] **OPS-02**: Admin user sees a bull-board entry in the Vite admin dashboard sidebar, rendered as a same-origin iframe sharing the better-auth session cookie
-- [ ] **OPS-03**: Admin user sees a `/health/detailed` endpoint + admin dashboard page showing queue depth, worker heartbeat, DB lag, recent errors, and per-module status
-- [ ] **OPS-04**: Module author can register a `HealthContributor` at module registration time; central aggregator rolls up all contributions into overall status surfaced by OPS-03
+- [ ] **IDA-01**: User can upload avatar via customer-app profile page; declared via `auth.fileRelations.user`; variants 64/128/256/512 px webp generated on upload; `get-profile` query resolves `avatarUrl` from latest user-file
+- [ ] **IDA-02**: Owner role can upload org logo via customer-app team-settings page; declared via `auth.fileRelations.organization`; variants 128/256 px webp; SVG explicitly **rejected** (security: XSS via `<script>` in SVG); raster only (jpeg/png/webp)
 
-### DOC — Documentation & Dev Stack
+### ATT — Generic Tenant Attachments
 
-- [ ] **DOC-01**: Developer can run `bun run observability:up` to launch `docker-compose.observability.yml` (OTEL Collector + Tempo 2.10 + Loki 3.7 + Prometheus 3.10 + Grafana 12.4) with per-service `mem_limit` and laptop-tuned retention
-- [ ] **DOC-02**: Developer sees 4 pre-provisioned Grafana dashboards on stack up — API Overview (RED), Queue Health (BullMQ), DB+Redis (USE), CQRS View (per-command RED) — committed to repo
-- [ ] **DOC-03**: Operator sees 8–10 incident runbooks under `docs/runbooks/` (DB down, Redis down, queue backing up, webhook failures, auth outage, OTEL exporter failing, bull-board inaccessible, high error rate, slow checkout) using a Trigger → Symptoms → Triage → Resolution → Escalation template
-- [ ] **DOC-04**: Operator gets pre-built Grafana alert rule YAML + Sentry alert config templates (importable into their tooling) with `runbook_url` annotations pointing to DOC-03, plus an observability concepts doc at `docs/observability/` covering attributes glossary, cardinality guide, and trace-propagation flow
+- [ ] **ATT-01**: Module author can attach uploaded files to any record (e.g., billing PDF on subscription); files retrievable via `list-files-for-record` query; uses the central `files` table — NO per-module file tables
+- [ ] **ATT-02**: Read access enforced via per-relation `canRead` hook; signed read URLs minted per-request with short TTL (5–15 min, env-configurable via `STORAGE_SIGNED_URL_TTL_SEC`); raw `storage_key` NEVER exposed in API responses
 
-### EXT — Extensions
+### UI — Uploader Component
 
-- [ ] **EXT-01**: Developer sees a CI step (GitHub Actions) uploading source maps to Sentry/GlitchTip on release tag push — stack traces in prod are readable by release
-- [ ] **EXT-02**: Operator sees workers publishing heartbeat keys to Redis on a configurable interval, so OPS-03's worker heartbeat status reflects real state, not a mock
+- [ ] **UI-01**: Developer gets `<FileUpload>` component + `useFileUpload` hook in `packages/ui` — drag-drop + file picker fallback, XHR upload progress, image preview via `URL.createObjectURL`, error states (oversize / wrong MIME / quota exceeded / network), cancel/retry, single + multi mode (opt-in via prop)
+- [ ] **UI-02**: Component is i18n-ready (en + pt-BR keys shipped via `packages/i18n`) and a11y-tested (vitest-axe in `packages/ui` suite); consumed by Next.js customer app (avatar + logo + attachments) and Vite admin app (tenant file browser)
+
+### OPS — Operator Surface
+
+- [ ] **OPS-01**: Operator gets runbooks under `docs/runbooks/` covering storage-quota-exceeded, image-transform-failure, s3-unreachable, orphan-files-detected scenarios — same Trigger → Symptoms → Triage → Resolution → Escalation template as v1.3 (Phase 23)
+- [ ] **OPS-02**: Operator gets Sentry alert JSON templates under `docs/alerts/sentry/` for storage-quota and image-transform-failure scenarios with `runbook_url` cross-links; CI validates link integrity automatically (Phase 23 4th invariant)
+- [ ] **OPS-03**: Operator gets `docs/integrations/file-storage.md` with CORS config templates per backend (AWS S3, R2, MinIO, Garage), bucket lifecycle policy snippets (AbortIncompleteMultipartUpload 7d, tmp/ 1d), CDN/Cache-Control guidance, and Docker base-image pin guidance for sharp (`oven/bun:1-debian-slim`, NOT Alpine)
 
 ## Future Requirements
 
-### TRC (deferred)
+Deferred to v1.5+ release. Tracked but not in v1.4 roadmap.
 
-- **TRC-future-01**: Drizzle/postgres.js DB-level span instrumentation — deferred pending confirmation of postgres.js OTEL instrumentation path; DB context currently reached via CQRS handler spans
+### VIRUS (deferred)
 
-### MET (deferred)
+- **VIRUS-future-01**: ClamAV virus-scanning adapter — both the port shape AND adapter deferred entirely; folds into future security-focused milestone
 
-- **MET-future-01**: `/metrics` Prometheus scrape endpoint alongside OTLP push — scrape-based collectors not needed for v1.3 self-hosted stack
-- **MET-future-02**: OTEL histogram exemplars linking metrics ↔ traces — revisit when request volume exceeds 100k req/min
+### POST (deferred)
 
-### ALT (deferred)
+- **POST-future-01**: POST presigned policy upload as default (PUT covers v1.4 needs; POST opt-in deferred — research spike S-2 captured for future)
 
-- **ALT-future-01**: Full in-app `AlertRouter` port with email + webhook adapters and in-code alert-rule definitions — v1.3 ships templates only
+### MULTIPART (deferred)
+
+- **MULTIPART-future-01**: S3 multipart upload for files >100MB — single-PUT covers all v1.4 use cases (avatars, logos, document attachments)
+
+### AVIF (deferred)
+
+- **AVIF-future-01**: AVIF output format alongside WebP — webp + jpeg fallback covers v1.4
+
+### AUDIT (deferred)
+
+- **AUDIT-future-01**: File-access audit log — folds into future audit-log milestone (cross-cutting feature, not file-storage-specific)
 
 ## Out of Scope
 
@@ -80,66 +89,72 @@ Explicitly excluded. Documented to prevent scope creep.
 
 | Feature | Reason |
 |---------|--------|
-| Replacing pino with another logger | pino stays canonical; ErrorTracker adapters tee from it, not replace |
-| Building a native bull-board UI in the Vite admin SPA | Iframe embed is lower-risk; bull-board already solves the problem |
-| Per-tenant GDPR/LGPD trace retention automation | Legal/compliance policy decision belongs to the fork user; v1.3 ships guidance, not automation |
-| Browser → collector telemetry from Next.js customer app | v1.3 is backend-origin only; browser telemetry has CORS + sampling design impact, revisit later |
-| In-app custom alert evaluation engine | Ship Grafana/Sentry-shaped templates instead; rebuilding their alert engines is multi-week waste |
-| `@sentry/node` (explicitly NOT used) | `@sentry/bun` required for Bun compat; `@sentry/profiling-node` broken under Bun |
-| OTEL `--require`-style auto-instrumentation | Not honored by Bun; programmatic `NodeSDK` init only |
+| In-browser image cropping/editing | Frontend feature, not starter-kit core; fork users build per-product |
+| Video transcoding | Depth issue, separate milestone (libffmpeg dep, GPU optimization, codec licensing) |
+| Bulk CSV/Excel imports | Different problem domain (data import, not file storage) |
+| Multi-region replication | Operational concern, fork user configures S3-side |
+| Public CDN bucket / hotlinking | Ship signed-private-only; fork user wires CDN themselves |
+| WebRTC camera capture | Beyond drag-drop UX scope |
+| HEIC → JPEG conversion | Requires `libheif` system dep; not Bun-portable |
+| DiceBear/identicon default avatars | Frontend pattern, not infrastructure |
+| Resumable uploads (`tus-js-client`) | Multipart resume is v1.5+ scope |
+| Per-module file tables | Architecturally rejected — central `files` + polymorphic `fileRelations` |
+| Browser-side SHA-256 hashing | Server-authoritative checksum from S3 stat |
+| Animated avatars (multi-frame WebP) | Static-only for v1.4 |
+| Per-tenant bucket isolation | Prefix-per-tenant default; bucket-per-tenant deferred until fork-user demand |
 
 ## Traceability
 
-Which phases cover which requirements. Populated during roadmap creation (2026-04-21).
+Which phases cover which requirements. Populated during roadmap creation 2026-05-05.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| OBS-01 | Phase 17 | Satisfied (2026-04-22) |
-| OBS-02 | Phase 17 | Satisfied (2026-04-22) |
-| OBS-03 | Phase 17 | Satisfied (2026-04-22) |
-| OBS-04 | Phase 17 | Satisfied (2026-04-22) |
-| ERR-01 | Phase 18 | Pending |
-| ERR-02 | Phase 18 | Pending |
-| ERR-03 | Phase 18 | Satisfied (2026-04-23) |
-| ERR-04 | Phase 18 | Pending |
-| CTX-01 | Phase 19 | Satisfied (2026-04-23) |
-| CTX-02 | Phase 19 | Satisfied (2026-04-23) |
-| CTX-03 | Phase 19 | Satisfied (2026-04-23) |
-| CTX-04 | Phase 20 | Pending |
-| TRC-01 | Phase 19 | Satisfied (2026-04-23) |
-| TRC-02 | Phase 19 | Satisfied (2026-04-23) |
-| TRC-03 | Phase 20 | Pending |
-| MET-01 | Phase 21 | Pending |
-| MET-02 | Phase 21 | Pending |
-| MET-03 | Phase 21 | Pending |
-| OPS-01 | Phase 22 | Pending |
-| OPS-02 | Phase 22 | Pending |
-| OPS-03 | Phase 22 | Pending |
-| OPS-04 | Phase 22 | Pending |
-| DOC-01 | Phase 21 | Pending |
-| DOC-02 | Phase 21 | Pending |
-| DOC-03 | Phase 23 | Pending |
-| DOC-04 | Phase 23 | Pending |
-| EXT-01 | Phase 18 | Pending |
-| EXT-02 | Phase 22 | Pending |
+| FILE-01 | Phase 24 | Complete |
+| FILE-02 | Phase 25 | Pending |
+| FILE-03 | Phase 25 | Pending |
+| UPL-01 | Phase 26 | Pending |
+| UPL-02 | Phase 27 | Pending |
+| UPL-03 | Phase 26 | Pending |
+| UPL-04 | Phase 27 | Pending |
+| IMG-01 | Phase 28 | Pending |
+| IMG-02 | Phase 28 | Pending |
+| IMG-03 | Phase 28 | Pending |
+| QUO-01 | Phase 26 | Pending |
+| QUO-02 | Phase 26 | Pending |
+| QUO-03 | Phase 31 | Pending |
+| MOD-01 | Phase 24 | Complete |
+| MOD-02 | Phase 26 | Pending |
+| MOD-03 | Phase 27 | Pending |
+| IDA-01 | Phase 29 | Pending |
+| IDA-02 | Phase 29 | Pending |
+| ATT-01 | Phase 27 | Pending |
+| ATT-02 | Phase 27 | Pending |
+| UI-01 | Phase 30 | Pending |
+| UI-02 | Phase 30 | Pending |
+| OPS-01 | Phase 31 | Pending |
+| OPS-02 | Phase 31 | Pending |
+| OPS-03 | Phase 31 | Pending |
 
 **Coverage:**
-- v1.3 requirements: 28 total
-- Mapped to phases: 28 ✓
+- v1.4 requirements: 25 total
+- Mapped to phases: 25
 - Unmapped: 0
 
-**Phase distribution:**
+**Phase distribution (final):**
 
-| Phase | Requirements | Count |
-|-------|--------------|-------|
-| 17 | OBS-01, OBS-02, OBS-03, OBS-04 | 4 |
-| 18 | ERR-01, ERR-02, ERR-03, ERR-04, EXT-01 | 5 |
-| 19 | CTX-01, CTX-02, CTX-03, TRC-01, TRC-02 | 5 |
-| 20 | CTX-04, TRC-03 | 2 |
-| 21 | MET-01, MET-02, MET-03, DOC-01, DOC-02 | 5 |
-| 22 | OPS-01, OPS-02, OPS-03, OPS-04, EXT-02 | 5 |
-| 23 | DOC-03, DOC-04 | 2 |
+| Phase | Name | REQ-IDs | Count |
+|-------|------|---------|-------|
+| 24 | Foundation: Storage Port + Files Schema + ModuleDefinition Extension | FILE-01, MOD-01 | 2 |
+| 25 | Test Infrastructure + Three Storage Adapters (Local + S3 + S3-Compat) | FILE-02, FILE-03 | 2 |
+| 26 | Files Module Skeleton + Sign-Upload + Per-Tenant Quota | UPL-01, UPL-03, QUO-01, QUO-02, MOD-02 | 5 |
+| 27 | Complete-Upload + Signed Read URLs + Delete + Generic Attachments | UPL-02, UPL-04, ATT-01, ATT-02, MOD-03 | 5 |
+| 28 | Image Transform Pipeline (sharp spike + imagescript fallback) | IMG-01, IMG-02, IMG-03 | 3 |
+| 29 | Auth & Org Identity Asset Wiring | IDA-01, IDA-02 | 2 |
+| 30 | Reusable Uploader Component in packages/ui | UI-01, UI-02 | 2 |
+| 31 | Cleanup, Reconciliation & Operator Surface | QUO-03, OPS-01, OPS-02, OPS-03 | 4 |
+
+**Variance from research §7 proposal:** FILE-02 moved from Phase 24 to Phase 25. Rationale: a requirement maps to the phase where it is *delivered* (proven). The conformance suite that proves the port shape behaves identically across all 3 adapters is the deliverable that satisfies FILE-02, and that suite runs against real adapters in Phase 25, not against Noop scaffolds in Phase 24. Phase 24 still ships the port skeleton + types + factory contract; Phase 25 ships the proof.
 
 ---
-*Requirements defined: 2026-04-21*
-*Last updated: 2026-04-21 after roadmap creation — traceability populated*
+*Requirements defined: 2026-05-05*
+*Last updated: 2026-05-05 — traceability populated; 25/25 mapped to Phases 24–31; ready for /gsd:plan-phase 24*

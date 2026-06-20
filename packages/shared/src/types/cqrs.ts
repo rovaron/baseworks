@@ -1,5 +1,5 @@
-import { TypeCompiler } from "@sinclair/typebox/compiler";
 import type { Static, TSchema } from "@sinclair/typebox";
+import { TypeCompiler } from "@sinclair/typebox/compiler";
 
 /**
  * Discriminated union representing the outcome of a CQRS handler.
@@ -24,10 +24,27 @@ export interface HandlerContext {
   userId?: string;
   /** Tenant-scoped Drizzle database instance (ScopedDb). */
   db: any;
+  /** Authenticated request headers, forwarded so better-auth can resolve the session. */
+  headers?: Headers;
   /** Emit a domain event to the typed event bus. */
   emit: (event: string, data: unknown) => void;
   /** Enqueue a background job via BullMQ. Optional; unavailable in test contexts. */
   enqueue?: (job: string, data: unknown) => Promise<void>;
+  /**
+   * String-keyed CQRS dispatch through the bus (Phase 27 / ATT-01, ATT-02).
+   *
+   * The sanctioned cross-module call channel: lets one module invoke another
+   * module's command by its namespaced name (e.g. `"files:attach-file"`)
+   * WITHOUT importing the other module's package. Dispatching a string through
+   * the bus is NOT an `@baseworks/module-*` import, so it satisfies both the
+   * cross-module-import ban (Phase 26 SC#5) and the files<->auth ban (Phase 29).
+   *
+   * Constructed in the apps/api scoped derive as a self-reference to the same
+   * `handlerCtx`, so dispatched commands receive a fully-formed context (with
+   * `dispatch` present) and nested dispatch works. Optional: absent in bare
+   * test contexts, where callers fall back to a direct command invocation.
+   */
+  dispatch?: (command: string, input: unknown) => Promise<Result<unknown>>;
 }
 
 /**

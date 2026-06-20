@@ -1,5 +1,5 @@
+import { defineQuery, err, ok } from "@baseworks/shared";
 import { Type } from "@sinclair/typebox";
-import { defineQuery, ok, err } from "@baseworks/shared";
 import { auth } from "../auth";
 
 const GetTenantInput = Type.Object({
@@ -13,19 +13,19 @@ const GetTenantInput = Type.Object({
  * API, which includes the member list with roles.
  *
  * @param input - GetTenantInput: organizationId (UUID)
- * @param ctx   - Handler context (unused; auth.api is not
- *   tenant-scoped)
+ * @param ctx   - Handler context; ctx.headers forwards the
+ *   authenticated session to auth.api
  * @returns Result<FullOrganization> -- organization with members
  *   array, or err if not found
  *
  * Per TNNT-03: Tenant read available via CQRS query.
  * Per Pitfall 6: Uses auth.api, not scopedDb.
  */
-export const getTenant = defineQuery(GetTenantInput, async (input, _ctx) => {
+export const getTenant = defineQuery(GetTenantInput, async (input, ctx) => {
   try {
     const org = await auth.api.getFullOrganization({
       query: { organizationId: input.organizationId },
-      headers: new Headers(),
+      headers: ctx.headers ?? new Headers(),
     });
     if (!org) return err("Tenant not found");
     return ok(org);

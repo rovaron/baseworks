@@ -1,12 +1,12 @@
-import { defineConfig } from "vitest/config";
 import path from "path";
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   resolve: {
     alias: {
       "@tanstack/react-table": path.resolve(
         __dirname,
-        "node_modules/@tanstack/react-table/build/lib/index.mjs"
+        "node_modules/@tanstack/react-table/build/lib/index.mjs",
       ),
     },
   },

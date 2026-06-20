@@ -1,13 +1,5 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useForm, type Resolver } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useTranslations } from "next-intl";
-import { toast } from "sonner";
-import { Plus, Loader2 } from "lucide-react";
 import {
   Button,
   Dialog,
@@ -31,6 +23,14 @@ import {
   SelectValue,
   Switch,
 } from "@baseworks/ui";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Loader2, Plus } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useMemo, useState } from "react";
+import { type Resolver, useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
 import { api } from "@/lib/api";
 import { CopyLinkButton } from "./copy-link-button";
 
@@ -198,11 +198,7 @@ export function InviteDialog({ orgId, orgName }: InviteDialogProps) {
                     <FormItem>
                       <FormLabel>{t("dialog.emailLabel")}</FormLabel>
                       <FormControl>
-                        <Input
-                          type="email"
-                          placeholder={t("dialog.emailPlaceholder")}
-                          {...field}
-                        />
+                        <Input type="email" placeholder={t("dialog.emailPlaceholder")} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -216,10 +212,7 @@ export function InviteDialog({ orgId, orgName }: InviteDialogProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t("dialog.roleLabel")}</FormLabel>
-                    <Select
-                      value={field.value}
-                      onValueChange={field.onChange}
-                    >
+                    <Select value={field.value} onValueChange={field.onChange}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue />

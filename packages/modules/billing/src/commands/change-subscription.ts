@@ -1,8 +1,7 @@
+import { defineCommand, err, ok } from "@baseworks/shared";
 import { Type } from "@sinclair/typebox";
-import { defineCommand, ok, err } from "@baseworks/shared";
-import { billingCustomers } from "../schema";
 import { getPaymentProvider } from "../provider-factory";
-import { eq } from "drizzle-orm";
+import { billingCustomers } from "../schema";
 
 const ChangeSubscriptionInput = Type.Object({
   newPriceId: Type.String(),
@@ -22,29 +21,27 @@ const ChangeSubscriptionInput = Type.Object({
  *
  * Per T-03-10: Scoped to ctx.tenantId.
  */
-export const changeSubscription = defineCommand(
-  ChangeSubscriptionInput,
-  async (input, ctx) => {
-    try {
-      const [customer] = await ctx.db
-        .select()
-        .from(billingCustomers)
-        .where(eq(billingCustomers.tenantId, ctx.tenantId))
-        .limit(1);
+export const changeSubscription = defineCommand(ChangeSubscriptionInput, async (input, ctx) => {
+  try {
+    // Phase 20.1 Plan 02 — Option A: scopedDb.select(table) auto-injects
+    // the tenantId predicate.
+    const [customer] = await ctx.db.select(billingCustomers).limit(1);
 
-      if (!customer?.providerSubscriptionId) {
-        return err("NO_ACTIVE_SUBSCRIPTION");
-      }
-
-      const provider = getPaymentProvider();
-      await provider.changeSubscription({
-        providerSubscriptionId: customer.providerSubscriptionId,
-        newPriceId: input.newPriceId,
-      });
-
-      return ok({ subscriptionId: customer.providerSubscriptionId, newPriceId: input.newPriceId });
-    } catch (error: any) {
-      return err(error.message || "Failed to change subscription");
+    if (!customer?.providerSubscriptionId) {
+      return err("NO_ACTIVE_SUBSCRIPTION");
     }
-  },
-);
+
+    const provider = getPaymentProvider();
+    await provider.changeSubscription({
+      providerSubscriptionId: customer.providerSubscriptionId,
+      newPriceId: input.newPriceId,
+    });
+
+    return ok({ subscriptionId: customer.providerSubscriptionId, newPriceId: input.newPriceId });
+  } catch (error: unknown) {
+    // Phase 20.1 WR-02 — narrow `unknown` so non-Error throws fall back
+    // to the generic message instead of TypeError on `.message`.
+    const message = error instanceof Error ? error.message : "Failed to change subscription";
+    return err(message || "Failed to change subscription");
+  }
+});

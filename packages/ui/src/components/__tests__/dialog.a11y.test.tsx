@@ -1,17 +1,11 @@
-import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import { axe } from "vitest-axe";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "../dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../dialog";
 
 function expectNoSeriousViolations(results: Awaited<ReturnType<typeof axe>>) {
   const serious = results.violations.filter(
-    (v) => v.impact === "critical" || v.impact === "serious"
+    (v) => v.impact === "critical" || v.impact === "serious",
   );
   expect(serious).toHaveLength(0);
 }
@@ -27,7 +21,7 @@ describe("Dialog a11y", () => {
           </DialogHeader>
           <p>Dialog body content</p>
         </DialogContent>
-      </Dialog>
+      </Dialog>,
     );
     const results = await axe(container);
     expectNoSeriousViolations(results);

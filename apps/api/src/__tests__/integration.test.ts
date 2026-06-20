@@ -1,12 +1,12 @@
-import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import { Elysia, t } from "elysia";
-import { createDb, scopedDb, examples } from "@baseworks/db";
-import { eq, sql } from "drizzle-orm";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { createDb, examples, scopedDb } from "@baseworks/db";
 import type { HandlerContext } from "@baseworks/shared";
-import { tenantMiddleware } from "../core/middleware/tenant";
-import { errorMiddleware } from "../core/middleware/error";
+import { eq, sql } from "drizzle-orm";
+import { Elysia, t } from "elysia";
 import { createExample } from "../../../../packages/modules/example/src/commands/create-example";
 import { listExamples } from "../../../../packages/modules/example/src/queries/list-examples";
+import { errorMiddleware } from "../core/middleware/error";
+import { tenantMiddleware } from "../core/middleware/tenant";
 
 /**
  * Integration tests for the full HTTP -> tenant middleware -> scopedDb flow.
@@ -18,7 +18,8 @@ import { listExamples } from "../../../../packages/modules/example/src/queries/l
  * session cookies for tenant context.
  */
 
-const TEST_DB_URL = process.env.DATABASE_URL ?? "postgres://baseworks:baseworks@localhost:5432/baseworks";
+const TEST_DB_URL =
+  process.env.DATABASE_URL ?? "postgres://baseworks:baseworks@localhost:5432/baseworks";
 
 let db: ReturnType<typeof createDb>;
 let app: any;
@@ -125,7 +126,10 @@ beforeAll(async () => {
     if (tenantIdA) await db.delete(examples).where(eq(examples.tenantId, tenantIdA));
     if (tenantIdB) await db.delete(examples).where(eq(examples.tenantId, tenantIdB));
   } catch (e) {
-    console.warn("PostgreSQL unavailable -- integration tests will be skipped:", (e as Error).message);
+    console.warn(
+      "PostgreSQL unavailable -- integration tests will be skipped:",
+      (e as Error).message,
+    );
     canConnect = false;
   }
 });
@@ -232,9 +236,7 @@ describe("Integration: full HTTP flow", () => {
       return;
     }
 
-    const response = await app.handle(
-      new Request("http://localhost/examples"),
-    );
+    const response = await app.handle(new Request("http://localhost/examples"));
 
     // Should return 401 for unauthenticated request (no session cookie)
     const body = await response.json();
@@ -248,9 +250,7 @@ describe("Integration: full HTTP flow", () => {
       return;
     }
 
-    const response = await app.handle(
-      new Request("http://localhost/health"),
-    );
+    const response = await app.handle(new Request("http://localhost/health"));
 
     expect(response.status).toBe(200);
     const body = await response.json();

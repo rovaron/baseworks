@@ -1,10 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useTranslations } from "next-intl";
-import { toast } from "sonner";
-import { Mail, X, Loader2 } from "lucide-react";
 import {
   Badge,
   Button,
@@ -27,9 +22,19 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@baseworks/ui";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2, Mail, X } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useState } from "react";
+import { toast } from "sonner";
 import { api } from "@/lib/api";
 
 const isLinkInvite = (email: string) => email.endsWith("@internal");
+
+// Bound the number of pending invitations rendered. The list endpoint does not
+// yet support server-side pagination, so cap client-side to avoid rendering an
+// unbounded list. See follow-up: add limit/offset to GET /api/invitations.
+const MAX_PENDING_INVITATIONS = 50;
 
 const roleBadgeVariant = {
   admin: "secondary",
@@ -54,7 +59,7 @@ export function PendingInvitations() {
 
   const cancelMutation = useMutation({
     mutationFn: async (invitationId: string) => {
-      const { error } = await (api.api.invitations as any)[invitationId].delete();
+      const { error } = await api.api.invitations({ id: invitationId }).delete();
       if (error) throw error;
     },
     onSuccess: () => {
@@ -70,12 +75,12 @@ export function PendingInvitations() {
   const resendMutation = useMutation({
     mutationFn: async (invitationId: string) => {
       setResendingId(invitationId);
-      const { error } = await (api.api.invitations as any)[invitationId].resend.post();
+      const { error } = await api.api.invitations({ id: invitationId }).resend.post({});
       if (error) throw error;
     },
     onSuccess: (_data: any, invitationId: string) => {
       // Find the invitation to get the email for the toast
-      const invitations = (invitationsQuery.data as any)?.data ?? [];
+      const invitations = invitationsQuery.data?.success ? invitationsQuery.data.data : [];
       const inv = invitations.find((i: any) => i.id === invitationId);
       const email = inv?.email ?? "";
       toast.success(t("pending.resent", { email }));
@@ -98,9 +103,12 @@ export function PendingInvitations() {
     );
   }
 
-  const invitations = (invitationsQuery.data as any)?.data ?? [];
+  const allInvitations = invitationsQuery.data?.success ? invitationsQuery.data.data : [];
+  const invitations = Array.isArray(allInvitations)
+    ? allInvitations.slice(0, MAX_PENDING_INVITATIONS)
+    : [];
 
-  if (!Array.isArray(invitations) || invitations.length === 0) {
+  if (invitations.length === 0) {
     return (
       <Card>
         <CardContent className="py-8 text-center">
@@ -142,9 +150,7 @@ export function PendingInvitations() {
                 </TableCell>
                 <TableCell>
                   <Badge
-                    variant={
-                      roleBadgeVariant[role as keyof typeof roleBadgeVariant] ?? "default"
-                    }
+                    variant={roleBadgeVariant[role as keyof typeof roleBadgeVariant] ?? "default"}
                   >
                     {t(`roles.${role}` as any)}
                   </Badge>

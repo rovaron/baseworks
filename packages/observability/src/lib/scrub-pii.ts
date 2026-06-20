@@ -9,7 +9,8 @@
  * Design rules:
  * - Denylist is case-insensitive and recursive through nested objects/arrays.
  * - Regex patterns applied to surviving string leaves after the key denylist pass.
- * - Webhook-route rule (event.request.url ~ /api/webhooks/**) drops the entire
+ * - Webhook-route rule (event.request.url contains a `/webhooks` path segment,
+ *   e.g. /api/billing/webhooks or /api/webhooks/stripe) drops the entire
  *   event.request.data branch — webhook bodies NEVER forwarded upstream.
  * - OBS_PII_DENY_EXTRA_KEYS env is ADDITIVE only — never removes defaults.
  * - Returns `null | PiiEvent` to satisfy Sentry's `beforeSend` signature.
@@ -58,8 +59,8 @@ export const DEFAULT_DENY_KEYS: readonly string[] = [
  */
 const PATTERNS: readonly [RegExp, string][] = [
   [/[\w.+-]+@[\w-]+\.[\w.-]+/g, "[redacted:email]"],
-  [/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/g, "[redacted:cpf]"],
   [/\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/g, "[redacted:cnpj]"],
+  [/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/g, "[redacted:cpf]"],
   [/sk_(live|test)_[\w]+/g, "[redacted:stripe-key]"],
   [/Bearer\s+[\w.-]+/gi, "[redacted:bearer]"],
 ];
@@ -82,9 +83,9 @@ const DENY_SET: Set<string> = (() => {
 /**
  * Apply all regex redaction patterns to a single string leaf. Order matters:
  * CNPJ is checked before CPF because a CNPJ substring can also match the CPF
- * regex — swapping the order would leak part of the CNPJ. (Actual order is
- * email → cpf → cnpj → stripe → bearer; the array is consistent and each
- * replacement is idempotent on already-redacted markers.)
+ * regex — swapping the order would leak part of the CNPJ. Actual order is
+ * email → cnpj → cpf → stripe → bearer; each replacement is idempotent on
+ * already-redacted markers.
  */
 function redactString(s: string): string {
   let out = s;
@@ -98,17 +99,23 @@ function redactString(s: string): string {
  * Recursive deep-walker. Returns a NEW value mirroring the input's shape
  * with redactions applied. Never mutates the input.
  */
-function walk(value: unknown): unknown {
+function walk(value: unknown, seen: WeakSet<object>): unknown {
   if (value == null) return value;
   if (typeof value === "string") return redactString(value);
-  if (Array.isArray(value)) return value.map(walk);
+  if (Array.isArray(value)) {
+    if (seen.has(value as object)) return "[circular]";
+    seen.add(value as object);
+    return value.map((v) => walk(v, seen));
+  }
   if (typeof value === "object") {
+    if (seen.has(value as object)) return "[circular]";
+    seen.add(value as object);
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
       if (DENY_SET.has(k.toLowerCase())) {
         out[k] = `[redacted:${k.toLowerCase()}]`;
       } else {
-        out[k] = walk(v);
+        out[k] = walk(v, seen);
       }
     }
     return out;
@@ -124,12 +131,12 @@ function walk(value: unknown): unknown {
  */
 export function scrubPii(event: PiiEvent | null | undefined): PiiEvent | null {
   if (event == null) return null;
-  const scrubbed = walk(event) as PiiEvent;
+  const scrubbed = walk(event, new WeakSet()) as PiiEvent;
   // Webhook route rule — drop request.data entirely when the URL matches
   // a webhook path. Webhook bodies carry provider secrets that must never
   // leave the service (Stripe/Pagar.me signing secrets, card_last4, etc.).
   const req = scrubbed.request as { url?: string; data?: unknown } | undefined;
-  if (req?.url && typeof req.url === "string" && /\/api\/webhooks\//.test(req.url)) {
+  if (req?.url && typeof req.url === "string" && /\/webhooks\b/.test(req.url)) {
     delete req.data;
   }
   return scrubbed;

@@ -1,7 +1,7 @@
-import { describe, test, expect } from "bun:test";
-import { createExample } from "../commands/create-example";
-import { createMockContext, createMockDb } from "../../../__test-utils__/mock-context";
+import { describe, expect, test } from "bun:test";
 import { assertResultOk } from "../../../__test-utils__/assert-result";
+import { createMockContext, createMockDb } from "../../../__test-utils__/mock-context";
+import { createExample } from "../commands/create-example";
 
 /**
  * Behavioral tests for the createExample command handler.
@@ -65,10 +65,7 @@ describe("createExample", () => {
       db: createMockDb({ insert: [inserted] }),
     });
 
-    const result = await createExample(
-      { title: "With desc", description: "A longer body" },
-      ctx,
-    );
+    const result = await createExample({ title: "With desc", description: "A longer body" }, ctx);
 
     const data = assertResultOk(result);
     expect(data.description).toBe("A longer body");

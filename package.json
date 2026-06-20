@@ -1,18 +1,27 @@
 {
   "name": "baseworks",
   "private": true,
-  "workspaces": ["packages/*", "packages/modules/*", "apps/*"],
+  "workspaces": [
+    "packages/*",
+    "packages/modules/*",
+    "apps/*"
+  ],
   "scripts": {
     "api": "bun run --watch apps/api/src/index.ts",
     "worker": "bun run apps/api/src/worker.ts",
     "db:generate": "bun drizzle-kit generate --config packages/db/drizzle.config.ts",
     "db:migrate": "bun drizzle-kit migrate --config packages/db/drizzle.config.ts",
     "db:push": "bun drizzle-kit push --config packages/db/drizzle.config.ts",
-    "lint": "biome check . && bun run lint:als",
+    "prepare": "husky",
+    "lint": "biome check . && bun run lint:als && bun run lint:files-access && bun run lint:cross-module",
     "lint:als": "bash scripts/lint-no-enterwith.sh",
+    "lint:files-access": "bash scripts/lint-no-direct-files-access.sh",
+    "lint:cross-module": "bash scripts/lint-no-cross-module-imports.sh",
     "lint:fix": "biome check --write .",
     "typecheck": "tsc --noEmit",
-    "test": "bun test apps/api packages/config packages/db packages/modules packages/queue && cd packages/ui && bun run test",
+    "validate": "bun scripts/validate-docs.ts",
+    "validate-cors": "bun scripts/validate-cors.ts",
+    "test": "bun test apps/api/src && bun test apps/api/test && bun test apps/api/__tests__ && bun test packages/config && bun test packages/db && bun test packages/modules/auth/__tests__ packages/modules/auth/src/__tests__ && bun test packages/modules/auth/src/__integration__ && bun test packages/modules/billing && bun test packages/modules/example && bun test packages/modules/files/src/__tests__ && bun test packages/modules/files/src/__unit__ && bun test packages/modules/files/src/__integration__ && bun test packages/modules/files/src/hooks/__tests__ && bun test packages/modules/files/src/jobs/__tests__ && bun test packages/queue && bun test packages/shared && bun test packages/storage && bun test scripts/__tests__ && cd packages/ui && bun run test",
     "dev:web": "cd apps/web && bun run dev",
     "dev:admin": "cd apps/admin && bun run dev",
     "build:web": "cd apps/web && bun run build",
@@ -22,10 +31,23 @@
     "docker:build": "docker compose build",
     "docker:logs": "docker compose logs -f"
   },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "biome check --write --no-errors-on-unmatched",
+      "bash scripts/lint-no-enterwith.sh",
+      "bash scripts/lint-no-direct-files-access.sh",
+      "bash scripts/lint-no-cross-module-imports.sh"
+    ]
+  },
   "devDependencies": {
     "@biomejs/biome": "^2.0.0",
     "@sentry/cli": "^3.4.0",
     "@types/bun": "1.3.11",
+    "@types/pg": "8.20.0",
+    "drizzle-kit": "0.31.10",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.0",
+    "tsx": "4.21.0",
     "typescript": "^5.5.0"
   },
   "overrides": {

@@ -9,11 +9,23 @@ services:
       POSTGRES_DB: baseworks
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U baseworks -d baseworks"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   redis:
     image: redis:7
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
   api:
     build:
@@ -27,9 +39,9 @@ services:
       NODE_ENV: production
       PORT: "3000"
       INSTANCE_ROLE: api
-      # IMPORTANT: Override BETTER_AUTH_SECRET in production via .env file.
-      # The default below is for local development only (T-05-01).
-      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-development-secret-at-least-32-chars-long}
+      # Fail-closed: production boot aborts if BETTER_AUTH_SECRET is unset.
+      # Local dev supplies a default via docker-compose.override.yml (T-05-01).
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET must be set (>=32 chars, not the dev default)}
       BETTER_AUTH_URL: http://localhost:3000
       WEB_URL: http://localhost:3001
       ADMIN_URL: http://localhost:8080
@@ -38,9 +50,9 @@ services:
       RESEND_API_KEY: ${RESEND_API_KEY:-}
     depends_on:
       postgres:
-        condition: service_started
+        condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
     restart: unless-stopped
 
   worker:
@@ -52,15 +64,29 @@ services:
       REDIS_URL: redis://redis:6379
       NODE_ENV: production
       INSTANCE_ROLE: worker
-      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-development-secret-at-least-32-chars-long}
+      # Fail-closed: production boot aborts if BETTER_AUTH_SECRET is unset.
+      # Local dev supplies a default via docker-compose.override.yml (T-05-01).
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET must be set (>=32 chars, not the dev default)}
       BETTER_AUTH_URL: http://api:3000
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
     depends_on:
       postgres:
-        condition: service_started
+        condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      # Hits the worker health server (WORKER_HEALTH_PORT, default 3001).
+      # 'degraded' (Redis down / zero active workers) is treated as unhealthy.
+      test:
+        - "CMD"
+        - "bun"
+        - "-e"
+        - "fetch('http://localhost:'+(process.env.WORKER_HEALTH_PORT||3001)+'/health').then(async r=>{const j=await r.json().catch(()=>({}));process.exit(r.ok&&j.status==='ok'?0:1)}).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     restart: unless-stopped
 
   admin:

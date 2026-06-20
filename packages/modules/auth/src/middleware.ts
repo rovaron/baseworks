@@ -1,3 +1,5 @@
+import { getAdminEmails } from "@baseworks/config";
+import { ForbiddenError, NoActiveTenantError, UnauthorizedError } from "@baseworks/shared";
 import { Elysia } from "elysia";
 import { auth } from "./auth";
 
@@ -43,8 +45,9 @@ export const betterAuthPlugin = new Elysia({ name: "better-auth" }).macro({
  * @param roles - One or more allowed role strings
  *   (e.g., "owner", "admin", "member")
  * @returns Elysia plugin that derives `memberRole` into context
- * @throws Error("Unauthorized") if no valid session
- * @throws Error("Forbidden") if role not in allowed list
+ * @throws UnauthorizedError (401) if no valid session
+ * @throws NoActiveTenantError (401) if no active organization selected
+ * @throws ForbiddenError (403) if role not in allowed list
  *
  * @example
  * app
@@ -58,16 +61,38 @@ export function requireRole(...roles: string[]) {
   return new Elysia({ name: `require-role-${roles.join(",")}` }).derive(
     { as: "scoped" },
     async (ctx: any) => {
-      const session = await auth.api.getSession({
-        headers: ctx.request.headers,
-      });
-      if (!session) {
-        throw new Error("Unauthorized");
+      // Prefer the tenant context that tenantMiddleware already resolved for
+      // THIS request (ctx.tenantId / ctx.userId). tenantMiddleware resolves the
+      // active org in-request — including when it had to auto-select and
+      // setActiveOrganization-write it — so reading it here avoids a
+      // read-after-write race: an immediate auth.api.getSession() can miss that
+      // just-written activeOrganizationId under better-auth's Redis
+      // secondaryStorage, which otherwise 401s a freshly-resolved owner (D-12).
+      // Fall back to a session lookup for routes that guard with requireRole but
+      // do NOT mount tenantMiddleware first (e.g. /api/invitations via
+      // betterAuthPlugin) — those flows have no auto-select-then-read, so no race.
+      let userId: string | undefined = ctx.userId ?? ctx.user?.id;
+      let activeOrgId: string | null | undefined =
+        ctx.tenantId ?? ctx.session?.activeOrganizationId;
+
+      if (!userId || !activeOrgId) {
+        const session = await auth.api.getSession({
+          headers: ctx.request.headers,
+        });
+        if (!session) {
+          throw new UnauthorizedError();
+        }
+        userId ??= session.user.id;
+        activeOrgId ??= session.session.activeOrganizationId;
       }
 
-      const activeOrgId = session.session.activeOrganizationId;
+      if (!userId) {
+        throw new UnauthorizedError();
+      }
       if (!activeOrgId) {
-        throw new Error("No active organization");
+        // NoActiveTenantError maps to 401 (MISSING_TENANT_CONTEXT); the old
+        // "No active organization" string fell through to a 500.
+        throw new NoActiveTenantError();
       }
 
       // Use better-auth organization plugin API to get full org with members
@@ -76,15 +101,60 @@ export function requireRole(...roles: string[]) {
         query: { organizationId: activeOrgId },
       });
 
-      const memberRecord = fullOrg?.members?.find(
-        (m: any) => m.userId === session.user.id,
-      );
+      const memberRecord = fullOrg?.members?.find((m: any) => m.userId === userId);
 
       if (!memberRecord || !roles.includes(memberRecord.role)) {
-        throw new Error("Forbidden");
+        throw new ForbiddenError();
       }
 
       return { memberRole: memberRecord.role };
+    },
+  );
+}
+
+/**
+ * Platform-admin guard middleware. Gates operator-scope surfaces
+ * (cross-tenant admin API, bull-board, /health/detailed) on a
+ * platform-admin signal that is independent of organization
+ * membership.
+ *
+ * Resolves the session via better-auth (the same mechanism as
+ * {@link requireRole}) and authorizes the request only when the
+ * session user's email (lowercased) is present in the
+ * `ADMIN_EMAILS` allowlist exposed by `getAdminEmails()`. It does
+ * NOT consult `activeOrganizationId` or the user's membership role,
+ * so a per-organization "owner" is never conflated with a platform
+ * operator.
+ *
+ * @returns Elysia plugin that authorizes platform admins
+ * @throws UnauthorizedError (401) if no valid session
+ * @throws ForbiddenError (403) if the user is not in the admin allowlist
+ *
+ * @example
+ * app
+ *   .use(requirePlatformAdmin())
+ *   .get("/admin/tenants", handler);
+ *
+ * Per C5: env-allowlist platform-admin signal, reversible and
+ * decoupled from tenant role.
+ */
+export function requirePlatformAdmin() {
+  return new Elysia({ name: "require-platform-admin" }).derive(
+    { as: "scoped" },
+    async (ctx: any) => {
+      const session = await auth.api.getSession({
+        headers: ctx.request.headers,
+      });
+      if (!session) {
+        throw new UnauthorizedError();
+      }
+
+      const email = session.user.email?.toLowerCase();
+      if (!email || !getAdminEmails().includes(email)) {
+        throw new ForbiddenError();
+      }
+
+      return { isPlatformAdmin: true as const };
     },
   );
 }

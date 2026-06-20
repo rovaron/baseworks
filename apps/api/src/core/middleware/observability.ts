@@ -1,10 +1,5 @@
+import { getObsContext, getTracer, type Span, setSpan } from "@baseworks/observability";
 import { Elysia } from "elysia";
-import {
-  getObsContext,
-  getTracer,
-  setSpan,
-  type Span,
-} from "@baseworks/observability";
 import { logger } from "../../lib/logger";
 
 /**
@@ -54,15 +49,11 @@ import { logger } from "../../lib/logger";
  * do not need to reach the client.
  */
 
-function writeObsHeaders(
-  set: unknown,
-  requestId: string,
-  traceId: string,
-  spanId: string,
-): void {
+function writeObsHeaders(set: unknown, requestId: string, traceId: string, spanId: string): void {
   if (set && typeof set === "object" && "headers" in set) {
-    const headers = ((set as { headers?: Record<string, string> }).headers ??=
-      {});
+    const target = set as { headers?: Record<string, string> };
+    target.headers ??= {};
+    const headers = target.headers;
     headers["x-request-id"] = requestId;
     headers["traceparent"] = `00-${traceId}-${spanId}-01`;
   }
@@ -134,8 +125,7 @@ export const observabilityMiddleware = new Elysia({ name: "observability" })
       obsSpan.end();
       return;
     }
-    const status = (ctx as unknown as { set: { status?: number } }).set
-      ?.status;
+    const status = (ctx as unknown as { set: { status?: number } }).set?.status;
     obsSpan.setAttribute("http.status_code", status ?? 200);
     if (store.tenantId) obsSpan.setAttribute("tenant.id", store.tenantId);
     if (store.userId) obsSpan.setAttribute("user.id", store.userId);

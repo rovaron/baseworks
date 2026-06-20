@@ -1,5 +1,5 @@
-import createNextIntlPlugin from "next-intl/plugin";
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
 
 // Vercel deployment requires these environment variables:
 //   NEXT_PUBLIC_API_URL  — Backend API URL (e.g., https://api.example.com)

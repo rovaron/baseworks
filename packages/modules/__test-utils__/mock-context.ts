@@ -9,6 +9,21 @@ import type { HandlerContext } from "@baseworks/shared";
  *
  * @param results - Optional overrides for default resolved values
  * @returns Mock database with select/insert/update/delete chains
+ *
+ * KNOWN LIMITATION (Phase 20.1 WR-03) — the `select` thenable resolves to
+ * the SAME `results.select` array regardless of chain shape. Calls like
+ * `await db.select(table)`, `await db.select(table).limit(1)`, and
+ * `await db.select().from(t).where(p).limit(n)` all return the same array.
+ * This is fine for handlers that issue a single select-by-tenant (the
+ * Phase 20.1 billing handler shape) but will produce phantom data for
+ * handlers that issue two structurally different selects in sequence.
+ *
+ * If you need per-chain control (different tables / different limits
+ * returning different rows), reach for an integration-scope test against
+ * a real `scopedDb` (see the SC#2 pattern in
+ * `apps/api/__tests__/billing-subscription.test.ts`) rather than trying
+ * to extend this mock — the integration test caught a real bug that the
+ * mock-shaped tests could not have surfaced.
  */
 export function createMockDb(results?: {
   select?: any[];
@@ -21,14 +36,32 @@ export function createMockDb(results?: {
   const updateResult = results?.update ?? {};
   const deleteResult = results?.delete;
 
-  return {
-    select: mock(() => ({
+  // Phase 20.1 Plan 02 — `select` mock supports BOTH the post-Option-A shape
+  // `scoped.select(table).limit(n)` (the canonical scopedDb API) AND the
+  // legacy raw-Drizzle chain `db.select().from(t).where(p).limit(n)` for any
+  // module that still uses raw db access. The returned thenable resolves to
+  // `selectResult` for `await` AND exposes `.limit`, `.from`, etc., that
+  // also resolve to the same `selectResult`.
+  const buildSelectThenable = () => {
+    const thenableResult: any = {
+      // biome-ignore lint/suspicious/noThenProperty: intentional thenable that mocks Drizzle's awaitable query-builder
+      then: (onFulfilled?: (value: any[]) => unknown, onRejected?: (reason: unknown) => unknown) =>
+        Promise.resolve(selectResult).then(onFulfilled, onRejected),
+      limit: mock(() => Promise.resolve(selectResult)),
       from: mock(() => ({
         where: mock(() => ({
           limit: mock(() => Promise.resolve(selectResult)),
         })),
       })),
-    })),
+      where: mock(() => ({
+        limit: mock(() => Promise.resolve(selectResult)),
+      })),
+    };
+    return thenableResult;
+  };
+
+  return {
+    select: mock(() => buildSelectThenable()),
     insert: mock(() => ({
       values: mock(() => Promise.resolve(insertResult)),
     })),
@@ -50,9 +83,7 @@ export function createMockDb(results?: {
  * @param overrides - Optional partial HandlerContext to override defaults
  * @returns Complete HandlerContext suitable for unit tests
  */
-export function createMockContext(
-  overrides?: Partial<HandlerContext>,
-): HandlerContext {
+export function createMockContext(overrides?: Partial<HandlerContext>): HandlerContext {
   return {
     tenantId: "test-tenant-id",
     userId: "test-user-id",

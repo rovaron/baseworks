@@ -25,11 +25,9 @@
  * - captured: envelopes captured in insertion order
  * - reset(): clear captured[] in place (stable reference for beforeEach reuse)
  */
+
+import type { Transport, TransportMakeRequestResponse } from "@sentry/core";
 import { createTransport } from "@sentry/core";
-import type {
-  Transport,
-  TransportMakeRequestResponse,
-} from "@sentry/core";
 
 export interface TestTransportHandle {
   /** Transport factory — pass to Sentry.init({ transport }). */

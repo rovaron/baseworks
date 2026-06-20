@@ -1,5 +1,6 @@
-import { Elysia } from "elysia";
 import { getErrorTracker } from "@baseworks/observability";
+import { AppError } from "@baseworks/shared";
+import { Elysia } from "elysia";
 import { logger } from "../../lib/logger";
 
 /**
@@ -9,9 +10,10 @@ import { logger } from "../../lib/logger";
  * HTTP status mapping:
  * - VALIDATION errors -> 400 with `VALIDATION_ERROR` code and details
  * - NOT_FOUND errors -> 404 with `NOT_FOUND` code
- * - "Unauthorized" / "Missing tenant context" -> 401 with `UNAUTHORIZED`
- * - "No active tenant" -> 401 with `MISSING_TENANT_CONTEXT`
- * - "Forbidden" -> 403 with `FORBIDDEN` code
+ * - AppError (from @baseworks/shared) -> mapped via its `status`/`code`
+ *   (e.g. UnauthorizedError -> 401 UNAUTHORIZED,
+ *   NoActiveTenantError -> 401 MISSING_TENANT_CONTEXT,
+ *   ForbiddenError -> 403 FORBIDDEN)
  * - All other errors -> 500 with `INTERNAL_ERROR` (no details exposed)
  *
  * Detailed error messages and stack traces are logged server-side
@@ -27,17 +29,6 @@ export const errorMiddleware = new Elysia({ name: "error-handler" }).onError(
 
     // Log all errors server-side
     logger.error({ code, message: errMsg, stack: errStack }, "Request error");
-
-    // Phase 18 D-03 — capture via ErrorTracker port.
-    // A3 resolution: the matched-route template is NOT available on Elysia's
-    // Context at onError time. Tag method+code (cardinality-safe); send the
-    // concrete path via extra (not a metric dimension — Pitfall 4). Phase 19
-    // adds the route template via middleware that has access to Elysia's
-    // internal routing state.
-    getErrorTracker().captureException(error, {
-      tags: { method: request.method, code: String(code) },
-      extra: { path: new URL(request.url).pathname },
-    });
 
     switch (code) {
       case "VALIDATION":
@@ -56,11 +47,21 @@ export const errorMiddleware = new Elysia({ name: "error-handler" }).onError(
         };
 
       default: {
-        // Check for tenant context / auth errors from tenant middleware
-        if (
-          errMsg === "Missing tenant context" ||
-          errMsg === "Unauthorized"
-        ) {
+        // Typed application errors carry their own HTTP status + code.
+        // Map on those fields rather than matching the message text, which
+        // is brittle and breaks if a message is reworded.
+        if (error instanceof AppError) {
+          set.status = error.status;
+          return {
+            success: false,
+            error: error.code,
+          };
+        }
+
+        // Belt-and-suspenders: legacy throw sites that still raise plain
+        // Error("Unauthorized"/"No active tenant"/"Forbidden") keep mapping
+        // correctly during the transition to typed errors.
+        if (errMsg === "Unauthorized") {
           set.status = 401;
           return {
             success: false,
@@ -83,6 +84,20 @@ export const errorMiddleware = new Elysia({ name: "error-handler" }).onError(
             error: "FORBIDDEN",
           };
         }
+
+        // Phase 18 D-03 — capture via ErrorTracker port.
+        // Only genuinely unexpected (5xx) errors are reported; the 4xx
+        // client conditions above (VALIDATION, NOT_FOUND, auth/tenant,
+        // forbidden) are normal and must not flood the tracker.
+        // A3 resolution: the matched-route template is NOT available on Elysia's
+        // Context at onError time. Tag method+code (cardinality-safe); send the
+        // concrete path via extra (not a metric dimension — Pitfall 4). Phase 19
+        // adds the route template via middleware that has access to Elysia's
+        // internal routing state.
+        getErrorTracker().captureException(error, {
+          tags: { method: request.method, code: String(code), status: "500" },
+          extra: { path: new URL(request.url).pathname },
+        });
 
         // Generic internal error -- never expose details in production
         set.status = 500;

@@ -1,10 +1,18 @@
-import { describe, test, expect, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { assertResultErr, assertResultOk } from "../../../__test-utils__/assert-result";
 import { createMockContext } from "../../../__test-utils__/mock-context";
-import { assertResultOk, assertResultErr } from "../../../__test-utils__/assert-result";
+import type { auth as realAuth } from "../auth";
 
-const mockUpdateOrganization = mock(() =>
-  Promise.resolve({ id: "org-1", name: "Updated Org", slug: "updated-org" }),
-);
+type Org = NonNullable<Awaited<ReturnType<typeof realAuth.api.updateOrganization>>>;
+
+const updatedOrg: Org = {
+  id: "org-1",
+  name: "Updated Org",
+  slug: "updated-org",
+  createdAt: new Date(),
+};
+
+const mockUpdateOrganization = mock((): Promise<Org | null> => Promise.resolve(updatedOrg));
 
 mock.module("../auth", () => ({
   auth: {
@@ -28,7 +36,7 @@ describe("updateTenant", () => {
     const result = await updateTenant(input, ctx);
     const data = assertResultOk(result);
 
-    expect(data).toEqual({ id: "org-1", name: "Updated Org", slug: "updated-org" });
+    expect(data).toEqual(updatedOrg);
     expect(mockUpdateOrganization).toHaveBeenCalledTimes(1);
     expect(mockUpdateOrganization).toHaveBeenCalledWith({
       body: {

@@ -1,21 +1,11 @@
 "use client";
 
-import { Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
-import { useTranslations } from "next-intl";
-
 import {
   Button,
   Card,
   CardContent,
   CardDescription,
   CardHeader,
-
   Form,
   FormControl,
   FormField,
@@ -24,6 +14,14 @@ import {
   FormMessage,
   Input,
 } from "@baseworks/ui";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { Suspense } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
 import { auth } from "@/lib/api";
 
 function ResetPasswordForm() {
@@ -79,9 +77,7 @@ function ResetPasswordForm() {
       <Card className="w-full max-w-[400px]">
         <CardHeader className="text-center">
           <h1 className="text-2xl font-semibold leading-none tracking-tight">{t("invalidLink")}</h1>
-          <CardDescription>
-            {t("invalidLinkDescription")}
-          </CardDescription>
+          <CardDescription>{t("invalidLinkDescription")}</CardDescription>
         </CardHeader>
       </Card>
     );

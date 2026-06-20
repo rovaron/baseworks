@@ -1,0 +1,80 @@
+// Phase 22 / OPS-01 — bull-board mount with RBAC + CSP + readOnly env feature flag.
+// References:
+//   - github.com/felixmosh/bull-board/tree/master/examples/with-elysia (verified 2026-04-27)
+//   - github.com/felixmosh/bull-board/blob/master/README.md#queue-options (readOnlyMode)
+//   - github.com/oven-sh/bun/issues/5809 (uiBasePath Bun workaround)
+import { dirname } from "node:path";
+import { env } from "@baseworks/config";
+import { requirePlatformAdmin } from "@baseworks/module-auth";
+import { createBullBoard } from "@bull-board/api";
+import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
+import { ElysiaAdapter } from "@bull-board/elysia";
+import type { Queue } from "bullmq";
+import { Elysia } from "elysia";
+
+// Resolve @bull-board/ui's installed dist directory at runtime. Bun's isolated
+// install does NOT hoist @bull-board/ui to the workspace-root node_modules, so
+// the plan's hard-coded "node_modules/@bull-board/ui" path is invalid here.
+// Bun.resolveSync returns the package.json path; dist/static lives next to it.
+const uiPkgPath = Bun.resolveSync("@bull-board/ui/package.json", import.meta.dir);
+const uiBasePath = dirname(uiPkgPath);
+
+/**
+ * Phase 22 / OPS-01 — Elysia plugin factory mounting bull-board at /admin/bull-board.
+ *
+ * Composition (D-03):
+ *   .use(requirePlatformAdmin())         ← every request including HTML/CSS/JS gets platform-admin gating
+ *   .use(serverAdapter.registerPlugin()) ← bull-board's Elysia subtree
+ *   .onAfterHandle(set CSP)              ← D-04 frame-ancestors (plugin-scoped per Pitfall 6)
+ *
+ * Read-only mode (D-02): each BullMQAdapter constructed with the env-driven flag.
+ * Toggling requires a process restart — readOnlyMode is captured at createBullBoard() time.
+ *
+ * @param queues - Module-collected BullMQ Queue refs to expose in the dashboard.
+ * @returns Awaitable Elysia plugin ready to be mounted with `app.use(plugin)`.
+ */
+export async function createBullBoardPlugin(queues: Queue[]) {
+  // D-04 — frame-ancestors: ADMIN_URL is the only allowed embedder. When unset,
+  // degrade to 'none' (strictest possible — bull-board still serves but cannot be iframed).
+  const frameAncestors = env.ADMIN_URL ? `'${env.ADMIN_URL}'` : "'none'";
+
+  const serverAdapter = new ElysiaAdapter({
+    basePath: "/admin/bull-board",
+    prefix: "/admin/bull-board",
+  });
+
+  // D-02 — readOnlyMode is per-queue; every adapter receives the same env-driven flag.
+  const readOnly = env.BULL_BOARD_READ_ONLY === "true";
+
+  createBullBoard({
+    queues: queues.map((q) => new BullMQAdapter(q, { readOnlyMode: readOnly })),
+    serverAdapter,
+    options: {
+      // CRITICAL Bun-compat workaround for oven-sh/bun#5809 (eval inside @bull-board/ui).
+      // Resolved dynamically — Bun isolated install does not hoist @bull-board/ui to
+      // the workspace-root node_modules, so a static relative path breaks at runtime.
+      uiBasePath,
+      uiConfig: {
+        boardTitle: "Baseworks Job Monitor",
+        hideRedisDetails: true,
+      },
+    },
+  });
+
+  // D-03 + Pitfall 6 — requirePlatformAdmin composition: every request inside this plugin
+  // (HTML/CSS/JS/static) passes through the platform-admin derive. Returns 401 unauth,
+  // 403 when the session email is not in the ADMIN_EMAILS allowlist.
+  //
+  // CSP via onRequest: set the header EARLY so it survives every downstream path,
+  // including the platform-admin-throws → global errorMiddleware → 401/403
+  // response build. Elysia's response builder reads `set.headers` regardless of
+  // whether onAfterHandle fires (which it does NOT for thrown handlers).
+  // The plugin is named so set.headers mutations are scoped — CSP does NOT leak
+  // to sibling routes (Pitfall 6 — verified by the "CSP does NOT leak" test).
+  return new Elysia({ name: "bull-board-mount" })
+    .onRequest(({ set }) => {
+      set.headers["content-security-policy"] = `frame-ancestors ${frameAncestors}`;
+    })
+    .use(requirePlatformAdmin())
+    .use(await serverAdapter.registerPlugin());
+}

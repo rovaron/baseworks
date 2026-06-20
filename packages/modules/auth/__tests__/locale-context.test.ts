@@ -1,14 +1,18 @@
-import { describe, test, expect, mock } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
+import * as realConfig from "@baseworks/config";
 import { defaultLocale, type Locale } from "@baseworks/i18n";
 
 // The auth barrel transitively imports `./auth` which imports @baseworks/config
 // (t3-env validation). The @baseworks/observability barrel transitively imports
-// scrub-pii which also imports @baseworks/config. Mock config + auth BEFORE any
-// SUT module is evaluated so env validation doesn't fire during a unit test.
-// Mirrors the pattern at packages/modules/auth/src/__tests__/accept-invitation.test.ts
-// (top-of-file mock.module + deferred dynamic import).
+// scrub-pii which also imports @baseworks/config. Mock config BEFORE any SUT
+// module is evaluated so we control the env, but SPREAD the real module first so
+// the mock keeps the FULL export surface (getAdminEmails, etc.). A partial mock
+// here both broke Test 4 (the auth barrel imports getAdminEmails) AND — because
+// bun's mock.module is process-global — leaked a getAdminEmails-less config into
+// every test file loaded after this one (timestamps-updatedat / mock-isolation).
 mock.module("@baseworks/config", () => ({
-  env: { OBS_PII_DENY_EXTRA_KEYS: "" },
+  ...realConfig,
+  env: { ...realConfig.env, OBS_PII_DENY_EXTRA_KEYS: "" },
 }));
 mock.module("../src/auth", () => ({
   auth: { api: {} },
@@ -62,17 +66,13 @@ describe("locale-context — Phase 19 / CTX-01 / D-10 / D-11 migration", () => {
 
   test("Test 4 (D-10 localeMiddleware deleted from barrel): import fails", async () => {
     const mod = await import("../src/index");
-    expect(
-      (mod as { localeMiddleware?: unknown }).localeMiddleware,
-    ).toBeUndefined();
+    expect((mod as { localeMiddleware?: unknown }).localeMiddleware).toBeUndefined();
     // getLocale must still be re-exported from the barrel.
     expect(typeof (mod as { getLocale?: unknown }).getLocale).toBe("function");
   });
 
   test("Test 5 (D-10 per-module ALS + banned mutator deleted from file)", async () => {
-    const source = await Bun.file(
-      "packages/modules/auth/src/locale-context.ts",
-    ).text();
+    const source = await Bun.file("packages/modules/auth/src/locale-context.ts").text();
     // Dynamic tokens so this test file itself is not flagged by the Plan 08
     // repo-wide grep sweep for the banned mutator / removed ALS symbol names.
     const banned = `.${"enter"}${"With"}(`;
@@ -86,9 +86,7 @@ describe("locale-context — Phase 19 / CTX-01 / D-10 / D-11 migration", () => {
   });
 
   test("Test 6 (D-12 cookie-parser moved out to apps/api)", async () => {
-    const source = await Bun.file(
-      "packages/modules/auth/src/locale-context.ts",
-    ).text();
+    const source = await Bun.file("packages/modules/auth/src/locale-context.ts").text();
     const parserName = `parse${"Next"}${"Locale"}${"Cookie"}`;
     expect(source.includes(parserName)).toBe(false);
   });

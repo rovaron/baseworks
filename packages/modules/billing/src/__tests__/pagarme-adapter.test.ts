@@ -1,6 +1,6 @@
-import { describe, test, expect, mock, beforeEach, afterEach } from "bun:test";
-import type { RawProviderEvent } from "../ports/types";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { mapPagarmeEvent } from "../adapters/pagarme/pagarme-webhook-mapper";
+import type { RawProviderEvent } from "../ports/types";
 
 /**
  * Pagar.me adapter + webhook mapper tests (PAY-04).
@@ -13,7 +13,7 @@ import { mapPagarmeEvent } from "../adapters/pagarme/pagarme-webhook-mapper";
 const originalFetch = globalThis.fetch;
 
 function mockFetchResponse(data: any, status = 200) {
-  return mock(() =>
+  return mock((_url: string, _init: { method: string; body: string }) =>
     Promise.resolve(
       new Response(JSON.stringify(data), {
         status,
@@ -25,9 +25,7 @@ function mockFetchResponse(data: any, status = 200) {
 
 // Dynamically import after setting up mocks
 async function createAdapter() {
-  const { PagarmeAdapter } = await import(
-    "../adapters/pagarme/pagarme-adapter"
-  );
+  const { PagarmeAdapter } = await import("../adapters/pagarme/pagarme-adapter");
   return new PagarmeAdapter({
     secretKey: "sk_test_pagarme_123",
     webhookSecret: "whsec_test_pagarme_456",
@@ -138,11 +136,7 @@ describe("PagarmeAdapter", () => {
       false,
       ["sign"],
     );
-    const signatureBytes = await crypto.subtle.sign(
-      "HMAC",
-      key,
-      encoder.encode(rawBody),
-    );
+    const signatureBytes = await crypto.subtle.sign("HMAC", key, encoder.encode(rawBody));
     const validSignature = Array.from(new Uint8Array(signatureBytes))
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
@@ -221,10 +215,7 @@ describe("PagarmeAdapter", () => {
 });
 
 describe("mapPagarmeEvent", () => {
-  function makePagarmeEvent(
-    type: string,
-    data: Record<string, unknown> = {},
-  ): RawProviderEvent {
+  function makePagarmeEvent(type: string, data: Record<string, unknown> = {}): RawProviderEvent {
     return {
       id: `hook_test_${type.replace(/\./g, "_")}`,
       type,
@@ -309,9 +300,7 @@ describe("mapPagarmeEvent", () => {
   test("throws on unhandled event type", () => {
     const raw = makePagarmeEvent("unknown.event", {});
 
-    expect(() => mapPagarmeEvent(raw)).toThrow(
-      "Unhandled Pagar.me event type: unknown.event",
-    );
+    expect(() => mapPagarmeEvent(raw)).toThrow("Unhandled Pagar.me event type: unknown.event");
   });
 
   test("handles missing customer gracefully", () => {

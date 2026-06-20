@@ -1,13 +1,44 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.4.10/schema.json",
-  "plugins": ["./.biome/plugins/no-als-enter-with.grit"],
+  "plugins": [
+    "./.biome/plugins/no-als-enter-with.grit",
+    "./.biome/plugins/ban-files-table-access.grit"
+  ],
+  "files": {
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/.next",
+      "!**/dist",
+      "!**/.claude",
+      "!**/.gsd",
+      "!**/.bg-shell",
+      "!**/.planning",
+      "!**/__fixtures__",
+      "!**/__tests__/fixtures",
+      "!**/migrations/meta/**",
+      "!**/*.grit",
+      "!**/globals.css"
+    ]
+  },
   "formatter": {
     "indentStyle": "space",
     "indentWidth": 2,
-    "lineWidth": 100
+    "lineWidth": 100,
+    "lineEnding": "lf"
   },
   "linter": {
-    "enabled": true
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "suspicious": {
+        "noExplicitAny": "warn",
+        "noArrayIndexKey": "warn"
+      },
+      "correctness": {
+        "useExhaustiveDependencies": "warn"
+      }
+    }
   },
   "assist": {
     "enabled": true,

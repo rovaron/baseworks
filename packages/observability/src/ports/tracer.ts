@@ -94,11 +94,7 @@ export interface Tracer {
    * @param options - Initial attributes and span kind
    * @returns Whatever `fn` returns (awaited)
    */
-  withSpan<T>(
-    name: string,
-    fn: (span: Span) => T | Promise<T>,
-    options?: SpanOptions,
-  ): Promise<T>;
+  withSpan<T>(name: string, fn: (span: Span) => T | Promise<T>, options?: SpanOptions): Promise<T>;
 
   /**
    * Inject the current trace context into a transport-neutral carrier.

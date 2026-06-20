@@ -1,7 +1,10 @@
-import { describe, test, expect, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { createMockContext } from "../../../__test-utils__/mock-context";
+import type { auth as realAuth } from "../auth";
 
-const mockGetFullOrganization = mock(() => Promise.resolve(null));
+type FullOrg = NonNullable<Awaited<ReturnType<typeof realAuth.api.getFullOrganization>>>;
+
+const mockGetFullOrganization = mock((): Promise<FullOrg | null> => Promise.resolve(null));
 
 mock.module("../auth", () => ({
   auth: {
@@ -19,18 +22,26 @@ describe("getTenant", () => {
   });
 
   test("returns tenant data on success", async () => {
-    const orgData = {
+    const orgData: FullOrg = {
       id: "org-1",
       name: "Test Org",
       slug: "test-org",
-      members: [{ userId: "user-1", role: "owner" }],
+      createdAt: new Date(),
+      invitations: [],
+      members: [
+        {
+          id: "mem-1",
+          organizationId: "org-1",
+          userId: "user-1",
+          role: "owner",
+          createdAt: new Date(),
+          user: { id: "user-1", email: "owner@test.com", name: "Owner" },
+        },
+      ],
     };
     mockGetFullOrganization.mockResolvedValueOnce(orgData);
 
-    const result = await getTenant(
-      { organizationId: "org-1" },
-      createMockContext(),
-    );
+    const result = await getTenant({ organizationId: "org-1" }, createMockContext());
 
     expect(result.success).toBe(true);
     if (result.success) {
@@ -45,10 +56,7 @@ describe("getTenant", () => {
   test("returns error when tenant not found", async () => {
     mockGetFullOrganization.mockResolvedValueOnce(null);
 
-    const result = await getTenant(
-      { organizationId: "nonexistent" },
-      createMockContext(),
-    );
+    const result = await getTenant({ organizationId: "nonexistent" }, createMockContext());
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -57,14 +65,9 @@ describe("getTenant", () => {
   });
 
   test("returns error when auth.api throws", async () => {
-    mockGetFullOrganization.mockRejectedValueOnce(
-      new Error("Network failure"),
-    );
+    mockGetFullOrganization.mockRejectedValueOnce(new Error("Network failure"));
 
-    const result = await getTenant(
-      { organizationId: "org-1" },
-      createMockContext(),
-    );
+    const result = await getTenant({ organizationId: "org-1" }, createMockContext());
 
     expect(result.success).toBe(false);
     if (!result.success) {

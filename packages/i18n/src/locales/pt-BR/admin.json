@@ -7,7 +7,15 @@
     "tenants": "Tenants",
     "users": "Usuários",
     "billing": "Faturamento",
-    "system": "Sistema"
+    "system": "Sistema",
+    "jobs": "Monitor de Jobs"
+  },
+  "jobs": {
+    "title": "Monitor de Jobs",
+    "loading": "Carregando painel de jobs…",
+    "loadError": "Não foi possível carregar o painel de jobs. Verifique a conexão com a API e tente novamente.",
+    "retry": "Recarregar painel",
+    "iframeTitle": "Monitor de Jobs — bull-board"
   },
   "toast": {
     "invalidCredentials": "E-mail ou senha inválidos",
@@ -109,6 +117,42 @@
       "deactivateDialog": {
         "title": "Desativar tenant",
         "description": "Desativar {name} impedirá todos os membros de acessar a plataforma. Isso pode ser revertido."
+      },
+      "files": {
+        "title": "Arquivos",
+        "empty": "Nenhum arquivo para este inquilino.",
+        "uploadTitle": "Enviar arquivos",
+        "uploadHint": "JPEG, PNG, WebP ou PDF, até 10 MB cada.",
+        "columns": {
+          "name": "Nome",
+          "type": "Tipo",
+          "size": "Tamanho",
+          "status": "Status",
+          "created": "Criado em",
+          "actions": "Ações"
+        },
+        "view": "Ver {name}",
+        "delete": "Excluir {name}",
+        "variants": "{count} variantes",
+        "status": {
+          "pending": "Pendente",
+          "uploaded": "Enviado",
+          "transforming": "Processando",
+          "ready": "Pronto"
+        },
+        "deleteDialog": {
+          "title": "Excluir arquivo",
+          "description": "Excluir {name}? Esta ação não pode ser desfeita.",
+          "confirm": "Excluir",
+          "cancel": "Cancelar",
+          "deleting": "Excluindo..."
+        },
+        "toast": {
+          "uploaded": "Arquivo enviado.",
+          "deleted": "Arquivo excluído.",
+          "deleteFailed": "Não foi possível excluir o arquivo.",
+          "loadError": "Não foi possível carregar os arquivos."
+        }
       }
     },
     "toast": {
@@ -151,11 +195,65 @@
       "unhealthy": "Um ou mais sistemas precisam de atenção."
     },
     "queues": "Filas",
+    "statusLabel": "Status",
+    "refreshNow": "Atualizar agora",
+    "updatedAgo": "Atualizado há {{time}}",
+    "updatedJustNow": "Atualizado agora",
     "queueMetrics": {
       "waiting": "Aguardando",
       "active": "Ativo",
       "completed": "Concluído",
-      "failed": "Falhou"
+      "failed": "Falhou",
+      "delayed": "Adiado",
+      "thresholds": "Limites",
+      "warnAt": "Alerta em {{count}}",
+      "criticalAt": "Crítico em {{count}}"
+    },
+    "workers": {
+      "title": "Workers",
+      "empty": "Nenhum worker reportando heartbeat ainda. Inicie um worker para ver o status.",
+      "instanceId": "Instância",
+      "queues": "Filas",
+      "lastHeartbeat": "Último heartbeat",
+      "status": {
+        "healthy": "Saudável",
+        "stale": "Defasado",
+        "dead": "Inativo"
+      }
+    },
+    "db": {
+      "title": "Banco de Dados",
+      "connected": "Conectado",
+      "disconnected": "Desconectado",
+      "lagMs": "Latência de ida e volta",
+      "lagUnavailable": "Latência indisponível"
+    },
+    "recentErrors": {
+      "title": "Erros Recentes",
+      "empty": "Nenhum erro registrado no processo atual. Reinícios limpam esta lista.",
+      "source": {
+        "cqrs": "CQRS",
+        "http": "HTTP",
+        "worker": "Worker",
+        "global": "Global"
+      },
+      "occurrences": "{{count}}× na janela"
+    },
+    "modules": {
+      "title": "Módulos",
+      "noContributor": "Sem verificação de saúde registrada",
+      "status": {
+        "healthy": "Saudável",
+        "degraded": "Degradado",
+        "unhealthy": "Instável",
+        "unknown": "Desconhecido"
+      }
+    },
+    "errors": {
+      "unauthorized": "Sua sessão expirou. Entre novamente para ver a saúde do sistema.",
+      "forbidden": "Papel de owner é necessário para ver a saúde detalhada do sistema.",
+      "serverError": "O endpoint de saúde do sistema retornou um erro. Tente novamente em instantes.",
+      "timeout": "A verificação de saúde do sistema expirou. O agregador pode estar sobrecarregado."
     },
     "redis": {
       "title": "Redis",

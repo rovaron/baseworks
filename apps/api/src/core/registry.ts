@@ -1,8 +1,10 @@
 import type { ModuleDefinition } from "@baseworks/shared";
+import { fileRelationsRegistry } from "@baseworks/storage";
 import { Elysia } from "elysia";
 import { logger } from "../lib/logger";
 import { CqrsBus } from "./cqrs";
 import { TypedEventBus } from "./event-bus";
+import { HealthAggregator } from "./health-aggregator";
 
 /**
  * Static import map for modules. Ensures imports are statically analyzable by Bun.
@@ -12,6 +14,7 @@ const moduleImportMap: Record<string, () => Promise<any>> = {
   example: () => import("@baseworks/module-example"),
   auth: () => import("@baseworks/module-auth"),
   billing: () => import("@baseworks/module-billing"),
+  files: () => import("@baseworks/module-files"),
   // Future modules added here:
 };
 
@@ -38,6 +41,7 @@ export class ModuleRegistry {
   private loaded = new Map<string, ModuleDefinition>();
   private cqrs: CqrsBus;
   private eventBus: TypedEventBus;
+  private healthAggregator: HealthAggregator;
   private config: RegistryConfig;
 
   /**
@@ -52,6 +56,8 @@ export class ModuleRegistry {
     this.config = config;
     this.cqrs = new CqrsBus();
     this.eventBus = new TypedEventBus();
+    // Phase 22 / OPS-04 — central health aggregator owned by the registry.
+    this.healthAggregator = new HealthAggregator();
   }
 
   /**
@@ -66,10 +72,21 @@ export class ModuleRegistry {
    */
   async loadAll(): Promise<void> {
     for (const name of this.config.modules) {
+      // A module configured more than once loads only once; this dedupe means
+      // the duplicate-key guard below fires only for genuinely DISTINCT modules
+      // that collide on the same namespaced CQRS key.
+      if (this.loaded.has(name)) {
+        logger.warn({ module: name }, "Module already loaded -- skipping duplicate config entry");
+        continue;
+      }
+
       const importFn = moduleImportMap[name];
       if (!importFn) {
-        logger.error({ module: name }, "Module not found in import map -- skipping");
-        continue;
+        logger.error({ module: name }, "Module not found in import map");
+        throw new Error(
+          `Module "${name}" is configured but has no entry in the static import map. ` +
+            `Add it to moduleImportMap in apps/api/src/core/registry.ts or remove it from the module config.`,
+        );
       }
 
       try {
@@ -83,14 +100,45 @@ export class ModuleRegistry {
           );
         }
 
-        // Register commands
+        // Register commands. Throw on a duplicate key so two modules shipping
+        // the same namespaced handler fail boot loudly instead of one silently
+        // overwriting the other (cqrs-silent-handler-overwrite).
         for (const [key, handler] of Object.entries(def.commands ?? {})) {
+          if (this.cqrs.hasCommand(key)) {
+            throw new Error(
+              `Duplicate command key "${key}" registered by module "${name}". ` +
+                "Two modules cannot register the same namespaced CQRS command.",
+            );
+          }
           this.cqrs.registerCommand(key, handler);
         }
 
-        // Register queries
+        // Register queries (same duplicate-key guard as commands).
         for (const [key, handler] of Object.entries(def.queries ?? {})) {
+          if (this.cqrs.hasQuery(key)) {
+            throw new Error(
+              `Duplicate query key "${key}" registered by module "${name}". ` +
+                "Two modules cannot register the same namespaced CQRS query.",
+            );
+          }
           this.cqrs.registerQuery(key, handler);
+        }
+
+        // Register health contributor (Phase 22 / OPS-04 / D-10)
+        if (def.health) {
+          this.healthAggregator.register(def.health);
+        }
+
+        // Register file-relations (Phase 24 / FILE-01 / MOD-01 / D-09).
+        // Each module's `fileRelations: Record<kind, FileRelation>` is collected
+        // into the process-wide fileRelationsRegistry. Phase 26's files-module
+        // sign-upload contract reads from this populated registry.
+        // Zod validation in register() throws with module + kind context on
+        // invalid shape — fails boot loud per D-07.
+        if (def.fileRelations) {
+          for (const [kind, relation] of Object.entries(def.fileRelations)) {
+            fileRelationsRegistry.register(name, kind, relation);
+          }
         }
 
         this.loaded.set(name, def);
@@ -118,37 +166,10 @@ export class ModuleRegistry {
   }
 
   /**
-   * Attach loaded module routes to the Elysia app instance.
-   *
-   * Must be called after {@link loadAll}. Skips auth and billing
-   * modules (mounted separately for type chain preservation).
-   * No-ops when running in worker role.
-   *
-   * @param app - Elysia app instance to mount routes on
-   */
-  attachRoutes(app: Elysia<any>): void {
-    if (this.config.role === "worker") {
-      logger.info("Worker role -- skipping route attachment");
-      return;
-    }
-
-    for (const [name, def] of this.loaded) {
-      // Auth routes are mounted separately before tenant middleware
-      if (name === "auth") continue;
-      // Billing routes are mounted explicitly in app chain for type inference
-      if (name === "billing") continue;
-      if (def.routes) {
-        app.use(def.routes as any);
-        logger.info({ module: name }, "Routes attached");
-      }
-    }
-  }
-
-  /**
    * Returns a single Elysia plugin that chains all non-auth, non-billing module routes.
    * Used in the app composition chain to preserve type inference for Eden Treaty.
    */
-  getModuleRoutes(): Elysia<any> {
+  getModuleRoutes() {
     const plugin = new Elysia({ name: "module-routes" });
 
     if (this.config.role === "worker") {
@@ -176,6 +197,11 @@ export class ModuleRegistry {
   /** Returns the TypedEventBus instance used by this registry. */
   getEventBus(): TypedEventBus {
     return this.eventBus;
+  }
+
+  /** Returns the HealthAggregator instance (Phase 22 / OPS-04). Same instance across calls. */
+  getHealthAggregator(): HealthAggregator {
+    return this.healthAggregator;
   }
 
   /** Returns the map of loaded ModuleDefinition objects keyed by name. */

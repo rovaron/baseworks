@@ -1,5 +1,5 @@
-import { treaty } from "@elysiajs/eden";
 import type { App } from "@baseworks/api";
+import { treaty } from "@elysiajs/eden";
 
 /**
  * Eden Treaty client factory.

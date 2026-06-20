@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Copy, Check } from "lucide-react";
 import { Button } from "@baseworks/ui";
+import { Check, Copy } from "lucide-react";
+import { useState } from "react";
 
 interface CopyLinkButtonProps {
   text: string;
@@ -26,9 +26,15 @@ export function CopyLinkButton({ text, label, copiedLabel }: CopyLinkButtonProps
   return (
     <Button variant="outline" size="sm" onClick={handleCopy} aria-live="polite">
       {copied ? (
-        <><Check className="h-4 w-4" />{copiedLabel}</>
+        <>
+          <Check className="h-4 w-4" />
+          {copiedLabel}
+        </>
       ) : (
-        <><Copy className="h-4 w-4" />{label}</>
+        <>
+          <Copy className="h-4 w-4" />
+          {label}
+        </>
       )}
     </Button>
   );

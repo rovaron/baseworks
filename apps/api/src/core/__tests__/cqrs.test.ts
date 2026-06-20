@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { CqrsBus } from "../cqrs";
-import type { HandlerContext, CommandHandler, QueryHandler } from "@baseworks/shared";
+import type { CommandHandler, HandlerContext, QueryHandler } from "@baseworks/shared";
 import { ok } from "@baseworks/shared";
+import { CqrsBus } from "../cqrs";
 
 const mockCtx: HandlerContext = {
   tenantId: "test-tenant",

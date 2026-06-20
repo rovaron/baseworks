@@ -1,8 +1,7 @@
+import { defineQuery, err, ok } from "@baseworks/shared";
 import { Type } from "@sinclair/typebox";
-import { defineQuery, ok, err } from "@baseworks/shared";
-import { billingCustomers } from "../schema";
 import { getPaymentProvider } from "../provider-factory";
-import { eq } from "drizzle-orm";
+import { billingCustomers } from "../schema";
 
 const GetBillingHistoryInput = Type.Object({
   limit: Type.Optional(Type.Number({ minimum: 1, maximum: 100, default: 10 })),
@@ -23,29 +22,24 @@ const GetBillingHistoryInput = Type.Object({
  * Per T-03-12: Uses ctx.tenantId to look up providerCustomerId,
  *   then fetches only that customer's invoices.
  */
-export const getBillingHistory = defineQuery(
-  GetBillingHistoryInput,
-  async (input, ctx) => {
-    try {
-      const [customer] = await ctx.db
-        .select()
-        .from(billingCustomers)
-        .where(eq(billingCustomers.tenantId, ctx.tenantId))
-        .limit(1);
+export const getBillingHistory = defineQuery(GetBillingHistoryInput, async (input, ctx) => {
+  try {
+    // Phase 20.1 Plan 02 — Option A: scopedDb.select(table) auto-injects
+    // the tenantId predicate.
+    const [customer] = await ctx.db.select(billingCustomers).limit(1);
 
-      if (!customer) {
-        return ok({ invoices: [] });
-      }
-
-      const provider = getPaymentProvider();
-      const invoices = await provider.getInvoices(
-        customer.providerCustomerId,
-        input.limit ?? 10,
-      );
-
-      return ok({ invoices });
-    } catch (error: any) {
-      return err(error.message || "Failed to fetch billing history");
+    if (!customer) {
+      return ok({ invoices: [] });
     }
-  },
-);
+
+    const provider = getPaymentProvider();
+    const invoices = await provider.getInvoices(customer.providerCustomerId, input.limit ?? 10);
+
+    return ok({ invoices });
+  } catch (error: unknown) {
+    // Phase 20.1 WR-02 — narrow `unknown` so non-Error throws fall back
+    // to the generic message instead of TypeError on `.message`.
+    const message = error instanceof Error ? error.message : "Failed to fetch billing history";
+    return err(message || "Failed to fetch billing history");
+  }
+});

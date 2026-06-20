@@ -1,0 +1,36 @@
+{
+  "name": "Image transform failure rate — variants not generating",
+  "actionMatch": "all",
+  "filterMatch": "all",
+  "frequency": 5,
+  "environment": "production",
+  "conditions": [
+    {
+      "id": "sentry.rules.conditions.event_frequency.EventFrequencyCondition",
+      "value": 20,
+      "interval": "5m"
+    }
+  ],
+  "filters": [
+    {
+      "id": "sentry.rules.filters.tagged_event.TaggedEventFilter",
+      "key": "queue",
+      "match": "eq",
+      "value": "image-transform"
+    }
+  ],
+  "actions": [
+    {
+      "id": "sentry.mail.actions.NotifyEmailAction",
+      "targetType": "Team",
+      "fallthroughType": "AllMembers",
+      "targetIdentifier": "OPERATOR_TEAM_ID"
+    }
+  ],
+  "runbook_url": "../../runbooks/image-transform-failure.md",
+  "_baseworks_meta": {
+    "endpoint": "POST /api/0/projects/{org}/{project}/rules/",
+    "slo_note": "Issue Alert (modelled on high-error-rate.json): fires when >=20 image-transform job failures (captured by the worker on('failed') ErrorTracker, tagged queue=image-transform) occur within a 5m window — a real signal works today without custom metrics. Most common cause is a non-glibc worker base image breaking sharp's native binding (see image-transform-failure.md / file-storage.md). Corrupt/hostile single inputs self-heal via BullMQ retries and should not, alone, breach this threshold.",
+    "priority": "medium"
+  }
+}

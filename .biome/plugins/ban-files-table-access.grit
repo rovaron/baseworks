@@ -1,0 +1,30 @@
+// Ban direct `db.select().from(files)` access outside packages/modules/files/
+// per Phase 24 / FILE-01 / D-17. Pitfall 5 (cross-tenant authz on file read).
+//
+// Rule id: no-direct-files-table-access
+//
+// Direct table access bypasses the files-module's permission/registry layer
+// (FileRelation.canRead, polymorphic owner authorization, scopedDb tenant
+// filter). The only sanctioned consumer is packages/modules/files/** (path
+// created in Phase 26; allow-listed via the belt-and-suspenders shell-grep
+// gate at scripts/lint-no-direct-files-access.sh — Biome 2.4.10's GritQL
+// plugins lack a built-in path-allowlist primitive, so the shell script is
+// the authoritative path-allowlist mechanism).
+//
+// Allowed reads: nothing — every files-table touch must go through the
+// files module's CQRS commands/queries (sign-upload, get-signed-read-url,
+// list-files-for-record).
+//
+// Belt-and-suspenders via scripts/lint-no-direct-files-access.sh (mirrors
+// the no-als-enter-with shell-grep gate at scripts/lint-no-enterwith.sh).
+//
+// If a future exception arises, document it explicitly: add the file path to
+// scripts/lint-no-direct-files-access.sh ALLOWLIST AND justify in the commit
+// message + SUMMARY.md (mirrors the no-als-enter-with allow-list discipline).
+`$db.select($args).from(files)` where {
+  register_diagnostic(
+    span = $db,
+    message = "Direct `db.select().from(files)` is banned (Phase 24 / D-17). Use the files module's CQRS layer (sign-upload, get-signed-read-url, list-files-for-record). [no-direct-files-table-access]",
+    severity = "error"
+  )
+}

@@ -1,11 +1,11 @@
-import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import { axe } from "vitest-axe";
 import { Button } from "../button";
 
 function expectNoSeriousViolations(results: Awaited<ReturnType<typeof axe>>) {
   const serious = results.violations.filter(
-    (v) => v.impact === "critical" || v.impact === "serious"
+    (v) => v.impact === "critical" || v.impact === "serious",
   );
   expect(serious).toHaveLength(0);
 }
@@ -21,7 +21,7 @@ describe("Button a11y", () => {
     const { container } = render(
       <Button aria-label="Close" size="icon">
         <span aria-hidden="true">X</span>
-      </Button>
+      </Button>,
     );
     const results = await axe(container);
     expectNoSeriousViolations(results);

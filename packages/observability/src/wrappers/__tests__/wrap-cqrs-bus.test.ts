@@ -1,14 +1,10 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { wrapCqrsBus, type BusLike } from "../wrap-cqrs-bus";
-import type {
-  CaptureScope,
-  ErrorTracker,
-  ErrorTrackerScope,
-} from "../../ports/error-tracker";
-import type { Span, SpanOptions, Tracer } from "../../ports/tracer";
-import { setTracer, resetTracer } from "../../factory";
-import { obsContext } from "../../context";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { defaultLocale } from "@baseworks/i18n";
+import { obsContext } from "../../context";
+import { resetTracer, setTracer } from "../../factory";
+import type { CaptureScope, ErrorTracker, ErrorTrackerScope } from "../../ports/error-tracker";
+import type { Span, SpanOptions, Tracer } from "../../ports/tracer";
+import { type BusLike, wrapCqrsBus } from "../wrap-cqrs-bus";
 
 function makeRecordingTracker() {
   const calls: Array<{ err: unknown; scope?: CaptureScope }> = [];
@@ -168,9 +164,9 @@ describe("wrapCqrsBus — A5 invariant", () => {
       query: async () => ({ success: false, error: "NOT_IMPL" }),
     };
     const wrapped = wrapCqrsBus(bus, tracker);
-    await expect(
-      wrapped.execute("createTenant", {}, { tenantId: "t-1" }),
-    ).rejects.toThrow("db down");
+    await expect(wrapped.execute("createTenant", {}, { tenantId: "t-1" })).rejects.toThrow(
+      "db down",
+    );
     expect(calls.length).toBe(1);
     expect(calls[0].scope?.extra).toMatchObject({ commandName: "createTenant" });
     expect(calls[0].scope?.tenantId).toBe("t-1");
@@ -206,9 +202,9 @@ describe("wrapCqrsBus — A5 invariant", () => {
       },
     };
     const wrapped = wrapCqrsBus(bus, tracker);
-    await expect(
-      wrapped.query("listTenants", {}, { tenantId: "t-2" }),
-    ).rejects.toThrow("redis hang");
+    await expect(wrapped.query("listTenants", {}, { tenantId: "t-2" })).rejects.toThrow(
+      "redis hang",
+    );
     expect(calls.length).toBe(1);
     expect(calls[0].scope?.extra).toMatchObject({ queryName: "listTenants" });
     expect(calls[0].scope?.tenantId).toBe("t-2");
@@ -351,17 +347,14 @@ describe("wrapCqrsBus — D-17 ALS + tracer spans", () => {
       query: async () => ({ success: false, error: "NOT_IMPL" }),
     };
     const wrapped = wrapCqrsBus(bus, tracker);
-    await obsContext.run(
-      seedAls({ tenantId: "t-1", userId: "u-1" }),
-      async () => {
-        const res = await wrapped.execute(
-          "auth:create-tenant",
-          { name: "Acme" },
-          { tenantId: "t-1" },
-        );
-        expect(res).toMatchObject({ success: false, error: "VALIDATION_FAILED" });
-      },
-    );
+    await obsContext.run(seedAls({ tenantId: "t-1", userId: "u-1" }), async () => {
+      const res = await wrapped.execute(
+        "auth:create-tenant",
+        { name: "Acme" },
+        { tenantId: "t-1" },
+      );
+      expect(res).toMatchObject({ success: false, error: "VALIDATION_FAILED" });
+    });
     expect(calls.length).toBe(0);
   });
 
@@ -421,14 +414,9 @@ describe("wrapCqrsBus — D-17 ALS + tracer spans", () => {
       query: async () => ({ success: false, error: "X" }),
     };
     const wrapped = wrapCqrsBus(bus, tracker);
-    await obsContext.run(
-      seedAls({ tenantId: "ALS_T", userId: "u" }),
-      async () => {
-        await expect(
-          wrapped.execute("x", {}, { tenantId: "CTX_T" }),
-        ).rejects.toThrow("kaboom");
-      },
-    );
+    await obsContext.run(seedAls({ tenantId: "ALS_T", userId: "u" }), async () => {
+      await expect(wrapped.execute("x", {}, { tenantId: "CTX_T" })).rejects.toThrow("kaboom");
+    });
     expect(calls.length).toBe(1);
     expect(calls[0].scope?.tenantId).toBe("ALS_T");
   });
@@ -442,9 +430,7 @@ describe("wrapCqrsBus — D-17 ALS + tracer spans", () => {
     };
     const wrapped = wrapCqrsBus(bus, tracker);
     // NO obsContext.run frame — dispatch happens at startup / seed scripts.
-    await expect(
-      wrapped.execute("x", {}, { tenantId: "CTX_T" }),
-    ).rejects.toThrow("boot-error");
+    await expect(wrapped.execute("x", {}, { tenantId: "CTX_T" })).rejects.toThrow("boot-error");
     expect(calls.length).toBe(1);
     expect(calls[0].scope?.tenantId).toBe("CTX_T");
   });
@@ -491,9 +477,7 @@ describe("wrapCqrsBus — D-17 ALS + tracer spans", () => {
     await obsContext.run(
       seedAls({ requestId: "req-7", traceId: "trace-7", tenantId: "t" }),
       async () => {
-        await expect(
-          wrapped.execute("auth:do-thing", {}, {}),
-        ).rejects.toThrow("exec-boom");
+        await expect(wrapped.execute("auth:do-thing", {}, {})).rejects.toThrow("exec-boom");
       },
     );
     expect(calls[0].scope?.extra).toMatchObject({
@@ -507,9 +491,7 @@ describe("wrapCqrsBus — D-17 ALS + tracer spans", () => {
     await obsContext.run(
       seedAls({ requestId: "req-7q", traceId: "trace-7q", tenantId: "t" }),
       async () => {
-        await expect(
-          wrapped.query("auth:lookup", {}, {}),
-        ).rejects.toThrow("query-boom");
+        await expect(wrapped.query("auth:lookup", {}, {})).rejects.toThrow("query-boom");
       },
     );
     expect(calls[0].scope?.extra).toMatchObject({

@@ -1,6 +1,6 @@
-import { describe, test, expect, mock, beforeEach } from "bun:test";
-import type { RawProviderEvent } from "../ports/types";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { mapStripeEvent } from "../adapters/stripe/stripe-webhook-mapper";
+import type { RawProviderEvent } from "../ports/types";
 
 /**
  * Stripe adapter conformance tests (TEST-05).
@@ -9,11 +9,25 @@ import { mapStripeEvent } from "../adapters/stripe/stripe-webhook-mapper";
  * at module level to avoid real API calls.
  */
 
-// Create mock functions that will be reused across tests
-const mockCustomersCreate = mock(() =>
-  Promise.resolve({ id: "cus_stripe_123" }),
+// Create mock functions that will be reused across tests.
+// Parameter types mirror how StripeAdapter invokes each SDK method so that
+// `.mock.calls` is a typed tuple (instead of `[]`) and call args can be indexed.
+type StripeRequestOptions = { idempotencyKey: string };
+
+const mockCustomersCreate = mock(
+  (_params: { metadata: { tenantId: string }; name: string }, _options?: StripeRequestOptions) =>
+    Promise.resolve({ id: "cus_stripe_123" }),
 );
-const mockSubscriptionsCreate = mock(() =>
+const mockSubscriptionsCreate = mock(
+  (_params: { customer: string; items: { price: string }[] }, _options?: StripeRequestOptions) =>
+    Promise.resolve({
+      id: "sub_stripe_789",
+      status: "active",
+      items: { data: [{ id: "si_001", price: { id: "price_abc" } }] },
+      current_period_end: Math.floor(new Date("2026-05-01").getTime() / 1000),
+    }),
+);
+const mockSubscriptionsRetrieve = mock((_id: string) =>
   Promise.resolve({
     id: "sub_stripe_789",
     status: "active",
@@ -21,34 +35,42 @@ const mockSubscriptionsCreate = mock(() =>
     current_period_end: Math.floor(new Date("2026-05-01").getTime() / 1000),
   }),
 );
-const mockSubscriptionsRetrieve = mock(() =>
-  Promise.resolve({
-    id: "sub_stripe_789",
-    status: "active",
-    items: { data: [{ id: "si_001", price: { id: "price_abc" } }] },
-    current_period_end: Math.floor(new Date("2026-05-01").getTime() / 1000),
-  }),
+const mockSubscriptionsUpdate = mock(
+  (
+    _id: string,
+    _params: {
+      cancel_at_period_end?: boolean;
+      items: { id: string; price: string }[];
+    },
+    _options?: StripeRequestOptions,
+  ) =>
+    Promise.resolve({
+      id: "sub_stripe_789",
+      status: "active",
+      items: { data: [{ id: "si_001", price: { id: "price_new" } }] },
+      current_period_end: Math.floor(new Date("2026-05-01").getTime() / 1000),
+    }),
 );
-const mockSubscriptionsUpdate = mock(() =>
-  Promise.resolve({
-    id: "sub_stripe_789",
-    status: "active",
-    items: { data: [{ id: "si_001", price: { id: "price_new" } }] },
-    current_period_end: Math.floor(new Date("2026-05-01").getTime() / 1000),
-  }),
+const mockCheckoutSessionsCreate = mock(
+  (
+    _params: {
+      customer: string;
+      mode: string;
+      line_items: { price: string; quantity?: number }[];
+    },
+    _options?: StripeRequestOptions,
+  ) =>
+    Promise.resolve({
+      id: "cs_stripe_123",
+      url: "https://checkout.stripe.com/c/pay_cs_stripe_123",
+    }),
 );
-const mockCheckoutSessionsCreate = mock(() =>
-  Promise.resolve({
-    id: "cs_stripe_123",
-    url: "https://checkout.stripe.com/c/pay_cs_stripe_123",
-  }),
-);
-const mockPortalSessionsCreate = mock(() =>
+const mockPortalSessionsCreate = mock((_params: { customer: string; return_url: string }) =>
   Promise.resolve({
     url: "https://billing.stripe.com/p/session_test_123",
   }),
 );
-const mockInvoicesList = mock(() =>
+const mockInvoicesList = mock((_params: { customer: string; limit: number }) =>
   Promise.resolve({
     data: [
       {
@@ -63,8 +85,12 @@ const mockInvoicesList = mock(() =>
     ],
   }),
 );
-const mockCreateUsageRecord = mock(() =>
-  Promise.resolve({ id: "ur_stripe_123" }),
+const mockCreateUsageRecord = mock(
+  (
+    _subscriptionItemId: string,
+    _params: { quantity: number; timestamp: number; action: string },
+    _options?: StripeRequestOptions,
+  ) => Promise.resolve({ id: "ur_stripe_123" }),
 );
 const mockConstructEvent = mock((rawBody: string, _sig: string, _secret: string) => {
   const parsed = JSON.parse(rawBody);
@@ -180,9 +206,7 @@ describe("StripeAdapter", () => {
   });
 
   test("getSubscription returns null on error", async () => {
-    mockSubscriptionsRetrieve.mockImplementationOnce(() =>
-      Promise.reject(new Error("Not found")),
-    );
+    mockSubscriptionsRetrieve.mockImplementationOnce(() => Promise.reject(new Error("Not found")));
 
     const result = await adapter.getSubscription("sub_nonexistent");
     expect(result).toBeNull();

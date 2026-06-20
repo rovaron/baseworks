@@ -1,4 +1,4 @@
-import { describe, test, expect, mock, spyOn, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
 
 /**
  * Behavioral tests for the registerExampleHooks event-bus listener.
@@ -105,10 +105,10 @@ describe("registerExampleHooks", () => {
     await bus.emit("example.created", { id: "ex-1", tenantId: "t-1" });
 
     expect(mockAdd).toHaveBeenCalledTimes(1);
-    expect(mockAdd).toHaveBeenCalledWith(
-      "example-process-followup",
-      { exampleId: "ex-1", tenantId: "t-1" },
-    );
+    expect(mockAdd).toHaveBeenCalledWith("example-process-followup", {
+      exampleId: "ex-1",
+      tenantId: "t-1",
+    });
   });
 
   test("logs error without rethrowing when queue.add fails", async () => {

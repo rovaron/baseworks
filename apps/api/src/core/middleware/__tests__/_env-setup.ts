@@ -15,6 +15,5 @@
  */
 
 process.env.DATABASE_URL ??= "postgres://test:test@localhost:5432/test";
-process.env.BETTER_AUTH_SECRET ??=
-  "test-secret-32-chars-long-test-ok-xx";
+process.env.BETTER_AUTH_SECRET ??= "test-secret-32-chars-long-test-ok-xx";
 process.env.NODE_ENV ??= "test";

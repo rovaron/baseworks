@@ -1,0 +1,31 @@
+{
+  "dropzone": "Arraste uma imagem aqui, ou clique para escolher",
+  "browse": "Escolher arquivo",
+  "uploading": "Enviando… '{percent}'%",
+  "processing": "Processando…",
+  "done": "Enviado",
+  "cancel": "Cancelar",
+  "retry": "Tentar novamente",
+  "remove": "Remover",
+  "beforeUnload": "Um envio ainda está em andamento. Sair desta página mesmo assim?",
+  "errors": {
+    "oversize": "Este arquivo é muito grande. Escolha uma imagem menor.",
+    "wrong_mime": "Tipo de arquivo não suportado. Use uma imagem JPEG, PNG ou WebP.",
+    "quota_exceeded": "Limite de armazenamento atingido. Libere espaço e tente novamente.",
+    "network": "O envio falhou por um erro de rede. Tente novamente.",
+    "mime_mismatch": "O conteúdo do arquivo não corresponde a um tipo de imagem permitido.",
+    "sign_failed": "Não foi possível iniciar o envio. Tente novamente.",
+    "canceled": "Envio cancelado.",
+    "unknown": "Algo deu errado durante o envio."
+  },
+  "avatar": {
+    "title": "Foto de perfil",
+    "description": "Envie uma imagem JPEG, PNG ou WebP de até 5 MB. Imagens quadradas ficam melhores.",
+    "current": "Foto de perfil atual"
+  },
+  "logo": {
+    "title": "Logotipo da organização",
+    "description": "Envie uma imagem JPEG, PNG ou WebP de até 5 MB.",
+    "ownerOnly": "Apenas proprietários e administradores da organização podem alterar o logotipo."
+  }
+}

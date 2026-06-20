@@ -1,0 +1,20 @@
+# Enforce LF line endings for all text files across platforms so the working
+# tree, git index, and Biome (formatter.lineEnding defaults to lf) all agree.
+# This overrides a local core.autocrlf=true that otherwise checks out CRLF and
+# makes Biome flag every line. Run `git add --renormalize .` after adding this.
+* text=auto eol=lf
+
+# Binary assets — never normalize.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.avif binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.otf binary
+*.pdf binary

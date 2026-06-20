@@ -14,10 +14,10 @@
  * uses `"warning"` (Sentry-native vocabulary). Same discrepancy Plan 18-04
  * hit — fixed at authoring time to match the authoritative port vocabulary.
  */
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as Sentry from "@sentry/bun";
-import { SentryErrorTracker } from "../sentry-error-tracker";
 import { buildInitOptions } from "../init-options";
+import { SentryErrorTracker } from "../sentry-error-tracker";
 import { makeTestTransport } from "./test-transport";
 
 const TEST_DSN = "http://public@example.com/1";
@@ -117,10 +117,7 @@ describe("buildInitOptions", () => {
   test("beforeSend strips PII", () => {
     const opts = buildInitOptions({ dsn: TEST_DSN })!;
     // biome-ignore lint/suspicious/noExplicitAny: Sentry's beforeSend hook signature is permissive by design
-    const out = (opts.beforeSend as any)(
-      { extra: { password: "hunter2" } },
-      {},
-    );
+    const out = (opts.beforeSend as any)({ extra: { password: "hunter2" } }, {});
     expect(JSON.stringify(out)).not.toContain("hunter2");
   });
 

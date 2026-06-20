@@ -1,8 +1,8 @@
-import { describe, test, expect, beforeEach } from "bun:test";
-import { wrapEventBus, type EventBusLike } from "../wrap-event-bus";
-import type { Span, SpanOptions, Tracer } from "../../ports/tracer";
-import { obsContext } from "../../context";
+import { beforeEach, describe, expect, test } from "bun:test";
 import { defaultLocale } from "@baseworks/i18n";
+import { obsContext } from "../../context";
+import type { Span, SpanOptions, Tracer } from "../../ports/tracer";
+import { type EventBusLike, wrapEventBus } from "../wrap-event-bus";
 
 interface RecordedSpan {
   name: string;
@@ -22,11 +22,9 @@ function makeRecordingTracer() {
       spans.push(span);
       const s: Span = {
         end: () => span.events.push({ type: "end", payload: null }),
-        setAttribute: (k, v) =>
-          span.events.push({ type: "setAttribute", payload: { k, v } }),
+        setAttribute: (k, v) => span.events.push({ type: "setAttribute", payload: { k, v } }),
         setStatus: (st) => span.events.push({ type: "setStatus", payload: st }),
-        recordException: (err) =>
-          span.events.push({ type: "recordException", payload: err }),
+        recordException: (err) => span.events.push({ type: "recordException", payload: err }),
       };
       return s;
     },
@@ -35,11 +33,9 @@ function makeRecordingTracer() {
       spans.push(span);
       const s: Span = {
         end: () => span.events.push({ type: "end", payload: null }),
-        setAttribute: (k, v) =>
-          span.events.push({ type: "setAttribute", payload: { k, v } }),
+        setAttribute: (k, v) => span.events.push({ type: "setAttribute", payload: { k, v } }),
         setStatus: (st) => span.events.push({ type: "setStatus", payload: st }),
-        recordException: (err) =>
-          span.events.push({ type: "recordException", payload: err }),
+        recordException: (err) => span.events.push({ type: "recordException", payload: err }),
       };
       try {
         const r = await fn(s);
@@ -126,14 +122,11 @@ describe("wrapEventBus — D-15/D-16", () => {
 
   test("Test 1: event.publish span on emit with ALS attributes", async () => {
     const wrapped = wrapEventBus(bus, tracer);
-    await obsContext.run(
-      seedAls({ tenantId: "t-1", requestId: "req-1" }),
-      async () => {
-        wrapped.emit("tenant.created", { id: "t-1" });
-        // Give the fire-and-forget withSpan a microtask to settle.
-        await Promise.resolve();
-      },
-    );
+    await obsContext.run(seedAls({ tenantId: "t-1", requestId: "req-1" }), async () => {
+      wrapped.emit("tenant.created", { id: "t-1" });
+      // Give the fire-and-forget withSpan a microtask to settle.
+      await Promise.resolve();
+    });
     expect(spans.length).toBe(1);
     expect(spans[0].name).toBe("event.publish");
     expect(spans[0].options?.kind).toBe("producer");
@@ -151,14 +144,11 @@ describe("wrapEventBus — D-15/D-16", () => {
       received = data;
     });
 
-    await obsContext.run(
-      seedAls({ tenantId: "t-als", requestId: "req-h" }),
-      async () => {
-        wrapped.emit("tenant.created", { id: "x" });
-        // Drain the wrapped async listener deterministically.
-        await bus.drain();
-      },
-    );
+    await obsContext.run(seedAls({ tenantId: "t-als", requestId: "req-h" }), async () => {
+      wrapped.emit("tenant.created", { id: "x" });
+      // Drain the wrapped async listener deterministically.
+      await bus.drain();
+    });
 
     expect(received).toEqual({ id: "x" });
     const handleSpans = spans.filter((s) => s.name === "event.handle");
@@ -185,9 +175,7 @@ describe("wrapEventBus — D-15/D-16", () => {
 
     const handleSpans = spans.filter((s) => s.name === "event.handle");
     expect(handleSpans.length).toBe(3);
-    const indices = handleSpans.map(
-      (s) => s.options?.attributes?.["event.listener.index"],
-    );
+    const indices = handleSpans.map((s) => s.options?.attributes?.["event.listener.index"]);
     expect(indices).toEqual([0, 1, 2]);
   });
 
@@ -206,9 +194,7 @@ describe("wrapEventBus — D-15/D-16", () => {
     expect(handleSpans.length).toBe(1);
     const eventTypes = handleSpans[0].events.map((e) => e.type);
     expect(eventTypes).toContain("recordException");
-    const statusEvent = handleSpans[0].events.find(
-      (e) => e.type === "setStatus",
-    );
+    const statusEvent = handleSpans[0].events.find((e) => e.type === "setStatus");
     expect((statusEvent?.payload as { code: string })?.code).toBe("error");
     // Verify rethrow occurred — the bus captured exactly one rejection
     // carrying the original Error, confirming the wrapper did NOT swallow it.
@@ -225,9 +211,7 @@ describe("wrapEventBus — D-15/D-16", () => {
   test("Test 5: Pitfall 6 — no error-capture port calls in wrap-event-bus.ts source", async () => {
     // Source hygiene: the wrapper MUST NOT call the error-capture port
     // anywhere. Read the source and grep for the banned token.
-    const source = await Bun.file(
-      "packages/observability/src/wrappers/wrap-event-bus.ts",
-    ).text();
+    const source = await Bun.file("packages/observability/src/wrappers/wrap-event-bus.ts").text();
     // Dynamic token construction to avoid self-flagging repo-wide greps.
     const banned = `${"capture"}${"Exception"}`;
     expect(source.includes(banned)).toBe(false);
@@ -237,9 +221,7 @@ describe("wrapEventBus — D-15/D-16", () => {
     // The function length property reflects the declared arity.
     expect(wrapEventBus.length).toBe(2);
     // Source check: no error-tracker type import + no tracker parameter.
-    const source = await Bun.file(
-      "packages/observability/src/wrappers/wrap-event-bus.ts",
-    ).text();
+    const source = await Bun.file("packages/observability/src/wrappers/wrap-event-bus.ts").text();
     const bannedType = `${"Error"}${"Tracker"}`;
     expect(source.includes(bannedType)).toBe(false);
     // No `tracker:` typed parameter anywhere in the file.
@@ -282,15 +264,11 @@ describe("wrapEventBus — barrel export", () => {
       env: { OBS_PII_DENY_EXTRA_KEYS: "" },
     }));
     const mod = await import(`../../index?t=${Date.now()}`);
-    expect(typeof (mod as { wrapEventBus?: unknown }).wrapEventBus).toBe(
-      "function",
-    );
+    expect(typeof (mod as { wrapEventBus?: unknown }).wrapEventBus).toBe("function");
     // Type-only export: runtime-level existence of the *type* is not directly
     // checkable, but we assert the file re-exports the identifier at the
     // source level (grep) so that tsc/eden consumers can `import type { EventBusLike }`.
-    const barrel = await Bun.file(
-      "packages/observability/src/index.ts",
-    ).text();
+    const barrel = await Bun.file("packages/observability/src/index.ts").text();
     expect(barrel.includes("EventBusLike")).toBe(true);
   });
 });

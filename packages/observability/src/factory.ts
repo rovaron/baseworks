@@ -14,14 +14,14 @@
  * (which obeys D-06 — no @baseworks/config import before sdk.start()).
  */
 import { pino } from "pino";
-import type { Tracer } from "./ports/tracer";
-import type { MetricsProvider } from "./ports/metrics";
-import type { ErrorTracker } from "./ports/error-tracker";
-import { NoopTracer } from "./adapters/noop/noop-tracer";
-import { NoopMetricsProvider } from "./adapters/noop/noop-metrics";
 import { NoopErrorTracker } from "./adapters/noop/noop-error-tracker";
+import { NoopMetricsProvider } from "./adapters/noop/noop-metrics";
+import { NoopTracer } from "./adapters/noop/noop-tracer";
 import { PinoErrorTracker } from "./adapters/pino/pino-error-tracker";
 import { SentryErrorTracker } from "./adapters/sentry/sentry-error-tracker";
+import type { ErrorTracker } from "./ports/error-tracker";
+import type { MetricsProvider } from "./ports/metrics";
+import type { Tracer } from "./ports/tracer";
 
 // ---------------------------------------------------------------------------
 // Tracer (OBS-03)
@@ -49,9 +49,7 @@ export function getTracer(): Tracer {
         break;
       // Phase 21 will add: case "otel": tracerInstance = new OtelTracer(...);
       default:
-        throw new Error(
-          `Unknown TRACER: ${name}. Phase 17 supports only 'noop'.`,
-        );
+        throw new Error(`Unknown TRACER: ${name}. Phase 17 supports only 'noop'.`);
     }
   }
   return tracerInstance;
@@ -104,9 +102,7 @@ export function getMetrics(): MetricsProvider {
         break;
       // Phase 21 will add: case "otel": metricsInstance = new OtelMetricsProvider(...);
       default:
-        throw new Error(
-          `Unknown METRICS_PROVIDER: ${name}. Phase 17 supports only 'noop'.`,
-        );
+        throw new Error(`Unknown METRICS_PROVIDER: ${name}. Phase 17 supports only 'noop'.`);
     }
   }
   return metricsInstance;
@@ -173,31 +169,23 @@ export function getErrorTracker(): ErrorTracker {
       }
       case "sentry": {
         const dsn = process.env.SENTRY_DSN;
-        if (!dsn)
-          throw new Error(
-            "SENTRY_DSN is required when ERROR_TRACKER=sentry",
-          );
+        if (!dsn) throw new Error("SENTRY_DSN is required when ERROR_TRACKER=sentry");
         errorTrackerInstance = new SentryErrorTracker({
           dsn,
           kind: "sentry",
           release: process.env.RELEASE,
-          environment:
-            process.env.SENTRY_ENVIRONMENT ?? process.env.NODE_ENV,
+          environment: process.env.SENTRY_ENVIRONMENT ?? process.env.NODE_ENV,
         });
         break;
       }
       case "glitchtip": {
         const dsn = process.env.GLITCHTIP_DSN;
-        if (!dsn)
-          throw new Error(
-            "GLITCHTIP_DSN is required when ERROR_TRACKER=glitchtip",
-          );
+        if (!dsn) throw new Error("GLITCHTIP_DSN is required when ERROR_TRACKER=glitchtip");
         errorTrackerInstance = new SentryErrorTracker({
           dsn,
           kind: "glitchtip",
           release: process.env.RELEASE,
-          environment:
-            process.env.SENTRY_ENVIRONMENT ?? process.env.NODE_ENV,
+          environment: process.env.SENTRY_ENVIRONMENT ?? process.env.NODE_ENV,
         });
         break;
       }

@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.3
-milestone_name: Observability & Operations
-status: milestone_complete
-stopped_at: Phase 19 shipped end-to-end (8/8 plans merged, verifier PASSED, reviewer advisory REVIEW.md written).
-last_updated: "2026-04-26T08:19:02.426Z"
-last_activity: 2026-04-26 -- Phase 20 execution started
+milestone: v1.4
+milestone_name: File Storage & Uploads
+status: shipped
+stopped_at: v1.4 COMPLETE — Phase 31 (final) closed (storage HealthContributor + 4 cron cleanup/reconciliation jobs + runbooks/alerts/integration docs); live-DB-verified + CI gates green; Docker up
+last_updated: "2026-06-18T00:00:00.000Z"
+last_activity: 2026-06-18
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 23
-  completed_plans: 20
+  total_phases: 8
+  completed_phases: 8
+  total_plans: 14
+  completed_plans: 14
   percent: 100
 ---
 
@@ -18,168 +18,117 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-21)
+See: .planning/PROJECT.md (updated 2026-05-05)
 
 **Core value:** Clone, configure, and start building a multitenant SaaS in minutes -- not weeks.
-**Current focus:** Phase 20 — BullMQ Trace Propagation
+**Current focus:** v1.4 File Storage & Uploads is SHIPPED (8/8 phases, 2026-06-18). Phase 31 (final) closed the operational loop: a storage `HealthContributor` in `/health/detailed`, four repeatable cron cleanup/reconciliation jobs (the `JobDefinition.repeat` + `upsertJobScheduler` mechanism was established here — it did not exist before), a new `storage_job_runs` table for cross-process job-run visibility, 4 runbooks, 4 Sentry alert templates, and `docs/integrations/file-storage.md`. Repo health is GREEN at milestone close: `bun run typecheck` exit 0, `bun run test`/`bun run lint` exit 0, `bun run validate` PASS, `build:admin`/`build:web` green.
 
 ## Current Position
 
-Milestone: v1.3 Observability & Operations
-Phase: 20
-Plan: Not started
-Status: Milestone complete
-Last activity: 2026-04-26
+Milestone: v1.4 File Storage & Uploads — **SHIPPED 2026-06-18 (8/8 phases, 100%)**
+Phase: 31 (cleanup-operator-surface, FINAL) — COMPLETE (live-DB-verified + CI gates green; Docker up)
+Plan: 1 of 1 (executed from 31-PLAN-CONTRACT.md)
+Status: v1.4 COMPLETE. Phase 31 closed the milestone — storage `HealthContributor` (declared as `health` on the files `ModuleDefinition`, auto-registered by `ModuleRegistry.loadAll()`; `/health/detailed.details.storage` = provider + adapter reachability/disk-free + top-N tenants by `bytes_used`/pctUsed/warn≥90%/limit≥100% + per-job last-run+staleness, NO `storage_key`/`bucket`, 5s discipline via a `Promise.race`-resolves-unreachable adapter probe on `STORAGE_HEALTH_PROBE_MS=1500` with parallel DB reads). Four repeatable cron jobs added to the files module: `cleanup:reap-pending-uploads` (hourly, DELETE…RETURNING + release-returned-only), `cleanup:reap-orphan-files` (daily, CONSERVATIVE `ownerExists` backstop — REAP only on a definitive `false` from a succeeded query, 24h grace, `owner_record_id <> ''` guard so never-attached uploads are never false-deleted, soft-delete via shared `softDeleteRow`), `cleanup:reap-soft-deleted` (weekly, `STORAGE_SOFT_DELETE_RETENTION_DAYS=30`, deletes primary + every `transforms[].storageKey`, counters untouched), `quota:reconcile-tenant-usage` (daily, set-based UPDATE using the EXACT increment/refund counting model — `byte_size + Σ transforms[].byteSize` over COUNTED_STATUSES, `bytes_pending` NEVER in a SET). The repeatable mechanism (`JobDefinition.repeat?` + `worker.ts` `queue.upsertJobScheduler`, idempotent by `jobName`) was ESTABLISHED here (the `billing-sync-usage` "every 5 min" docstring was aspirational — nothing registered repeatables before). Job runs persist to `storage_job_runs` (migration `0005`) and the contributor reads them across the worker↔API process boundary. 4 runbooks + 4 Sentry alerts (CI-gated `runbook_url` cross-links) + `docs/integrations/file-storage.md` (CORS templates, lifecycle `AbortIncompleteMultipartUpload` 7d/`tmp/` 1d, CDN/Cache-Control, `oven/bun:1-debian-slim`-not-Alpine sharp pin). Phase 31 suites → 10/0; `worker-repeatable.test.ts` → 3/0; full files module → 108/0; `bun run validate` PASS; typecheck/lint/test exit 0. Adversarial review: 2 blockers (repeatable mechanism absent → established it; orphan false-delete via the `''` `owner_record_id` sentinel → `owner_record_id <> ''` scan guard) + 1 warning (reconcile-formula divergence → identical counting model), all addressed.
+Status (Phase 30): Phase 30 closed — the platform-admin cross-tenant files surface. Five admin functions in `packages/modules/files/src/commands/admin-files.ts` (`adminListFilesForTenant`/`adminSignUpload`/`adminCompleteUpload`/`adminGetReadUrl`/`adminDeleteFile`) are PLAIN async fns taking an EXPLICIT `targetTenantId` (NOT `ctx.tenantId`); authorization lives at the gated route, so they trust the caller and bypass per-relation `canRead`/`canWrite`. They reuse `reserveQuota`/`markUploaded`/`softDeleteRow`/`buildStorageKey`/`dispositionFor` unchanged, charging the TARGET tenant and keying under it. A generic `admin-attachment` `fileRelation` (recordType `tenant`; allow-list jpeg/png/webp/pdf — NO svg, NO gif; 10 MiB; one `thumb-256` webp variant; `cardinality:"many"`, `onDelete:"orphan"`; `canRead`/`canWrite=false` as public defense-in-depth) is declared on the files module's OWN `ModuleDefinition` and collected by the existing boot-time `collectFileRelations` into `fileRelationsRegistry` (no apps/api boot change). Five routes on `apps/api/src/routes/admin.ts` inherit the single `.use(requirePlatformAdmin())` (allowlist-only — a per-org owner is 403, never conflated with a platform operator) and derive the target tenant from the gated `:id` path param ONLY — the sign-upload body is `{mimeType,byteSize,originalFilename?}` with NO `tenantId` field (confused-deputy closed); `kind` is fixed server-side; sign verifies `organization` existence → 404 before reserving (no orphan usage row). `enqueueTransform` was EXTRACTED from the `file.completed` subscriber and shared by both the public and admin complete paths (subscriber behaviour unchanged, `enqueue-on-completed.test.ts` green) so admin image uploads transform into variants. The `apps/admin` tenant-detail **Files** card lists files (name/type/size/status+variantCount/created) via React Query with a bounded `refetchInterval` that stops at terminal status, opens signed read-urls in a new tab (view), soft-deletes through a focus-trapped confirm `Dialog`, and uploads via the FROZEN Phase-29 `<FileUpload multi>` wired through new admin sign/complete adapters; en+pt-BR `tenants.detail.files.*` i18n + the `files` namespace registered in the admin app. `storage_key`/`bucket` never in any response (explicit column projection + a response-scan test). `DATABASE_URL=… REDIS_URL=… bun test packages/modules/files/.../admin-files.test.ts` → 8 pass / 0 fail (40 expects: target-tenant charge + key prefix, cross-tenant list isolation, no-key-leak scan, refund incl. variant bytes, read-url bypass of `canRead===false`, quota_exceeded, enqueue-on-image-complete, mime/oversize rejects); full files module → 98 pass / 0 fail; `apps/api/.../admin-auth.test.ts` (401 no-session / 403 non-allowlisted across all 5 endpoints) → 14 pass / 0 fail; `apps/admin` vitest → 27 pass / 0 fail (`detail.files.test.tsx` = 7). The admin `tsc -b` build surfaces the PRE-EXISTING repo-wide cross-package module-resolution state (apps/api + observability, not Phase 30 source), so the admin UI is verified via vitest (the contract's named gate). Adversarial review: 0 blockers + 3 warnings (publicly-signable global relation → `canRead/canWrite=false` + Phase-31 sweep; storage_key/bucket leak → explicit projection + scan test; async-variant polling → bounded refetch stopping at terminal status), all addressed. Browser-E2E → `30-HUMAN-UAT.md`.
+Status (prior): Phase 29 closed — auth/org identity assets via declared `fileRelations` (avatar/logo), signed `avatarUrl` through `ctx.dispatch` (zero files↔auth import), cascade-on-replace via shared `lib/soft-delete.ts`, and the absorbed-forward reusable `<FileUpload>`/`useFileUpload` in `packages/ui` wired into `/profile` + `/team/settings`. (Phases 24–28: storage ports + schema, three storage adapters + conformance, files module + race-safe quota, complete-upload + read-url + delete + attachments, image transform pipeline — all closed and live-DB/CI-verified.)
+Next: Phase 31 (final) — Cleanup, Reconciliation & Operator Surface: storage `HealthContributor` in `/health/detailed`, scheduled cleanup/reconciliation cron jobs (reap-pending, reap-orphan, reap-soft-deleted, reconcile-usage), runbooks + Sentry alert templates + file-storage integration docs (QUO-03, OPS-01, OPS-02, OPS-03). Carryover: confirm the `auth.user-deleted` cascade producer (`{tenantId,recordId}`, pinned Phase 27) lands within Phase 31 if not already emitted.
+Last activity: 2026-06-18
 
-Progress: [████░░░░░░] 43% (3/7 phases)
+Type-debt: CLEARED (2026-06-18) — repo-wide type-debt remediated; `bun run typecheck` (was 115 errors) and `cd apps/admin && bun run build` are now green (also `bun run build:web` green, `bun run test` 0 fail). No masking added (net `any` reduction); the admin `tsc -b` module-resolution gap noted in Phase 30 is fixed via the admin tsconfig backend `paths`. See `.planning/phases/typecheck-remediation/SUMMARY.md`.
+
+Progress (v1.4): [██████████] 8 of 8 phases (100%) — SHIPPED 2026-06-18
+
+### Roadmap Evolution
+
+- **2026-06-18** — **v1.4 File Storage & Uploads SHIPPED (8/8 phases).** Phase 31 (Cleanup, Reconciliation & Operator Surface — FINAL) closed, executed from a single LOCKED `31-PLAN-CONTRACT.md`. QUO-03/OPS-01/OPS-02/OPS-03 satisfied, mirroring the v1.3 Phase 23 closing rhythm. Storage `HealthContributor` declared as `health` on the files `ModuleDefinition` → auto-registered into the central `HealthAggregator` by `ModuleRegistry.loadAll()` (the FIRST module to ship one); `/health/detailed.details.storage` surfaces provider + adapter reachability/disk-free + top-N tenants by `bytes_used` (pctUsed, warn≥90%/limit≥100% counts) + per-job last-run/staleness, with NO `storage_key`/`bucket` and a load-bearing 5s discipline (adapter probe `Promise.race`-resolves-unreachable on `STORAGE_HEALTH_PROBE_MS`, DB reads parallel). The phase ESTABLISHED the repeatable-job mechanism that did not exist (`JobDefinition.repeat?` + `worker.ts` `queue.upsertJobScheduler`, idempotent by `jobName`) and added four cron jobs to the files module — reap-pending-uploads (hourly), reap-orphan-files (daily, conservative `ownerExists` backstop), reap-soft-deleted (weekly), reconcile-tenant-usage (daily, counting model identical to the increment/refund paths, `bytes_pending` untouched) — whose runs persist to a new `storage_job_runs` table (migration `0005`) read by the contributor across the worker↔API boundary. 4 runbooks + 4 Sentry alerts (CI-gated `runbook_url` cross-links) + `docs/integrations/file-storage.md`. Phase 31 suites → 10/0; `worker-repeatable.test.ts` → 3/0; full files module → 108/0; `bun run validate` PASS; typecheck/lint/test exit 0. Adversarial review: 2 blockers (repeatable mechanism absent; orphan false-delete via the `''` sentinel) + 1 warning (reconcile-formula divergence), all addressed. v1.4 milestone: 25 requirements across 9 categories, all 8 phases complete; Phase 21 OTEL/Grafana stack remains the lone deferred carryover (Sentry SaaS + observability ports cover it for fork users).
+- **2026-06-18** — Phase 30 (Admin Tenant-Files Browser + Admin Upload) closed. Executed from a single LOCKED `30-PLAN-CONTRACT.md`. UI-02 satisfied — the FULL platform-admin cross-tenant files surface. Five admin functions (`packages/modules/files/src/commands/admin-files.ts`) are PLAIN async fns taking an EXPLICIT `targetTenantId` (NOT `ctx.tenantId`); the gated route is the authorization boundary, so they trust the caller and bypass per-relation `canRead`/`canWrite`, reusing `reserveQuota`/`markUploaded`/`softDeleteRow`/`buildStorageKey`/`dispositionFor` unchanged and charging the TARGET tenant. A generic `admin-attachment` `fileRelation` (jpeg/png/webp/pdf — NO svg/gif; 10 MiB; one `thumb-256` webp; `canRead`/`canWrite=false` for public defense-in-depth) is declared on the files module's own `ModuleDefinition` and collected by the existing boot-time `collectFileRelations` (no apps/api boot change). Five routes on `apps/api/src/routes/admin.ts` inherit the single `.use(requirePlatformAdmin())` (`ADMIN_EMAILS` allowlist only — a per-org owner is 403, never conflated with a platform operator) and derive the target tenant from the gated `:id` path param ONLY (sign body has NO `tenantId`; `kind` fixed server-side; sign verifies tenant existence → 404). `enqueueTransform` was extracted from the `file.completed` subscriber and shared by both the public and admin complete paths so admin image uploads transform into variants. The `apps/admin` tenant-detail Files card lists/views/deletes a tenant's files (bounded `refetchInterval` so async webp thumbnails surface) and uploads via the FROZEN Phase-29 `<FileUpload multi>` through new admin sign/complete adapters, en+pt-BR i18n. `storage_key`/`bucket` never in any response (explicit projection + scan test). `bun test .../admin-files.test.ts` → 8/0; full files module → 98/0; `admin-auth.test.ts` (401/403 across all 5 endpoints) → 14/0; `apps/admin` vitest → 27/0. Adversarial review: 0 blockers + 3 warnings (publicly-signable global relation; key-leak; async-variant polling), all addressed. Phase 31 (final — cleanup, reconciliation & operator surface) is next.
+- **2026-06-17** — Phase 29 (Auth & Org Identity Asset Wiring) closed, and SCOPE EVOLVED: per operator decision the phase ABSORBED the reusable `<FileUpload>`/`useFileUpload` component the roadmap had placed in Phase 30 (built to the full Phase 30 component spec). IDA-01/IDA-02 satisfied — auth declares `fileRelations: { user, organization }` (avatar 64/128/256/512 webp; logo 128/256 webp), SVG excluded from both allow-lists and rejected at sign-time, owner/admin write-gating reads auth's OWN `member` table (no files import); `get-profile` resolves a signed `avatarUrl` from the latest user-kind file purely through `ctx.dispatch` (ZERO `@baseworks/module-files` import — the Phase 26/29 decoupling proven end-to-end, `lint:cross-module` green); cascade-on-replace via a new `FileRelation.cardinality:"single"` makes `attach-file` soft-delete prior owner-tuple files and decrement `bytes_used` (+ variant bytes) through an EXTRACTED `lib/soft-delete.ts` shared with `delete-file`. The backend-agnostic `<FileUpload>` (no api-client/apps import — injected `sign`/`complete`/`onUploaded`) shipped with drag-drop + picker fallback, real XHR byte progress, object-URL preview, cancel/retry, single+multi mode, the `s3-put|s3-post|local` `kind` discriminator, all error states, the `beforeunload` guard, en+pt-BR `files` i18n namespace, and a vitest-axe a11y test — wired into `/profile` + `/team/settings` via `GET /api/profile` + the Eden client. `bun test packages/modules/files` → 90/0; auth file-relations+get-profile → 15/0; `file-upload.a11y.test.tsx` → 8/0. Adversarial review: 0 blockers + 2 warnings, addressed. CONSEQUENCE: **Phase 30 reduced** to the admin tenant-files browser (`list-for-record`) + multi-mode polish (the component is already frozen + shipped). Browser-E2E (drag→variants, beforeunload prompt, member-403) → `29-HUMAN-UAT.md` (not a blocking gate).
+- **2026-06-17** — Phase 28 (Image Transform Pipeline) closed. Executed from a single LOCKED `28-PLAN-CONTRACT.md`. IMG-01/IMG-02/IMG-03 satisfied. The phase-entry gate (spike S-1) was GREEN before any work — sharp resizes + encodes webp + reads metadata under Bun inside `oven/bun:1` (operator-verified: `SHARP_OK bytes=86 fmt=webp w=50 isWebp=true`) — so sharp stayed the DEFAULT adapter and was NOT re-litigated; the committed `bun-docker-spike.test.ts` makes CI/Docker re-run the proof. `imagescript` is the env-selectable pure-JS fallback: it CAN encode webp/jpeg/png but CANNOT decode webp (handled honestly via `caps.canDecodeWebp=false`, not faked), and its `metadata()` uses a dedicated header parser so the bomb pre-flight never OOMs. Both adapters pass one shared conformance suite. The async pipeline (`file.completed` → `image-transform` BullMQ queue → `concurrency:2` worker → `files.transforms` manifest at deterministic keys, Phase-20 trace propagation, signed retry-safe quota delta) and the 3-layer decompression-bomb defense (20 MB `/complete` cap → sharp `limitInputPixels:50M`+`failOn:'warning'` → worker `metadata()` >50M structured reject) are all proven, the latter by the 50000×50000 fixture returning `file.transform-failed` with no crash. EXIF is stripped from every variant (sharp drops metadata by default; verified by an EXIF-bearing round-trip gate). UNLIKE the worry that sharp might not load off-Docker, its win32-x64 prebuilt loaded on the Windows dev host so the sharp conformance + smoke RAN locally (18/18), not just in CI. `bun test packages/modules/files` → 87 pass / 0 fail. Adversarial review: 2 blockers (librsvg source-format allow-list; dynamic `createQueue` import to protect the hooks import graph) + 4 warnings, all addressed.
+- **2026-06-16** — Phase 27 (Complete-Upload + Signed Read URLs + Delete + Generic Attachments) closed. Executed from a single LOCKED `27-PLAN-CONTRACT.md`. UPL-02/UPL-04/ATT-01/ATT-02/MOD-03 satisfied: server-authoritative `/complete` (`stat()` size + `file-type` magic-byte on first 4 KiB; reject = delete object + row + release pending), per-request signed read URLs (`STORAGE_SIGNED_URL_TTL_SEC`, no raw key ever in a response), soft-delete with quota refund + `file.deleted` event, and the generic attach/list-for-record API. Cross-module invocation solved WITHOUT imports via a new string-keyed `ctx.dispatch` (`HandlerContext` + `apps/api` scoped derive self-reference) — satisfies both the Phase 26 cross-module ban and the Phase 29 files↔auth ban. Cascade-on-delete is a registry-derived event subscriber proven by an in-test emit (auth has no `user-deleted` producer until Phase 29; the `{tenantId,recordId}` contract is pinned here). Quota conservation: `markUploaded` decrements `bytes_pending` by the RESERVED size and increments `bytes_used` by the AUTHORITATIVE size in one atomic statement; the `status='pending'` guard makes completion count-once under concurrency. Fully verified against live Postgres with a temp-rooted LocalFileStorage — 69 pass / 0 fail. Adversarial review: 1 blocker + 5 warnings, all addressed.
+- **2026-06-16** — Phase 26 (Files Module + Sign-Upload + Per-Tenant Quota) closed. Executed from a single LOCKED `26-PLAN-CONTRACT.md`. UPL-01/UPL-03/QUO-01/QUO-02/MOD-02 satisfied: `packages/modules/files/` is the first end-to-end file flow (billing as the structural analog). Quota race-safety is a single atomic conditional `UPDATE` (Postgres EvalPlanQual recheck under the row write-lock) — no `SELECT … FOR UPDATE`, no read-modify-write. UNLIKE Phase 25 (Docker down ⇒ S3/MinIO CI-gated), Docker was UP so Phase 26 ran fully against live Postgres, including the SC#3 50-concurrent race: at 95% quota, accepted=25=headroom, rejected=25, final used+pending=limit exactly (zero over-allocation). 22 pass / 0 fail. Adversarial review: 0 blockers.
+- **2026-06-16** — Phase 25 (Test Infra + Three Storage Adapters) closed. Executed from a single LOCKED `25-PLAN-CONTRACT.md` rather than numbered sub-plans. FILE-02 + FILE-03 satisfied: three `FileStorage` adapters (Local/S3/S3-compat) proven equivalent by one shared `runFileStorageConformance` suite; Local + HMAC signing + CORS validator + deterministic fixtures verified locally; S3/S3-compat object-I/O conformance CI-gated on a MinIO service container (folded into `validate.yml` `ci`, not a separate workflow). Adversarial review: 0 blockers. One non-blocking follow-up: add the fixture-hash reproducibility test (`fixtures.test.ts`).
+- **2026-05-05** — v1.4 milestone roadmap created. 8 phases (24–31) derived from 25 requirements across 9 categories (FILE/UPL/IMG/QUO/MOD/IDA/ATT/UI/OPS). All 25 requirements mapped to exactly one phase, no orphans. Highest-risk phase is Phase 28 (Image Transform Pipeline) — sharp under Bun in Docker is the one MEDIUM-confidence stack item; the phase begins with a research spike (S-1) on the target Docker base image, with `imagescript` wired as the failover. One variance from research §7 proposal: FILE-02 moved from Phase 24 to Phase 25 (the conformance suite is the deliverable that proves the port, and it runs in Phase 25 against real adapters).
+- **2026-04-26** — Phase 20.1 inserted after Phase 20: Close v1.3 milestone gaps from observability UAT (URGENT). Bundles 3 todos: drizzle migration journal repair, billing `getSubscriptionStatus` TypeError fix, and obsContext.traceId ↔ OTel server-span trace_id bridge. All three surfaced during live v1.3 milestone UAT against a real Sentry DSN + authenticated session + BullMQ producer/consumer round-trip on 2026-04-26.
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 74 (15 v1.0 + 24 v1.1 + 19 v1.2 + 13 quick tasks across the last three milestones)
-- Timeline: v1.0 shipped in 3 days, v1.1 shipped in 6 days, v1.2 shipped in 6 days
+- Total plans completed: 121 (15 v1.0 + 24 v1.1 + 19 v1.2 + 38 v1.3 + 25 quick tasks/decimal-phase work)
+- Timeline: v1.0 shipped in 3 days, v1.1 in 6 days, v1.2 in 6 days, v1.3 in 13 days
 
-**Previous milestone (v1.2):**
+**Previous milestone (v1.3):**
 
-- 19 plans, 4 phases (13-16), 6 days
-- 115 commits, 23/23 requirements validated
-- +5,908 / −312 lines across 114 files
-- Milestone-close work: 1 quick task + 2 debug sessions resolved before tagging
+- 38 plans, 7 phases (17-23, with 21 deferred and 20.1 inserted), 13 days
+- 239 commits, 21/28 requirements satisfied (5 deferred to v1.4 — Phase 21; 2 with operator UAT carryover — EXT-01, OPS-02)
+
+**v1.4 estimate:** 8 phases planned. Based on 5-plan-per-phase median across v1.0–v1.3, expect ~30–45 plans across the milestone. Phase 28 (image transforms with sharp/Bun spike) carries the highest single-phase risk and may surface a decimal phase if the S-1 spike forces architectural pivots.
 
 ## Accumulated Context
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table (updated at v1.2 close with 7 new entries covering JSDoc style, two-runner test orchestration, lazy handler deps for mock.module, Elysia mount guard, validate-docs.ts contract, and Phase 16 docs-first content-drift strategy).
+Decisions are logged in PROJECT.md Key Decisions table (last updated at v1.3 close with entries covering observability ports, OTEL bootstrap discipline, scrubPii defense-in-depth, single SentryErrorTracker class via `kind`, AsyncLocalStorage<ObservabilityContext>, external CqrsBus/EventBus wrappers, synthetic OTel SpanContext seed at Bun.serve fetch boundary, traceparent always-trust default with hardening deferred, runbooks-as-templates operator surface, and HealthContributor worst-of-N rollup pattern).
 
-**Phase 18 Plan 01 (2026-04-23):**
+**v1.4 Roadmap Decision (2026-05-05):**
 
-- Added `@sentry/core ^10.49.0` as explicit observability dependency to resolve A2 concern — `createTransport` was not reachable as transitive-only of `@sentry/bun`. Still zero direct `@sentry/node` references per CLAUDE.md Bun-only constraint.
-- Widened `ERROR_TRACKER` default from `'noop'` to `'pino'` per CONTEXT D-06 (pino-sink adapter becomes the default for meaningful local-dev error visibility without Sentry keys).
-
-**Phase 18 Plan 02 (2026-04-23):**
-
-- Shipped pure `scrubPii(event)` function at `packages/observability/src/lib/scrub-pii.ts` — 17-key denylist (case-insensitive, recursive), 5 regex patterns (email, CPF, CNPJ, Stripe sk_, Bearer), webhook-route rule dropping `request.data` on `/api/webhooks/**`, `OBS_PII_DENY_EXTRA_KEYS` additive env extension.
-- 13 PII conformance fixtures at `packages/observability/src/adapters/__tests__/pii-fixtures.ts` ready for Plan 18-05 conformance test.
-- Pattern: module-init `DENY_SET` IIFE reads env once; tests use dynamic `await import("../scrub-pii?t=" + Date.now())` after `mock.module("@baseworks/config", ...)` to force fresh module evaluation (cache-bust query string is critical — without it, the pre-evaluated DENY_SET would not pick up the mocked env).
-- Auto-fixed two fixture spec bugs (Rule 1): `stripe-webhook-body-in-extra` dropped `"4242"` from shouldNotAppear (card_last4 is not a deny key nor regex match); `better-auth-session-nested-deep` moved `"u-1"` to shouldNotAppear (D-13's recursive-deny wipes the entire `session` subtree wholesale).
-
-**Phase 18 Plan 03 (2026-04-23):**
-
-- Shipped `installGlobalErrorHandlers(tracker)` at `packages/observability/src/lib/install-global-error-handlers.ts` — WeakSet idempotence guard, 2000ms bounded flush, inner try/catch guarantees `process.exit(1)` even when tracker throws. Exports added to barrel alongside Plan 01/02 exports.
-- Shipped `wrapCqrsBus(bus, tracker)` at `packages/observability/src/wrappers/wrap-cqrs-bus.ts` — external wrapper (zero edits to `apps/api/src/core/cqrs.ts`, D-01 invariant preserved). A5 invariant: Result.err returns pass through untouched; only thrown exceptions trigger captureException. Rethrow via bare `throw err` preserves identity (`caught === original`).
-- Shipped `makeTestTransport()` at `packages/observability/src/adapters/sentry/__tests__/test-transport.ts` — uses `createTransport` from `@sentry/core` (A2 resolution; no pre-built mock-transport export exists in the Bun Sentry SDK). NOT exported from barrel (T-18-13 threat mitigation — test-only code).
-- Pattern: subprocess crash tests need `setInterval(() => {}, 1_000)` keep-alive in the fixture — Bun default unhandledRejection is non-fatal, event loop drains before async handler's `process.exit(1)` fires. Also: `Bun.fileURLToPath(new URL(...))` is required on Windows because `.pathname` returns `/C:/...` which Bun.spawn rejects as module not found.
-- TDD RED→GREEN gates both passed: Task 1 (`473c60b` test → `7427580` feat), Task 2 (`53dfd81` test → `80a0fd5` feat).
-
-**Phase 18 Plan 04 (2026-04-23):**
-
-- Shipped `PinoErrorTracker` at `packages/observability/src/adapters/pino/pino-error-tracker.ts` (201 lines) — the default ErrorTracker when `ERROR_TRACKER` is unset or `=pino` (ERR-03). Implements the full Phase-17 port: `captureException` (scrubPii defense-in-depth, breadcrumb serialization + buffer clear), `captureMessage` (full LogLevel mapping fatal→60/error→50/warning→40/info→30/debug→20/default→info), `addBreadcrumb` (ring buffer capped at 10, oldest-first eviction), `withScope` (closure-scoped — NO instance state, Pitfall 4 safe), `flush` (always true).
-- Added `pino ^10.0.0` as an explicit `@baseworks/observability` dependency. apps/api had it transitively but Bun's workspace resolution did not expose it to the observability package's module graph.
-- Fixed plan-vs-authoritative LogLevel naming mismatch (Rule 1): plan text used `"warn"` but `ports/types.ts LogLevel` uses `"warning"` (Sentry-native). Adapter's `pinoMethod` switch now uses port vocabulary and bridges to pino's `.warn` internally; also added `"fatal"` case since the port includes it. Comments in pinoMethod document the divergence.
-- Pattern: closure-scoped `withScope` — setters `setUser/setTag/setExtra/setTenant` write to a local `{ tags: {}, extra: {} }` object captured by arrow functions; acceptance grep `this.(tags|user|tenantId|extra)\s*=` returns empty. Concurrent `Promise.all([withScope(), withScope()])` + a subsequent unscoped `captureException` leak-nothing is the Pitfall 4 regression guard test.
-- Pattern: fake pino logger for adapter tests — `pino({ level: 'debug' }, customStream)` where `customStream.write(chunk)` parses JSON into an array for assertions. No stdout touched during tests. Generic-parameter cast `as unknown as Logger` bridges `Logger<never, boolean>` return to `Logger<string, boolean>` ctor param.
-- TDD RED→GREEN gate passed: `9481f61` test → `2e8ccf0` feat. 12 new tests (31 expects); full observability suite 121/121 pass, zero regressions; tsc --noEmit clean.
-
-**Phase 18 Plan 06 (2026-04-23):**
-
-- Wired the Phase 18 capture pipeline into four boundary sites in `apps/api`: (1) `apps/api/src/core/middleware/error.ts` — extended the existing `errorMiddleware.onError` callback with `getErrorTracker().captureException(error, { tags: { method: request.method, code: String(code) }, extra: { path: new URL(request.url).pathname } })` BEFORE the status-mapping switch (D-03, A4 invariant preserved: `grep -c '.onError('` returns 1); (2) + (3) `apps/api/src/index.ts` + `apps/api/src/worker.ts` — added `validateObservabilityEnv()` (D-09) + `installGlobalErrorHandlers(getErrorTracker())` (D-02) immediately after `validatePaymentProviderEnv()`, and `wrapCqrsBus(registry.getCqrs(), getErrorTracker())` (D-01) immediately after `await registry.loadAll()`; (4) `apps/api/src/worker.ts` line 70 — extended the existing `worker.on('failed', ...)` handler with a one-line `getErrorTracker().captureException(err, { tags: { queue: jobDef.queue }, extra: { jobId: job?.id, jobName } })` (D-04).
-- D-01 invariant preserved end-to-end: `git diff apps/api/src/core/cqrs.ts apps/api/src/core/event-bus.ts` across all Phase 18 commits produces zero lines. The CqrsBus wrap happens externally at registry boot time via `wrapCqrsBus(registry.getCqrs(), tracker)` — the same bus instance the rest of the application reads.
-- A3 enforcement: `request.route` is absent from Elysia Context at onError time, so the errorMiddleware uses `request.method` (cardinality-safe: ~7 values) + `String(code)` (Elysia closed set) on tags; the concrete URL path goes to `extra` (not a metric dimension, per Pitfall 4). Phase 19 will add matched-route-template extraction via a separate middleware.
-- A4 enforcement: the captureException call was added INSIDE the existing `errorMiddleware.onError(...)` callback, NOT as a separate `.onError` plugin. Single on-error site preserved byte-for-byte.
-- D-04 discipline: only ONE captureException call in worker.ts — inside `worker.on('failed', ...)`. The inner try/catch at lines 58-65 (around `jobLog.error({ err: String(err) }, "Job handler error"); throw err;`) remains log-only. Adding capture there would double-report every job failure. Test 3 in `worker-failed-capture.test.ts` enforces this as a cross-file-state regression guard.
-- Shipped `apps/api/src/__tests__/worker-failed-capture.test.ts` — 3 tests, 9 expects: (1) D-04 call shape with jobId/jobName extras, (2) undefined-job graceful handling, (3) cross-file-state guard that reads worker.ts source via `Bun.file` and asserts `getErrorTracker` + `captureException` absent from the inner try/catch region. Pattern: lockstep-mirror-function — the test's `onFailed()` helper replicates the worker.on('failed') body verbatim, providing a stable unit-testable surface without booting real BullMQ/Redis.
-- Auto-fixed one deviation (Rule 3): initial comment in error.ts literally contained `request.route does not exist on Elysia Context`, which tripped the A3 acceptance grep. Rephrased to "the matched-route template is NOT available on Elysia's Context at onError time" — same meaning, no forbidden token. Fix folded into Task 1 commit.
-- 3 commits: `b7e3afa` (Task 1 — errorMiddleware extension), `fb94746` (Task 2 — entrypoint wiring), `f044f97` (Task 3 — worker-failed-capture test). All 63 apps/api tests pass (60 prior + 3 new); telemetry-line1.test.ts gate still green (line-1 invariant T-18-40 preserved).
-
-**Phase 18 Plan 07 (2026-04-23):**
-
-- Shipped the repo's first GitHub Actions workflow at `.github/workflows/release.yml` (104 lines). Narrowly scoped per D-16: one job (`upload-sourcemaps`), one trigger (`push.tags: ['v*.*.*']`), zero test/lint/typecheck/deploy jobs. Builds apps/api + worker bundle + apps/admin with `bun build --sourcemap=external` (Debug ID variant — no `//# sourceMappingURL` comment, Pitfall 5 browser-leak prevention), then iterates through the three output dirs with `bun x sentry-cli sourcemaps inject` + `upload --release=$RELEASE --org=$SENTRY_ORG --project=$SENTRY_PROJECT`.
-- Single-source RELEASE discipline (Pitfall 6 / D-19): `git rev-parse --short HEAD` runs exactly once at the top of the workflow; the value flows to every `bun build --define process.env.RELEASE=...` AND every `sentry-cli --release=$RELEASE` AND the runtime `Sentry.init({ release })` via env.
-- apps/web INTENTIONALLY deferred from this workflow (RESEARCH Open Question 2 RESOLVED) — Next.js 15 server-side `.map` emission is not stable without `@sentry/nextjs`'s wrapper; blind `.next/` upload would silently no-op. Follow-up task tracked in CONTEXT.md Deferred Ideas. Pitfall 5 discipline (no public browser source maps) stays in force regardless.
-- `.gitignore` gained `.next/` defensively — this workflow does not build apps/web but `bun run dev:web` / `build:web` locally would produce it.
-- One Rule-1 auto-fix caught pre-commit: initial comment literal contained the forbidden `productionBrowserSourceMaps` token (violated `<done>` grep); rephrased to "Next.js browser-source-maps flag" — same meaning, passes grep.
-- Task 2 is a `checkpoint:human-action` (not automatable): operator creates Sentry auth token with `project:releases` + `project:write` scopes, adds 3 GitHub repo secrets (SENTRY_AUTH_TOKEN, SENTRY_ORG, SENTRY_PROJECT), pushes test tag, deploys to staging, verifies demangled stack trace for a deliberate-failure endpoint (Success Criterion #4), and asserts no public `.map` files served (Part F). Resume signal: `"approved"`.
-- One commit: `b7748df` (feat/18-07 — workflow + .gitignore atomic).
-
-**Phase 18 Plan 05 (2026-04-23):**
-
-- Shipped `SentryErrorTracker` at `packages/observability/src/adapters/sentry/sentry-error-tracker.ts` (149 lines) — single class serving BOTH Sentry and GlitchTip targets via `kind: 'sentry' | 'glitchtip'` tag (D-05). Completes ERR-01 (Sentry capture) and ERR-02 (GlitchTip parity) by structural identity — same code path processes both backends. Port methods delegate thinly to `@sentry/bun` top-level functions; `withScope` bridges port `ErrorTrackerScope` → Sentry `Scope` one-to-one; `setTenant` maps to `setTag('tenantId', value)`.
-- Shipped `buildInitOptions` pure helper at `packages/observability/src/adapters/sentry/init-options.ts` codifying A1 Option C: `defaultIntegrations: false` + `sendDefaultPii: false` (hard-coded literal, no env path per T-18-29) + `beforeSend`/`beforeBreadcrumb` both running `scrubPii` (defense-in-depth per D-12) + a curated 4-integration safe list (`inboundFilters`, `dedupe`, `linkedErrors`, `functionToString`). Cuts every default that would auto-capture request bodies (T-18-26) or double-register global handlers (T-18-27).
-- Shipped cross-adapter PII conformance test at `packages/observability/src/adapters/__tests__/error-tracker-conformance.test.ts` — 39 tests (13 PII_FIXTURES × 3 adapters: pino, sentry via makeTestTransport, noop). Every `shouldNotAppear` substring is asserted absent AND every `shouldSurvive` substring is asserted present in the emitted output per adapter. This is the ERR-04 gate.
-- Extended `getErrorTracker()` switch in `packages/observability/src/factory.ts` with 3 new cases (pino / sentry / glitchtip), widened default from `'noop'` to `'pino'` per D-06. Factory throws with DSN env var name when selected adapter's DSN is missing (D-09 crash-hard). Invariant preserved: no `@baseworks/config` import; `process.env` read directly; pino ESM-imported at top-of-file per CLAUDE.md (no `require`).
-- Fixed latent adapter bug (Rule 1): `SentryErrorTracker.captureException(err, scope)` was passing port `CaptureScope` directly to `Sentry.captureException` as `CaptureContext`, but Sentry's `CaptureContext` has no `tenantId` field — every production error with a tenantId was silently dropping that dimension. Fix: destructure `tenantId` from CaptureScope, merge into tags map (mirrors `withScope`'s `setTenant → setTag('tenantId', value ?? '')`). Surfaced by `tenantId-positive-case` conformance fixture.
-- Pattern: `afterEach(async () => { await Sentry.close(100); })` is MANDATORY for every describe that constructs SentryErrorTracker. The Sentry hub is a process-global side effect; 12 init calls in the unit test + 13 in the conformance test would accumulate integrations/transport state without close() (T-18-32 mitigation).
-- Pattern: DSN `http://public@example.com/1` in every test — RFC 2606 reserved domain, guaranteed non-routable. `grep "sentry.io|glitchtip.io" packages/observability/src/adapters/sentry/__tests__/` returns nothing (T-18-30).
-- Pattern: `Transport` type imported from `@sentry/core`, not `@sentry/bun` — `@sentry/bun` does not re-export the type. `@sentry/core` has been an explicit dep since Plan 01.
-- TDD RED→GREEN gates: Task 1 `a5f993f` test → `2d7e115` feat; Task 2 `ef1437d` combined (conformance test + adapter fix land together — GREEN requires both); Task 3 `19a0d90` test → `dee7667` feat.
-- 59 new tests (12 unit + 39 conformance + 8 factory); full observability suite 180/180 pass (303 expects); tsc --noEmit clean.
-
-### v1.3 Roadmap Summary
-
-7 phases derived from 28 requirements across 8 categories (OBS/ERR/CTX/TRC/MET/OPS/DOC/EXT):
-
-| Phase | Name | Requirements | Count |
-|-------|------|--------------|-------|
-| 17 | Observability Ports & OTEL Bootstrap | OBS-01..04 | 4 |
-| 18 | Error Tracking Adapters | ERR-01..04, EXT-01 | 5 |
-| 19 | Context, Logging & HTTP/CQRS Tracing | CTX-01..03, TRC-01..02 | 5 |
-| 20 | BullMQ Trace Propagation | CTX-04, TRC-03 | 2 |
-| 21 | OTEL Adapters + Grafana Observability Stack | MET-01..03, DOC-01..02 | 5 |
-| 22 | Admin Ops Tooling | OPS-01..04, EXT-02 | 5 |
-| 23 | Runbooks, Alert Templates & Observability Docs | DOC-03..04 | 2 |
-
-**Coverage:** 28/28 v1.3 requirements mapped to exactly one phase (no orphans, no duplicates).
-
-**Deferred (not v1.3 scope):** TRC-future-01 (postgres.js DB spans), MET-future-01 (Prometheus scrape endpoint), MET-future-02 (histogram exemplars), ALT-future-01 (in-app alert router).
+- **FILE-02 mapped to Phase 25, not Phase 24** — research §7 proposed FILE-02 in Phase 24 as "port skeleton". Goal-backward analysis: the requirement says "conformance test suite proves all 3 adapters behave identically." That proof happens in Phase 25 against real adapters; Phase 24 only ships Noop scaffolds. Mapping a requirement to the phase where it is *proven* (not where its scaffolding starts) keeps success criteria honest.
+- [Phase ?]: Plan 24-01: ImageVariantSpec landed canonically in @baseworks/shared one plan early to satisfy soft cross-plan dep in sequential execution. Format union restricted to webp|jpeg|png (T-24-01-02). Storage port surface locked: FileStorage 6 methods, ImageTransform resize+metadata; SignedUpload/SignedRead deliberately omit storage_key (T-24-01-01).
+- [Phase ?]: ImageVariantSpec landed early (Plan 24-01) per soft cross-plan dependency; Plan 24-02 used the canonical declaration as-is.
+- [Phase ?]: All Phase 24-28 columns (status, transforms, deleted_at, bytes_pending) declared up front in Plan 24-02 to avoid mid-flight enum/column migrations (D-01..D-04).
+- [Phase ?]: Migration 0002_v14_file_storage hand-edited after drizzle-kit generate to add CHECK constraint (D-01) and partial-index WHERE deleted_at IS NULL (D-04); idx 1 intentionally skipped to honor locked tag.
+- [Phase ?]: Plan 24-03: FileRelation+fileRelations? added in @baseworks/shared; ImageVariantSpec auto-resolved by 24-01 (soft cross-plan dep)
+- [Phase ?]: Plan 24-07: Path-allowlist for no-direct-files-table-access lives in scripts/lint-no-direct-files-access.sh ONLY (Biome 2.4.10 GritQL plugins lack a built-in path-allowlist primitive). packages/modules/files/** is pre-allow-listed for Phase 26.
+- [Phase ?]: Stack-trace adapter identity preserved via per-adapter source dir slug (Bun stack frames omit class names for instance methods)
+- [Phase ?]: Plan 24-05: fileRelationsRegistry singleton in @baseworks/storage with Zod runtime validation (D-07) and two-level key per D-08
+- [Phase ?]: Plan 24-06: bun run db:migrate applied both pending migrations (0002_v14_file_storage + 0003_audit_indexes) in one run; count 1 -> 3. Both storage tables live with CHECK + partial index.
+- [Phase ?]: Plan 24-06: pre-existing repo-wide tsc rootDir state (132 errors) + 9 audit-era bun-test failures are out of scope; logged to phase deferred-items.md for a future tooling task.
 
 ### Pending Todos
 
-None.
+None at roadmap-creation time. Will accumulate as plans execute.
 
 ### Blockers/Concerns
 
-None open at milestone close. Research flags surfaced for v1.3 implementation (informational — not blockers):
+None blocking. Research flags surfaced for v1.4 implementation:
 
-- **Phase 17** — smoke-test `@appsignal/opentelemetry-instrumentation-bullmq` under Bun 1.1+; verify postgres.js OTEL instrumentation status (TRC-future-01 gate)
-- **Phase 21** — verify Grafana 12.4 provisioning JSON schema before building the 4 dashboards
+- **Phase 28 (HIGHEST-risk)** — Sharp under Bun + Docker is MEDIUM-confidence. Spike S-1 (smoke test on `oven/bun:1-debian-slim` x64 + arm64) is the phase-entry gate; if RED, pivot to `imagescript` as default. The phase MUST NOT proceed with sharp as default until the spike passes.
+- **Phase 25** — Spike S-2 (POST policy enforcement matrix per S3-compat backend) is non-blocking; PUT covers all v1.4 needs and POST is deferred. Spike runs to document the matrix for future POST opt-in.
+- **Phase 25** — Spike S-3 (`aws-sdk-client-mock` Bun compatibility) is non-blocking; MinIO-in-CI is the primary harness so any mock-library quirk has a fallback.
 
-Prior concerns resolved:
-
-- Admin login role check bug (workaround via `getFullOrganization()`) — still valid as documented workaround
-- Biome JSDoc formatting on multi-line `@example` blocks — empirically validated across Phase 13
-- PGlite + Drizzle schema push in tests — validated across Phase 14
+Prior concerns (v1.3 carryovers, not v1.4 scope — see Deferred Items below).
 
 ### Quick Tasks Completed
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260420-a4t | Route packages/ui tests through vitest (eliminated 22 `document is not defined` failures from `bun test`) | 2026-04-20 | 1a00bfc | [260420-a4t-route-packages-ui-src-test-tsx-through-v](./quick/260420-a4t-route-packages-ui-src-test-tsx-through-v/) |
+| Phase 24 P01 | 7min | 3 tasks | 11 files |
+| Phase 24 P24-02 | 6min | 3 tasks | 7 files |
+| Phase 24 P24-03 | 4min | 1 tasks | 3 files |
+| Phase 24 P07 | 8min | 2 tasks | 6 files |
+| Phase 24 P24-04 | 6min | 3 tasks | 11 files |
+| Phase 24 P24-05 | 2min | 1 tasks | 3 files |
+| Phase 24 P06 | 12min | 4 tasks | 5 files |
+
+## Deferred Items
+
+Items acknowledged and deferred at v1.3 milestone close on 2026-05-05. All are operator-gated (require production deploy or deferred Phase 21 stack), not implementation gaps. Survive into v1.4 for resolution when production deploy + observability stack are stood up.
+
+| Category | Item | Status |
+|----------|------|--------|
+| uat_gap | Phase 18 — 18-HUMAN-UAT.md | partial (4 skipped pending prod deploy) |
+| uat_gap | Phase 20 — 20-HUMAN-UAT.md | partial (1 blocked on Phase 21 — deferred to v1.4+) |
+| uat_gap | Phase 20.1 — 20.1-HUMAN-UAT.md | passed (audit flagged status field non-canonical) |
+| verification_gap | Phase 18 — 18-VERIFICATION.md | human_needed (operator gate: Sentry release workflow secrets + test tag) |
+| verification_gap | Phase 20 — 20-VERIFICATION.md | human_needed (Tempo backend — Phase 21 deferred) |
+| verification_gap | Phase 20.1 — 20.1-VERIFICATION.md | human_needed |
+| verification_gap | Phase 22 — 22-VERIFICATION.md | human_needed (4 manual UAT items: CSP iframe, cookie share, worker dead-status, pt-BR locale) |
+| todo | 2026-04-26-harden-inbound-traceparent-trust-gate.md | api — pending |
 
 ## Session Continuity
 
-Last session: 2026-04-23T22:45:00Z
-Stopped at: Phase 19 shipped end-to-end (8/8 plans merged, verifier PASSED, reviewer advisory REVIEW.md written).
-Resume file: `.planning/phases/19-context-logging-http-cqrs-tracing/19-VERIFICATION.md`
-Next action: Run `/gsd:discuss-phase 20` (or `/gsd:plan-phase 20` if context is obvious) to start BullMQ trace propagation (CTX-04, TRC-03).
-
-**Open threads from Phase 19 (advisory — not gap-closure blockers):**
-
-- **19-REVIEW.md** — 0C/3H/6M/7L findings. Top three high-severity:
-  1. **H-01** `apps/api/src/lib/locale-cookie.ts:25` — `decodeURIComponent` on a malformed cookie throws BEFORE `obsContext.run` opens, losing request context. Wrap with try/catch.
-  2. **H-02** `apps/api/src/index.ts:172` — inbound `x-request-id` header trusted unvalidated (log-injection / correlation-poisoning surface). Add length+charset check.
-  3. **H-03** Composed-stack error-span gap (also flagged by verifier as ACCEPTED DEVIATION) — Elysia 1.4 onError chain halts after errorMiddleware returns, so `observabilityMiddleware.onError` never fires on 5xx paths. Span still opens/ends and captures status, but `recordException`/`setStatus('error')` are lost. Reviewer recommends Option A: add try/catch in the Bun.serve fetch wrapper (same file owns ALS seed). Consider a small decimal phase (e.g., 19.1) or fold into Phase 20 discuss.
-  Run `/gsd:code-review-fix 19` to auto-fix low/medium findings.
-
-- **Phase 19 perf-gate relaxation** — Plan D-28 budgeted ≤5% p99 regression vs noop; 19-08 raised threshold to 3.0× ratio because µs-scale mixin overhead is comparable to the noop baseline. Currently stable at 2.15–2.33×. Worth revisiting with a macro benchmark at Phase 21 or later.
-
-- **deferred-items.md** — `packages/queue/tsconfig.json` rootDir vs cross-package source imports edge case under direct `tsc -p`; root `bunx tsc --noEmit` remains clean. Not urgent.
-
-**Earlier threads (still open):**
-
-- Phase 18 Plan 07 operator gate — `18-HUMAN-UAT.md` tracks deferred Sentry release workflow secrets + test tag push + demangled-stack-trace verification. Resume signal: `"approved"` once operator completes.
-
-- Phase 19 human verification (deferred to Phase 21 UAT per `19-VALIDATION.md`):
-  1. Real-gateway TCP-peer CIDR-trusted traceparent adoption
-  2. Tempo trace assembly
+Last session: 2026-06-18
+Stopped at: **v1.4 SHIPPED** — Phase 31 (FINAL) closed: storage `HealthContributor` in `/health/detailed`; the `JobDefinition.repeat` + `upsertJobScheduler` repeatable mechanism established; four cron cleanup/reconciliation jobs (reap-pending hourly / reap-orphan daily / reap-soft-deleted weekly / reconcile daily) persisting to `storage_job_runs` (migration `0005`); 4 runbooks + 4 Sentry alerts (CI-gated cross-links) + `docs/integrations/file-storage.md`. Live-DB-verified + CI gates green; Docker up.
+Resume file: None
+Next action: v1.4 milestone is complete. Begin v1.5 scoping (`/gsd:new-milestone`) when ready. Carryover into the next milestone: (a) the deferred Phase 21 OTEL adapters + Grafana observability stack; (b) browser-E2E HUMAN-UAT from `29-HUMAN-UAT.md` + `30-HUMAN-UAT.md` (run once the full stack is stood up); (c) production-deploy-gated UAT items from v1.3 (Sentry DSN release workflow, OTLP/Tempo backend). The `auth.user-deleted` cascade producer (`{ tenantId, recordId }`, pinned Phase 27) is backstopped by the Phase 31 conservative `cleanup:reap-orphan-files` reaper regardless of cascade-event delivery.

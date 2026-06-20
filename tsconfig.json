@@ -7,9 +7,6 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
     "noEmit": true,
     "jsx": "react-jsx",
     "paths": {
@@ -21,6 +18,12 @@
       "@baseworks/config/*": ["./packages/config/src/*"],
       "@baseworks/observability": ["./packages/observability/src"],
       "@baseworks/observability/*": ["./packages/observability/src/*"],
+      "@baseworks/storage": ["./packages/storage/src"],
+      "@baseworks/storage/*": ["./packages/storage/src/*"],
+      "@baseworks/i18n": ["./packages/i18n/src"],
+      "@baseworks/i18n/*": ["./packages/i18n/src/*"],
+      "@baseworks/queue": ["./packages/queue/src"],
+      "@baseworks/queue/*": ["./packages/queue/src/*"],
       "@baseworks/module-*": ["./packages/modules/*/src"],
       "@baseworks/ui": ["./packages/ui/src"],
       "@baseworks/ui/*": ["./packages/ui/src/*"],
@@ -36,5 +39,5 @@
     "apps/*/src/**/*.ts",
     "apps/*/src/**/*.tsx"
   ],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist", "apps/admin", "apps/web"]
 }

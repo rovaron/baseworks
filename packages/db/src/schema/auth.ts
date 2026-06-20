@@ -1,9 +1,4 @@
-import {
-  pgTable,
-  text,
-  timestamp,
-  boolean,
-} from "drizzle-orm/pg-core";
+import { boolean, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 /**
  * better-auth core tables + organization plugin tables.
@@ -24,37 +19,48 @@ export const user = pgTable("user", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-export const session = pgTable("session", {
-  id: text("id").primaryKey(),
-  expiresAt: timestamp("expires_at").notNull(),
-  token: text("token").notNull().unique(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-  ipAddress: text("ip_address"),
-  userAgent: text("user_agent"),
-  userId: text("user_id")
-    .notNull()
-    .references(() => user.id),
-  activeOrganizationId: text("active_organization_id"),
-});
+export const session = pgTable(
+  "session",
+  {
+    id: text("id").primaryKey(),
+    expiresAt: timestamp("expires_at").notNull(),
+    token: text("token").notNull().unique(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id),
+    activeOrganizationId: text("active_organization_id"),
+  },
+  (t) => [
+    index("session_user_id_idx").on(t.userId),
+    index("session_active_org_id_idx").on(t.activeOrganizationId),
+  ],
+);
 
-export const account = pgTable("account", {
-  id: text("id").primaryKey(),
-  accountId: text("account_id").notNull(),
-  providerId: text("provider_id").notNull(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => user.id),
-  accessToken: text("access_token"),
-  refreshToken: text("refresh_token"),
-  idToken: text("id_token"),
-  accessTokenExpiresAt: timestamp("access_token_expires_at"),
-  refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
-  scope: text("scope"),
-  password: text("password"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+export const account = pgTable(
+  "account",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at"),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+    scope: text("scope"),
+    password: text("password"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [index("account_user_id_idx").on(t.userId)],
+);
 
 export const verification = pgTable("verification", {
   id: text("id").primaryKey(),
@@ -74,28 +80,42 @@ export const organization = pgTable("organization", {
   metadata: text("metadata"),
 });
 
-export const member = pgTable("member", {
-  id: text("id").primaryKey(),
-  organizationId: text("organization_id")
-    .notNull()
-    .references(() => organization.id),
-  userId: text("user_id")
-    .notNull()
-    .references(() => user.id),
-  role: text("role").notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+export const member = pgTable(
+  "member",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id),
+    role: text("role").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("member_org_id_idx").on(t.organizationId),
+    index("member_user_id_idx").on(t.userId),
+  ],
+);
 
-export const invitation = pgTable("invitation", {
-  id: text("id").primaryKey(),
-  organizationId: text("organization_id")
-    .notNull()
-    .references(() => organization.id),
-  email: text("email").notNull(),
-  role: text("role"),
-  status: text("status").notNull(),
-  expiresAt: timestamp("expires_at").notNull(),
-  inviterId: text("inviter_id")
-    .notNull()
-    .references(() => user.id),
-});
+export const invitation = pgTable(
+  "invitation",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id),
+    email: text("email").notNull(),
+    role: text("role"),
+    status: text("status").notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    inviterId: text("inviter_id")
+      .notNull()
+      .references(() => user.id),
+  },
+  (t) => [
+    index("invitation_org_id_idx").on(t.organizationId),
+    index("invitation_inviter_id_idx").on(t.inviterId),
+  ],
+);

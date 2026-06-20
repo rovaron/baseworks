@@ -1,6 +1,6 @@
-import { describe, test, expect, mock, beforeEach } from "bun:test";
-import { createMockContext, createMockDb } from "../../../__test-utils__/mock-context";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { assertResultOk } from "../../../__test-utils__/assert-result";
+import { createMockContext, createMockDb } from "../../../__test-utils__/mock-context";
 
 mock.module("@baseworks/config", () => ({
   env: {
@@ -16,12 +16,14 @@ describe("getSubscriptionStatus", () => {
   test("returns active subscription status when record exists", async () => {
     const periodEnd = new Date("2026-05-01");
     const mockDb = createMockDb({
-      select: [{
-        status: "active",
-        providerSubscriptionId: "sub_123",
-        providerPriceId: "price_abc",
-        currentPeriodEnd: periodEnd,
-      }],
+      select: [
+        {
+          status: "active",
+          providerSubscriptionId: "sub_123",
+          providerPriceId: "price_abc",
+          currentPeriodEnd: periodEnd,
+        },
+      ],
     });
     const ctx = createMockContext({ db: mockDb });
 
@@ -51,12 +53,14 @@ describe("getSubscriptionStatus", () => {
 
   test("returns hasSubscription false when record has no subscription ID", async () => {
     const mockDb = createMockDb({
-      select: [{
-        status: "inactive",
-        providerSubscriptionId: null,
-        providerPriceId: null,
-        currentPeriodEnd: null,
-      }],
+      select: [
+        {
+          status: "inactive",
+          providerSubscriptionId: null,
+          providerPriceId: null,
+          currentPeriodEnd: null,
+        },
+      ],
     });
     const ctx = createMockContext({ db: mockDb });
 

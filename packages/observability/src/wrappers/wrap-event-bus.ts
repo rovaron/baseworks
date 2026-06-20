@@ -37,6 +37,10 @@ export interface EventBusLike {
   emit(event: string, data: unknown): void;
   // biome-ignore lint/suspicious/noExplicitAny: structural compatibility with EventEmitter semantics
   on(event: string, handler: (data: any) => void | Promise<void>): void;
+  // Optional: if present, off() is wrapped too so unsubscribing the original
+  // handler reference removes the span-wrapped listener this wrapper registered.
+  // biome-ignore lint/suspicious/noExplicitAny: structural compatibility with EventEmitter semantics
+  off?(event: string, handler: (data: any) => void | Promise<void>): void;
 }
 
 /**
@@ -50,12 +54,18 @@ export interface EventBusLike {
  * @param tracer - Tracer used to open spans (Noop by default)
  * @returns The same bus instance, with emit/on wrapped
  */
-export function wrapEventBus<B extends EventBusLike>(
-  bus: B,
-  tracer: Tracer,
-): B {
+export function wrapEventBus<B extends EventBusLike>(bus: B, tracer: Tracer): B {
   const origEmit = bus.emit.bind(bus);
   const origOn = bus.on.bind(bus);
+  const origOff = bus.off?.bind(bus);
+  // Tracks each (event → original handler → span-wrapped listener) so the
+  // wrapped off() can resolve and remove the same listener this wrapper passed
+  // to the host bus. Without this, off() cannot match the span wrapper.
+  const wrapperMap = new Map<
+    string,
+    // biome-ignore lint/suspicious/noExplicitAny: matches EventBusLike surface
+    Map<(data: any) => void | Promise<void>, (data: any) => Promise<void>>
+  >();
 
   (bus as EventBusLike).emit = (event: string, data: unknown): void => {
     const store = obsContext.getStore();
@@ -112,8 +122,33 @@ export function wrapEventBus<B extends EventBusLike>(
         },
       );
     };
+    let perEvent = wrapperMap.get(event);
+    if (!perEvent) {
+      perEvent = new Map();
+      wrapperMap.set(event, perEvent);
+    }
+    perEvent.set(handler, wrapped);
     origOn(event, wrapped);
   };
+
+  // Wrap off() so unsubscribing by the original handler removes the span wrapper.
+  if (origOff) {
+    (bus as EventBusLike).off = (
+      event: string,
+      // biome-ignore lint/suspicious/noExplicitAny: matches EventBusLike surface
+      handler: (data: any) => void | Promise<void>,
+    ): void => {
+      const perEvent = wrapperMap.get(event);
+      const wrapped = perEvent?.get(handler);
+      if (perEvent && wrapped) {
+        origOff(event, wrapped);
+        perEvent.delete(handler);
+        if (perEvent.size === 0) wrapperMap.delete(event);
+      } else {
+        origOff(event, handler);
+      }
+    };
+  }
 
   return bus;
 }

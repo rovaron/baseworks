@@ -1,20 +1,20 @@
 import type { PaymentProvider } from "../../ports/payment-provider";
 import type {
-  CreateCustomerParams,
-  ProviderCustomer,
-  CreateSubscriptionParams,
-  ProviderSubscription,
   CancelSubscriptionParams,
   ChangeSubscriptionParams,
-  CreateOneTimePaymentParams,
-  ProviderCheckoutSession,
   CreateCheckoutSessionParams,
+  CreateCustomerParams,
+  CreateOneTimePaymentParams,
   CreatePortalSessionParams,
-  ProviderPortalSession,
-  VerifyWebhookParams,
-  RawProviderEvent,
+  CreateSubscriptionParams,
   NormalizedEvent,
+  ProviderCheckoutSession,
+  ProviderCustomer,
   ProviderInvoice,
+  ProviderPortalSession,
+  ProviderSubscription,
+  RawProviderEvent,
+  VerifyWebhookParams,
 } from "../../ports/types";
 import { mapPagarmeEvent } from "./pagarme-webhook-mapper";
 
@@ -45,11 +45,7 @@ export class PagarmeAdapter implements PaymentProvider {
   /**
    * Make an authenticated request to the Pagar.me REST API v5.
    */
-  private async request<T = any>(
-    method: string,
-    path: string,
-    body?: unknown,
-  ): Promise<T> {
+  private async request<T = any>(method: string, path: string, body?: unknown): Promise<T> {
     const response = await fetch(`https://api.pagar.me/core/v5${path}`, {
       method,
       headers: {
@@ -91,9 +87,7 @@ export class PagarmeAdapter implements PaymentProvider {
    * @param params - Provider customer ID and plan ID
    * @returns Subscription details with status and period
    */
-  async createSubscription(
-    params: CreateSubscriptionParams,
-  ): Promise<ProviderSubscription> {
+  async createSubscription(params: CreateSubscriptionParams): Promise<ProviderSubscription> {
     const subscription = await this.request("POST", "/subscriptions", {
       customer_id: params.providerCustomerId,
       plan_id: params.priceId,
@@ -124,10 +118,7 @@ export class PagarmeAdapter implements PaymentProvider {
         "[PagarmeAdapter] cancelAtPeriodEnd is not supported; subscription will be canceled immediately",
       );
     }
-    await this.request(
-      "DELETE",
-      `/subscriptions/${params.providerSubscriptionId}`,
-    );
+    await this.request("DELETE", `/subscriptions/${params.providerSubscriptionId}`);
   }
 
   /**
@@ -136,16 +127,10 @@ export class PagarmeAdapter implements PaymentProvider {
    * @param params - Subscription ID and target plan ID
    * @returns Updated subscription details
    */
-  async changeSubscription(
-    params: ChangeSubscriptionParams,
-  ): Promise<ProviderSubscription> {
-    const updated = await this.request(
-      "PATCH",
-      `/subscriptions/${params.providerSubscriptionId}`,
-      {
-        plan_id: params.newPriceId,
-      },
-    );
+  async changeSubscription(params: ChangeSubscriptionParams): Promise<ProviderSubscription> {
+    const updated = await this.request("PATCH", `/subscriptions/${params.providerSubscriptionId}`, {
+      plan_id: params.newPriceId,
+    });
     return {
       providerSubscriptionId: updated.id,
       status: updated.status,
@@ -162,21 +147,14 @@ export class PagarmeAdapter implements PaymentProvider {
    * @param providerSubscriptionId - Pagar.me subscription ID
    * @returns Subscription details, or null if not found
    */
-  async getSubscription(
-    providerSubscriptionId: string,
-  ): Promise<ProviderSubscription | null> {
+  async getSubscription(providerSubscriptionId: string): Promise<ProviderSubscription | null> {
     try {
-      const sub = await this.request(
-        "GET",
-        `/subscriptions/${providerSubscriptionId}`,
-      );
+      const sub = await this.request("GET", `/subscriptions/${providerSubscriptionId}`);
       return {
         providerSubscriptionId: sub.id,
         status: sub.status,
         priceId: sub.plan?.id,
-        currentPeriodEnd: sub.current_period_end
-          ? new Date(sub.current_period_end)
-          : undefined,
+        currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end) : undefined,
       };
     } catch {
       return null;
@@ -240,9 +218,7 @@ export class PagarmeAdapter implements PaymentProvider {
    * Per T-10-07: Uses node:crypto timingSafeEqual to prevent timing attacks.
    * NEVER use simple string comparison for signature verification.
    */
-  async verifyWebhookSignature(
-    params: VerifyWebhookParams,
-  ): Promise<RawProviderEvent> {
+  async verifyWebhookSignature(params: VerifyWebhookParams): Promise<RawProviderEvent> {
     const { timingSafeEqual } = await import("node:crypto");
     const encoder = new TextEncoder();
     const key = await crypto.subtle.importKey(
@@ -253,11 +229,7 @@ export class PagarmeAdapter implements PaymentProvider {
       ["sign"],
     );
 
-    const signatureBytes = await crypto.subtle.sign(
-      "HMAC",
-      key,
-      encoder.encode(params.rawBody),
-    );
+    const signatureBytes = await crypto.subtle.sign("HMAC", key, encoder.encode(params.rawBody));
 
     const expectedSignature = Array.from(new Uint8Array(signatureBytes))
       .map((b) => b.toString(16).padStart(2, "0"))
@@ -267,18 +239,19 @@ export class PagarmeAdapter implements PaymentProvider {
     // Length check first because timingSafeEqual requires equal-length buffers.
     const expectedBuf = Buffer.from(expectedSignature);
     const receivedBuf = Buffer.from(params.signature);
-    if (
-      expectedBuf.length !== receivedBuf.length ||
-      !timingSafeEqual(expectedBuf, receivedBuf)
-    ) {
+    if (expectedBuf.length !== receivedBuf.length || !timingSafeEqual(expectedBuf, receivedBuf)) {
       throw new Error("Invalid Pagar.me webhook signature");
     }
 
     const event = JSON.parse(params.rawBody);
+    // Pagar.me places the event timestamp at the TOP LEVEL of the webhook
+    // envelope (created_at, ISO string), not inside data. Capture it so the
+    // normalizer can order events by provider time rather than ingestion time.
     return {
       id: event.id ?? event.data?.id ?? crypto.randomUUID(),
       type: event.type,
       data: event.data,
+      occurredAt: event.created_at ? new Date(event.created_at) : undefined,
     };
   }
 
@@ -301,10 +274,7 @@ export class PagarmeAdapter implements PaymentProvider {
    * @param limit - Maximum number of charges to return
    * @returns List of invoice-like charge records
    */
-  async getInvoices(
-    providerCustomerId: string,
-    limit: number,
-  ): Promise<ProviderInvoice[]> {
+  async getInvoices(providerCustomerId: string, limit: number): Promise<ProviderInvoice[]> {
     const charges = await this.request(
       "GET",
       `/charges?customer_id=${providerCustomerId}&size=${limit}`,
@@ -316,9 +286,7 @@ export class PagarmeAdapter implements PaymentProvider {
       amount: charge.amount ?? 0,
       currency: charge.currency ?? "BRL",
       status: charge.status ?? null,
-      created: charge.created_at
-        ? Math.floor(new Date(charge.created_at).getTime() / 1000)
-        : 0,
+      created: charge.created_at ? Math.floor(new Date(charge.created_at).getTime() / 1000) : 0,
       invoiceUrl: charge.url ?? null,
       pdfUrl: null, // Pagar.me does not provide PDF invoices
     }));

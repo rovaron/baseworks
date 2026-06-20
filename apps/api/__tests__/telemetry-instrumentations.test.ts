@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
 
 /**
@@ -20,19 +20,16 @@ type InstrLike = {
 function buildMatrix(role: "api" | "worker"): InstrLike[] {
   const isApiFlavour = role === "api";
   return getNodeAutoInstrumentations({
-    "@opentelemetry/instrumentation-http":    { enabled: isApiFlavour },
+    "@opentelemetry/instrumentation-http": { enabled: isApiFlavour },
     "@opentelemetry/instrumentation-ioredis": { enabled: true },
-    "@opentelemetry/instrumentation-pino":    { enabled: true },
-    "@opentelemetry/instrumentation-fs":      { enabled: false },
-    "@opentelemetry/instrumentation-dns":     { enabled: false },
-    "@opentelemetry/instrumentation-net":     { enabled: false },
+    "@opentelemetry/instrumentation-pino": { enabled: true },
+    "@opentelemetry/instrumentation-fs": { enabled: false },
+    "@opentelemetry/instrumentation-dns": { enabled: false },
+    "@opentelemetry/instrumentation-net": { enabled: false },
   }) as unknown as InstrLike[];
 }
 
-function findByName(
-  matrix: InstrLike[],
-  suffix: string,
-): InstrLike | undefined {
+function findByName(matrix: InstrLike[], suffix: string): InstrLike | undefined {
   return matrix.find((i) => i.instrumentationName?.endsWith(suffix));
 }
 
@@ -49,9 +46,7 @@ describe("auto-instrumentation matrix (OBS-04 / D-11)", () => {
 
   test("enabled in api role: http, ioredis, pino", () => {
     expect(isEnabled(findByName(apiMatrix, "instrumentation-http"))).toBe(true);
-    expect(isEnabled(findByName(apiMatrix, "instrumentation-ioredis"))).toBe(
-      true,
-    );
+    expect(isEnabled(findByName(apiMatrix, "instrumentation-ioredis"))).toBe(true);
     expect(isEnabled(findByName(apiMatrix, "instrumentation-pino"))).toBe(true);
   });
 
@@ -62,18 +57,12 @@ describe("auto-instrumentation matrix (OBS-04 / D-11)", () => {
   });
 
   test("worker role disables http (D-04)", () => {
-    expect(isEnabled(findByName(workerMatrix, "instrumentation-http"))).toBe(
-      false,
-    );
+    expect(isEnabled(findByName(workerMatrix, "instrumentation-http"))).toBe(false);
   });
 
   test("worker role still enables ioredis and pino", () => {
-    expect(isEnabled(findByName(workerMatrix, "instrumentation-ioredis"))).toBe(
-      true,
-    );
-    expect(isEnabled(findByName(workerMatrix, "instrumentation-pino"))).toBe(
-      true,
-    );
+    expect(isEnabled(findByName(workerMatrix, "instrumentation-ioredis"))).toBe(true);
+    expect(isEnabled(findByName(workerMatrix, "instrumentation-pino"))).toBe(true);
   });
 
   test("no bullmq instrumentation in Phase 17 (D-12)", () => {

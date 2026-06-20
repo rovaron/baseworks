@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
 import { Toaster } from "@baseworks/ui/components/sonner";
-import { Providers } from "@/lib/providers";
+import type { Metadata } from "next";
 import { getLocale, getMessages } from "next-intl/server";
+import { Providers } from "@/lib/providers";
 import "./globals.css";
 
 export const metadata: Metadata = {

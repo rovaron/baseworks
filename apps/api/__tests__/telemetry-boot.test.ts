@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
 /**
  * Phase 17 OBS-04 smoke test (D-10).
@@ -15,9 +15,7 @@ type SpawnResult = {
   exitCode: number | null;
 };
 
-async function spawnTelemetry(
-  extraEnv: Record<string, string>,
-): Promise<SpawnResult> {
+async function spawnTelemetry(extraEnv: Record<string, string>): Promise<SpawnResult> {
   const proc = Bun.spawn(["bun", "run", "apps/api/src/telemetry.ts"], {
     cwd: process.cwd(),
     env: {
@@ -26,11 +24,8 @@ async function spawnTelemetry(
       // loaded transitively by validateObservabilityEnv's env import). Use
       // test-safe values so the subprocess reaches the observability branch.
       DATABASE_URL:
-        process.env.DATABASE_URL ??
-        "postgres://baseworks:baseworks@localhost:5432/baseworks",
-      BETTER_AUTH_SECRET:
-        process.env.BETTER_AUTH_SECRET ??
-        "testtesttesttesttesttesttesttest",
+        process.env.DATABASE_URL ?? "postgres://baseworks:baseworks@localhost:5432/baseworks",
+      BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET ?? "testtesttesttesttesttesttesttest",
       NODE_ENV: "test",
       LOG_LEVEL: "info",
       // Caller may override INSTANCE_ROLE / TRACER / etc.

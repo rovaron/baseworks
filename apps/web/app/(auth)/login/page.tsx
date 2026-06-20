@@ -1,14 +1,5 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import Link from "next/link";
-import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
-import { useTranslations } from "next-intl";
-
 import {
   Button,
   Card,
@@ -16,7 +7,6 @@ import {
   CardDescription,
   CardFooter,
   CardHeader,
-
   Form,
   FormControl,
   FormField,
@@ -25,10 +15,19 @@ import {
   FormMessage,
   Input,
 } from "@baseworks/ui";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2 } from "lucide-react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { Suspense } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
 import { auth } from "@/lib/api";
 import { sanitizeInviteToken } from "@/lib/invite";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const inviteToken = sanitizeInviteToken(searchParams.get("invite"));
@@ -70,9 +69,7 @@ export default function LoginPage() {
   }
 
   async function handleOAuth(provider: "google" | "github") {
-    const callbackURL = inviteToken
-      ? `/invite/${inviteToken}`
-      : "/dashboard";
+    const callbackURL = inviteToken ? `/invite/${inviteToken}` : "/dashboard";
     await auth.signIn.social({
       provider,
       callbackURL,
@@ -87,18 +84,10 @@ export default function LoginPage() {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          <Button
-            variant="outline"
-            type="button"
-            onClick={() => handleOAuth("google")}
-          >
+          <Button variant="outline" type="button" onClick={() => handleOAuth("google")}>
             {t("continueWithGoogle")}
           </Button>
-          <Button
-            variant="outline"
-            type="button"
-            onClick={() => handleOAuth("github")}
-          >
+          <Button variant="outline" type="button" onClick={() => handleOAuth("github")}>
             {t("continueWithGithub")}
           </Button>
         </div>
@@ -178,5 +167,15 @@ export default function LoginPage() {
         </div>
       </CardFooter>
     </Card>
+  );
+}
+
+export const dynamic = "force-dynamic";
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

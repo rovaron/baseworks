@@ -70,7 +70,8 @@
     "declineConfirmTitle": "Recusar este convite?",
     "declineConfirmBody": "Voce pode pedir um novo convite depois se mudar de ideia.",
     "declineConfirmButton": "Sim, Recusar Convite",
-    "declined": "Convite recusado"
+    "declined": "Convite recusado",
+    "error": "Nao foi possivel aceitar o convite. Tente novamente."
   },
   "cancel": {
     "confirmTitle": "Cancelar este convite?",
