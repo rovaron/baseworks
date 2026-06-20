@@ -7,6 +7,16 @@
  * `fileRelationsRegistry` is used (a test relation is registered), and
  * `getFileStorage()` is stubbed via `setFileStorage`.
  *
+ * ISOLATION (load-bearing — do not move back into ../__tests__): this is the ONLY
+ * files suite that `mock.module("@baseworks/db", …)` with a fake `getDb` + fake
+ * schema tables (and no `createDb`). bun's `mock.module` is process-global and the
+ * first registration wins for the whole run, so when this shares a process with
+ * the LIVE-DB suites (admin-files, attach-and-list, quota, cascade, …) the fake db
+ * leaks in → `createDb` undefined / `delete from $1` on the fake `files` object.
+ * It manifests on CI's file order, not Windows'. So it lives in its own
+ * `__unit__/` directory and the root `package.json` "test" script runs it as a
+ * SEPARATE `bun test` invocation.
+ *
  * Cases:
  *   - unknown (ownerModule, kind) ⇒ err("unknown_relation")  → route 400 (MOD-02)
  *   - MIME not in allow-list      ⇒ err("mime_not_allowed")  → route 400
