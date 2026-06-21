@@ -6,6 +6,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { magicLink, organization } from "better-auth/plugins";
 import { nanoid } from "nanoid";
+import { ac, roles } from "./access-control";
 import { getLocale } from "./locale-context";
 
 /**
@@ -147,6 +148,12 @@ export const auth = betterAuth({
   socialProviders,
   plugins: [
     organization({
+      ac,
+      roles,
+      dynamicAccessControl: {
+        enabled: true,
+        maximumRolesPerOrganization: 50,
+      },
       allowUserToCreateOrganization: true,
       creatorRole: "owner",
       organizationLimit: 5,
