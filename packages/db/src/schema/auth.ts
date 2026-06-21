@@ -1,4 +1,4 @@
-import { boolean, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, index, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 /**
  * better-auth core tables + organization plugin tables.
@@ -117,5 +117,24 @@ export const invitation = pgTable(
   (t) => [
     index("invitation_org_id_idx").on(t.organizationId),
     index("invitation_inviter_id_idx").on(t.inviterId),
+  ],
+);
+
+export const organizationRole = pgTable(
+  "organization_role",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id),
+    role: text("role").notNull(),
+    // JSON-serialized Record<string, string[]> — better-auth serializes/parses.
+    permission: text("permission").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at"),
+  },
+  (t) => [
+    index("organization_role_org_id_idx").on(t.organizationId),
+    uniqueIndex("organization_role_org_role_uq").on(t.organizationId, t.role),
   ],
 );
