@@ -5,10 +5,18 @@
   "adminEmailPlaceholder": "admin@exemplo.com",
   "nav": {
     "tenants": "Tenants",
+    "roles": "Funções",
     "users": "Usuários",
     "billing": "Faturamento",
     "system": "Sistema",
     "jobs": "Monitor de Jobs"
+  },
+  "roles": {
+    "title": "Funções do Tenant",
+    "selectTenant": "Selecione um tenant",
+    "noTenant": "Selecione um tenant para ver suas funções.",
+    "empty": "Este tenant não possui funções personalizadas.",
+    "loadError": "Falha ao carregar as funções. Verifique o status do servidor da API e tente novamente."
   },
   "jobs": {
     "title": "Monitor de Jobs",

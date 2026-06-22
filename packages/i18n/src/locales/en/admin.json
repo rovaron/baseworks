@@ -5,10 +5,18 @@
   "adminEmailPlaceholder": "admin@example.com",
   "nav": {
     "tenants": "Tenants",
+    "roles": "Roles",
     "users": "Users",
     "billing": "Billing",
     "system": "System",
     "jobs": "Job Monitor"
+  },
+  "roles": {
+    "title": "Tenant Roles",
+    "selectTenant": "Select a tenant",
+    "noTenant": "Select a tenant to view its roles.",
+    "empty": "This tenant has no custom roles.",
+    "loadError": "Failed to load roles. Check the API server status and try again."
   },
   "jobs": {
     "title": "Job Monitor",

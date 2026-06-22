@@ -25,7 +25,16 @@ import {
   TooltipTrigger,
   useSidebar,
 } from "@baseworks/ui";
-import { Activity, Building2, ChevronUp, CreditCard, ListTodo, LogOut, Users } from "lucide-react";
+import {
+  Activity,
+  Building2,
+  ChevronUp,
+  CreditCard,
+  KeyRound,
+  ListTodo,
+  LogOut,
+  Users,
+} from "lucide-react";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { Outlet, useLocation, useNavigate } from "react-router";
@@ -35,6 +44,7 @@ import { AuthGuard } from "./auth-guard";
 
 const navItems = [
   { titleKey: "nav.tenants", icon: Building2, href: "/tenants" },
+  { titleKey: "nav.roles", icon: KeyRound, href: "/roles" },
   { titleKey: "nav.users", icon: Users, href: "/users" },
   { titleKey: "nav.billing", icon: CreditCard, href: "/billing" },
   { titleKey: "nav.system", icon: Activity, href: "/system" },
