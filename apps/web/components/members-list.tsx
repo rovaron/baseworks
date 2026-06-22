@@ -91,6 +91,35 @@ export function MembersList() {
     },
   });
 
+  const rolesQuery = useQuery({
+    queryKey: ["org-roles", activeTenant?.id],
+    enabled: !!activeTenant?.id,
+    queryFn: async () => {
+      const res = await auth.organization.listOrgRoles({
+        query: { organizationId: activeTenant!.id },
+      });
+      return (res.data as any[])?.map((r) => r.role) ?? [];
+    },
+  });
+  const allRoles = ["owner", "admin", "member", ...((rolesQuery.data as string[]) ?? [])];
+
+  const setRoleMutation = useMutation({
+    mutationFn: async ({ memberId, role }: { memberId: string; role: string }) => {
+      await auth.organization.updateMemberRole({
+        memberId,
+        role,
+        organizationId: activeTenant!.id,
+      });
+    },
+    onSuccess: () => {
+      toast.success(t("members.roleUpdated"));
+      queryClient.invalidateQueries({ queryKey: ["members"] });
+    },
+    onError: () => {
+      toast.error(tc("error"));
+    },
+  });
+
   const currentSession = auth.useSession();
   const currentUserId = (currentSession.data as any)?.user?.id;
 
@@ -169,6 +198,18 @@ export function MembersList() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        {allRoles
+                          .filter((r) => r !== role)
+                          .map((r) => (
+                            <DropdownMenuItem
+                              key={r}
+                              onClick={() =>
+                                setRoleMutation.mutate({ memberId: member.id, role: r })
+                              }
+                            >
+                              {t("members.setRoleTo", { role: r })}
+                            </DropdownMenuItem>
+                          ))}
                         <DropdownMenuItem
                           onClick={() =>
                             setRemoveTarget({

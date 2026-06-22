@@ -1,6 +1,13 @@
 import { env } from "@baseworks/config";
-import { billingCustomers, getDb, member, organization, user } from "@baseworks/db";
-import { requirePlatformAdmin } from "@baseworks/module-auth";
+import {
+  billingCustomers,
+  getDb,
+  member,
+  organization,
+  organizationRole,
+  user,
+} from "@baseworks/db";
+import { auth, requirePlatformAdmin } from "@baseworks/module-auth";
 import {
   adminCompleteUpload,
   adminDeleteFile,
@@ -55,6 +62,20 @@ function safeParseMetadata(raw: string | null, tenantId?: string): unknown {
  *   distinct from per-organization "owner" — see finding authz-admin-owner-role-escalation).
  * Per T-4-03: User queries omit password hashes (select only safe fields).
  */
+
+/**
+ * Map a thrown better-auth `APIError` (from `auth.api.*` delegation) onto the
+ * Elysia response. better-auth raises APIError with a numeric `statusCode`
+ * (e.g. 404 user-not-found, 400 cannot-ban-yourself) and a `body.code`; surface
+ * those faithfully instead of letting the global handler collapse them to 500.
+ * Returns the JSON error body; the caller sets nothing else.
+ */
+function mapAuthError(ctx: any, err: unknown): { success: false; error: string } {
+  const e = err as { statusCode?: number; body?: { code?: string; message?: string } };
+  const status = typeof e?.statusCode === "number" ? e.statusCode : 500;
+  ctx.set.status = status;
+  return { success: false, error: e?.body?.code ?? e?.body?.message ?? "AUTH_ERROR" };
+}
 
 const db = getDb(env.DATABASE_URL);
 
@@ -160,6 +181,30 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
     },
   )
 
+  // Operator read of a tenant's custom roles (Task A12 consumer). better-auth's
+  // `listOrgRoles` requires the caller to be a MEMBER of the org with `ac:read`
+  // — a platform operator is NEVER an org member, so it would 403. Read the
+  // `organization_role` rows directly instead (operator gate already applied at
+  // the plugin head), parsing the JSON-serialized `permission` column the same
+  // way the org plugin does.
+  .get("/tenants/:id/roles", async (ctx: any) => {
+    const rows = await db
+      .select()
+      .from(organizationRole)
+      .where(eq(organizationRole.organizationId, ctx.params.id));
+
+    return {
+      data: rows.map((r) => ({
+        id: r.id,
+        role: r.role,
+        organizationId: r.organizationId,
+        permission: safeParseMetadata(r.permission, r.organizationId) ?? {},
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      })),
+    };
+  })
+
   // --- Tenant Files (cross-tenant admin browser) ---
   // Phase 30 / UI-02. Every route inherits the requirePlatformAdmin() gate at the
   // top of this plugin (non-allowlisted session → 403, no session → 401; an
@@ -250,44 +295,31 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
   })
 
   // --- User Management ---
-  // Per T-4-03: Only select safe fields (no password hashes)
+  // Delegated to the better-auth admin plugin (`auth.api.listUsers`) so the user
+  // lifecycle (list/ban/impersonate) shares one source of truth with the plugin.
+  // listUsers returns plugin-parsed user objects (incl. `banned`/`role`, password
+  // never present) and a `total` — preserving the existing `{ data, total }`
+  // Eden shape the admin UI already consumes.
   .get("/users", async (ctx: any) => {
     const limit = Number(ctx.query?.limit) || 20;
     const offset = Number(ctx.query?.offset) || 0;
     const search = ctx.query?.search as string | undefined;
 
-    let query = db
-      .select({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        image: user.image,
-        createdAt: user.createdAt,
-      })
-      .from(user);
-
-    if (search) {
-      const sanitized = escapeLike(search);
-      query = query.where(
-        or(like(user.name, `%${sanitized}%`), like(user.email, `%${sanitized}%`)),
-      ) as typeof query;
+    try {
+      const res = await auth.api.listUsers({
+        headers: ctx.request.headers,
+        query: {
+          limit,
+          offset,
+          ...(search
+            ? { searchField: "email", searchOperator: "contains", searchValue: search }
+            : {}),
+        },
+      });
+      return { data: res.users, total: res.total };
+    } catch (err) {
+      return mapAuthError(ctx, err);
     }
-
-    // Count query for pagination (same filters, no limit/offset)
-    let userCountQuery = db.select({ count: count() }).from(user);
-    if (search) {
-      const sanitized = escapeLike(search);
-      userCountQuery = userCountQuery.where(
-        or(like(user.name, `%${sanitized}%`), like(user.email, `%${sanitized}%`)),
-      ) as typeof userCountQuery;
-    }
-
-    const [users, [userTotalResult]] = await Promise.all([
-      query.limit(limit).offset(offset),
-      userCountQuery,
-    ]);
-
-    return { data: users, total: userTotalResult?.count ?? 0 };
   })
 
   .get("/users/:id", async (ctx: any) => {
@@ -328,33 +360,28 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
     };
   })
 
+  // Ban/unban delegated to the admin plugin. `banUser` clears the target's
+  // sessions and stamps user.banned/banReason/banExpires; `unbanUser` reverses it.
+  // The plugin throws APIError (404 not-found, 400 cannot-ban-yourself) — mapped
+  // through mapAuthError so the status survives to the client.
   .patch(
     "/users/:id",
-    async (ctx) => {
-      const [foundUser] = await db
-        .select({ id: user.id })
-        .from(user)
-        .where(eq(user.id, ctx.params.id))
-        .limit(1);
-
-      if (!foundUser) {
-        ctx.set.status = 404;
-        return { success: false, error: "USER_NOT_FOUND" };
+    async (ctx: any) => {
+      const { banned, banReason } = ctx.body;
+      try {
+        const res = banned
+          ? await auth.api.banUser({
+              headers: ctx.request.headers,
+              body: { userId: ctx.params.id, banReason },
+            })
+          : await auth.api.unbanUser({
+              headers: ctx.request.headers,
+              body: { userId: ctx.params.id },
+            });
+        return { success: true, data: res };
+      } catch (err) {
+        return mapAuthError(ctx, err);
       }
-
-      // TODO: better-auth user table does not have a banned column by default.
-      // Implement via better-auth admin plugin or a custom banned column.
-      logger.info(
-        { targetUserId: ctx.params.id, banned: ctx.body.banned, reason: ctx.body.banReason },
-        "Admin user ban/unban action (not yet implemented)",
-      );
-
-      ctx.set.status = 501;
-      return {
-        success: false,
-        error: "NOT_IMPLEMENTED",
-        message: "User ban/unban is not yet implemented",
-      };
     },
     {
       body: t.Object({
@@ -364,41 +391,44 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
     },
   )
 
-  // Per T-4-05: Log impersonation events with admin and target user IDs
+  // Per T-4-05: Log impersonation events with admin and target user IDs.
+  // Delegated to the admin plugin's `impersonateUser`, which mints a short-lived
+  // session for the target stamped with `impersonatedBy` and rotates the operator
+  // session into a signed `admin_session` cookie (so stop-impersonating can
+  // restore it). better-auth sets those cookies on its own Response — we must
+  // FORWARD the Set-Cookie headers onto the Elysia response (returnHeaders), or
+  // the operator's browser never switches into the impersonated session.
   .post("/users/:id/impersonate", async (ctx: any) => {
     const targetId = ctx.params.id;
 
-    const [targetUser] = await db
-      .select({ id: user.id, email: user.email })
-      .from(user)
-      .where(eq(user.id, targetId))
-      .limit(1);
-
-    if (!targetUser) {
-      ctx.set.status = 404;
-      return { success: false, error: "USER_NOT_FOUND" };
-    }
-
-    // Log impersonation attempt for audit trail (T-4-05)
+    // Audit trail (T-4-05) — emitted before delegation so a denied/failed
+    // attempt is still recorded.
     logger.warn(
       {
         adminUserId: ctx.userId,
         targetUserId: targetId,
-        targetEmail: targetUser.email,
         action: "impersonate",
       },
-      "Admin impersonation attempted (not yet implemented)",
+      "Admin impersonation attempted",
     );
 
-    // TODO: Impersonation requires creating a session for the target user.
-    // Full implementation requires better-auth admin plugin or direct
-    // session creation via auth.api.
-    ctx.set.status = 501;
-    return {
-      success: false,
-      error: "NOT_IMPLEMENTED",
-      message: "User impersonation is not yet implemented",
-    };
+    try {
+      const { headers, response } = await auth.api.impersonateUser({
+        headers: ctx.request.headers,
+        body: { userId: targetId },
+        returnHeaders: true,
+      });
+
+      const out = new Headers({ "content-type": "application/json" });
+      for (const cookie of headers.getSetCookie?.() ?? []) out.append("set-cookie", cookie);
+
+      return new Response(JSON.stringify({ success: true, data: response }), {
+        status: 200,
+        headers: out,
+      });
+    } catch (err) {
+      return mapAuthError(ctx, err);
+    }
   })
 
   // --- Billing Overview ---

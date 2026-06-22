@@ -30,6 +30,6 @@ describe("auth module setup", () => {
     const mod = await import("../index");
     expect(mod.auth).toBeDefined();
     expect(mod.betterAuthPlugin).toBeDefined();
-    expect(mod.requireRole).toBeDefined();
+    expect(mod.requirePermission).toBeDefined();
   });
 });

@@ -16,9 +16,11 @@ import { listMembers } from "./queries/list-members";
 import { listTenants } from "./queries/list-tenants";
 import { authRoutes } from "./routes";
 
+export { ac, roles, statements } from "./access-control";
 export { auth } from "./auth";
+export { promoteConfiguredAdmins } from "./bootstrap-admins";
 export { getLocale } from "./locale-context";
-export { betterAuthPlugin, requirePlatformAdmin, requireRole } from "./middleware";
+export { betterAuthPlugin, requirePermission, requirePlatformAdmin } from "./middleware";
 // Re-exported so apps/api can mount the plugin with its precise Elysia type
 // (preserving Eden Treaty inference); the registry's getAuthRoutes() erases it to `any`.
 export { authRoutes } from "./routes";

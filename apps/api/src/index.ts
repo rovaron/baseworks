@@ -2,7 +2,7 @@ import "./telemetry";
 import { env, validateObservabilityEnv, validatePaymentProviderEnv } from "@baseworks/config";
 import { closeDb, getDb, scopedDb } from "@baseworks/db";
 import { defaultLocale } from "@baseworks/i18n";
-import { requireRole } from "@baseworks/module-auth";
+import { promoteConfiguredAdmins, requirePermission } from "@baseworks/module-auth";
 import { billingWebhookRoutes, registerBillingHooks } from "@baseworks/module-billing";
 import { registerExampleHooks } from "@baseworks/module-example";
 import { registerFilesHooks } from "@baseworks/module-files";
@@ -270,14 +270,14 @@ const app = new Elysia()
   // Kept intentionally minimal (status + uptime only) so the unauthenticated
   // Docker/LB probe does not leak the loaded-module list or dependency topology
   // (health-public-exposes-module-list). The full dependency/module breakdown
-  // lives behind the requireRole-gated /health/detailed endpoint.
+  // lives behind the requirePlatformAdmin-gated /health/detailed endpoint.
   .get("/health", () => ({
     status: "ok",
     uptime: Math.round(process.uptime()),
   }))
   // Phase 22 / OPS-01 — bull-board mount (RBAC owner-only, CSP, readOnly env-driven).
   // Mounts AFTER /health (Docker probe stays unauthenticated) and BEFORE auth/tenant
-  // middleware: bull-board owns its own auth derive via requireRole, and is
+  // middleware: bull-board owns its own auth derive via requirePlatformAdmin, and is
   // operator-scope (not tenant-scope) so it must not require a tenant context.
   .use(bullBoardPlugin)
   // Phase 22 / OPS-03 — /health/detailed endpoint at API root (NOT under /api/admin/)
@@ -328,7 +328,7 @@ const app = new Elysia()
   // deleteOrganization runs and the `tenant.deleted` domain event is emitted
   // (api-delete-tenant-noop / tenant-delete-route-stub-returns-success).
   .group("/api", (group) =>
-    group.use(requireRole("owner")).delete("/tenant", async (ctx: any) => {
+    group.use(requirePermission("organization", "delete")).delete("/tenant", async (ctx: any) => {
       const tenantId: string = ctx.tenantId;
       const result = await registry
         .getCqrs()
@@ -441,6 +441,12 @@ const server = Bun.serve({
 });
 
 logger.info({ port: env.PORT, role: env.INSTANCE_ROLE }, "Baseworks API started");
+
+// Bootstrap platform admins from ADMIN_EMAILS (B3). Non-blocking — promotes the
+// configured operator emails to user.role = "admin" once at startup. Idempotent.
+void promoteConfiguredAdmins(db).catch((e) =>
+  logger.error({ err: String(e) }, "[startup] admin bootstrap failed"),
+);
 
 // Graceful shutdown (api-no-graceful-shutdown) — mirror worker.ts:176-189.
 // On SIGTERM/SIGINT: stop accepting + drain in-flight requests, then close the

@@ -1,6 +1,6 @@
 // Phase 22 / OPS-03 — /health/detailed RBAC + envelope + thresholds + freshness integration tests.
 //
-// Mocks `@baseworks/module-auth` with the same header-driven `requireRole` shape used by
+// Mocks `@baseworks/module-auth` with the same header-driven `requirePlatformAdmin` shape used by
 // admin-bull-board.test.ts to keep the test convention consistent across OPS-* tests.
 //
 // Tests cover D-07 (envelope shape), D-09 (queue thresholds 100/1000), D-13 (worker freshness
@@ -66,26 +66,12 @@ function fakeRedisWithHeartbeats(
   } as any;
 }
 
-function installRequireRoleMock() {
-  // Header-driven requireRole mock — matches admin-bull-board.test.ts convention.
+function installAuthMock() {
+  // Header-driven requirePlatformAdmin mock — matches admin-bull-board.test.ts convention.
+  // Operator-scope routes (/health/detailed) gate on requirePlatformAdmin.
   // No `x-test-role` header → throw "Unauthorized" → errorMiddleware → 401.
-  // `x-test-role: member` with roles=["owner"] → throw "Forbidden" → errorMiddleware → 403.
-  // `x-test-role: owner` → resolves a session and the handler runs → 200.
   mock.module("@baseworks/module-auth", () => ({
-    requireRole: (...roles: string[]) => {
-      return new Elysia({ name: `fake-require-role-${roles.join(",")}` }).derive(
-        { as: "scoped" },
-        // biome-ignore lint/suspicious/noExplicitAny: test mock
-        ({ request }: any) => {
-          const role = request.headers.get("x-test-role");
-          if (!role) throw new Error("Unauthorized");
-          if (!roles.includes(role)) throw new Error("Forbidden");
-          return { userId: "test-user", memberRole: role };
-        },
-      );
-    },
-    // Platform-admin guard (operator-scope routes now gate on this instead of
-    // requireRole("owner")). Header-driven for tests: no header → 401,
+    // Platform-admin guard. Header-driven for tests: no header → 401,
     // `x-test-role: owner` simulates a platform admin → 200, otherwise → 403.
     requirePlatformAdmin: () => {
       return new Elysia({ name: "fake-require-platform-admin" }).derive(
@@ -113,7 +99,7 @@ async function buildApp(opts: {
   ringbufferEntries?: RingBufferEntry[];
   heartbeatIntervalMs?: number;
 }) {
-  installRequireRoleMock();
+  installAuthMock();
 
   const aggregator = new HealthAggregator();
   for (const c of opts.contributors ?? []) aggregator.register(c);
@@ -135,7 +121,7 @@ async function buildApp(opts: {
 
 describe("/health/detailed — RBAC (D-07)", () => {
   beforeEach(() => {
-    installRequireRoleMock();
+    installAuthMock();
   });
 
   test("unauthenticated → 401", async () => {
@@ -183,7 +169,7 @@ describe("/health/detailed — RBAC (D-07)", () => {
 
 describe("/health/detailed — queue thresholds (D-09)", () => {
   beforeEach(() => {
-    installRequireRoleMock();
+    installAuthMock();
   });
 
   test("waiting 0/99/100/999/1000/1001 → healthy/healthy/warning/warning/critical/critical", async () => {
@@ -218,7 +204,7 @@ describe("/health/detailed — queue thresholds (D-09)", () => {
 
 describe("/health/detailed — worker freshness (D-13)", () => {
   beforeEach(() => {
-    installRequireRoleMock();
+    installAuthMock();
   });
 
   test("D-13 freshness bands — healthy < 2×interval, stale 2×–5×, dead ≥ 5×", async () => {
@@ -293,7 +279,7 @@ describe("/health/detailed — worker freshness (D-13)", () => {
 
 describe("/health/detailed — modules (D-16)", () => {
   beforeEach(() => {
-    installRequireRoleMock();
+    installAuthMock();
   });
 
   test("loaded module without contributor defaults to healthy", async () => {
@@ -332,7 +318,7 @@ describe("/health/detailed — modules (D-16)", () => {
 
 describe("/health/detailed — recentErrors (D-15)", () => {
   beforeEach(() => {
-    installRequireRoleMock();
+    installAuthMock();
   });
 
   test("ringbuffer entries flow into envelope with envelope keys only (no firstFrame leak)", async () => {
@@ -373,7 +359,7 @@ describe("/health/detailed — recentErrors (D-15)", () => {
 
 describe("/health/detailed — storage contributor surfacing (Phase 31 / QUO-03, OPS-03)", () => {
   beforeEach(() => {
-    installRequireRoleMock();
+    installAuthMock();
   });
 
   test("storage contributor details (adapter/quota/jobs) surface at data.storage", async () => {
@@ -446,7 +432,7 @@ describe("/health/detailed — storage contributor surfacing (Phase 31 / QUO-03,
 
 describe("/health/detailed — overall status (worst-of-N)", () => {
   beforeEach(() => {
-    installRequireRoleMock();
+    installAuthMock();
   });
 
   test("one unhealthy contributor → response.data.status === unhealthy", async () => {

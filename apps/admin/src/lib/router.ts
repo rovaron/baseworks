@@ -15,6 +15,7 @@ export const router = createBrowserRouter([
       { index: true, lazy: () => import("../routes/tenants/list") },
       { path: "tenants", lazy: () => import("../routes/tenants/list") },
       { path: "tenants/:id", lazy: () => import("../routes/tenants/detail") },
+      { path: "roles", lazy: () => import("../routes/roles/list") },
       { path: "users", lazy: () => import("../routes/users/list") },
       { path: "users/:id", lazy: () => import("../routes/users/detail") },
       { path: "billing", lazy: () => import("../routes/billing/overview") },

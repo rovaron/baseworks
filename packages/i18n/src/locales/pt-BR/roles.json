@@ -1,0 +1,16 @@
+{
+  "title": "Funções",
+  "create": "Criar função",
+  "columns": {
+    "role": "Função",
+    "permissions": "Permissões"
+  },
+  "dialog": {
+    "title": "Permissões da função",
+    "namePlaceholder": "Nome da função"
+  },
+  "toast": {
+    "saved": "Função salva",
+    "deleted": "Função excluída"
+  }
+}

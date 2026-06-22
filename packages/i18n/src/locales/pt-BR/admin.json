@@ -5,10 +5,18 @@
   "adminEmailPlaceholder": "admin@exemplo.com",
   "nav": {
     "tenants": "Tenants",
+    "roles": "Funções",
     "users": "Usuários",
     "billing": "Faturamento",
     "system": "Sistema",
     "jobs": "Monitor de Jobs"
+  },
+  "roles": {
+    "title": "Funções do Tenant",
+    "selectTenant": "Selecione um tenant",
+    "noTenant": "Selecione um tenant para ver suas funções.",
+    "empty": "Este tenant não possui funções personalizadas.",
+    "loadError": "Falha ao carregar as funções. Verifique o status do servidor da API e tente novamente."
   },
   "jobs": {
     "title": "Monitor de Jobs",
@@ -21,6 +29,10 @@
     "invalidCredentials": "E-mail ou senha inválidos",
     "noAdminPrivileges": "Você não tem privilégios de administrador. Entre em contato com o administrador do sistema.",
     "unexpectedError": "Ocorreu um erro inesperado. Por favor, tente novamente."
+  },
+  "impersonation": {
+    "active": "Você está personificando outro usuário. Todas as ações são realizadas como ele.",
+    "stop": "Parar de personificar"
   },
   "users": {
     "title": "Usuários",

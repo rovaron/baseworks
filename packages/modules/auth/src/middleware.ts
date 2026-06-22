@@ -1,4 +1,3 @@
-import { getAdminEmails } from "@baseworks/config";
 import { ForbiddenError, NoActiveTenantError, UnauthorizedError } from "@baseworks/shared";
 import { Elysia } from "elysia";
 import { auth } from "./auth";
@@ -32,85 +31,57 @@ export const betterAuthPlugin = new Elysia({ name: "better-auth" }).macro({
 });
 
 /**
- * Role guard middleware. Checks the user's role in the active
- * organization and throws if insufficient.
+ * Permission guard (v1.5). Replaces the legacy role guard. Resolves the active org + user
+ * race-free (prefer the request context that tenantMiddleware already resolved,
+ * fall back to a session lookup for routes that guard without tenantMiddleware),
+ * then asks better-auth whether the caller's role (built-in OR custom) grants
+ * `resource:action` in that org.
  *
- * Creates a scoped Elysia plugin that derives `memberRole`
- * into the route context. Fetches the full organization to
- * resolve the current user's membership role. Throws
- * "Unauthorized" (401) if no session, "No active organization"
- * if no org selected, or "Forbidden" (403) if the user's role
- * is not in the allowed list.
- *
- * @param roles - One or more allowed role strings
- *   (e.g., "owner", "admin", "member")
- * @returns Elysia plugin that derives `memberRole` into context
- * @throws UnauthorizedError (401) if no valid session
- * @throws NoActiveTenantError (401) if no active organization selected
- * @throws ForbiddenError (403) if role not in allowed list
- *
- * @example
- * app
- *   .use(requireRole("owner", "admin"))
- *   .delete("/tenant", handler);
- *
- * Per D-12: Composable requireRole derive that checks the
- * active user's membership role for the current tenant.
+ * @throws UnauthorizedError (401) no session
+ * @throws NoActiveTenantError (401) no active organization
+ * @throws ForbiddenError (403) permission denied
  */
-export function requireRole(...roles: string[]) {
-  return new Elysia({ name: `require-role-${roles.join(",")}` }).derive(
+export function requirePermission(resource: string, action: string) {
+  return new Elysia({ name: `require-perm-${resource}:${action}` }).derive(
     { as: "scoped" },
     async (ctx: any) => {
-      // Prefer the tenant context that tenantMiddleware already resolved for
-      // THIS request (ctx.tenantId / ctx.userId). tenantMiddleware resolves the
-      // active org in-request — including when it had to auto-select and
-      // setActiveOrganization-write it — so reading it here avoids a
-      // read-after-write race: an immediate auth.api.getSession() can miss that
-      // just-written activeOrganizationId under better-auth's Redis
-      // secondaryStorage, which otherwise 401s a freshly-resolved owner (D-12).
-      // Fall back to a session lookup for routes that guard with requireRole but
-      // do NOT mount tenantMiddleware first (e.g. /api/invitations via
-      // betterAuthPlugin) — those flows have no auto-select-then-read, so no race.
       let userId: string | undefined = ctx.userId ?? ctx.user?.id;
       let activeOrgId: string | null | undefined =
         ctx.tenantId ?? ctx.session?.activeOrganizationId;
 
-      if (!userId || !activeOrgId) {
-        const session = await auth.api.getSession({
-          headers: ctx.request.headers,
-        });
-        if (!session) {
-          throw new UnauthorizedError();
-        }
+      // Fall back to a full session lookup ONLY when the caller is not already
+      // identified in context (no tenantMiddleware/betterAuthPlugin ran). Once
+      // userId is known we trust the in-context active org and throw
+      // NoActiveTenant if it is missing, rather than a redundant getSession that
+      // could miss a just-written activeOrganizationId under Redis
+      // secondaryStorage (the read-after-write race documented on the legacy role guard).
+      if (!userId) {
+        const session = await auth.api.getSession({ headers: ctx.request.headers });
+        if (!session) throw new UnauthorizedError();
         userId ??= session.user.id;
         activeOrgId ??= session.session.activeOrganizationId;
       }
 
-      if (!userId) {
-        throw new UnauthorizedError();
-      }
-      if (!activeOrgId) {
-        // NoActiveTenantError maps to 401 (MISSING_TENANT_CONTEXT); the old
-        // "No active organization" string fell through to a 500.
-        throw new NoActiveTenantError();
-      }
+      if (!userId) throw new UnauthorizedError();
+      if (!activeOrgId) throw new NoActiveTenantError();
 
-      // Use better-auth organization plugin API to get full org with members
-      const fullOrg = await auth.api.getFullOrganization({
+      const result = await auth.api.hasPermission({
         headers: ctx.request.headers,
-        query: { organizationId: activeOrgId },
+        body: { organizationId: activeOrgId, permissions: { [resource]: [action] } },
       });
 
-      const memberRecord = fullOrg?.members?.find((m: any) => m.userId === userId);
+      if (!result?.success) throw new ForbiddenError();
 
-      if (!memberRecord || !roles.includes(memberRecord.role)) {
-        throw new ForbiddenError();
-      }
-
-      return { memberRole: memberRecord.role };
+      return { permission: { resource, action } as const };
     },
   );
 }
+
+/**
+ * Platform roles that authorize operator-scope surfaces. Mirrors the
+ * `adminRoles` configured on the better-auth admin plugin in `auth.ts`.
+ */
+const ADMIN_ROLES = ["admin"];
 
 /**
  * Platform-admin guard middleware. Gates operator-scope surfaces
@@ -119,24 +90,24 @@ export function requireRole(...roles: string[]) {
  * membership.
  *
  * Resolves the session via better-auth (the same mechanism as
- * {@link requireRole}) and authorizes the request only when the
- * session user's email (lowercased) is present in the
- * `ADMIN_EMAILS` allowlist exposed by `getAdminEmails()`. It does
- * NOT consult `activeOrganizationId` or the user's membership role,
- * so a per-organization "owner" is never conflated with a platform
- * operator.
+ * {@link requirePermission}) and authorizes the request only when the
+ * session user's global `role` (managed by the better-auth admin plugin)
+ * is one of {@link ADMIN_ROLES}. It does NOT consult
+ * `activeOrganizationId` or the user's membership role, so a
+ * per-organization "owner" is never conflated with a platform operator.
+ *
+ * Platform admins are bootstrapped from `ADMIN_EMAILS` at startup
+ * (see `bootstrap-admins.ts`) and thereafter managed via the admin
+ * plugin's `setRole` endpoint.
  *
  * @returns Elysia plugin that authorizes platform admins
  * @throws UnauthorizedError (401) if no valid session
- * @throws ForbiddenError (403) if the user is not in the admin allowlist
+ * @throws ForbiddenError (403) if the user's role is not a platform-admin role
  *
  * @example
  * app
  *   .use(requirePlatformAdmin())
  *   .get("/admin/tenants", handler);
- *
- * Per C5: env-allowlist platform-admin signal, reversible and
- * decoupled from tenant role.
  */
 export function requirePlatformAdmin() {
   return new Elysia({ name: "require-platform-admin" }).derive(
@@ -149,8 +120,8 @@ export function requirePlatformAdmin() {
         throw new UnauthorizedError();
       }
 
-      const email = session.user.email?.toLowerCase();
-      if (!email || !getAdminEmails().includes(email)) {
+      const role = (session.user as any).role;
+      if (!role || !ADMIN_ROLES.includes(role)) {
         throw new ForbiddenError();
       }
 

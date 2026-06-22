@@ -10,8 +10,8 @@ const CancelInvitationInput = Type.Object({
 /**
  * Cancel a pending invitation sent by the organization.
  *
- * Only owners and admins can cancel invitations (enforced at
- * route level via requireRole). Delegates to better-auth's
+ * Only roles granted invitation:create can cancel invitations (enforced at
+ * route level via requirePermission). Delegates to better-auth's
  * cancelInvitation API.
  *
  * Emits `invitation.cancelled` with invitationId and

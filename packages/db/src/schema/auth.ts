@@ -1,4 +1,4 @@
-import { boolean, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, index, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 /**
  * better-auth core tables + organization plugin tables.
@@ -15,6 +15,10 @@ export const user = pgTable("user", {
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").notNull().default(false),
   image: text("image"),
+  role: text("role"),
+  banned: boolean("banned").notNull().default(false),
+  banReason: text("ban_reason"),
+  banExpires: timestamp("ban_expires"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -33,6 +37,7 @@ export const session = pgTable(
       .notNull()
       .references(() => user.id),
     activeOrganizationId: text("active_organization_id"),
+    impersonatedBy: text("impersonated_by"),
   },
   (t) => [
     index("session_user_id_idx").on(t.userId),
@@ -113,9 +118,29 @@ export const invitation = pgTable(
     inviterId: text("inviter_id")
       .notNull()
       .references(() => user.id),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
     index("invitation_org_id_idx").on(t.organizationId),
     index("invitation_inviter_id_idx").on(t.inviterId),
+  ],
+);
+
+export const organizationRole = pgTable(
+  "organization_role",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id),
+    role: text("role").notNull(),
+    // JSON-serialized Record<string, string[]> — better-auth serializes/parses.
+    permission: text("permission").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at"),
+  },
+  (t) => [
+    index("organization_role_org_id_idx").on(t.organizationId),
+    uniqueIndex("organization_role_org_role_uq").on(t.organizationId, t.role),
   ],
 );
