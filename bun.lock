@@ -118,6 +118,7 @@
       "name": "@baseworks/api-client",
       "version": "0.0.1",
       "dependencies": {
+        "@baseworks/module-auth": "workspace:*",
         "@elysiajs/eden": "^1.4.0",
         "better-auth": "^1.5.6",
       },

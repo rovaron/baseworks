@@ -16,6 +16,7 @@ import { listMembers } from "./queries/list-members";
 import { listTenants } from "./queries/list-tenants";
 import { authRoutes } from "./routes";
 
+export { ac, roles, statements } from "./access-control";
 export { auth } from "./auth";
 export { getLocale } from "./locale-context";
 export { betterAuthPlugin, requirePermission, requirePlatformAdmin } from "./middleware";
