@@ -11,7 +11,9 @@
     "removeConfirmTitle": "Remove this member?",
     "removeConfirmBody": "This member will lose access to the organization.",
     "removeConfirmButton": "Yes, Remove Member",
-    "removed": "Member removed"
+    "removed": "Member removed",
+    "roleUpdated": "Role updated",
+    "setRoleTo": "Set role to {role}"
   },
   "pending": {
     "title": "Pending Invitations",

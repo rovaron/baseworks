@@ -11,7 +11,9 @@
     "removeConfirmTitle": "Remover este membro?",
     "removeConfirmBody": "Este membro perdera acesso a organizacao.",
     "removeConfirmButton": "Sim, Remover Membro",
-    "removed": "Membro removido"
+    "removed": "Membro removido",
+    "roleUpdated": "Funcao atualizada",
+    "setRoleTo": "Definir funcao como {role}"
   },
   "pending": {
     "title": "Convites Pendentes",
