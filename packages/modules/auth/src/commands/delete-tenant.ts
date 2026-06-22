@@ -18,8 +18,8 @@ const DeleteTenantInput = Type.Object({
  * @returns Result<{ deleted: true }> -- confirmation object, or
  *   err with failure message
  *
- * Per D-13: Owner-only action. Role enforcement happens at the
- * route level via requireRole("owner").
+ * Per D-13: Owner-only action. Permission enforcement happens at the
+ * route level via requirePermission("organization", "delete").
  * Per Pitfall 6: Uses auth.api, not scopedDb.
  */
 export const deleteTenant = defineCommand(DeleteTenantInput, async (input, ctx) => {

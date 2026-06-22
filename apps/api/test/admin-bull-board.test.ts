@@ -29,26 +29,11 @@ function installMocks() {
   bullMQAdapterCalls.length = 0;
   createBullBoardCalls.length = 0;
 
-  // Header-driven requireRole mock — mirror exactly the pattern Plan 22-05 Task 1 uses.
-  // Without a session header (`x-test-role`) → throw "Unauthorized" → errorMiddleware → 401.
-  // With `x-test-role: member` and roles=["owner"] → throw "Forbidden" → errorMiddleware → 403.
-  // With `x-test-role: owner` → resolves a session and downstream handler runs → 200.
+  // Platform-admin guard mock — mirror exactly the pattern Plan 22-05 Task 1 uses.
+  // Operator-scope routes (bull-board) gate on requirePlatformAdmin.
+  // Header-driven for tests: no header → 401,
+  // `x-test-role: owner` simulates a platform admin → 200, otherwise → 403.
   mock.module("@baseworks/module-auth", () => ({
-    requireRole: (...roles: string[]) => {
-      return new Elysia({ name: `fake-require-role-${roles.join(",")}` }).derive(
-        { as: "scoped" },
-        // biome-ignore lint/suspicious/noExplicitAny: test mock
-        ({ request }: any) => {
-          const role = request.headers.get("x-test-role");
-          if (!role) throw new Error("Unauthorized");
-          if (!roles.includes(role)) throw new Error("Forbidden");
-          return { userId: "test-user", memberRole: role };
-        },
-      );
-    },
-    // Platform-admin guard (operator-scope routes now gate on this instead of
-    // requireRole("owner")). Header-driven for tests: no header → 401,
-    // `x-test-role: owner` simulates a platform admin → 200, otherwise → 403.
     requirePlatformAdmin: () => {
       return new Elysia({ name: "fake-require-platform-admin" }).derive(
         { as: "scoped" },

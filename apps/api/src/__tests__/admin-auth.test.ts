@@ -6,9 +6,9 @@ import { errorMiddleware } from "../core/middleware/error";
 import { adminRoutes } from "../routes/admin";
 
 /**
- * Integration tests verifying that requireRole("owner") protects all admin routes.
+ * Integration tests verifying that requirePlatformAdmin() protects all admin routes.
  *
- * Per CR-02: The server-side requireRole("owner") middleware is the real security
+ * Per CR-02: The server-side requirePlatformAdmin() middleware is the real security
  * boundary for admin APIs. These tests confirm that unauthenticated requests and
  * non-owner users are rejected with 401/403, regardless of any client-side guards.
  *
@@ -52,7 +52,7 @@ beforeAll(async () => {
     canConnect = true;
 
     // Mount admin routes on a minimal Elysia app with the global error handler,
-    // so thrown "Unauthorized" / "Forbidden" from tenant.ts + requireRole are
+    // so thrown "Unauthorized" / "Forbidden" from tenant.ts + requirePlatformAdmin are
     // mapped to 401/403 (matches production middleware composition).
     app = new Elysia().use(errorMiddleware).use(adminRoutes);
   } catch (e) {
@@ -64,7 +64,7 @@ beforeAll(async () => {
   }
 });
 
-describe("Admin routes: requireRole('owner') enforcement", () => {
+describe("Admin routes: requirePlatformAdmin() enforcement", () => {
   for (const endpoint of ADMIN_ENDPOINTS) {
     test(`${endpoint.method} ${endpoint.path} rejects unauthenticated requests`, async () => {
       if (!canConnect) {
@@ -80,7 +80,7 @@ describe("Admin routes: requireRole('owner') enforcement", () => {
 
       const response = await app.handle(new Request(`http://localhost${endpoint.path}`, init));
 
-      // requireRole should reject with 401 (unauthenticated) or 403 (wrong role)
+      // requirePlatformAdmin should reject with 401 (unauthenticated) or 403 (wrong role)
       expect([401, 403]).toContain(response.status);
     });
   }

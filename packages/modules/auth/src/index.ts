@@ -18,7 +18,7 @@ import { authRoutes } from "./routes";
 
 export { auth } from "./auth";
 export { getLocale } from "./locale-context";
-export { betterAuthPlugin, requirePlatformAdmin, requireRole } from "./middleware";
+export { betterAuthPlugin, requirePermission, requirePlatformAdmin } from "./middleware";
 // Re-exported so apps/api can mount the plugin with its precise Elysia type
 // (preserving Eden Treaty inference); the registry's getAuthRoutes() erases it to `any`.
 export { authRoutes } from "./routes";

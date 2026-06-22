@@ -2,7 +2,7 @@ import { Elysia, t } from "elysia";
 import { auth } from "./auth";
 import { cancelInvitation } from "./commands/cancel-invitation";
 import { createInvitation } from "./commands/create-invitation";
-import { betterAuthPlugin, requireRole } from "./middleware";
+import { betterAuthPlugin, requirePermission } from "./middleware";
 import { getInvitation } from "./queries/get-invitation";
 import { listInvitations } from "./queries/list-invitations";
 
@@ -24,7 +24,7 @@ import { listInvitations } from "./queries/list-invitations";
  * Accept/reject are handled by better-auth's mounted handler via client SDK
  * (auth.organization.acceptInvitation/rejectInvitation).
  *
- * Per D-16: Members cannot invite anyone -- requireRole("owner", "admin") enforces this.
+ * Per D-16: Members cannot invite anyone -- requirePermission("invitation", "create") enforces this.
  */
 
 /**
@@ -103,12 +103,12 @@ export const authRoutes = mounted
   })
 
   // --- Protected invitation endpoints (require auth + owner/admin role) ---
-  // Per D-14/D-15/D-16: Only owners and admins can manage invitations
-  // Per T-09-03: requireRole blocks members from creating invitations
+  // Per D-14/D-15/D-16: Only roles granted invitation:create can manage invitations
+  // Per T-09-03: requirePermission blocks members from creating invitations
   .group("/api/invitations", (app) =>
     app
       .use(betterAuthPlugin)
-      .use(requireRole("owner", "admin"))
+      .use(requirePermission("invitation", "create"))
 
       // Create invitation (email or link mode) - per D-04, D-13, INVT-01, INVT-03
       // mode: "email" sends real email, "link" uses @internal placeholder

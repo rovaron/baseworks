@@ -32,88 +32,7 @@ export const betterAuthPlugin = new Elysia({ name: "better-auth" }).macro({
 });
 
 /**
- * Role guard middleware. Checks the user's role in the active
- * organization and throws if insufficient.
- *
- * Creates a scoped Elysia plugin that derives `memberRole`
- * into the route context. Fetches the full organization to
- * resolve the current user's membership role. Throws
- * "Unauthorized" (401) if no session, "No active organization"
- * if no org selected, or "Forbidden" (403) if the user's role
- * is not in the allowed list.
- *
- * @param roles - One or more allowed role strings
- *   (e.g., "owner", "admin", "member")
- * @returns Elysia plugin that derives `memberRole` into context
- * @throws UnauthorizedError (401) if no valid session
- * @throws NoActiveTenantError (401) if no active organization selected
- * @throws ForbiddenError (403) if role not in allowed list
- *
- * @example
- * app
- *   .use(requireRole("owner", "admin"))
- *   .delete("/tenant", handler);
- *
- * Per D-12: Composable requireRole derive that checks the
- * active user's membership role for the current tenant.
- */
-export function requireRole(...roles: string[]) {
-  return new Elysia({ name: `require-role-${roles.join(",")}` }).derive(
-    { as: "scoped" },
-    async (ctx: any) => {
-      // Prefer the tenant context that tenantMiddleware already resolved for
-      // THIS request (ctx.tenantId / ctx.userId). tenantMiddleware resolves the
-      // active org in-request — including when it had to auto-select and
-      // setActiveOrganization-write it — so reading it here avoids a
-      // read-after-write race: an immediate auth.api.getSession() can miss that
-      // just-written activeOrganizationId under better-auth's Redis
-      // secondaryStorage, which otherwise 401s a freshly-resolved owner (D-12).
-      // Fall back to a session lookup for routes that guard with requireRole but
-      // do NOT mount tenantMiddleware first (e.g. /api/invitations via
-      // betterAuthPlugin) — those flows have no auto-select-then-read, so no race.
-      let userId: string | undefined = ctx.userId ?? ctx.user?.id;
-      let activeOrgId: string | null | undefined =
-        ctx.tenantId ?? ctx.session?.activeOrganizationId;
-
-      if (!userId || !activeOrgId) {
-        const session = await auth.api.getSession({
-          headers: ctx.request.headers,
-        });
-        if (!session) {
-          throw new UnauthorizedError();
-        }
-        userId ??= session.user.id;
-        activeOrgId ??= session.session.activeOrganizationId;
-      }
-
-      if (!userId) {
-        throw new UnauthorizedError();
-      }
-      if (!activeOrgId) {
-        // NoActiveTenantError maps to 401 (MISSING_TENANT_CONTEXT); the old
-        // "No active organization" string fell through to a 500.
-        throw new NoActiveTenantError();
-      }
-
-      // Use better-auth organization plugin API to get full org with members
-      const fullOrg = await auth.api.getFullOrganization({
-        headers: ctx.request.headers,
-        query: { organizationId: activeOrgId },
-      });
-
-      const memberRecord = fullOrg?.members?.find((m: any) => m.userId === userId);
-
-      if (!memberRecord || !roles.includes(memberRecord.role)) {
-        throw new ForbiddenError();
-      }
-
-      return { memberRole: memberRecord.role };
-    },
-  );
-}
-
-/**
- * Permission guard (v1.5). Replaces requireRole. Resolves the active org + user
+ * Permission guard (v1.5). Replaces the legacy role guard. Resolves the active org + user
  * race-free (prefer the request context that tenantMiddleware already resolved,
  * fall back to a session lookup for routes that guard without tenantMiddleware),
  * then asks better-auth whether the caller's role (built-in OR custom) grants
@@ -136,7 +55,7 @@ export function requirePermission(resource: string, action: string) {
       // userId is known we trust the in-context active org and throw
       // NoActiveTenant if it is missing, rather than a redundant getSession that
       // could miss a just-written activeOrganizationId under Redis
-      // secondaryStorage (the read-after-write race documented on requireRole).
+      // secondaryStorage (the read-after-write race documented on the legacy role guard).
       if (!userId) {
         const session = await auth.api.getSession({ headers: ctx.request.headers });
         if (!session) throw new UnauthorizedError();
@@ -166,7 +85,7 @@ export function requirePermission(resource: string, action: string) {
  * membership.
  *
  * Resolves the session via better-auth (the same mechanism as
- * {@link requireRole}) and authorizes the request only when the
+ * {@link requirePermission}) and authorizes the request only when the
  * session user's email (lowercased) is present in the
  * `ADMIN_EMAILS` allowlist exposed by `getAdminEmails()`. It does
  * NOT consult `activeOrganizationId` or the user's membership role,
