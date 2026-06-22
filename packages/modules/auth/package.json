@@ -5,6 +5,10 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./access-control": "./src/access-control.ts"
+  },
   "dependencies": {
     "@baseworks/config": "workspace:*",
     "@baseworks/db": "workspace:*",

@@ -1,4 +1,8 @@
-import { ac, roles } from "@baseworks/module-auth";
+// Import from the dedicated access-control subpath (NOT the package barrel):
+// the barrel re-exports the server `auth` instance, which would drag
+// @baseworks/config/db/queue/observability into the browser bundle and break
+// the web/admin production builds. access-control.ts has zero server deps.
+import { ac, roles } from "@baseworks/module-auth/access-control";
 import { magicLinkClient, organizationClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 
