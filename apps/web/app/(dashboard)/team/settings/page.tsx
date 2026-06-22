@@ -4,6 +4,7 @@
 
 import { getTranslations } from "next-intl/server";
 import { OrgLogoUploader } from "@/components/org-logo-uploader";
+import { RolesManager } from "@/components/roles-manager";
 
 export default async function TeamSettingsPage() {
   const t = await getTranslations("files");
@@ -11,6 +12,7 @@ export default async function TeamSettingsPage() {
     <div className="space-y-6">
       <h1 className="sr-only">{t("logo.title")}</h1>
       <OrgLogoUploader />
+      <RolesManager />
     </div>
   );
 }

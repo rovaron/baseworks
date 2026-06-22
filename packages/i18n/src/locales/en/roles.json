@@ -1,0 +1,16 @@
+{
+  "title": "Roles",
+  "create": "Create role",
+  "columns": {
+    "role": "Role",
+    "permissions": "Permissions"
+  },
+  "dialog": {
+    "title": "Role permissions",
+    "namePlaceholder": "Role name"
+  },
+  "toast": {
+    "saved": "Role saved",
+    "deleted": "Role deleted"
+  }
+}
