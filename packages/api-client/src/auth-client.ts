@@ -3,7 +3,7 @@
 // @baseworks/config/db/queue/observability into the browser bundle and break
 // the web/admin production builds. access-control.ts has zero server deps.
 import { ac, roles } from "@baseworks/module-auth/access-control";
-import { magicLinkClient, organizationClient } from "better-auth/client/plugins";
+import { adminClient, magicLinkClient, organizationClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 
 /**
@@ -15,6 +15,10 @@ import { createAuthClient } from "better-auth/react";
  *   client-side permission checks (hasPermission) resolve against the same
  *   vocabulary as the server guard (requirePermission).
  * - magicLinkClient() mirrors server's magicLink() plugin
+ * - adminClient() mirrors server's admin() plugin, exposing operator user
+ *   lifecycle (listUsers/banUser/impersonateUser/stopImpersonating). It pulls
+ *   from better-auth/client/plugins only (no server deps), so the browser
+ *   bundle stays server-dep-free.
  *
  * The `credentials: "include"` setting ensures session cookies are sent
  * on cross-origin requests (T-4-04).
@@ -24,7 +28,7 @@ import { createAuthClient } from "better-auth/react";
 export function createAuth(baseUrl: string) {
   return createAuthClient({
     baseURL: baseUrl,
-    plugins: [organizationClient({ ac, roles }), magicLinkClient()],
+    plugins: [organizationClient({ ac, roles }), magicLinkClient(), adminClient()],
     fetchOptions: {
       credentials: "include",
     },

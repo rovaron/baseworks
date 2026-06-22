@@ -4,7 +4,7 @@ import { getErrorTracker } from "@baseworks/observability";
 import { createQueue, getRedisConnection } from "@baseworks/queue";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { magicLink, organization } from "better-auth/plugins";
+import { admin as adminPlugin, magicLink, organization } from "better-auth/plugins";
 import { nanoid } from "nanoid";
 import { ac, roles } from "./access-control";
 import { getLocale } from "./locale-context";
@@ -205,6 +205,11 @@ export const auth = betterAuth({
           console.log(`[AUTH] Magic link for ${email}: ${url}`);
         }
       },
+    }),
+    adminPlugin({
+      adminRoles: ["admin"],
+      defaultRole: "user",
+      impersonationSessionDuration: 60 * 60, // 1h
     }),
   ],
   session: {
