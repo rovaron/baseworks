@@ -1,5 +1,5 @@
 /**
- * Phase 31 / OPS-02 — cleanup:reap-orphan-files SAFETY tests (NO false delete).
+ * Phase 31 / OPS-02 — cleanup-reap-orphan-files SAFETY tests (NO false delete).
  *
  * `00-`-prefixed to run BEFORE the @baseworks/db-faking unit suites (see
  * 00-reap-pending-uploads.test.ts header). Real config + real Postgres. The
@@ -160,7 +160,7 @@ afterAll(async () => {
       .delete(tenantStorageUsage)
       .where(inArray(tenantStorageUsage.tenantId, [...createdTenantIds]));
   }
-  await db.delete(storageJobRuns).where(eq(storageJobRuns.jobName, "cleanup:reap-orphan-files"));
+  await db.delete(storageJobRuns).where(eq(storageJobRuns.jobName, "cleanup-reap-orphan-files"));
   resetFileStorage();
   const handle = (db as unknown as { $sql?: { end: (o?: { timeout?: number }) => Promise<void> } })
     .$sql;

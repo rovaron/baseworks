@@ -132,9 +132,11 @@ export default {
   // variant decodes a full image buffer); existing jobs keep the default 5.
   //
   // Phase 31 / OPS-02 — four repeatable cleanup/reconciliation jobs. The def.jobs
-  // key === queue === SC identifier (colons are valid BullMQ queue names). Each
-  // carries a `repeat.pattern` (5-field cron); the worker boot loop registers the
-  // schedule via queue.upsertJobScheduler (idempotent by schedulerId === jobName).
+  // key === queue === SC identifier. Names are hyphen-delimited because BullMQ 5
+  // forbids `:` in queue names (`:` is the Redis key separator) — `new Queue(name)`
+  // throws "Queue name cannot contain :" otherwise (issue #3). Each carries a
+  // `repeat.pattern` (5-field cron); the worker boot loop registers the schedule
+  // via queue.upsertJobScheduler (idempotent by schedulerId === jobName).
   // Schedules are staggered so no two run together.
   jobs: {
     "files:transform-image": {
@@ -142,23 +144,23 @@ export default {
       handler: transformImage,
       concurrency: 2,
     },
-    "cleanup:reap-pending-uploads": {
-      queue: "cleanup:reap-pending-uploads",
+    "cleanup-reap-pending-uploads": {
+      queue: "cleanup-reap-pending-uploads",
       handler: reapPendingUploads,
       repeat: { pattern: "0 * * * *" }, // hourly (top of the hour)
     },
-    "quota:reconcile-tenant-usage": {
-      queue: "quota:reconcile-tenant-usage",
+    "quota-reconcile-tenant-usage": {
+      queue: "quota-reconcile-tenant-usage",
       handler: reconcileTenantUsage,
       repeat: { pattern: "0 2 * * *" }, // daily 02:00
     },
-    "cleanup:reap-orphan-files": {
-      queue: "cleanup:reap-orphan-files",
+    "cleanup-reap-orphan-files": {
+      queue: "cleanup-reap-orphan-files",
       handler: reapOrphanFiles,
       repeat: { pattern: "30 3 * * *" }, // daily 03:30
     },
-    "cleanup:reap-soft-deleted": {
-      queue: "cleanup:reap-soft-deleted",
+    "cleanup-reap-soft-deleted": {
+      queue: "cleanup-reap-soft-deleted",
       handler: reapSoftDeleted,
       repeat: { pattern: "0 4 * * 0" }, // weekly Sunday 04:00
     },

@@ -16,7 +16,7 @@ Maps to `docs/alerts/sentry/storage-quota-90.json` (warning) + `docs/alerts/sent
 - Uploads for the affected tenant fail at sign-time with 413 `quota_exceeded`; the browser never gets a signed PUT URL.
 - `/health/detailed` `data.storage.status` is `degraded` with `quota.tenantsAtLimit >= 1`.
 - The tenant appears at the top of `quota.topTenants` with `pctUsed` near or above `1.0`.
-- `bytes_pending` may be inflated by abandoned uploads (sign-upload reserved bytes that `complete-upload` never converted) — these are released hourly by `cleanup:reap-pending-uploads`.
+- `bytes_pending` may be inflated by abandoned uploads (sign-upload reserved bytes that `complete-upload` never converted) — these are released hourly by `cleanup-reap-pending-uploads`.
 
 ## Triage
 
@@ -28,7 +28,7 @@ Maps to `docs/alerts/sentry/storage-quota-90.json` (warning) + `docs/alerts/sent
 3. Compare against the authoritative SUM over live counted files:
    `docker compose exec postgres psql -U baseworks -d baseworks -c "SELECT COALESCE(SUM(byte_size + COALESCE((SELECT SUM((t->>'byteSize')::bigint) FROM jsonb_array_elements(transforms) t),0)),0) FROM files WHERE tenant_id='<tenantId>' AND deleted_at IS NULL AND status IN ('uploaded','ready','transforming');"`
 4. If step 2's `bytes_used` is much larger than step 3's SUM, the counter has DRIFTED (a missed decrement) — usage is not actually that high.
-5. Check `data.storage.jobs[]` for `quota:reconcile-tenant-usage` — a `stale` or `error` run explains why drift was not auto-corrected.
+5. Check `data.storage.jobs[]` for `quota-reconcile-tenant-usage` — a `stale` or `error` run explains why drift was not auto-corrected.
 
 ## Resolution
 
@@ -49,18 +49,18 @@ Run the reconcile job to rebuild `bytes_used` from the authoritative SUM (it nev
 
 ```bash
 # In the worker process (or trigger the BullMQ scheduler manually):
-docker compose exec worker bun -e "import('@baseworks/module-files').then(m => m.default.jobs['quota:reconcile-tenant-usage'].handler({}))"
+docker compose exec worker bun -e "import('@baseworks/module-files').then(m => m.default.jobs['quota-reconcile-tenant-usage'].handler({}))"
 ```
 
 Re-check `/health/detailed`; `bytes_used` should now match the live SUM and `tenantsAtLimit` should clear if the tenant was only over due to drift.
 
 ### If `bytes_pending` is inflated by abandoned uploads
 
-Wait for the hourly `cleanup:reap-pending-uploads` job, or trigger it manually (same pattern as above with `cleanup:reap-pending-uploads`). It deletes pending rows older than 1 hour and releases their reserved bytes.
+Wait for the hourly `cleanup-reap-pending-uploads` job, or trigger it manually (same pattern as above with `cleanup-reap-pending-uploads`). It deletes pending rows older than 1 hour and releases their reserved bytes.
 
 ### Otherwise: have the tenant delete files
 
-Soft-deleted files refund `bytes_used` immediately; the physical objects + tombstones are hard-deleted later by the weekly `cleanup:reap-soft-deleted`.
+Soft-deleted files refund `bytes_used` immediately; the physical objects + tombstones are hard-deleted later by the weekly `cleanup-reap-soft-deleted`.
 
 ## Escalation
 

@@ -400,7 +400,7 @@ describe("/health/detailed — storage contributor surfacing (Phase 31 / QUO-03,
           },
           jobs: [
             {
-              name: "cleanup:reap-pending-uploads",
+              name: "cleanup-reap-pending-uploads",
               lastRunAt: "2026-06-18T00:00:00.000Z",
               status: "ok",
               itemsSwept: 3,
@@ -425,7 +425,7 @@ describe("/health/detailed — storage contributor surfacing (Phase 31 / QUO-03,
     expect(Array.isArray(body.data.storage.quota.topTenants)).toBe(true);
     expect(body.data.storage.quota.topTenants[0].tenantId).toBe("t-1");
     expect(Array.isArray(body.data.storage.jobs)).toBe(true);
-    expect(body.data.storage.jobs[0].name).toBe("cleanup:reap-pending-uploads");
+    expect(body.data.storage.jobs[0].name).toBe("cleanup-reap-pending-uploads");
     // No storage_key / bucket / secrets leak into the operator surface.
     const serialized = JSON.stringify(body.data.storage);
     expect(serialized.includes("storage_key")).toBe(false);
