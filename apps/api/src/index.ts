@@ -2,7 +2,7 @@ import "./telemetry";
 import { env, validateObservabilityEnv, validatePaymentProviderEnv } from "@baseworks/config";
 import { closeDb, getDb, scopedDb } from "@baseworks/db";
 import { defaultLocale } from "@baseworks/i18n";
-import { requirePermission } from "@baseworks/module-auth";
+import { promoteConfiguredAdmins, requirePermission } from "@baseworks/module-auth";
 import { billingWebhookRoutes, registerBillingHooks } from "@baseworks/module-billing";
 import { registerExampleHooks } from "@baseworks/module-example";
 import { registerFilesHooks } from "@baseworks/module-files";
@@ -441,6 +441,12 @@ const server = Bun.serve({
 });
 
 logger.info({ port: env.PORT, role: env.INSTANCE_ROLE }, "Baseworks API started");
+
+// Bootstrap platform admins from ADMIN_EMAILS (B3). Non-blocking — promotes the
+// configured operator emails to user.role = "admin" once at startup. Idempotent.
+void promoteConfiguredAdmins(db).catch((e) =>
+  logger.error({ err: String(e) }, "[startup] admin bootstrap failed"),
+);
 
 // Graceful shutdown (api-no-graceful-shutdown) — mirror worker.ts:176-189.
 // On SIGTERM/SIGINT: stop accepting + drain in-flight requests, then close the
