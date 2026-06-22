@@ -113,6 +113,7 @@ export const invitation = pgTable(
     inviterId: text("inviter_id")
       .notNull()
       .references(() => user.id),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
     index("invitation_org_id_idx").on(t.organizationId),
