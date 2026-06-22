@@ -26,6 +26,7 @@ const ADMIN_ENDPOINTS: Array<{ method: string; path: string; body?: any }> = [
   { method: "GET", path: "/api/admin/tenants" },
   { method: "GET", path: "/api/admin/tenants/fake-id" },
   { method: "PATCH", path: "/api/admin/tenants/fake-id", body: { metadata: {} } },
+  { method: "GET", path: "/api/admin/tenants/fake-id/roles" },
   { method: "GET", path: "/api/admin/users" },
   { method: "GET", path: "/api/admin/users/fake-id" },
   { method: "PATCH", path: "/api/admin/users/fake-id", body: { banned: true } },
