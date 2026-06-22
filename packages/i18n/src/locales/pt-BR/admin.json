@@ -30,6 +30,10 @@
     "noAdminPrivileges": "Você não tem privilégios de administrador. Entre em contato com o administrador do sistema.",
     "unexpectedError": "Ocorreu um erro inesperado. Por favor, tente novamente."
   },
+  "impersonation": {
+    "active": "Você está personificando outro usuário. Todas as ações são realizadas como ele.",
+    "stop": "Parar de personificar"
+  },
   "users": {
     "title": "Usuários",
     "searchPlaceholder": "Buscar usuários...",

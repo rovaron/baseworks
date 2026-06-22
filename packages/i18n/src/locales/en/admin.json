@@ -30,6 +30,10 @@
     "noAdminPrivileges": "You do not have admin privileges. Contact your system administrator.",
     "unexpectedError": "An unexpected error occurred. Please try again."
   },
+  "impersonation": {
+    "active": "You are impersonating another user. All actions are performed as them.",
+    "stop": "Stop impersonating"
+  },
   "users": {
     "title": "Users",
     "searchPlaceholder": "Search users...",
