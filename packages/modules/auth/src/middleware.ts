@@ -1,4 +1,3 @@
-import { getAdminEmails } from "@baseworks/config";
 import { ForbiddenError, NoActiveTenantError, UnauthorizedError } from "@baseworks/shared";
 import { Elysia } from "elysia";
 import { auth } from "./auth";
@@ -79,6 +78,12 @@ export function requirePermission(resource: string, action: string) {
 }
 
 /**
+ * Platform roles that authorize operator-scope surfaces. Mirrors the
+ * `adminRoles` configured on the better-auth admin plugin in `auth.ts`.
+ */
+const ADMIN_ROLES = ["admin"];
+
+/**
  * Platform-admin guard middleware. Gates operator-scope surfaces
  * (cross-tenant admin API, bull-board, /health/detailed) on a
  * platform-admin signal that is independent of organization
@@ -86,23 +91,23 @@ export function requirePermission(resource: string, action: string) {
  *
  * Resolves the session via better-auth (the same mechanism as
  * {@link requirePermission}) and authorizes the request only when the
- * session user's email (lowercased) is present in the
- * `ADMIN_EMAILS` allowlist exposed by `getAdminEmails()`. It does
- * NOT consult `activeOrganizationId` or the user's membership role,
- * so a per-organization "owner" is never conflated with a platform
- * operator.
+ * session user's global `role` (managed by the better-auth admin plugin)
+ * is one of {@link ADMIN_ROLES}. It does NOT consult
+ * `activeOrganizationId` or the user's membership role, so a
+ * per-organization "owner" is never conflated with a platform operator.
+ *
+ * Platform admins are bootstrapped from `ADMIN_EMAILS` at startup
+ * (see `bootstrap-admins.ts`) and thereafter managed via the admin
+ * plugin's `setRole` endpoint.
  *
  * @returns Elysia plugin that authorizes platform admins
  * @throws UnauthorizedError (401) if no valid session
- * @throws ForbiddenError (403) if the user is not in the admin allowlist
+ * @throws ForbiddenError (403) if the user's role is not a platform-admin role
  *
  * @example
  * app
  *   .use(requirePlatformAdmin())
  *   .get("/admin/tenants", handler);
- *
- * Per C5: env-allowlist platform-admin signal, reversible and
- * decoupled from tenant role.
  */
 export function requirePlatformAdmin() {
   return new Elysia({ name: "require-platform-admin" }).derive(
@@ -115,8 +120,8 @@ export function requirePlatformAdmin() {
         throw new UnauthorizedError();
       }
 
-      const email = session.user.email?.toLowerCase();
-      if (!email || !getAdminEmails().includes(email)) {
+      const role = (session.user as any).role;
+      if (!role || !ADMIN_ROLES.includes(role)) {
         throw new ForbiddenError();
       }
 
