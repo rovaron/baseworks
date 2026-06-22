@@ -12,7 +12,7 @@ import { Elysia } from "elysia";
  * 3. Unauthenticated requests rejected by tenant middleware
  * 4. Health check bypasses auth
  * 5. Auth routes bypass tenant middleware
- * 6. RBAC enforcement -- requireRole("owner") rejects non-owner roles (TNNT-04)
+ * 6. RBAC enforcement -- requirePermission("organization", "delete") rejects non-owner roles (TNNT-04)
  *
  * Requires PostgreSQL for database-backed sessions. Tests skip gracefully if unavailable.
  *
@@ -56,7 +56,7 @@ beforeAll(async () => {
 async function createTestApp() {
   const { auth } = await import("../auth");
   const { authRoutes } = await import("../routes");
-  const { requireRole } = await import("../middleware");
+  const { requirePermission } = await import("../middleware");
 
   // Import the real tenant middleware (session-based)
   const { tenantMiddleware } = await import("../../../../../apps/api/src/core/middleware/tenant");
@@ -74,7 +74,7 @@ async function createTestApp() {
     }))
     // Owner-only route scoped via group
     .group("/api", (group) =>
-      group.use(requireRole("owner")).delete("/tenant", (ctx: any) => ({
+      group.use(requirePermission("organization", "delete")).delete("/tenant", (ctx: any) => ({
         message: "Tenant deletion initiated",
         tenantId: ctx.tenantId,
       })),
@@ -359,7 +359,7 @@ describe("RBAC enforcement", () => {
       }),
     );
 
-    // requireRole("owner") should reject with Forbidden error
+    // requirePermission("organization", "delete") should reject with Forbidden error
     // The error middleware maps "Forbidden" errors to appropriate status
     expect(response.status).not.toBe(200);
     const body = await response.json();
