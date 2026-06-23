@@ -1,5 +1,5 @@
 /**
- * Phase 31 / OPS-02, QUO-03 — quota:reconcile-tenant-usage (DAILY).
+ * Phase 31 / OPS-02, QUO-03 — quota-reconcile-tenant-usage (DAILY).
  *
  * Rebuild `tenant_storage_usage.bytes_used` from the authoritative SUM over live
  * counted files (drift correction). CRITICAL: this uses the EXACT counting model
@@ -36,7 +36,7 @@ interface ReconcileResult {
 
 export async function reconcileTenantUsage(_data: unknown): Promise<void> {
   const db = getDb(env.DATABASE_URL);
-  await withJobRun(db, "quota:reconcile-tenant-usage", async () => {
+  await withJobRun(db, "quota-reconcile-tenant-usage", async () => {
     const result = (await db.execute(sql`
       WITH recomputed AS (
         SELECT

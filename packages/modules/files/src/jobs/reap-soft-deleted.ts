@@ -1,5 +1,5 @@
 /**
- * Phase 31 / OPS-02 — cleanup:reap-soft-deleted (WEEKLY).
+ * Phase 31 / OPS-02 — cleanup-reap-soft-deleted (WEEKLY).
  *
  * Hard-delete tombstones past the retention window. A soft-deleted row
  * (`deleted_at IS NOT NULL`, status `'deleted'`) had its counted bytes refunded
@@ -30,7 +30,7 @@ export async function reapSoftDeleted(_data: unknown): Promise<void> {
   const db = getDb(env.DATABASE_URL);
   const retentionDays = env.STORAGE_SOFT_DELETE_RETENTION_DAYS;
 
-  await withJobRun(db, "cleanup:reap-soft-deleted", async () => {
+  await withJobRun(db, "cleanup-reap-soft-deleted", async () => {
     // Hard-delete tombstones older than the retention window; capture the
     // physical coordinates (incl. variant keys) for best-effort object cleanup.
     const rows = (await db.execute(sql`

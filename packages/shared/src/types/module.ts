@@ -101,7 +101,7 @@ export interface FileRelation {
   canWrite?: (ctx: any, recordId: string) => Promise<boolean>;
   /**
    * Phase 31 / OPS-02 — orphan-reaper owner-existence resolver. The daily
-   * `cleanup:reap-orphan-files` job deletes a file ONLY when this returns a
+   * `cleanup-reap-orphan-files` job deletes a file ONLY when this returns a
    * definitive `false` (owner row provably gone — query succeeded, zero rows).
    * Absent / `"unknown"` (query failed or indeterminate) / `true` (owner alive)
    * ⇒ SKIP (never delete). Each owning module reads its OWN tables via the shared

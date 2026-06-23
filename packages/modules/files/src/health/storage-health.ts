@@ -52,10 +52,10 @@ interface TopTenant {
  * daily→172800, weekly→1209600.
  */
 const STALE_THRESHOLD_SEC: Record<string, number> = {
-  "cleanup:reap-pending-uploads": 7200,
-  "quota:reconcile-tenant-usage": 172800,
-  "cleanup:reap-orphan-files": 172800,
-  "cleanup:reap-soft-deleted": 1209600,
+  "cleanup-reap-pending-uploads": 7200,
+  "quota-reconcile-tenant-usage": 172800,
+  "cleanup-reap-orphan-files": 172800,
+  "cleanup-reap-soft-deleted": 1209600,
 };
 /** Fallback when a job name is not in the table above (daily cadence). */
 const DEFAULT_STALE_THRESHOLD_SEC = 172800;

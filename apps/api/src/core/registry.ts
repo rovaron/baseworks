@@ -24,6 +24,28 @@ export interface RegistryConfig {
 }
 
 /**
+ * Issue #3 — assert a module's declared BullMQ queue names are valid before any
+ * `Queue`/`Worker` handle is constructed. BullMQ 5 forbids `:` in queue names (it
+ * is the Redis key separator) and `new Queue(name)` throws the opaque "Queue name
+ * cannot contain :" only later, in whichever process (api or worker) first builds
+ * the handle. Validating at registration points at the offending module + job with
+ * a fix hint. Pure + exported so it is unit-testable without the static import map.
+ *
+ * @throws If any job's `queue` contains `:`.
+ */
+export function assertValidQueueNames(moduleName: string, jobs: ModuleDefinition["jobs"]): void {
+  for (const [jobName, jobDef] of Object.entries(jobs ?? {})) {
+    if (jobDef.queue.includes(":")) {
+      throw new Error(
+        `Module "${moduleName}" job "${jobName}" declares queue "${jobDef.queue}", which contains ":". ` +
+          "BullMQ forbids ':' in queue names (it is the Redis key separator). Use hyphens instead " +
+          `(e.g. "${jobDef.queue.replace(/:/g, "-")}").`,
+      );
+    }
+  }
+}
+
+/**
  * Config-driven module registry.
  *
  * Loads modules listed in {@link RegistryConfig}, registers their
@@ -140,6 +162,10 @@ export class ModuleRegistry {
             fileRelationsRegistry.register(name, kind, relation);
           }
         }
+
+        // Issue #3 — fail boot loud (in BOTH the api and worker roles) if a module
+        // declares a BullMQ queue name containing `:`, before any handle is built.
+        assertValidQueueNames(name, def.jobs);
 
         this.loaded.set(name, def);
         logger.info({ module: name }, "Module loaded");

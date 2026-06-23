@@ -1,5 +1,5 @@
 /**
- * Phase 31 / OPS-02, QUO-03 — quota:reconcile-tenant-usage LIVE-DB tests.
+ * Phase 31 / OPS-02, QUO-03 — quota-reconcile-tenant-usage LIVE-DB tests.
  *
  * `00-`-prefixed to run BEFORE the @baseworks/db-faking unit suites (see
  * 00-reap-pending-uploads.test.ts header). Real config + real Postgres. Proves
@@ -90,7 +90,7 @@ afterAll(async () => {
       .delete(tenantStorageUsage)
       .where(inArray(tenantStorageUsage.tenantId, [...createdTenantIds]));
   }
-  await db.delete(storageJobRuns).where(eq(storageJobRuns.jobName, "quota:reconcile-tenant-usage"));
+  await db.delete(storageJobRuns).where(eq(storageJobRuns.jobName, "quota-reconcile-tenant-usage"));
   const handle = (db as unknown as { $sql?: { end: (o?: { timeout?: number }) => Promise<void> } })
     .$sql;
   if (handle) await handle.end({ timeout: 5 });

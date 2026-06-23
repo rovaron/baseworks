@@ -1,5 +1,5 @@
 /**
- * Phase 31 / OPS-02 — cleanup:reap-pending-uploads (HOURLY).
+ * Phase 31 / OPS-02 — cleanup-reap-pending-uploads (HOURLY).
  *
  * Delete never-completed uploads and release their reserved pending bytes. A
  * `pending` row older than 1 hour represents a sign-upload whose client never
@@ -48,7 +48,7 @@ interface ReapedPendingRow {
 
 export async function reapPendingUploads(_data: unknown): Promise<void> {
   const db = getDb(env.DATABASE_URL);
-  await withJobRun(db, "cleanup:reap-pending-uploads", async () => {
+  await withJobRun(db, "cleanup-reap-pending-uploads", async () => {
     // Single atomic statement: remove the stale pending rows AND release their
     // reserved bytes_pending together, then return the removed coordinates for a
     // post-commit best-effort object delete. GREATEST guards pending underflow.

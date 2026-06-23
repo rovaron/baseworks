@@ -1,6 +1,6 @@
 import { describe, expect, it, spyOn } from "bun:test";
 import { logger } from "../../lib/logger";
-import { ModuleRegistry } from "../registry";
+import { assertValidQueueNames, ModuleRegistry } from "../registry";
 
 describe("ModuleRegistry", () => {
   it("should load example module and register its commands and queries", async () => {
@@ -94,5 +94,30 @@ describe("ModuleRegistry edge cases", () => {
     // getModuleRoutes should return an Elysia plugin without attaching routes
     const routes = registry.getModuleRoutes();
     expect(routes).toBeDefined();
+  });
+});
+
+describe("assertValidQueueNames (issue #3)", () => {
+  const handler = async () => undefined;
+
+  it("rejects a queue name containing ':' with the module + job + fix hint", () => {
+    expect(() =>
+      assertValidQueueNames("files", {
+        "cleanup:reap-orphan-files": { queue: "cleanup:reap-orphan-files", handler },
+      }),
+    ).toThrow(/Module "files" job "cleanup:reap-orphan-files".*cleanup-reap-orphan-files/s);
+  });
+
+  it("accepts hyphenated queue names", () => {
+    expect(() =>
+      assertValidQueueNames("files", {
+        "cleanup-reap-orphan-files": { queue: "cleanup-reap-orphan-files", handler },
+        "image-transform": { queue: "image-transform", handler, concurrency: 2 },
+      }),
+    ).not.toThrow();
+  });
+
+  it("is a no-op for a module with no jobs", () => {
+    expect(() => assertValidQueueNames("auth", undefined)).not.toThrow();
   });
 });

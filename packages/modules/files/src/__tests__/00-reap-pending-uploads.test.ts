@@ -1,5 +1,5 @@
 /**
- * Phase 31 / OPS-02 — cleanup:reap-pending-uploads LIVE-DB tests.
+ * Phase 31 / OPS-02 — cleanup-reap-pending-uploads LIVE-DB tests.
  *
  * `00-`-prefixed so it sorts FIRST in the package's `bun test` run, BEFORE the
  * sibling unit suites that `mock.module("@baseworks/db", …)` with a fake getDb
@@ -117,7 +117,7 @@ afterAll(async () => {
       .delete(tenantStorageUsage)
       .where(inArray(tenantStorageUsage.tenantId, [...createdTenantIds]));
   }
-  await db.delete(storageJobRuns).where(eq(storageJobRuns.jobName, "cleanup:reap-pending-uploads"));
+  await db.delete(storageJobRuns).where(eq(storageJobRuns.jobName, "cleanup-reap-pending-uploads"));
   resetFileStorage();
   await rm(STORAGE_ROOT, { recursive: true, force: true });
   const handle = (db as unknown as { $sql?: { end: (o?: { timeout?: number }) => Promise<void> } })

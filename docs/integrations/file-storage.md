@@ -93,7 +93,7 @@ AWS S3 lifecycle (`aws s3api put-bucket-lifecycle-configuration`):
 ```
 
 R2 / MinIO / Garage expose the same S3 lifecycle API (`mc ilm` for MinIO). These
-rules are storage-side hygiene; the app's `cleanup:reap-*` jobs (§6) handle the
+rules are storage-side hygiene; the app's `cleanup-reap-*` jobs (§6) handle the
 DB-tracked lifecycle (pending, orphan, soft-deleted) and quota reconciliation.
 
 ## 4. CDN / Cache-Control guidance
@@ -154,10 +154,10 @@ expected interval).
 
 | Job (queue) | Cadence | Cron | Purpose |
 |---|---|---|---|
-| `cleanup:reap-pending-uploads` | hourly | `0 * * * *` | delete >1h pending rows, release `bytes_pending` |
-| `quota:reconcile-tenant-usage` | daily | `0 2 * * *` | rebuild `bytes_used` from authoritative SUM (drift correction) |
-| `cleanup:reap-orphan-files` | daily | `30 3 * * *` | soft-delete files whose owner is definitively gone (backstop) |
-| `cleanup:reap-soft-deleted` | weekly | `0 4 * * 0` | hard-delete objects + variants + rows past retention |
+| `cleanup-reap-pending-uploads` | hourly | `0 * * * *` | delete >1h pending rows, release `bytes_pending` |
+| `quota-reconcile-tenant-usage` | daily | `0 2 * * *` | rebuild `bytes_used` from authoritative SUM (drift correction) |
+| `cleanup-reap-orphan-files` | daily | `30 3 * * *` | soft-delete files whose owner is definitively gone (backstop) |
+| `cleanup-reap-soft-deleted` | weekly | `0 4 * * 0` | hard-delete objects + variants + rows past retention |
 
 Schedules are registered idempotently by the worker via
 `queue.upsertJobScheduler` (scheduler id === job name), so redeploys never

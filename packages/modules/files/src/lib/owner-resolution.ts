@@ -1,7 +1,7 @@
 /**
  * Phase 31 / OPS-02 — SAFE owner-existence resolution for the orphan reaper.
  *
- * The reaper (`cleanup:reap-orphan-files`) is the BACKSTOP for files whose
+ * The reaper (`cleanup-reap-orphan-files`) is the BACKSTOP for files whose
  * `onDelete:"cascade"` event was lost. It MUST NEVER delete a file whose owner
  * still exists and MUST SKIP whenever owner-existence cannot be proven gone.
  *

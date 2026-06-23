@@ -1,5 +1,5 @@
 /**
- * Phase 31 / OPS-02 — cleanup:reap-soft-deleted LIVE-DB tests.
+ * Phase 31 / OPS-02 — cleanup-reap-soft-deleted LIVE-DB tests.
  *
  * `00-`-prefixed to run BEFORE the @baseworks/db-faking unit suites (see
  * 00-reap-pending-uploads.test.ts header). Real config (env.STORAGE_SOFT_DELETE_
@@ -114,7 +114,7 @@ afterAll(async () => {
       .delete(tenantStorageUsage)
       .where(inArray(tenantStorageUsage.tenantId, [...createdTenantIds]));
   }
-  await db.delete(storageJobRuns).where(eq(storageJobRuns.jobName, "cleanup:reap-soft-deleted"));
+  await db.delete(storageJobRuns).where(eq(storageJobRuns.jobName, "cleanup-reap-soft-deleted"));
   resetFileStorage();
   await rm(STORAGE_ROOT, { recursive: true, force: true });
   const handle = (db as unknown as { $sql?: { end: (o?: { timeout?: number }) => Promise<void> } })

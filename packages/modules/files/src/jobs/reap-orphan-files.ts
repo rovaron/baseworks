@@ -1,5 +1,5 @@
 /**
- * Phase 31 / OPS-02 — cleanup:reap-orphan-files (DAILY) — CONSERVATIVE backstop.
+ * Phase 31 / OPS-02 — cleanup-reap-orphan-files (DAILY) — CONSERVATIVE backstop.
  *
  * Sweeps files whose owner record is DEFINITIVELY gone (a lost/dropped
  * `onDelete:"cascade"` event). It MUST NEVER delete a file whose owner still
@@ -17,7 +17,7 @@
  *
  * The reaper SOFT-deletes (reversible) via the shared `softDeleteRow()` so quota
  * refund logic (byte_size + variant bytes) stays in exactly one place; the weekly
- * `cleanup:reap-soft-deleted` hard-deletes later. Best-effort `storage.delete()`
+ * `cleanup-reap-soft-deleted` hard-deletes later. Best-effort `storage.delete()`
  * + `file.deleted` emit happen AFTER the tx commits. Existence checks are
  * memoized per owner within a run.
  *
@@ -49,7 +49,7 @@ interface CandidateRow {
 
 export async function reapOrphanFiles(_data: unknown): Promise<void> {
   const db = getDb(env.DATABASE_URL);
-  await withJobRun(db, "cleanup:reap-orphan-files", async () => {
+  await withJobRun(db, "cleanup-reap-orphan-files", async () => {
     const resolver = createOwnerResolver();
     const storage = getFileStorage();
 

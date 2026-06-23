@@ -19,10 +19,10 @@ const filesModule = (await import("@baseworks/module-files")).default as ModuleD
 
 /** The four locked schedules (31-PLAN-CONTRACT §0 D-31-02), staggered. */
 const EXPECTED_SCHEDULES: Record<string, string> = {
-  "cleanup:reap-pending-uploads": "0 * * * *",
-  "quota:reconcile-tenant-usage": "0 2 * * *",
-  "cleanup:reap-orphan-files": "30 3 * * *",
-  "cleanup:reap-soft-deleted": "0 4 * * 0",
+  "cleanup-reap-pending-uploads": "0 * * * *",
+  "quota-reconcile-tenant-usage": "0 2 * * *",
+  "cleanup-reap-orphan-files": "30 3 * * *",
+  "cleanup-reap-soft-deleted": "0 4 * * 0",
 };
 
 interface SchedulerCall {
