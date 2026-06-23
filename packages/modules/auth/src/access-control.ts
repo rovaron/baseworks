@@ -45,3 +45,16 @@ export const member = ac.newRole({
 
 /** Built-in role map handed to the organization plugin. */
 export const roles = { owner, admin, member };
+
+/**
+ * Platform-plane (operator) global roles. This is the SINGLE source of truth for
+ * "what `user.role` value authorizes operator-scope surfaces", shared by:
+ *  - the better-auth admin plugin's `adminRoles` (auth.ts),
+ *  - the server guard `requirePlatformAdmin` (middleware.ts), and
+ *  - the admin dashboard's client-side `AuthGuard` (via @baseworks/api-client).
+ *
+ * Typed as `readonly string[]` so `.includes(someString)` type-checks against an
+ * arbitrary session role. Lives here (the server-dep-free module) so the browser
+ * bundle can import it without dragging in db/queue/env.
+ */
+export const platformAdminRoles: readonly string[] = ["admin"];

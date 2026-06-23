@@ -1,5 +1,6 @@
 import { ForbiddenError, NoActiveTenantError, UnauthorizedError } from "@baseworks/shared";
 import { Elysia } from "elysia";
+import { platformAdminRoles } from "./access-control";
 import { auth } from "./auth";
 
 /**
@@ -78,12 +79,6 @@ export function requirePermission(resource: string, action: string) {
 }
 
 /**
- * Platform roles that authorize operator-scope surfaces. Mirrors the
- * `adminRoles` configured on the better-auth admin plugin in `auth.ts`.
- */
-const ADMIN_ROLES = ["admin"];
-
-/**
  * Platform-admin guard middleware. Gates operator-scope surfaces
  * (cross-tenant admin API, bull-board, /health/detailed) on a
  * platform-admin signal that is independent of organization
@@ -92,7 +87,7 @@ const ADMIN_ROLES = ["admin"];
  * Resolves the session via better-auth (the same mechanism as
  * {@link requirePermission}) and authorizes the request only when the
  * session user's global `role` (managed by the better-auth admin plugin)
- * is one of {@link ADMIN_ROLES}. It does NOT consult
+ * is one of {@link platformAdminRoles}. It does NOT consult
  * `activeOrganizationId` or the user's membership role, so a
  * per-organization "owner" is never conflated with a platform operator.
  *
@@ -121,7 +116,7 @@ export function requirePlatformAdmin() {
       }
 
       const role = (session.user as any).role;
-      if (!role || !ADMIN_ROLES.includes(role)) {
+      if (!role || !platformAdminRoles.includes(role)) {
         throw new ForbiddenError();
       }
 

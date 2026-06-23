@@ -1,6 +1,6 @@
 // Factory exports (for custom configuration)
 
-export { createAuth } from "./auth-client";
+export { createAuth, platformAdminRoles } from "./auth-client";
 export { type ApiClient, createApiClient } from "./treaty";
 
 import { createAuth } from "./auth-client";

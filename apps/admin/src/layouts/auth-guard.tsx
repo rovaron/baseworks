@@ -1,5 +1,6 @@
+import { platformAdminRoles } from "@baseworks/api-client";
 import { Button, Card, CardContent, CardHeader, CardTitle, Skeleton } from "@baseworks/ui";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { auth } from "@/lib/api";
 
@@ -7,87 +8,31 @@ interface AuthGuardProps {
   children: ReactNode;
 }
 
+/**
+ * Gates the admin dashboard on the PLATFORM-admin signal — the session user's
+ * global `role` (managed by the better-auth admin plugin) — mirroring the server
+ * guard `requirePlatformAdmin` and the admin plugin's `adminRoles`, all sourced
+ * from `platformAdminRoles`.
+ *
+ * It deliberately does NOT consult organization membership/ownership: every user
+ * owns a personal workspace (auto-created at signup), so an "is owner of any org"
+ * check authorizes EVERY authenticated user — the pre-v1.5 model this replaces.
+ * The role travels with the session, so there is no separate authorization
+ * network call (and thus no transient "check failed" state to recover from):
+ * once the session resolves we either have an admin or we don't.
+ */
 export function AuthGuard({ children }: AuthGuardProps) {
   const navigate = useNavigate();
   const session = auth.useSession();
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
-  const [checking, setChecking] = useState(true);
-  // Third state: distinguishes "the authorization check failed" (transient,
-  // recoverable) from "the user is genuinely not authorized" (fail-closed).
-  const [checkError, setCheckError] = useState<unknown>(null);
-  // Bumping this re-runs the effect so the "Retry" button can re-check access.
-  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     if (session.isPending) return;
-
     if (!session.data?.user) {
       navigate("/login");
-      return;
     }
+  }, [session.isPending, session.data, navigate]);
 
-    let cancelled = false;
-    setChecking(true);
-    setCheckError(null);
-
-    // Check if user has owner role on any organization.
-    // organization.list() returns orgs without role info, so we need to
-    // set each as active and check the member's role via getFullOrganization.
-    auth.organization
-      .list()
-      .then(async (result: any) => {
-        // A returned error is a check FAILURE, not an authorization denial —
-        // throw so it lands in the catch and surfaces the retry card instead
-        // of the permanent "Access Denied" screen.
-        if (result.error) {
-          throw result.error;
-        }
-
-        if (!result.data || result.data.length === 0) {
-          if (cancelled) return;
-          // Genuine no-orgs case -> fail closed.
-          setIsAdmin(false);
-          setChecking(false);
-          return;
-        }
-
-        // Fetch each org's full membership in parallel rather than awaiting
-        // them one-by-one, then check whether the user is an owner anywhere.
-        const fullOrgs = await Promise.all(
-          result.data.map((org: any) =>
-            auth.organization.getFullOrganization({
-              query: { organizationId: org.id },
-            }),
-          ),
-        );
-
-        if (cancelled) return;
-
-        const userId = session.data!.user.id;
-        const isOwner = fullOrgs.some((fullOrg) => {
-          const member = fullOrg.data?.members.find((m: any) => m.userId === userId);
-          return member?.role === "owner";
-        });
-
-        // Genuine non-owner case -> fail closed.
-        setIsAdmin(isOwner);
-        setChecking(false);
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        // Log so support can diagnose, and surface a recoverable error state
-        // rather than silently mapping a transient failure to "not authorized".
-        console.error("AuthGuard org/role check failed", err);
-        setCheckError(err);
-        setChecking(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [session.isPending, session.data, navigate, retryCount]);
-
-  if (session.isPending || checking) {
+  if (session.isPending) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="w-full max-w-md space-y-4 p-8">
@@ -100,44 +45,13 @@ export function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
-  // The authorization check itself failed (network blip, 500, expired session
-  // mid-check). Offer a retry instead of the permanent Access Denied screen.
-  if (checkError) {
-    return (
-      <div className="flex min-h-screen items-center justify-center px-4">
-        <Card className="w-full max-w-sm text-center">
-          <CardHeader>
-            <CardTitle className="text-xl">Something went wrong</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              We could not verify your access. This may be a temporary problem. Please try again.
-            </p>
-            <Button
-              className="w-full"
-              onClick={() => {
-                setCheckError(null);
-                setChecking(true);
-                setRetryCount((c) => c + 1);
-              }}
-            >
-              Retry
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={async () => {
-                await auth.signOut();
-                navigate("/login");
-              }}
-            >
-              Sign out
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
+  // Unauthenticated — the effect above redirects to /login; render nothing meanwhile.
+  if (!session.data?.user) {
+    return null;
   }
+
+  const role = (session.data.user as { role?: string | null }).role;
+  const isAdmin = !!role && platformAdminRoles.includes(role);
 
   if (!isAdmin) {
     return (

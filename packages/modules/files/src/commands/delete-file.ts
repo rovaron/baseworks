@@ -39,7 +39,7 @@ const DeleteFileInput = Type.Object({
 });
 
 export const deleteFile = defineCommand(DeleteFileInput, async (input, ctx) => {
-  const db = getDb(env.DATABASE_URL);
+  const db = getDb(env.DATABASE_URL); // scoped-db-allow: files module scopes by ctx.tenantId manually (pre-ScopedDb pattern)
 
   // Capture the row's physical-object coordinates + owner identity from inside
   // the tx so we can emit + best-effort-delete AFTER commit. Returned from the tx

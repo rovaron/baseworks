@@ -6,6 +6,11 @@ import { ac, roles } from "@baseworks/module-auth/access-control";
 import { adminClient, magicLinkClient, organizationClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 
+// Re-export the platform-admin role list (server-dep-free) so browser callers
+// (e.g. the admin dashboard AuthGuard) gate on the SAME signal as the server's
+// requirePlatformAdmin / the admin plugin's adminRoles — one source of truth.
+export { platformAdminRoles } from "@baseworks/module-auth/access-control";
+
 /**
  * better-auth React client factory.
  *

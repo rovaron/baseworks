@@ -28,7 +28,7 @@ const GetReadUrlInput = Type.Object({
 });
 
 export const getReadUrl = defineQuery(GetReadUrlInput, async (input, ctx) => {
-  const db = getDb(env.DATABASE_URL);
+  const db = getDb(env.DATABASE_URL); // scoped-db-allow: files module scopes by ctx.tenantId manually (pre-ScopedDb pattern)
 
   // 1. Load tenant-scoped, non-deleted. Foreign id → 0 rows → 404 (R2).
   const rows = (await db.execute(sql`

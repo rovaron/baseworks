@@ -45,7 +45,7 @@ const CompleteUploadInput = Type.Object({
 });
 
 export const completeUpload = defineCommand(CompleteUploadInput, async (input, ctx) => {
-  const db = getDb(env.DATABASE_URL);
+  const db = getDb(env.DATABASE_URL); // scoped-db-allow: files module scopes by ctx.tenantId manually (pre-ScopedDb pattern)
 
   // 1. Load the row tenant-scoped (raw SQL — see header). A foreign-tenant id
   //    returns 0 rows → 404 (no existence leak — R2). deleted_at IS NULL

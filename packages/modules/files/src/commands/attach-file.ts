@@ -65,7 +65,7 @@ type AttachFileResult = { fileId: string; ownerRecordId: string };
  * Best-effort physical delete + `file.deleted` emit run per sibling AFTER commit.
  */
 export const attachFileCommand = defineCommand(AttachFileInput, async (input, ctx) => {
-  const db = getDb(env.DATABASE_URL);
+  const db = getDb(env.DATABASE_URL); // scoped-db-allow: files module scopes by ctx.tenantId manually (pre-ScopedDb pattern)
 
   // 1. Load row tenant-scoped — foreign id ⇒ 0 rows ⇒ 404 (no existence leak).
   //    Raw read (contract §5.2 / quota.ts precedent): the `db.select().from(files)`

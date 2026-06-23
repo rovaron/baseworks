@@ -82,7 +82,6 @@ function AdminLayoutContent() {
 
   return (
     <div className="flex min-h-svh flex-col">
-      <ImpersonationBanner />
       <SidebarProvider>
         <SkipToContent label={tc("skipToContent")} />
         <NavigationAutoClose />
@@ -180,8 +179,16 @@ function AdminLayoutContent() {
 
 export function Component() {
   return (
-    <AuthGuard>
-      <AdminLayoutContent />
-    </AuthGuard>
+    // ImpersonationBanner sits ABOVE AuthGuard: an impersonation session carries
+    // the TARGET user's (non-admin) role, so AuthGuard would otherwise show
+    // "Access Denied" and hide the stop-impersonating control — stranding the
+    // operator. Rendered here, the banner stays reachable (it returns null when
+    // not impersonating, so normal admin sessions are visually unchanged).
+    <>
+      <ImpersonationBanner />
+      <AuthGuard>
+        <AdminLayoutContent />
+      </AuthGuard>
+    </>
   );
 }
