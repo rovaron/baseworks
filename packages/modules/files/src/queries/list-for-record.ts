@@ -49,7 +49,7 @@ export const listForRecord = defineQuery(ListForRecordInput, async (input, ctx) 
 
   // 2. Owner-scoped, tenant-scoped, live-rows-only read (uses files_owner_idx).
   //    NO storage_key / bucket in the projection — they must never leave the module.
-  const db = getDb(env.DATABASE_URL);
+  const db = getDb(env.DATABASE_URL); // scoped-db-allow: files module scopes by ctx.tenantId manually (pre-ScopedDb pattern)
   const rows = (await db.execute(sql`
     SELECT id, mime_type, byte_size, status, original_filename, transforms, created_at
       FROM files

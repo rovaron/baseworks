@@ -16,7 +16,20 @@
     "selectTenant": "Selecione um tenant",
     "noTenant": "Selecione um tenant para ver suas funções.",
     "empty": "Este tenant não possui funções personalizadas.",
-    "loadError": "Falha ao carregar as funções. Verifique o status do servidor da API e tente novamente."
+    "loadError": "Falha ao carregar as funções. Verifique o status do servidor da API e tente novamente.",
+    "create": "Criar função",
+    "edit": "Editar",
+    "delete": "Excluir",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "namePlaceholder": "Nome da função (ex.: editor)",
+    "dialogCreateTitle": "Criar função personalizada",
+    "dialogEditTitle": "Editar função",
+    "columnsRole": "Função",
+    "columnsPermissions": "Permissões",
+    "toastSaved": "Função salva",
+    "toastDeleted": "Função excluída",
+    "toastError": "Algo deu errado"
   },
   "jobs": {
     "title": "Monitor de Jobs",

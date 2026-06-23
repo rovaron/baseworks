@@ -27,6 +27,18 @@ const ADMIN_ENDPOINTS: Array<{ method: string; path: string; body?: any }> = [
   { method: "GET", path: "/api/admin/tenants/fake-id" },
   { method: "PATCH", path: "/api/admin/tenants/fake-id", body: { metadata: {} } },
   { method: "GET", path: "/api/admin/tenants/fake-id/roles" },
+  // v1.5 — operator tenant-role management must inherit the gate.
+  {
+    method: "POST",
+    path: "/api/admin/tenants/fake-id/roles",
+    body: { role: "editor", permission: { files: ["write"] } },
+  },
+  {
+    method: "PATCH",
+    path: "/api/admin/tenants/fake-id/roles/editor",
+    body: { permission: { files: ["write"] } },
+  },
+  { method: "DELETE", path: "/api/admin/tenants/fake-id/roles/editor" },
   { method: "GET", path: "/api/admin/users" },
   { method: "GET", path: "/api/admin/users/fake-id" },
   { method: "PATCH", path: "/api/admin/users/fake-id", body: { banned: true } },

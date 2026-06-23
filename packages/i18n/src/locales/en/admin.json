@@ -16,7 +16,20 @@
     "selectTenant": "Select a tenant",
     "noTenant": "Select a tenant to view its roles.",
     "empty": "This tenant has no custom roles.",
-    "loadError": "Failed to load roles. Check the API server status and try again."
+    "loadError": "Failed to load roles. Check the API server status and try again.",
+    "create": "Create role",
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "cancel": "Cancel",
+    "namePlaceholder": "Role name (e.g. editor)",
+    "dialogCreateTitle": "Create custom role",
+    "dialogEditTitle": "Edit role",
+    "columnsRole": "Role",
+    "columnsPermissions": "Permissions",
+    "toastSaved": "Role saved",
+    "toastDeleted": "Role deleted",
+    "toastError": "Something went wrong"
   },
   "jobs": {
     "title": "Job Monitor",

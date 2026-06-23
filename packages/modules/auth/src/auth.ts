@@ -6,7 +6,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin as adminPlugin, magicLink, organization } from "better-auth/plugins";
 import { nanoid } from "nanoid";
-import { ac, roles } from "./access-control";
+import { ac, platformAdminRoles, roles } from "./access-control";
 import { getLocale } from "./locale-context";
 
 /**
@@ -207,7 +207,7 @@ export const auth = betterAuth({
       },
     }),
     adminPlugin({
-      adminRoles: ["admin"],
+      adminRoles: [...platformAdminRoles],
       defaultRole: "user",
       impersonationSessionDuration: 60 * 60, // 1h
     }),

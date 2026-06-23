@@ -47,7 +47,7 @@ export const signUpload = defineCommand(SignUploadInput, async (input, ctx) => {
   // 3. Per-relation max size ⇒ 400 (distinct from quota's 413).
   if (input.byteSize > relation.maxByteSize) return err("file_too_large");
 
-  const db = getDb(env.DATABASE_URL);
+  const db = getDb(env.DATABASE_URL); // scoped-db-allow: files module scopes by ctx.tenantId manually (pre-ScopedDb pattern)
 
   // 4. Atomic quota reservation ⇒ 413 on 0 rows (QUO-02).
   const reserved = await reserveQuota(

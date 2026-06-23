@@ -7,7 +7,7 @@ import {
   organizationRole,
   user,
 } from "@baseworks/db";
-import { auth, requirePlatformAdmin } from "@baseworks/module-auth";
+import { auth, requirePlatformAdmin, statements } from "@baseworks/module-auth";
 import {
   adminCompleteUpload,
   adminDeleteFile,
@@ -16,9 +16,31 @@ import {
   adminSignUpload,
 } from "@baseworks/module-files";
 import { getRedisConnection } from "@baseworks/queue";
-import { count, eq, like, or, sql } from "drizzle-orm";
+import { and, count, eq, like, or, sql } from "drizzle-orm";
 import { Elysia, t } from "elysia";
 import { logger } from "../lib/logger";
+
+/** Built-in role names reserved by the org plugin — operators can't shadow them. */
+const BUILT_IN_ROLE_NAMES = new Set(["owner", "admin", "member"]);
+
+/**
+ * Validate a custom-role permission map against the shared statement catalog so
+ * an operator cannot mint a role referencing an unknown resource/action. Returns
+ * an error string, or null when valid.
+ */
+function validateRolePermission(permission: Record<string, string[]>): string | null {
+  const catalog = statements as Record<string, readonly string[]>;
+  for (const [resource, actions] of Object.entries(permission)) {
+    const allowed = catalog[resource];
+    if (!allowed) return `unknown resource "${resource}"`;
+    for (const action of actions) {
+      if (!allowed.includes(action)) {
+        return `unknown action "${action}" for resource "${resource}"`;
+      }
+    }
+  }
+  return null;
+}
 
 /** Escape LIKE meta-characters to prevent search injection. */
 function escapeLike(input: string): string {
@@ -203,6 +225,139 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
         updatedAt: r.updatedAt,
       })),
     };
+  })
+
+  // --- Operator tenant-role management (v1.5) ---
+  // Operators are NEVER org members, so better-auth's createOrgRole/updateOrgRole
+  // (gated on the caller's `ac` permission IN that org) would 403. We write the
+  // `organization_role` rows directly — the same table + JSON `permission` shape
+  // better-auth resolves at hasPermission time — behind the requirePlatformAdmin()
+  // gate at the plugin head. Permissions are validated against the shared statement
+  // catalog; built-in role names are reserved. NOTE: unlike the tenant-side path,
+  // operators have NO escalation ceiling (they are platform super-admins by design).
+  .post(
+    "/tenants/:id/roles",
+    async (ctx: any) => {
+      const orgId = ctx.params.id;
+      const role = (ctx.body.role as string).trim();
+      if (!role) {
+        ctx.set.status = 400;
+        return { success: false, error: "ROLE_NAME_REQUIRED" };
+      }
+      if (BUILT_IN_ROLE_NAMES.has(role)) {
+        ctx.set.status = 400;
+        return { success: false, error: "ROLE_NAME_RESERVED" };
+      }
+      const permErr = validateRolePermission(ctx.body.permission);
+      if (permErr) {
+        ctx.set.status = 400;
+        return { success: false, error: `INVALID_PERMISSION: ${permErr}` };
+      }
+
+      const [tenant] = await db
+        .select()
+        .from(organization)
+        .where(eq(organization.id, orgId))
+        .limit(1);
+      if (!tenant) {
+        ctx.set.status = 404;
+        return { success: false, error: "TENANT_NOT_FOUND" };
+      }
+
+      const [existing] = await db
+        .select()
+        .from(organizationRole)
+        .where(and(eq(organizationRole.organizationId, orgId), eq(organizationRole.role, role)))
+        .limit(1);
+      if (existing) {
+        ctx.set.status = 409;
+        return { success: false, error: "ROLE_ALREADY_EXISTS" };
+      }
+
+      // Parity with better-auth's dynamicAccessControl.maximumRolesPerOrganization.
+      const [tally] = await db
+        .select({ count: count() })
+        .from(organizationRole)
+        .where(eq(organizationRole.organizationId, orgId));
+      if ((tally?.count ?? 0) >= 50) {
+        ctx.set.status = 400;
+        return { success: false, error: "TOO_MANY_ROLES" };
+      }
+
+      await db.insert(organizationRole).values({
+        id: crypto.randomUUID(),
+        organizationId: orgId,
+        role,
+        permission: JSON.stringify(ctx.body.permission),
+        createdAt: new Date(),
+      });
+      ctx.set.status = 201;
+      return { success: true };
+    },
+    {
+      body: t.Object({
+        role: t.String({ minLength: 1, maxLength: 50 }),
+        permission: t.Record(t.String(), t.Array(t.String())),
+      }),
+    },
+  )
+
+  .patch(
+    "/tenants/:id/roles/:role",
+    async (ctx: any) => {
+      const orgId = ctx.params.id;
+      const role = ctx.params.role;
+      if (BUILT_IN_ROLE_NAMES.has(role)) {
+        ctx.set.status = 400;
+        return { success: false, error: "ROLE_NAME_RESERVED" };
+      }
+      const permErr = validateRolePermission(ctx.body.permission);
+      if (permErr) {
+        ctx.set.status = 400;
+        return { success: false, error: `INVALID_PERMISSION: ${permErr}` };
+      }
+      const [existing] = await db
+        .select()
+        .from(organizationRole)
+        .where(and(eq(organizationRole.organizationId, orgId), eq(organizationRole.role, role)))
+        .limit(1);
+      if (!existing) {
+        ctx.set.status = 404;
+        return { success: false, error: "ROLE_NOT_FOUND" };
+      }
+      await db
+        .update(organizationRole)
+        .set({ permission: JSON.stringify(ctx.body.permission), updatedAt: new Date() })
+        .where(and(eq(organizationRole.organizationId, orgId), eq(organizationRole.role, role)));
+      return { success: true };
+    },
+    {
+      body: t.Object({
+        permission: t.Record(t.String(), t.Array(t.String())),
+      }),
+    },
+  )
+
+  .delete("/tenants/:id/roles/:role", async (ctx: any) => {
+    const orgId = ctx.params.id;
+    const role = ctx.params.role;
+    if (BUILT_IN_ROLE_NAMES.has(role)) {
+      ctx.set.status = 400;
+      return { success: false, error: "ROLE_NAME_RESERVED" };
+    }
+    const [existing] = await db
+      .select()
+      .from(organizationRole)
+      .where(and(eq(organizationRole.organizationId, orgId), eq(organizationRole.role, role)))
+      .limit(1);
+    if (!existing) {
+      ctx.set.status = 404;
+      return { success: false, error: "ROLE_NOT_FOUND" };
+    }
+    await db
+      .delete(organizationRole)
+      .where(and(eq(organizationRole.organizationId, orgId), eq(organizationRole.role, role)));
+    return { success: true };
   })
 
   // --- Tenant Files (cross-tenant admin browser) ---

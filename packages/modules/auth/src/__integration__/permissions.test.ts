@@ -1,7 +1,8 @@
 // packages/modules/auth/src/__integration__/permissions.test.ts
 import { beforeAll, describe, expect, test } from "bun:test";
-import { createDb } from "@baseworks/db";
+import { createDb, member as memberTable } from "@baseworks/db";
 import { sql } from "drizzle-orm";
+import { nanoid } from "nanoid";
 
 const TEST_DB_URL =
   process.env.DATABASE_URL ?? "postgres://baseworks:baseworks@localhost:5432/baseworks";
@@ -26,6 +27,43 @@ async function signUp(auth: any, email: string) {
     .map((c: string) => c.split(";")[0])
     .join("; ");
   return new Headers({ cookie: cookies });
+}
+
+async function getUserId(auth: any, headers: Headers): Promise<string> {
+  const session = await auth.api.getSession({ headers });
+  return session.user.id;
+}
+
+/**
+ * Add a membership row directly (bypassing the invite flow) so a second user
+ * joins an EXISTING org with a chosen built-in or custom role — the only way to
+ * exercise the role-creation ceiling from a non-owner whose permissions are a
+ * strict subset of the owner's.
+ */
+async function addMember(db: any, organizationId: string, userId: string, role: string) {
+  await db.insert(memberTable).values({
+    id: nanoid(),
+    organizationId,
+    userId,
+    role,
+    createdAt: new Date(),
+  });
+}
+
+/** Attempt createOrgRole; normalize success/denial whether better-auth returns or throws. */
+async function tryCreateRole(
+  auth: any,
+  headers: Headers,
+  organizationId: string,
+  role: string,
+  permission: Record<string, string[]>,
+): Promise<{ ok: boolean; code?: string }> {
+  try {
+    await auth.api.createOrgRole({ headers, body: { organizationId, role, permission } });
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, code: e?.body?.code ?? e?.code ?? String(e?.status ?? "ERROR") };
+  }
 }
 
 describe("custom tenant roles", () => {
@@ -78,5 +116,82 @@ describe("custom tenant roles", () => {
         e?.body?.code === "USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION";
     }
     expect(otherDenied).toBe(true);
+  }, 30_000);
+});
+
+describe("custom role privilege ceiling (no escalation)", () => {
+  test("a tenant admin cannot mint a custom role granting permissions they lack", async () => {
+    if (!canConnect) {
+      console.warn("SKIPPED: PostgreSQL unavailable");
+      return;
+    }
+    const { auth } = await import("../auth");
+    const db = createDb(TEST_DB_URL);
+
+    const ownerHeaders = await signUp(auth, `esc-owner-${Date.now()}@example.com`);
+    const orgId = (await auth.api.listOrganizations({ headers: ownerHeaders }))[0].id;
+
+    // A second user joins as the built-in `admin` role: it carries ac:create +
+    // files:* but deliberately NOT billing:manage and NOT organization:delete.
+    const adminHeaders = await signUp(auth, `esc-admin-${Date.now()}@example.com`);
+    await addMember(db, orgId, await getUserId(auth, adminHeaders), "admin");
+
+    // Within the ceiling: admin holds files:write, so it may create that role.
+    const within = await tryCreateRole(auth, adminHeaders, orgId, `editor-${Date.now()}`, {
+      files: ["write"],
+    });
+    expect(within.ok).toBe(true);
+
+    // Above the ceiling: billing:manage is NOT held by admin → denied (no escalation).
+    const escalateBilling = await tryCreateRole(auth, adminHeaders, orgId, `biller-${Date.now()}`, {
+      billing: ["manage"],
+    });
+    expect(escalateBilling.ok).toBe(false);
+
+    // Above the ceiling: organization:delete is NOT held by admin → denied.
+    const escalateOrgDelete = await tryCreateRole(
+      auth,
+      adminHeaders,
+      orgId,
+      `nuker-${Date.now()}`,
+      {
+        organization: ["delete"],
+      },
+    );
+    expect(escalateOrgDelete.ok).toBe(false);
+  }, 30_000);
+
+  test("a member assigned a files:write custom role gets exactly that — not files:delete", async () => {
+    if (!canConnect) {
+      console.warn("SKIPPED: PostgreSQL unavailable");
+      return;
+    }
+    const { auth } = await import("../auth");
+    const db = createDb(TEST_DB_URL);
+
+    const ownerHeaders = await signUp(auth, `lp-owner-${Date.now()}@example.com`);
+    const orgId = (await auth.api.listOrganizations({ headers: ownerHeaders }))[0].id;
+
+    const roleName = `writer-${Date.now()}`;
+    await auth.api.createOrgRole({
+      headers: ownerHeaders,
+      body: { organizationId: orgId, role: roleName, permission: { files: ["write"] } },
+    });
+
+    // A member joins assigned that exact custom role.
+    const memberHeaders = await signUp(auth, `lp-member-${Date.now()}@example.com`);
+    await addMember(db, orgId, await getUserId(auth, memberHeaders), roleName);
+
+    const canWrite = await auth.api.hasPermission({
+      headers: memberHeaders,
+      body: { organizationId: orgId, permissions: { files: ["write"] } },
+    });
+    expect(canWrite.success).toBe(true);
+
+    const canDelete = await auth.api.hasPermission({
+      headers: memberHeaders,
+      body: { organizationId: orgId, permissions: { files: ["delete"] } },
+    });
+    expect(canDelete.success).toBe(false);
   }, 30_000);
 });

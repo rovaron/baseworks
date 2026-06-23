@@ -109,7 +109,7 @@ export async function adminListFilesForTenant(
     LIST_MAX_LIMIT,
   );
   const offset = Math.max(Math.trunc(opts?.offset ?? 0), 0);
-  const db = getDb(env.DATABASE_URL);
+  const db = getDb(env.DATABASE_URL); // scoped-db-allow: operator cross-tenant op — explicit targetTenantId, gated by requirePlatformAdmin
 
   const rows = (await db.execute(sql`
     SELECT id, owner_module, owner_record_type, owner_record_id, mime_type, byte_size, status,
@@ -176,7 +176,7 @@ export async function adminSignUpload(
   if (!relation.allowedMimeTypes.includes(input.mimeType)) return err("mime_not_allowed");
   if (input.byteSize > relation.maxByteSize) return err("file_too_large");
 
-  const db = getDb(env.DATABASE_URL);
+  const db = getDb(env.DATABASE_URL); // scoped-db-allow: operator cross-tenant op — explicit targetTenantId, gated by requirePlatformAdmin
 
   // Charge the TARGET tenant's quota (R3). 0 rows ⇒ over limit ⇒ 413.
   const reserved = await reserveQuota(
@@ -260,7 +260,7 @@ export async function adminCompleteUpload(
   targetTenantId: string,
   fileId: string,
 ): Promise<Result<{ fileId: string; status: string; byteSize: number; mimeType: string }>> {
-  const db = getDb(env.DATABASE_URL);
+  const db = getDb(env.DATABASE_URL); // scoped-db-allow: operator cross-tenant op — explicit targetTenantId, gated by requirePlatformAdmin
 
   const rows = (await db.execute(sql`
     SELECT id, owner_module, owner_record_type, storage_key, bucket, mime_type, byte_size, status
@@ -377,7 +377,7 @@ export async function adminGetReadUrl(
   targetTenantId: string,
   fileId: string,
 ): Promise<Result<{ url: string; expiresAt: string }>> {
-  const db = getDb(env.DATABASE_URL);
+  const db = getDb(env.DATABASE_URL); // scoped-db-allow: operator cross-tenant op — explicit targetTenantId, gated by requirePlatformAdmin
 
   const rows = (await db.execute(sql`
     SELECT bucket, storage_key, mime_type, original_filename
@@ -412,7 +412,7 @@ export async function adminDeleteFile(
   targetTenantId: string,
   fileId: string,
 ): Promise<Result<{ fileId: string; deleted: true }>> {
-  const db = getDb(env.DATABASE_URL);
+  const db = getDb(env.DATABASE_URL); // scoped-db-allow: operator cross-tenant op — explicit targetTenantId, gated by requirePlatformAdmin
 
   const captured: SoftDeleteCaptured | null = await db.transaction(
     async (tx: any): Promise<SoftDeleteCaptured | null> => {
