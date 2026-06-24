@@ -5,7 +5,7 @@ import {
   validateObservabilityEnv,
   validatePaymentProviderEnv,
 } from "@baseworks/config";
-import { closeDb, getDb, scopedDb } from "@baseworks/db";
+import { closeDb, getDb, getRlsDb, scopedDb, withTenant } from "@baseworks/db";
 import { defaultLocale } from "@baseworks/i18n";
 import { promoteConfiguredAdmins, requirePermission } from "@baseworks/module-auth";
 import { billingWebhookRoutes, registerBillingHooks } from "@baseworks/module-billing";
@@ -308,6 +308,11 @@ const app = new Elysia()
       tenantId,
       userId: ctx.userId,
       db: scopedDb(db, tenantId),
+      // RLS-scoped transaction executor for this request's tenant. Runs DB work
+      // on the baseworks_rls (non-owner) pool with app.tenant_id set
+      // transaction-locally, so Postgres RLS constrains every statement to
+      // ctx.tenantId regardless of WHERE clauses.
+      withTenant: <T>(fn: (tx: any) => Promise<T>) => withTenant(getRlsDb(), tenantId, fn),
       // Forward the live request headers so session-bound better-auth calls
       // (auth commands/queries via auth.api.*) can resolve the caller (C2).
       headers: ctx.request.headers,

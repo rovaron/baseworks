@@ -12,7 +12,7 @@ export type {
   QueryHandler,
   Result,
 } from "./types/cqrs";
-export { defineCommand, defineQuery } from "./types/cqrs";
+export { defineCommand, defineQuery, requireWithTenant } from "./types/cqrs";
 export type { DomainEvents } from "./types/events";
 export type {
   FileRelation,

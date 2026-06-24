@@ -15,13 +15,21 @@
  * Direct files-table access is allow-listed for this module (path-prefix exempt
  * in scripts/lint-no-direct-files-access.sh); every statement carries an explicit
  * tenant_id predicate. NEVER expose storageKey/bucket in the response.
+ *
+ * Phase 4 / Task 4.6 — the tenant DB work runs through the request-scoped RLS
+ * transaction (ctx.withTenant) against the NON-OWNER baseworks_rls pool: Postgres
+ * RLS constrains `files` + `tenant_storage_usage` to ctx.tenantId
+ * transaction-locally, independent of the manual `tenant_id = ...` predicates
+ * below (which STAY as defense-in-depth). The load and the link+cascade tx are
+ * each their own atomic withTenant unit — no nested db.transaction. The
+ * best-effort physical delete + `file.deleted` emit stay OUTSIDE the tx (after
+ * commit), exactly as before.
  */
 
-import { env } from "@baseworks/config";
-import { files, getDb } from "@baseworks/db";
+import { files } from "@baseworks/db";
 import { getErrorTracker } from "@baseworks/observability";
 import type { HandlerContext, Result } from "@baseworks/shared";
-import { defineCommand, err, ok } from "@baseworks/shared";
+import { defineCommand, err, ok, requireWithTenant } from "@baseworks/shared";
 import { getFileStorage } from "@baseworks/storage";
 import { Type } from "@sinclair/typebox";
 import { and, eq, sql } from "drizzle-orm";
@@ -65,19 +73,20 @@ type AttachFileResult = { fileId: string; ownerRecordId: string };
  * Best-effort physical delete + `file.deleted` emit run per sibling AFTER commit.
  */
 export const attachFileCommand = defineCommand(AttachFileInput, async (input, ctx) => {
-  const db = getDb(env.DATABASE_URL); // scoped-db-allow: files module scopes by ctx.tenantId manually (pre-ScopedDb pattern)
-
   // 1. Load row tenant-scoped — foreign id ⇒ 0 rows ⇒ 404 (no existence leak).
   //    Raw read (contract §5.2 / quota.ts precedent): the `db.select().from(files)`
   //    builder is flagged repo-wide by the GritQL ban (no path-allowlist primitive).
-  const loaded = (await db.execute(sql`
+  //    Runs in its own RLS transaction (ctx.withTenant) on the baseworks_rls pool.
+  const loaded = (await requireWithTenant(ctx)((tx) =>
+    tx.execute(sql`
     SELECT owner_module, owner_record_type
       FROM files
      WHERE id = ${input.fileId}
        AND tenant_id = ${ctx.tenantId}
        AND deleted_at IS NULL
      LIMIT 1
-  `)) as unknown as Array<{ owner_module: string; owner_record_type: string }>;
+  `),
+  )) as unknown as Array<{ owner_module: string; owner_record_type: string }>;
   const row = loaded[0];
   if (!row) return err("not_found");
 
@@ -96,7 +105,7 @@ export const attachFileCommand = defineCommand(AttachFileInput, async (input, ct
   // 4. Link the new row + (for cardinality:"single") cascade-soft-delete the
   //    prior file(s) for this owner tuple, all in one transaction so the quota
   //    refund is atomic with the tombstones (SC#4 conservation).
-  const removed: SoftDeleteCaptured[] = await db.transaction(
+  const removed: SoftDeleteCaptured[] = await requireWithTenant(ctx)(
     async (tx: any): Promise<SoftDeleteCaptured[]> => {
       // Link the row (updatedAt auto-bumps via $onUpdate). Tenant-scoped.
       await tx

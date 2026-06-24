@@ -34,7 +34,7 @@ mock.module("@baseworks/config", () => ({
 }));
 
 const { deleteFile } = await import("../commands/delete-file");
-const { createDb, files, tenantStorageUsage } = await import("@baseworks/db");
+const { createDb, files, getRlsDb, tenantStorageUsage, withTenant } = await import("@baseworks/db");
 const { LocalFileStorage, resetFileStorage, setFileStorage } = await import("@baseworks/storage");
 const { eq, inArray, sql } = await import("drizzle-orm");
 
@@ -109,12 +109,20 @@ function ctxFor(tenantId: string, emitted: Array<{ event: string; data: any }>) 
     userId: "u",
     db: {},
     emit: (event: string, data: unknown) => emitted.push({ event, data: data as any }),
+    // Request-scoped RLS executor (mirrors apps/api): every DB statement runs
+    // against the NON-OWNER baseworks_rls pool with app.tenant_id set
+    // transaction-locally, so Postgres RLS — not just the handler's manual
+    // tenant predicate — constrains the rows the command can touch.
+    withTenant: <T>(fn: (tx: any) => Promise<T>) => withTenant(getRlsDb(), tenantId, fn),
   } as any;
 }
 
 beforeAll(async () => {
   db = createDb(TEST_DB_URL);
   await db.execute(sql`SELECT 1`);
+  // Fail loud if the NON-OWNER RLS pool is unreachable — these tests drive the
+  // command through ctx.withTenant(getRlsDb(), ...) and MUST exercise RLS.
+  await getRlsDb().execute(sql`SELECT 1`);
   setFileStorage(storage);
 });
 
@@ -218,5 +226,55 @@ describe("deleteFile — soft-delete + decrement + event (Phase 27 / UPL-04, liv
     expect(r.success).toBe(false);
     if (!r.success) expect(r.error).toBe("not_found");
     expect(emitted.length).toBe(0);
+  });
+});
+
+describe("deleteFile under RLS — cross-tenant isolation (Phase 4 / Task 4.5)", () => {
+  test("tenant A cannot delete tenant B's file; RLS (not just the predicate) hides B's row from A's tx", async () => {
+    // Seed a deletable, counted upload for tenant B via the OWNER db
+    // (RLS-bypassing): real PNG object + an `uploaded` files row + usage counted.
+    const tenantA = newTenantId("xt_a");
+    const tenantB = newTenantId("xt_b");
+    const key = `${tenantB}/del/${crypto.randomUUID()}.png`;
+    await seedUsage(tenantB, 1000);
+    await storage.putObject({ bucket: "files", key, body: PNG, mimeType: "image/png" });
+    const fileIdB = await seedFile({ tenantId: tenantB, key, byteSize: 1000, status: "uploaded" });
+
+    // Drive the handler as tenant A against B's fileId ⇒ 404 not_found. B's row is
+    // invisible to A, so it cannot be soft-deleted cross-tenant. No emit either.
+    const emittedA: Array<{ event: string; data: any }> = [];
+    const asA = await deleteFile({ fileId: fileIdB }, ctxFor(tenantA, emittedA));
+    expect(asA.success).toBe(false);
+    if (!asA.success) expect(asA.error).toBe("not_found");
+    expect(emittedA.length).toBe(0);
+
+    // The soft-delete must NOT have run for A — B's row, object, and usage are
+    // intact (A had no visibility, so nothing was tombstoned or refunded).
+    const rowB = await readFileRow(fileIdB);
+    expect(rowB?.status).toBe("uploaded");
+    expect(rowB?.deleted_at).toBeNull();
+    expect(await storage.stat({ bucket: "files", key })).not.toBeNull();
+    expect(Number((await readUsage(tenantB))?.bytesUsed)).toBe(1000);
+
+    // RLS-backstop (not the app predicate): inside A's RLS transaction, an
+    // UNFILTERED-by-tenant raw count for B's row still returns 0 — proving the
+    // isolation comes from Postgres RLS on the baseworks_rls role itself.
+    const seenByA = await withTenant(getRlsDb(), tenantA, async (tx) => {
+      const r = (await tx.execute(
+        sql`SELECT count(*)::int AS n FROM files WHERE id = ${fileIdB}`,
+      )) as unknown as Array<{ n: number }>;
+      return r[0]?.n ?? 0;
+    });
+    expect(seenByA).toBe(0);
+
+    // Sanity: tenant B CAN delete its own file (the 404 above was isolation, not a
+    // broken fixture). Row tombstoned, object unlinked, bytes_used refunded.
+    const emittedB: Array<{ event: string; data: any }> = [];
+    const asB = await deleteFile({ fileId: fileIdB }, ctxFor(tenantB, emittedB));
+    expect(asB.success).toBe(true);
+    expect((await readFileRow(fileIdB))?.status).toBe("deleted");
+    expect(await storage.stat({ bucket: "files", key })).toBeNull();
+    expect(Number((await readUsage(tenantB))?.bytesUsed)).toBe(0);
+    expect(emittedB.some((e) => e.event === "file.deleted")).toBe(true);
   });
 });

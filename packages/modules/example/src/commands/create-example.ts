@@ -1,5 +1,5 @@
 import { examples } from "@baseworks/db";
-import { defineCommand, ok } from "@baseworks/shared";
+import { defineCommand, ok, requireWithTenant } from "@baseworks/shared";
 import { Type } from "@sinclair/typebox";
 
 export const CreateExampleInput = Type.Object({
@@ -20,11 +20,23 @@ export const CreateExampleInput = Type.Object({
  * @returns Result<Example> -- the created example record
  */
 export const createExample = defineCommand(CreateExampleInput, async (input, ctx) => {
-  // scopedDb.insert auto-injects tenantId -- no manual injection needed
-  const [result] = await ctx.db.insert(examples).values({
-    title: input.title,
-    description: input.description ?? null,
-  });
+  // Run the insert through the request's RLS-scoped transaction. Postgres RLS
+  // confines the write to ctx.tenantId; we still stamp tenantId explicitly so
+  // the row carries the right tenant and the WITH CHECK policy is satisfied
+  // (defense-in-depth, not a replacement for the policy).
+  const inserted = (await requireWithTenant(ctx)(
+    (tx) =>
+      tx
+        .insert(examples)
+        .values({
+          tenantId: ctx.tenantId,
+          title: input.title,
+          description: input.description ?? null,
+        })
+        .returning(),
+    // biome-ignore lint/suspicious/noExplicitAny: raw-tx returning() is untyped (tx is any); matches the prior scopedDb return shape
+  )) as any[];
+  const [result] = inserted;
 
   ctx.emit("example.created", { id: result.id, tenantId: ctx.tenantId });
 

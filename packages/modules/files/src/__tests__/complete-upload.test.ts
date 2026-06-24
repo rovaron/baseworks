@@ -41,7 +41,7 @@ mock.module("@baseworks/config", () => ({
 }));
 
 const { completeUpload } = await import("../commands/complete-upload");
-const { createDb, files, tenantStorageUsage } = await import("@baseworks/db");
+const { createDb, files, getRlsDb, tenantStorageUsage, withTenant } = await import("@baseworks/db");
 const { LocalFileStorage, fileRelationsRegistry, resetFileStorage, setFileStorage } = await import(
   "@baseworks/storage"
 );
@@ -156,12 +156,20 @@ function ctxFor(tenantId: string, emitted: Array<{ event: string; data: any }>) 
     userId: "u",
     db: {},
     emit: (event: string, data: unknown) => emitted.push({ event, data: data as any }),
+    // Request-scoped RLS executor (mirrors apps/api): every DB statement runs
+    // against the NON-OWNER baseworks_rls pool with app.tenant_id set
+    // transaction-locally, so Postgres RLS — not just the handler's manual
+    // tenant predicate — constrains the rows the command can touch.
+    withTenant: <T>(fn: (tx: any) => Promise<T>) => withTenant(getRlsDb(), tenantId, fn),
   } as any;
 }
 
 beforeAll(async () => {
   db = createDb(TEST_DB_URL);
   await db.execute(sql`SELECT 1`);
+  // Fail loud if the NON-OWNER RLS pool is unreachable — these tests drive the
+  // command through ctx.withTenant(getRlsDb(), ...) and MUST exercise RLS.
+  await getRlsDb().execute(sql`SELECT 1`);
   setFileStorage(storage);
 });
 
@@ -433,5 +441,58 @@ describe("completeUpload — server-authoritative finalization (Phase 27 / UPL-0
     }
     // Usage untouched (no re-count).
     expect(Number((await readUsage(tenantId))?.bytesUsed)).toBe(0);
+  });
+});
+
+describe("completeUpload under RLS — cross-tenant isolation (Phase 4 / Task 4.4)", () => {
+  test("tenant A cannot complete tenant B's pending upload; RLS (not just the predicate) hides B's row from A's tx", async () => {
+    // Seed a fully-completable pending upload for tenant B via the OWNER db
+    // (RLS-bypassing): real PNG object + a pending `files` row + a reservation.
+    const tenantA = newTenantId("xt_a");
+    const tenantB = newTenantId("xt_b");
+    const key = `${tenantB}/cu/image/${crypto.randomUUID()}.png`;
+    await seedUsage(tenantB, PNG.length);
+    await storage.putObject({ bucket: "files", key, body: PNG, mimeType: "image/png" });
+    const fileIdB = await seedFile({
+      tenantId: tenantB,
+      ownerModule: "cu-img",
+      ownerRecordType: "cu_doc",
+      key,
+      mimeType: "image/png",
+      byteSize: PNG.length,
+      status: "pending",
+    });
+
+    // Drive the handler as tenant A against B's fileId ⇒ 404 not_found. B's row
+    // is invisible to A, so the upload cannot be finalized cross-tenant.
+    const asA = await completeUpload({ fileId: fileIdB }, ctxFor(tenantA, []));
+    expect(asA.success).toBe(false);
+    if (!asA.success) expect(asA.error).toBe("not_found");
+
+    // The reject path must NOT have run for A — B's object + row + reservation
+    // are intact (A had no visibility, so nothing was cleaned up).
+    expect((await readFileRow(fileIdB))?.status).toBe("pending");
+    expect(await storage.stat({ bucket: "files", key })).not.toBeNull();
+    expect(Number((await readUsage(tenantB))?.bytesPending)).toBe(PNG.length);
+
+    // RLS-backstop (not the app predicate): inside A's RLS transaction, an
+    // UNFILTERED-by-tenant raw count for B's row still returns 0 — proving the
+    // isolation comes from Postgres RLS on the baseworks_rls role itself.
+    const seenByA = await withTenant(getRlsDb(), tenantA, async (tx) => {
+      const r = (await tx.execute(
+        sql`SELECT count(*)::int AS n FROM files WHERE id = ${fileIdB}`,
+      )) as unknown as Array<{ n: number }>;
+      return r[0]?.n ?? 0;
+    });
+    expect(seenByA).toBe(0);
+
+    // Sanity: tenant B CAN complete its own upload (the 404 above was isolation,
+    // not a broken fixture). Bytes move pending→used for B.
+    const asB = await completeUpload({ fileId: fileIdB }, ctxFor(tenantB, []));
+    expect(asB.success).toBe(true);
+    if (asB.success) expect(asB.data.status).toBe("uploaded");
+    const usageB = await readUsage(tenantB);
+    expect(Number(usageB?.bytesPending)).toBe(0);
+    expect(Number(usageB?.bytesUsed)).toBe(PNG.length);
   });
 });

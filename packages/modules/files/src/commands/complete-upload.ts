@@ -30,9 +30,8 @@
  * post-transform state (Phase 28). NEVER returns storageKey/bucket.
  */
 
-import { env } from "@baseworks/config";
-import { files, getDb } from "@baseworks/db";
-import { defineCommand, err, ok } from "@baseworks/shared";
+import { files } from "@baseworks/db";
+import { defineCommand, err, ok, requireWithTenant } from "@baseworks/shared";
 import { getFileStorage } from "@baseworks/storage";
 import { Type } from "@sinclair/typebox";
 import { and, eq, sql } from "drizzle-orm";
@@ -45,19 +44,28 @@ const CompleteUploadInput = Type.Object({
 });
 
 export const completeUpload = defineCommand(CompleteUploadInput, async (input, ctx) => {
-  const db = getDb(env.DATABASE_URL); // scoped-db-allow: files module scopes by ctx.tenantId manually (pre-ScopedDb pattern)
+  // Every tenant DB statement runs through the request-scoped RLS transaction
+  // (ctx.withTenant) against the NON-OWNER baseworks_rls pool: Postgres RLS
+  // constrains `files` + `tenant_storage_usage` to ctx.tenantId
+  // transaction-locally, independent of the manual `tenant_id = ...` predicates
+  // below (which STAY as defense-in-depth). Storage stat/getObject/delete are
+  // intentionally kept OUTSIDE these transactions (matching the pre-RLS shape):
+  // the load + reject-cleanup + success transition + settled-read are each their
+  // own atomic withTenant unit — no nested db.transaction.
 
   // 1. Load the row tenant-scoped (raw SQL — see header). A foreign-tenant id
   //    returns 0 rows → 404 (no existence leak — R2). deleted_at IS NULL
   //    excludes tombstones.
-  const rows = (await db.execute(sql`
+  const rows = (await requireWithTenant(ctx)((tx) =>
+    tx.execute(sql`
     SELECT id, owner_module, owner_record_type, storage_key, bucket, mime_type, byte_size, status
       FROM files
      WHERE id = ${input.fileId}
        AND tenant_id = ${ctx.tenantId}
        AND deleted_at IS NULL
      LIMIT 1
-  `)) as any[];
+  `),
+  )) as any[];
   const row = rows[0];
   if (!row) return err("not_found");
 
@@ -97,7 +105,7 @@ export const completeUpload = defineCommand(CompleteUploadInput, async (input, c
     await getFileStorage()
       .delete({ bucket, key })
       .catch(() => {});
-    await db.transaction(async (tx: any) => {
+    await requireWithTenant(ctx)(async (tx: any) => {
       const deleted = await tx
         .delete(files)
         .where(and(eq(files.tenantId, ctx.tenantId), eq(files.id, input.fileId)))
@@ -157,7 +165,7 @@ export const completeUpload = defineCommand(CompleteUploadInput, async (input, c
   //    bytes_used and double-decrement bytes_pending (eating other reservations,
   //    or permanently leaking used bytes when a concurrent delete tombstoned the
   //    row first). The loser touches no quota.
-  const transitioned = await db.transaction(async (tx: any) => {
+  const transitioned = await requireWithTenant(ctx)(async (tx: any) => {
     const updated = await tx
       .update(files)
       .set({
@@ -185,14 +193,16 @@ export const completeUpload = defineCommand(CompleteUploadInput, async (input, c
   // state (idempotent ok, matching the step-2 guard shape) — or 404 if a
   // concurrent delete tombstoned it. No re-stat, no double-count, no emit.
   if (!transitioned) {
-    const after = (await db.execute(sql`
+    const after = (await requireWithTenant(ctx)((tx) =>
+      tx.execute(sql`
       SELECT id, status, byte_size, mime_type
         FROM files
        WHERE id = ${input.fileId}
          AND tenant_id = ${ctx.tenantId}
          AND deleted_at IS NULL
        LIMIT 1
-    `)) as any[];
+    `),
+    )) as any[];
     const settled = after[0];
     if (!settled) return err("not_found");
     return ok({

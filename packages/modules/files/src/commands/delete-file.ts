@@ -25,10 +25,8 @@
  * UPDATE uses the `tx.update(files)` builder (not matched by the ban).
  */
 
-import { env } from "@baseworks/config";
-import { getDb } from "@baseworks/db";
 import { getErrorTracker } from "@baseworks/observability";
-import { defineCommand, err, ok } from "@baseworks/shared";
+import { defineCommand, err, ok, requireWithTenant } from "@baseworks/shared";
 import { getFileStorage } from "@baseworks/storage";
 import { Type } from "@sinclair/typebox";
 import { sql } from "drizzle-orm";
@@ -39,7 +37,13 @@ const DeleteFileInput = Type.Object({
 });
 
 export const deleteFile = defineCommand(DeleteFileInput, async (input, ctx) => {
-  const db = getDb(env.DATABASE_URL); // scoped-db-allow: files module scopes by ctx.tenantId manually (pre-ScopedDb pattern)
+  // The tenant DB work runs through the request-scoped RLS transaction
+  // (ctx.withTenant) against the NON-OWNER baseworks_rls pool: Postgres RLS
+  // constrains `files` + `tenant_storage_usage` to ctx.tenantId
+  // transaction-locally, independent of the manual `tenant_id = ...` predicate
+  // below (which STAYS as defense-in-depth). The SELECT ... FOR UPDATE +
+  // softDeleteRow run on `tx`; the best-effort storage delete + emit stay OUTSIDE
+  // the tx (after commit), exactly as before.
 
   // Capture the row's physical-object coordinates + owner identity from inside
   // the tx so we can emit + best-effort-delete AFTER commit. Returned from the tx
@@ -48,7 +52,7 @@ export const deleteFile = defineCommand(DeleteFileInput, async (input, ctx) => {
   // The tombstone + quota refund are the shared `softDeleteRow` primitive
   // (lib/soft-delete.ts) — the SINGLE conservation code path also used by
   // attach-file's cascade-on-replace (Phase 29 / SC#4).
-  const captured: SoftDeleteCaptured | null = await db.transaction(
+  const captured: SoftDeleteCaptured | null = await requireWithTenant(ctx)(
     async (tx: any): Promise<SoftDeleteCaptured | null> => {
       // 1. Lock + read the PRIOR state (R3) via raw SQL. FOR UPDATE serializes
       //    concurrent deletes of the same row.

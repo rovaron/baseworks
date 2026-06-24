@@ -47,7 +47,7 @@ mock.module("@baseworks/config", () => ({
 
 const { Elysia } = await import("elysia");
 const { filesRoutes } = await import("../routes");
-const { createDb, files, tenantStorageUsage } = await import("@baseworks/db");
+const { createDb, files, getRlsDb, tenantStorageUsage, withTenant } = await import("@baseworks/db");
 const { LocalFileStorage, fileRelationsRegistry, resetFileStorage, setFileStorage } = await import(
   "@baseworks/storage"
 );
@@ -79,7 +79,14 @@ fileRelationsRegistry.register(OWNER_MODULE, KIND, {
 // band: tenantMiddleware + handlerCtx derive run before getModuleRoutes()).
 const app = new Elysia()
   .derive(() => ({
-    handlerCtx: { tenantId: TENANT, userId: "u", db: {}, emit: () => undefined } as any,
+    handlerCtx: {
+      tenantId: TENANT,
+      userId: "u",
+      db: {},
+      emit: () => undefined,
+      // Mirror apps/api: tenant DB work runs through an RLS-role transaction.
+      withTenant: <T>(fn: (tx: any) => Promise<T>) => withTenant(getRlsDb(), TENANT, fn),
+    } as any,
   }))
   .use(filesRoutes);
 

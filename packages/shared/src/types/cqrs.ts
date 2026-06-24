@@ -31,6 +31,12 @@ export interface HandlerContext {
   /** Enqueue a background job via BullMQ. Optional; unavailable in test contexts. */
   enqueue?: (job: string, data: unknown) => Promise<void>;
   /**
+   * Run a function against an RLS-scoped transaction for THIS request's tenant.
+   * DB statements inside are constrained to ctx.tenantId by Postgres RLS,
+   * independent of any WHERE clause. Prefer this for tenant reads/writes.
+   */
+  withTenant?: <T>(fn: (tx: any) => Promise<T>) => Promise<T>;
+  /**
    * String-keyed CQRS dispatch through the bus (Phase 27 / ATT-01, ATT-02).
    *
    * The sanctioned cross-module call channel: lets one module invoke another
@@ -45,6 +51,22 @@ export interface HandlerContext {
    * test contexts, where callers fall back to a direct command invocation.
    */
   dispatch?: (command: string, input: unknown) => Promise<Result<unknown>>;
+}
+
+/**
+ * Return `ctx.withTenant`, throwing if absent. Tenant request handlers (which
+ * must run their DB work through the RLS-scoped transaction) call this instead
+ * of `ctx.withTenant!`: it keeps `withTenant` optional on the context (auth
+ * `auth.api` routes and bare test contexts have no tenant DB) while failing loud
+ * if a tenant handler is somehow invoked without one.
+ */
+export function requireWithTenant(ctx: HandlerContext): NonNullable<HandlerContext["withTenant"]> {
+  if (!ctx.withTenant) {
+    throw new Error(
+      "ctx.withTenant is unavailable: this handler requires a tenant-scoped request context.",
+    );
+  }
+  return ctx.withTenant;
 }
 
 /**
