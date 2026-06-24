@@ -1,5 +1,7 @@
 services:
   postgres:
+    # Tenant RLS: after `bun run db:migrate`, run `bun run db:setup-rls` once to
+    # create the baseworks_rls role + grants. CI does this in its DB setup step.
     image: postgres:16
     ports:
       - "5432:5432"

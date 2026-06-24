@@ -8,6 +8,7 @@
 
 import { index, pgTable, text, varchar } from "drizzle-orm/pg-core";
 import { primaryKeyColumn, tenantIdColumn, timestampColumns } from "./base";
+import { tenantRlsPolicy } from "./rls";
 
 export const examples = pgTable(
   "examples",
@@ -18,5 +19,8 @@ export const examples = pgTable(
     description: text("description"),
     ...timestampColumns(),
   },
-  (table) => [index("examples_tenant_id_idx").on(table.tenantId)],
+  (table) => [
+    index("examples_tenant_id_idx").on(table.tenantId),
+    tenantRlsPolicy("examples_tenant_isolation", table.tenantId),
+  ],
 );

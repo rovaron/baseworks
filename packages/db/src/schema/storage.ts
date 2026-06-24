@@ -11,6 +11,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { primaryKeyColumn, tenantIdColumn, timestampColumns } from "./base";
+import { tenantRlsPolicy } from "./rls";
 
 /**
  * Storage module tables (Phase 24 / FILE-01).
@@ -89,6 +90,7 @@ export const files = pgTable("files", {
       "files_status_check",
       sql`${t.status} IN ('pending', 'uploaded', 'transforming', 'ready', 'failed', 'deleted')`,
     ),
+    tenantRlsPolicy("files_tenant_isolation", t.tenantId),
   ],
 );
 
@@ -102,19 +104,23 @@ export const files = pgTable("files", {
  * `bytes_limit` is nullable — null means "use STORAGE_DEFAULT_QUOTA_BYTES env
  * default" (D-11). Per-tenant overrides set this column directly.
  */
-export const tenantStorageUsage = pgTable("tenant_storage_usage", {
-  tenantId: tenantIdColumn().primaryKey(),
-  bytesUsed: bigint("bytes_used", { mode: "number" }).notNull().default(0),
-  // D-02 — race-safe quota counter (Phase 26 consumer).
-  bytesPending: bigint("bytes_pending", { mode: "number" }).notNull().default(0),
-  bytesLimit: bigint("bytes_limit", { mode: "number" }),
-  // WR-04 — auto-bump on every Drizzle UPDATE (matches timestampColumns()); Phase 26
-  // quota UPSERTs that mutate bytes_used/bytes_pending no longer leave this stale.
-  updatedAt: timestamp("updated_at")
-    .defaultNow()
-    .notNull()
-    .$onUpdate(() => new Date()),
-});
+export const tenantStorageUsage = pgTable(
+  "tenant_storage_usage",
+  {
+    tenantId: tenantIdColumn().primaryKey(),
+    bytesUsed: bigint("bytes_used", { mode: "number" }).notNull().default(0),
+    // D-02 — race-safe quota counter (Phase 26 consumer).
+    bytesPending: bigint("bytes_pending", { mode: "number" }).notNull().default(0),
+    bytesLimit: bigint("bytes_limit", { mode: "number" }),
+    // WR-04 — auto-bump on every Drizzle UPDATE (matches timestampColumns()); Phase 26
+    // quota UPSERTs that mutate bytes_used/bytes_pending no longer leave this stale.
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .notNull()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [tenantRlsPolicy("tenant_storage_usage_tenant_isolation", t.tenantId)],
+);
 
 /**
  * Phase 31 / OPS-02, OPS-03 — last-run status of the cleanup/reconciliation jobs.
