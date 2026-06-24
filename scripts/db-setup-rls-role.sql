@@ -14,8 +14,13 @@ END $$;
 GRANT USAGE ON SCHEMA public TO baseworks_rls;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO baseworks_rls;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO baseworks_rls;
--- Future tables created by the owner are auto-granted to the RLS role.
-ALTER DEFAULT PRIVILEGES FOR ROLE baseworks IN SCHEMA public
+-- Future tables created by the CURRENT role (whoever runs migrations — baseworks
+-- locally, postgres in CI) are auto-granted to the RLS role. Omitting FOR ROLE
+-- targets the current role so this works regardless of the env's owner role.
+-- IMPORTANT ORDERING: run this BEFORE `db:migrate` — migration 0009's
+-- `CREATE POLICY ... TO baseworks_rls` requires the role to already exist, and
+-- these default privileges must be set before the owner creates the tables.
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO baseworks_rls;
-ALTER DEFAULT PRIVILEGES FOR ROLE baseworks IN SCHEMA public
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
   GRANT USAGE, SELECT ON SEQUENCES TO baseworks_rls;
