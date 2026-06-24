@@ -282,3 +282,24 @@ export function assertRedisUrl(role: InstanceRole, redisUrl?: string): string {
   }
   return redisUrl ?? "";
 }
+
+/**
+ * Assert that the tenant-RLS connection is configured in production.
+ *
+ * Tenant isolation is enforced by Postgres RLS only on the non-owner
+ * `baseworks_rls` role; tenant request handlers reach it via `DATABASE_URL_RLS`.
+ * If that is unset in production, those handlers fall back to the owner pool
+ * (which BYPASSES RLS), silently losing the DB-level isolation guarantee — so we
+ * crash-hard at boot instead. Dev/test may omit it (the owner connection is used,
+ * and the manual tenant predicates still scope queries).
+ *
+ * @throws Error in production when `DATABASE_URL_RLS` is unset.
+ */
+export function assertRlsConfigured(nodeEnv: string | undefined, rlsUrl: string | undefined): void {
+  if (nodeEnv === "production" && !rlsUrl) {
+    throw new Error(
+      "DATABASE_URL_RLS is required in production: tenant isolation (RLS) is enforced only on the " +
+        "non-owner baseworks_rls role. Provision it with `bun run db:setup-rls` and set DATABASE_URL_RLS.",
+    );
+  }
+}

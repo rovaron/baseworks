@@ -53,7 +53,7 @@ A production-grade monorepo starter kit for SaaS and freelance projects. It prov
 | drizzle-kit | ^0.28+ | Migration tooling | Schema push and migration generation. `drizzle-kit generate` for migrations, `drizzle-kit push` for dev. | MEDIUM |
 | drizzle-zod | ^0.7+ | Schema validation | Generates Zod schemas from Drizzle table definitions. Single source of truth for DB schema AND request validation. | MEDIUM |
 | postgres (pglite or pg driver) | -- | PostgreSQL driver | Use `postgres` (postgres.js) as the driver -- it is the fastest PostgreSQL driver for Node/Bun and is what Drizzle recommends. Do NOT use `pg` (node-postgres). | MEDIUM |
-| PostgreSQL | 16+ | Database | Production-grade RDBMS. Row-level security available if needed for tenant isolation later. JSONB for flexible metadata. | HIGH |
+| PostgreSQL | 16+ | Database | Production-grade RDBMS. Row-level security ENFORCES tenant isolation on the `baseworks_rls` role (see `docs/integrations/tenant-isolation.md`). JSONB for flexible metadata. | HIGH |
 - Use `postgres` (postgres.js) driver, NOT `pg` (node-postgres) -- postgres.js is faster and has better Bun compatibility
 - Enable `logger: true` in dev for query debugging
 - Use `drizzle-kit generate` + `drizzle-kit migrate` for production migrations (not `push`)
