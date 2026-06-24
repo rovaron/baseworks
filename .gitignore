@@ -17,3 +17,5 @@ tmp/
 /storage/
 summary-content.txt
 write-summary.js
+# Local Claude Code MCP server config (per-developer; not shared).
+.mcp.json
