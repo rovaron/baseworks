@@ -16,9 +16,7 @@
  * or bucket. To obtain a viewable URL the client calls `files:get-read-url`.
  */
 
-import { env } from "@baseworks/config";
-import { getDb } from "@baseworks/db";
-import { defineQuery, err, ok } from "@baseworks/shared";
+import { defineQuery, err, ok, requireWithTenant } from "@baseworks/shared";
 import { Type } from "@sinclair/typebox";
 import { sql } from "drizzle-orm";
 import { findRelationByRecordType } from "../lib/relation-lookup";
@@ -49,8 +47,11 @@ export const listForRecord = defineQuery(ListForRecordInput, async (input, ctx) 
 
   // 2. Owner-scoped, tenant-scoped, live-rows-only read (uses files_owner_idx).
   //    NO storage_key / bucket in the projection — they must never leave the module.
-  const db = getDb(env.DATABASE_URL); // scoped-db-allow: files module scopes by ctx.tenantId manually (pre-ScopedDb pattern)
-  const rows = (await db.execute(sql`
+  //    Runs through the request-scoped RLS transaction (ctx.withTenant): Postgres
+  //    RLS constrains the `files` table to ctx.tenantId independent of the manual
+  //    `tenant_id = ...` predicate below, which STAYS as defense-in-depth.
+  const rows = (await requireWithTenant(ctx)((tx) =>
+    tx.execute(sql`
     SELECT id, mime_type, byte_size, status, original_filename, transforms, created_at
       FROM files
      WHERE tenant_id = ${ctx.tenantId}
@@ -59,7 +60,8 @@ export const listForRecord = defineQuery(ListForRecordInput, async (input, ctx) 
        AND owner_record_id = ${input.recordId}
        AND deleted_at IS NULL
      ORDER BY created_at
-  `)) as unknown as FileRow[];
+  `),
+  )) as unknown as FileRow[];
 
   // 3. Map to DTOs. byte_size (bigint) comes back as a string via postgres.js;
   //    Number() is safe (file sizes are far below Number.MAX_SAFE_INTEGER).

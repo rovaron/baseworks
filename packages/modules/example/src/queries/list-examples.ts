@@ -1,6 +1,7 @@
 import { examples } from "@baseworks/db";
-import { defineQuery, ok } from "@baseworks/shared";
+import { defineQuery, ok, requireWithTenant } from "@baseworks/shared";
 import { Type } from "@sinclair/typebox";
+import { eq } from "drizzle-orm";
 
 /** Default page size when the caller omits `limit`. */
 const DEFAULT_LIMIT = 50;
@@ -33,9 +34,18 @@ export const listExamples = defineQuery(ListExamplesInput, async (input, ctx) =>
   const limit = Math.min(input.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
   const offset = input.offset ?? 0;
 
-  // scopedDb.select auto-applies WHERE tenant_id = tenantId; the returned
-  // builder is chainable, so we bound it with LIMIT/OFFSET.
-  const results = await ctx.db.select(examples).limit(limit).offset(offset);
+  // Read through the request's RLS-scoped transaction. Postgres RLS confines
+  // the result set to ctx.tenantId at the DB layer; we KEEP the explicit
+  // tenant predicate as defense-in-depth (RLS is the backstop, not a
+  // replacement). The query stays bounded by LIMIT/OFFSET.
+  const results = await requireWithTenant(ctx)((tx) =>
+    tx
+      .select()
+      .from(examples)
+      .where(eq(examples.tenantId, ctx.tenantId))
+      .limit(limit)
+      .offset(offset),
+  );
 
   return ok(results);
 });

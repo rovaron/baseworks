@@ -17,9 +17,9 @@
  */
 
 import { env } from "@baseworks/config";
-import { files, getDb } from "@baseworks/db";
+import { files } from "@baseworks/db";
 import { getErrorTracker } from "@baseworks/observability";
-import { defineCommand, err, ok } from "@baseworks/shared";
+import { defineCommand, err, ok, requireWithTenant } from "@baseworks/shared";
 import { fileRelationsRegistry, getFileStorage } from "@baseworks/storage";
 import { Type } from "@sinclair/typebox";
 import { and, eq } from "drizzle-orm";
@@ -47,83 +47,88 @@ export const signUpload = defineCommand(SignUploadInput, async (input, ctx) => {
   // 3. Per-relation max size ⇒ 400 (distinct from quota's 413).
   if (input.byteSize > relation.maxByteSize) return err("file_too_large");
 
-  const db = getDb(env.DATABASE_URL); // scoped-db-allow: files module scopes by ctx.tenantId manually (pre-ScopedDb pattern)
+  // Run the entire DB flow through the request-scoped RLS transaction
+  // (ctx.withTenant): Postgres RLS constrains `files` + `tenant_storage_usage`
+  // to ctx.tenantId transaction-locally, independent of the manual tenant_id
+  // predicates below (which STAY as defense-in-depth). `tx` is passed to the
+  // quota helpers (reserveQuota/releaseQuota) and the files insert/delete.
+  return requireWithTenant(ctx)(async (tx) => {
+    // 4. Atomic quota reservation ⇒ 413 on 0 rows (QUO-02).
+    const reserved = await reserveQuota(
+      tx,
+      ctx.tenantId,
+      input.byteSize,
+      env.STORAGE_DEFAULT_QUOTA_BYTES,
+    );
+    if (!reserved) return err("quota_exceeded");
 
-  // 4. Atomic quota reservation ⇒ 413 on 0 rows (QUO-02).
-  const reserved = await reserveQuota(
-    db,
-    ctx.tenantId,
-    input.byteSize,
-    env.STORAGE_DEFAULT_QUOTA_BYTES,
-  );
-  if (!reserved) return err("quota_exceeded");
-
-  // Everything past reserveQuota must roll back on failure: release the pending
-  // bytes (R3) AND delete any pending row we inserted, so a failed sign leaves
-  // no orphan row or leaked quota. NEVER echo the raw error to the caller — a DB
-  // error (e.g. the files_bucket_key_uq unique violation) can carry the
-  // constraint name / offending storage_key, which would breach the invariant
-  // that storage internals never reach a response. Report it out-of-band.
-  let insertedFileId: string | undefined;
-  try {
-    const bucket = resolveBucket();
-    const key = buildStorageKey({
-      tenantId: ctx.tenantId,
-      ownerModule: input.ownerModule,
-      kind: input.kind,
-      mimeType: input.mimeType,
-    });
-
-    // 5. Insert pending files row (direct files-table access — module is
-    //    allow-listed; explicit tenant_id via ctx.tenantId). ownerRecordId is
-    //    "" (unattached) — Phase 27 attachFile links it to a real record.
-    const [row] = await db
-      .insert(files)
-      .values({
+    // Everything past reserveQuota must roll back on failure: release the pending
+    // bytes (R3) AND delete any pending row we inserted, so a failed sign leaves
+    // no orphan row or leaked quota. NEVER echo the raw error to the caller — a DB
+    // error (e.g. the files_bucket_key_uq unique violation) can carry the
+    // constraint name / offending storage_key, which would breach the invariant
+    // that storage internals never reach a response. Report it out-of-band.
+    let insertedFileId: string | undefined;
+    try {
+      const bucket = resolveBucket();
+      const key = buildStorageKey({
         tenantId: ctx.tenantId,
         ownerModule: input.ownerModule,
-        ownerRecordType: relation.recordType,
-        ownerRecordId: "",
-        storageKey: key,
-        bucket,
+        kind: input.kind,
         mimeType: input.mimeType,
-        byteSize: input.byteSize,
-        status: "pending",
-        uploadedByUserId: ctx.userId ?? null,
-      })
-      .returning({ id: files.id });
-    insertedFileId = row.id;
+      });
 
-    // 6. Sign (TTL ≤ 15 min). signUpload NEVER returns storage_key.
-    const signed = await getFileStorage().signUpload({
-      bucket,
-      key,
-      mimeType: input.mimeType,
-      maxByteSize: input.byteSize,
-      expiresInSec: SIGN_TTL_SEC,
-    });
+      // 5. Insert pending files row (direct files-table access — module is
+      //    allow-listed; explicit tenant_id via ctx.tenantId). ownerRecordId is
+      //    "" (unattached) — Phase 27 attachFile links it to a real record.
+      const [row] = await tx
+        .insert(files)
+        .values({
+          tenantId: ctx.tenantId,
+          ownerModule: input.ownerModule,
+          ownerRecordType: relation.recordType,
+          ownerRecordId: "",
+          storageKey: key,
+          bucket,
+          mimeType: input.mimeType,
+          byteSize: input.byteSize,
+          status: "pending",
+          uploadedByUserId: ctx.userId ?? null,
+        })
+        .returning({ id: files.id });
+      insertedFileId = row.id;
 
-    // 7. Response — fileId + signed PUT envelope. NO storageKey, NO bucket/key.
-    return ok({
-      fileId: row.id,
-      method: signed.method,
-      url: signed.url,
-      headers: signed.headers,
-      fields: signed.fields,
-      expiresAt: signed.expiresAt,
-    });
-  } catch (error) {
-    if (insertedFileId) {
-      await db
-        .delete(files)
-        .where(and(eq(files.tenantId, ctx.tenantId), eq(files.id, insertedFileId)))
-        .catch(() => {});
+      // 6. Sign (TTL ≤ 15 min). signUpload NEVER returns storage_key.
+      const signed = await getFileStorage().signUpload({
+        bucket,
+        key,
+        mimeType: input.mimeType,
+        maxByteSize: input.byteSize,
+        expiresInSec: SIGN_TTL_SEC,
+      });
+
+      // 7. Response — fileId + signed PUT envelope. NO storageKey, NO bucket/key.
+      return ok({
+        fileId: row.id,
+        method: signed.method,
+        url: signed.url,
+        headers: signed.headers,
+        fields: signed.fields,
+        expiresAt: signed.expiresAt,
+      });
+    } catch (error) {
+      if (insertedFileId) {
+        await tx
+          .delete(files)
+          .where(and(eq(files.tenantId, ctx.tenantId), eq(files.id, insertedFileId)))
+          .catch(() => {});
+      }
+      await releaseQuota(tx, ctx.tenantId, input.byteSize);
+      getErrorTracker().captureException(error, {
+        tenantId: ctx.tenantId,
+        tags: { module: "files", command: "sign-upload" },
+      });
+      return err("sign_upload_failed");
     }
-    await releaseQuota(db, ctx.tenantId, input.byteSize);
-    getErrorTracker().captureException(error, {
-      tenantId: ctx.tenantId,
-      tags: { module: "files", command: "sign-upload" },
-    });
-    return err("sign_upload_failed");
-  }
+  });
 });

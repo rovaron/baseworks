@@ -16,8 +16,7 @@
  */
 
 import { env } from "@baseworks/config";
-import { getDb } from "@baseworks/db";
-import { defineQuery, err, ok } from "@baseworks/shared";
+import { defineQuery, err, ok, requireWithTenant } from "@baseworks/shared";
 import { getFileStorage } from "@baseworks/storage";
 import { Type } from "@sinclair/typebox";
 import { sql } from "drizzle-orm";
@@ -28,17 +27,20 @@ const GetReadUrlInput = Type.Object({
 });
 
 export const getReadUrl = defineQuery(GetReadUrlInput, async (input, ctx) => {
-  const db = getDb(env.DATABASE_URL); // scoped-db-allow: files module scopes by ctx.tenantId manually (pre-ScopedDb pattern)
-
   // 1. Load tenant-scoped, non-deleted. Foreign id → 0 rows → 404 (R2).
-  const rows = (await db.execute(sql`
+  //    Runs through the request-scoped RLS transaction (ctx.withTenant): Postgres
+  //    RLS constrains the `files` table to ctx.tenantId independent of the manual
+  //    `tenant_id = ...` predicate below, which STAYS as defense-in-depth.
+  const rows = (await requireWithTenant(ctx)((tx) =>
+    tx.execute(sql`
     SELECT owner_module, owner_record_type, owner_record_id, bucket, storage_key, mime_type, original_filename
       FROM files
      WHERE id = ${input.fileId}
        AND tenant_id = ${ctx.tenantId}
        AND deleted_at IS NULL
      LIMIT 1
-  `)) as any[];
+  `),
+  )) as any[];
   const row = rows[0];
   if (!row) return err("not_found");
 

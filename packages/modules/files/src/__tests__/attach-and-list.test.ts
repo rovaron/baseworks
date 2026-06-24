@@ -33,7 +33,7 @@ const DATABASE_URL =
 
 mock.module("@baseworks/config", () => ({ env: { DATABASE_URL } }));
 
-const { files, getDb } = await import("@baseworks/db");
+const { files, getDb, getRlsDb, withTenant } = await import("@baseworks/db");
 const { fileRelationsRegistry } = await import("@baseworks/storage");
 const { sql } = await import("drizzle-orm");
 const { attachFileCommand, attachFile } = await import("../commands/attach-file");
@@ -75,7 +75,15 @@ const TENANT_A = `${RUN}_a`;
 const TENANT_B = `${RUN}_b`;
 
 function makeCtx(tenantId: string): any {
-  return { tenantId, userId: "usr_test", db: {}, emit: () => undefined };
+  return {
+    tenantId,
+    userId: "usr_test",
+    db: {},
+    emit: () => undefined,
+    // Mirror the apps/api request context: tenant DB work runs through an
+    // RLS-role transaction with app.tenant_id set transaction-locally.
+    withTenant: <T>(fn: (tx: any) => Promise<T>) => withTenant(getRlsDb(), tenantId, fn),
+  };
 }
 
 let keySeq = 0;
