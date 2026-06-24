@@ -37,7 +37,7 @@ mock.module("@baseworks/observability", () => ({
 
 const { attachFileCommand } = await import("../commands/attach-file");
 const { signUpload } = await import("../commands/sign-upload");
-const { createDb, files, tenantStorageUsage } = await import("@baseworks/db");
+const { createDb, files, getRlsDb, tenantStorageUsage, withTenant } = await import("@baseworks/db");
 const { fileRelationsRegistry, setFileStorage } = await import("@baseworks/storage");
 const { eq, inArray, sql } = await import("drizzle-orm");
 
@@ -93,6 +93,9 @@ function makeCtx(tenantId: string, emitted: Array<{ event: string; data: any }>)
     userId: "u_test",
     db: {},
     emit: (event: string, data: unknown) => emitted.push({ event, data: data as any }),
+    // Mirror the apps/api request context: attach-file's tenant DB work runs
+    // through an RLS-role transaction with app.tenant_id set transaction-locally.
+    withTenant: <T>(fn: (tx: any) => Promise<T>) => withTenant(getRlsDb(), tenantId, fn),
   };
 }
 
@@ -158,6 +161,9 @@ beforeAll(async () => {
   try {
     db = createDb(TEST_DB_URL);
     await db.execute(sql`SELECT 1`);
+    // attach-file drives its tenant DB work through ctx.withTenant(getRlsDb()),
+    // so the NON-OWNER baseworks_rls pool must be reachable too.
+    await getRlsDb().execute(sql`SELECT 1`);
     canRun = true;
   } catch (e) {
     console.warn("SKIPPED: PostgreSQL unavailable (mock contamination):", (e as Error).message);

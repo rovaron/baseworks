@@ -60,10 +60,24 @@ export function createMockDb(results?: {
     return thenableResult;
   };
 
+  // `values` returns a thenable that resolves to `insertResult` for `await`
+  // (legacy scopedDb shape: `await db.insert(t).values(d)`) AND exposes
+  // `.returning()` for the raw-Drizzle shape used inside `withTenant` txs
+  // (`tx.insert(t).values(d).returning()`). Both resolve to `insertResult`.
+  const buildInsertThenable = () => {
+    const thenable: any = {
+      // biome-ignore lint/suspicious/noThenProperty: intentional thenable that mocks Drizzle's awaitable insert builder
+      then: (onFulfilled?: (value: any[]) => unknown, onRejected?: (reason: unknown) => unknown) =>
+        Promise.resolve(insertResult).then(onFulfilled, onRejected),
+      returning: mock(() => Promise.resolve(insertResult)),
+    };
+    return thenable;
+  };
+
   return {
     select: mock(() => buildSelectThenable()),
     insert: mock(() => ({
-      values: mock(() => Promise.resolve(insertResult)),
+      values: mock(() => buildInsertThenable()),
     })),
     update: mock(() => ({
       set: mock(() => Promise.resolve(updateResult)),
@@ -84,12 +98,18 @@ export function createMockDb(results?: {
  * @returns Complete HandlerContext suitable for unit tests
  */
 export function createMockContext(overrides?: Partial<HandlerContext>): HandlerContext {
+  // Resolve the mock db once so the default `withTenant` runs the handler's
+  // fn against the SAME db instance the test configured via `overrides.db`.
+  const db = overrides?.db ?? createMockDb();
   return {
     tenantId: "test-tenant-id",
     userId: "test-user-id",
-    db: createMockDb(),
+    db,
     emit: mock(() => {}),
     enqueue: mock(() => Promise.resolve()),
+    // Default RLS executor for unit tests: invoke the handler's fn with the
+    // mock db acting as the transaction. Tests can override per-case.
+    withTenant: <T>(fn: (tx: any) => Promise<T>) => fn(db),
     ...overrides,
   };
 }

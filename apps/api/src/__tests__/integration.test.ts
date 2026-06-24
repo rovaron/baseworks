@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { createDb, examples, scopedDb } from "@baseworks/db";
+import { createDb, examples, getRlsDb, scopedDb, withTenant } from "@baseworks/db";
 import type { HandlerContext } from "@baseworks/shared";
 import { eq, sql } from "drizzle-orm";
 import { Elysia, t } from "elysia";
@@ -82,6 +82,12 @@ beforeAll(async () => {
             tenantId,
             db: scopedDb(db, tenantId),
             emit: () => {},
+            // Wire to the RLS-role pool (getRlsDb) — exactly like apps/api does —
+            // so this full HTTP→middleware→handler flow is enforced by Postgres
+            // RLS end-to-end (the route stack the unit-level rls-* tests skip).
+            // Falls back to the owner pool when DATABASE_URL_RLS is unset, in which
+            // case the manual tenant predicate still scopes the assertions.
+            withTenant: <T>(fn: (tx: any) => Promise<T>) => withTenant(getRlsDb(), tenantId, fn),
           } satisfies HandlerContext,
         };
       })

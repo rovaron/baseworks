@@ -33,7 +33,7 @@ mock.module("@baseworks/config", () => ({
 }));
 
 const { getReadUrl } = await import("../queries/get-read-url");
-const { createDb, files } = await import("@baseworks/db");
+const { createDb, files, getRlsDb, withTenant } = await import("@baseworks/db");
 const { LocalFileStorage, fileRelationsRegistry, resetFileStorage, setFileStorage } = await import(
   "@baseworks/storage"
 );
@@ -82,7 +82,13 @@ async function seedFile(args: {
   return row.id;
 }
 
-const ctx = { tenantId: TENANT, userId: "u", db: {}, emit: () => undefined } as any;
+const ctx = {
+  tenantId: TENANT,
+  userId: "u",
+  db: {},
+  emit: () => undefined,
+  withTenant: <T>(fn: (tx: any) => Promise<T>) => withTenant(getRlsDb(), TENANT, fn),
+} as any;
 
 beforeAll(async () => {
   db = createDb(TEST_DB_URL);

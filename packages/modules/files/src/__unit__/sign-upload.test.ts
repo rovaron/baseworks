@@ -99,6 +99,11 @@ const ctx = {
   userId: "usr_unit",
   db: {},
   emit: () => undefined,
+  // RLS executor (Phase 4 / Task 4.3): sign-upload now runs its DB work through
+  // ctx.withTenant. In this Postgres-less unit test the "transaction" is just the
+  // mocked fakeDb — the real transaction-local app.tenant_id behaviour is proven
+  // by the live-DB __integration__ suite, not here.
+  withTenant: <T>(fn: (tx: typeof fakeDb) => Promise<T>) => fn(fakeDb),
 } as any;
 
 describe("signUpload — validation + response contract (Phase 26)", () => {
