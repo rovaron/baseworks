@@ -1,5 +1,6 @@
 export {
   assertRedisUrl,
+  assertRlsConfigured,
   env,
   getAdminEmails,
   validateObservabilityEnv,

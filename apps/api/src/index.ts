@@ -1,5 +1,10 @@
 import "./telemetry";
-import { env, validateObservabilityEnv, validatePaymentProviderEnv } from "@baseworks/config";
+import {
+  assertRlsConfigured,
+  env,
+  validateObservabilityEnv,
+  validatePaymentProviderEnv,
+} from "@baseworks/config";
 import { closeDb, getDb, getRlsDb, scopedDb, withTenant } from "@baseworks/db";
 import { defaultLocale } from "@baseworks/i18n";
 import { promoteConfiguredAdmins, requirePermission } from "@baseworks/module-auth";
@@ -55,6 +60,9 @@ validatePaymentProviderEnv();
 validateObservabilityEnv();
 // Phase 24 — crash-hard on missing storage adapter env or production-local (D-13/D-14).
 validateStorageEnv();
+// Tenant RLS — crash-hard in production if the RLS-role connection is unset
+// (request paths would otherwise fall back to the RLS-bypassing owner pool).
+assertRlsConfigured(env.NODE_ENV, env.DATABASE_URL_RLS);
 // Phase 22 / D-15 — wrap the env-selected ErrorTracker in a ring buffer so the
 // /health/detailed endpoint (Plan 22-05) can surface a process-local rolling window
 // of recent errors without needing a Sentry/GlitchTip API token. Capacity 50 entries
