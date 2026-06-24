@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { createDb, examples, scopedDb } from "@baseworks/db";
+import { createDb, examples, scopedDb, withTenant } from "@baseworks/db";
 import type { HandlerContext } from "@baseworks/shared";
 import { eq, sql } from "drizzle-orm";
 import { Elysia, t } from "elysia";
@@ -82,6 +82,9 @@ beforeAll(async () => {
             tenantId,
             db: scopedDb(db, tenantId),
             emit: () => {},
+            // example handlers now run DB work via ctx.withTenant; provide one
+            // bound to this test's db so requireWithTenant resolves.
+            withTenant: <T>(fn: (tx: any) => Promise<T>) => withTenant(db, tenantId, fn),
           } satisfies HandlerContext,
         };
       })
