@@ -1,0 +1,10 @@
+ALTER TABLE "examples" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "billing_customers" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "usage_records" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "files" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "tenant_storage_usage" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE POLICY "examples_tenant_isolation" ON "examples" AS PERMISSIVE FOR ALL TO "baseworks_rls" USING ("examples"."tenant_id" = current_setting('app.tenant_id', true)) WITH CHECK ("examples"."tenant_id" = current_setting('app.tenant_id', true));--> statement-breakpoint
+CREATE POLICY "billing_customers_tenant_isolation" ON "billing_customers" AS PERMISSIVE FOR ALL TO "baseworks_rls" USING ("billing_customers"."tenant_id" = current_setting('app.tenant_id', true)) WITH CHECK ("billing_customers"."tenant_id" = current_setting('app.tenant_id', true));--> statement-breakpoint
+CREATE POLICY "usage_records_tenant_isolation" ON "usage_records" AS PERMISSIVE FOR ALL TO "baseworks_rls" USING ("usage_records"."tenant_id" = current_setting('app.tenant_id', true)) WITH CHECK ("usage_records"."tenant_id" = current_setting('app.tenant_id', true));--> statement-breakpoint
+CREATE POLICY "files_tenant_isolation" ON "files" AS PERMISSIVE FOR ALL TO "baseworks_rls" USING ("files"."tenant_id" = current_setting('app.tenant_id', true)) WITH CHECK ("files"."tenant_id" = current_setting('app.tenant_id', true));--> statement-breakpoint
+CREATE POLICY "tenant_storage_usage_tenant_isolation" ON "tenant_storage_usage" AS PERMISSIVE FOR ALL TO "baseworks_rls" USING ("tenant_storage_usage"."tenant_id" = current_setting('app.tenant_id', true)) WITH CHECK ("tenant_storage_usage"."tenant_id" = current_setting('app.tenant_id', true));

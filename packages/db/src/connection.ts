@@ -59,6 +59,22 @@ export function getDb(connectionString: string = process.env.DATABASE_URL as str
   return _db;
 }
 
+let _rlsDb: DbInstance | undefined;
+
+/**
+ * Lazily-initialized pool on the NON-OWNER `baseworks_rls` role (RLS-enforced).
+ * Used ONLY by tenant request paths, always through `withTenant()`. Falls back
+ * to DATABASE_URL when DATABASE_URL_RLS is unset (dev convenience) — note that
+ * the owner role bypasses RLS, so isolation is only enforced when the RLS URL
+ * is configured. validateStorageEnv-style prod gating is added in Phase 5.
+ */
+export function getRlsDb(
+  connectionString: string = (process.env.DATABASE_URL_RLS ?? process.env.DATABASE_URL) as string,
+): DbInstance {
+  if (!_rlsDb) _rlsDb = createDb(connectionString);
+  return _rlsDb;
+}
+
 /**
  * Close the shared singleton's connection pool for graceful shutdown.
  *
@@ -67,11 +83,14 @@ export function getDb(connectionString: string = process.env.DATABASE_URL as str
  * call when no singleton has been created.
  */
 export async function closeDb(): Promise<void> {
-  const sql = (
-    _db as
-      | (DbInstance & { $sql?: { end: (o?: { timeout?: number }) => Promise<void> } })
-      | undefined
-  )?.$sql;
-  if (sql) await sql.end({ timeout: 5 });
+  for (const inst of [_db, _rlsDb]) {
+    const sql = (
+      inst as
+        | (DbInstance & { $sql?: { end: (o?: { timeout?: number }) => Promise<void> } })
+        | undefined
+    )?.$sql;
+    if (sql) await sql.end({ timeout: 5 });
+  }
   _db = undefined;
+  _rlsDb = undefined;
 }

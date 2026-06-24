@@ -81,6 +81,11 @@ jobs:
     env:
       # Match the var names apps/api test setup + packages/config/src/env.ts expect.
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      # Tenant RLS: a NON-OWNER, RLS-enforced role on the same DB. Provisioned
+      # BEFORE migrations (migration 0009 creates policies TO this role). Setting
+      # DATABASE_URL_RLS un-skips the rls-isolation proof test so CI enforces it.
+      DATABASE_URL_RLS: postgres://baseworks_rls:baseworks_rls_ci@localhost:5432/postgres
+      BASEWORKS_RLS_PASSWORD: baseworks_rls_ci
       REDIS_URL: redis://localhost:6379
       # Required by packages/config/src/env.ts (no dev fallback under NODE_ENV=test).
       # CI-only dummy — never a real secret. Must be >= 32 chars.
@@ -117,6 +122,12 @@ jobs:
         run: aws --endpoint-url http://localhost:9000 s3 mb s3://conformance
         env:
           AWS_DEFAULT_REGION: us-east-1
+
+      - name: Provision RLS role (must run BEFORE migrations)
+        # Migration 0009 creates RLS policies TO "baseworks_rls", so the role must
+        # exist first; ALTER DEFAULT PRIVILEGES here ensures migrate-created tables
+        # are auto-granted to it.
+        run: bun run db:setup-rls
 
       - name: Run database migrations
         run: bun run db:migrate

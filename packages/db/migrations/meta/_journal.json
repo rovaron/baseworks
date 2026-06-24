@@ -57,6 +57,13 @@
       "when": 1782097874718,
       "tag": "0008_cuddly_randall_flagg",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1782269938036,
+      "tag": "0009_elite_chimera",
+      "breakpoints": true
     }
   ]
 }

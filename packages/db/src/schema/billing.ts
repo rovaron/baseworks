@@ -1,5 +1,6 @@
 import { boolean, index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { primaryKeyColumn, tenantIdColumn, timestampColumns } from "./base";
+import { tenantRlsPolicy } from "./rls";
 
 /**
  * Billing module tables.
@@ -29,7 +30,10 @@ export const billingCustomers = pgTable(
     lastEventAt: timestamp("last_event_at"),
     ...timestampColumns(),
   },
-  (t) => [index("billing_customers_tenant_id_idx").on(t.tenantId)],
+  (t) => [
+    index("billing_customers_tenant_id_idx").on(t.tenantId),
+    tenantRlsPolicy("billing_customers_tenant_isolation", t.tenantId),
+  ],
 );
 
 export const webhookEvents = pgTable("webhook_events", {
@@ -61,5 +65,6 @@ export const usageRecords = pgTable(
     // (same limitation noted at storage.ts:67-69); add it in the migration
     // SQL if needed. The plain index fully resolves the finding.
     index("usage_records_synced_idx").on(t.syncedToProvider),
+    tenantRlsPolicy("usage_records_tenant_isolation", t.tenantId),
   ],
 );

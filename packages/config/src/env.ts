@@ -17,6 +17,7 @@ const DEV_AUTH_SECRET_DEFAULT = "development-secret-at-least-32-chars-long";
  */
 const serverSchema = {
   DATABASE_URL: z.string().url(),
+  DATABASE_URL_RLS: z.string().url().optional(),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   PORT: z.coerce.number().default(3000),
   REDIS_URL: z.string().url().optional(),

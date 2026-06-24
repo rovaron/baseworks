@@ -1,5 +1,9 @@
 services:
   postgres:
+    # Tenant RLS: run `bun run db:setup-rls` BEFORE `bun run db:migrate` (migration
+    # 0009 creates policies TO the baseworks_rls role, so it must exist first;
+    # ALTER DEFAULT PRIVILEGES then auto-grants migrate-created tables). CI does
+    # this in its DB setup step.
     image: postgres:16
     ports:
       - "5432:5432"

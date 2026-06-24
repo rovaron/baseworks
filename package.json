@@ -12,6 +12,7 @@
     "db:generate": "bun drizzle-kit generate --config packages/db/drizzle.config.ts",
     "db:migrate": "bun drizzle-kit migrate --config packages/db/drizzle.config.ts",
     "db:push": "bun drizzle-kit push --config packages/db/drizzle.config.ts",
+    "db:setup-rls": "bun scripts/db-setup-rls-role.ts",
     "prepare": "husky",
     "lint": "biome check . && bun run lint:als && bun run lint:files-access && bun run lint:cross-module && bun run lint:tenant-db",
     "lint:als": "bash scripts/lint-no-enterwith.sh",
@@ -48,6 +49,7 @@
     "drizzle-kit": "0.31.10",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.0",
+    "postgres": "^3.4.0",
     "tsx": "4.21.0",
     "typescript": "^5.5.0"
   },
