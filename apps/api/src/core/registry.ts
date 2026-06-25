@@ -15,6 +15,7 @@ const moduleImportMap: Record<string, () => Promise<any>> = {
   auth: () => import("@baseworks/module-auth"),
   billing: () => import("@baseworks/module-billing"),
   files: () => import("@baseworks/module-files"),
+  notifications: () => import("@baseworks/module-notifications"),
   // Future modules added here:
 };
 

@@ -75,7 +75,7 @@ installGlobalErrorHandlers(errorTracker);
 // Create module registry -- auth module loaded alongside example
 const registry = new ModuleRegistry({
   role: env.INSTANCE_ROLE as "api" | "worker" | "all",
-  modules: ["auth", "billing", "example", "files"],
+  modules: ["auth", "billing", "example", "files", "notifications"],
 });
 
 // Load all configured modules
