@@ -10,6 +10,8 @@ export {
   billingCustomers,examples, files, 
   invitation,
   member,
+  notification,
+  notificationDelivery,
   organization,
   organizationRole,primaryKeyColumn,
   session,storageJobRuns, tenantIdColumn, tenantStorageUsage, timestampColumns,

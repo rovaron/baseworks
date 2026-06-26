@@ -16,7 +16,7 @@
       "!**/.planning",
       "!**/__fixtures__",
       "!**/__tests__/fixtures",
-      "!**/migrations/meta/**",
+      "!**/migrations/meta",
       "!**/*.grit",
       "!**/globals.css"
     ]
