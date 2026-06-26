@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "next dev --port 3001",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "vitest run"
   },
   "dependencies": {
     "@baseworks/api-client": "workspace:*",
@@ -30,10 +31,15 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.0.0",
-    "postcss": "^8.0.0",
+    "@testing-library/jest-dom": "^6",
+    "@testing-library/react": "^16",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "typescript": "^5.5.0"
+    "@vitejs/plugin-react": "^4.0.0",
+    "jsdom": "^29",
+    "postcss": "^8.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^4"
   }
 }

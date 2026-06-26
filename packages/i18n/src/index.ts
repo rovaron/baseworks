@@ -11,6 +11,7 @@ export const namespaces = [
   "invite",
   "files",
   "roles",
+  "notifications",
 ] as const;
 export type Namespace = (typeof namespaces)[number];
 
@@ -22,6 +23,7 @@ export { default as enCommon } from "./locales/en/common.json";
 export { default as enDashboard } from "./locales/en/dashboard.json";
 export { default as enFiles } from "./locales/en/files.json";
 export { default as enInvite } from "./locales/en/invite.json";
+export { default as enNotifications } from "./locales/en/notifications.json";
 export { default as enRoles } from "./locales/en/roles.json";
 export { default as ptBRAdmin } from "./locales/pt-BR/admin.json";
 export { default as ptBRAuth } from "./locales/pt-BR/auth.json";
@@ -31,6 +33,7 @@ export { default as ptBRCommon } from "./locales/pt-BR/common.json";
 export { default as ptBRDashboard } from "./locales/pt-BR/dashboard.json";
 export { default as ptBRFiles } from "./locales/pt-BR/files.json";
 export { default as ptBRInvite } from "./locales/pt-BR/invite.json";
+export { default as ptBRNotifications } from "./locales/pt-BR/notifications.json";
 export { default as ptBRRoles } from "./locales/pt-BR/roles.json";
 
 /**
