@@ -1,0 +1,7 @@
+{
+  "title": "Notifications",
+  "empty": "No notifications",
+  "markAllRead": "Mark all as read",
+  "unreadLabel": "{count} unread notifications",
+  "bellLabel": "Notifications"
+}
