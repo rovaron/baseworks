@@ -64,7 +64,6 @@ mock.module("postgres", () => ({
 
 // Import after mocks
 const billingModule = (await import("../index")).default;
-const { sendEmail } = await import("../jobs/send-email");
 const { billingCustomers, webhookEvents, usageRecords } = await import("@baseworks/db");
 
 describe("Billing Module Definition", () => {
@@ -92,7 +91,6 @@ describe("Billing Module Definition", () => {
     const jobKeys = Object.keys(billingModule.jobs);
     expect(jobKeys).toContain("billing-process-webhook");
     expect(jobKeys).toContain("billing-sync-usage");
-    expect(jobKeys).toContain("email-send");
   });
 
   test("module has events array with expected events", () => {
@@ -120,59 +118,12 @@ describe("Billing Module Definition", () => {
   });
 });
 
-describe("Email Job Handler", () => {
-  test("throws on unknown template", async () => {
-    // sendEmail checks env.RESEND_API_KEY which is mocked as undefined,
-    // so it will log fallback. We need to test with a key set.
-    // Since env is mocked, we test the template lookup directly.
-    // The function checks RESEND_API_KEY first -- when undefined, it skips.
-    // To test the unknown template error, we need to provide a key.
-    // We can't easily override the mock, so we test the fallback path instead.
-
-    // Test that unknown template with no API key still logs correctly
-    const logSpy = mock((_message: string) => {});
-    const originalLog = console.log;
-    console.log = logSpy;
-
-    try {
-      await sendEmail({
-        to: "test@example.com",
-        template: "nonexistent-template",
-        data: {},
-      });
-
-      // Without RESEND_API_KEY, it should log fallback (not throw)
-      expect(logSpy).toHaveBeenCalledTimes(1);
-      const logMessage = logSpy.mock.calls[0][0];
-      expect(logMessage).toContain("[EMAIL] Skipping send");
-      expect(logMessage).toContain("template=nonexistent-template");
-    } finally {
-      console.log = originalLog;
-    }
-  });
-
-  test("logs fallback when RESEND_API_KEY is not set", async () => {
-    const logSpy = mock((_message: string) => {});
-    const originalLog = console.log;
-    console.log = logSpy;
-
-    try {
-      await sendEmail({
-        to: "test@example.com",
-        template: "welcome",
-        data: { userName: "Test" },
-      });
-
-      expect(logSpy).toHaveBeenCalledTimes(1);
-      const logMessage = logSpy.mock.calls[0][0];
-      expect(logMessage).toContain("[EMAIL] Skipping send");
-      expect(logMessage).toContain("template=welcome");
-      expect(logMessage).toContain("to=test@example.com");
-    } finally {
-      console.log = originalLog;
-    }
-  });
-});
+// NOTE: The email pipeline (template render + graceful no-key skip) moved out of
+// billing into @baseworks/module-notifications in Phase 3. Equivalent behavior
+// coverage now lives there:
+//   - render + subjects + unknown-template throw → notifications/src/lib/__tests__/email-render.test.ts
+//   - graceful skip when no RESEND_API_KEY      → notifications/src/channels/__tests__/resend-provider.test.ts
+//   - enqueue → worker render+send (mock provider) → notifications/src/__tests__/deliver-transactional.test.ts
 
 describe("Billing Schema", () => {
   test("billingCustomers table has expected columns", () => {
