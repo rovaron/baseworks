@@ -77,4 +77,27 @@ describe("EmailAdapter", () => {
 
     expect(res).toEqual({ status: "skipped", reason: "no provider" });
   });
+
+  test("links an http(s) CTA but escapes a hostile url so it can't break out of the attribute", async () => {
+    const { provider, sent } = fakeProvider({ messageId: "m" });
+    const db = fakeDb([{ email: "a@b.c" }]);
+    const adapter = new EmailAdapter(provider, db);
+
+    await adapter.deliver({ ...baseNotification, url: 'https://x/"><script>' }, "d1");
+
+    expect(sent[0].html).toContain("<a href=");
+    expect(sent[0].html).not.toContain('"><script>');
+    expect(sent[0].html).toContain("&quot;&gt;&lt;script&gt;");
+  });
+
+  test("drops the CTA for a non-http(s) url (no javascript: injection)", async () => {
+    const { provider, sent } = fakeProvider({ messageId: "m" });
+    const db = fakeDb([{ email: "a@b.c" }]);
+    const adapter = new EmailAdapter(provider, db);
+
+    await adapter.deliver({ ...baseNotification, url: "javascript:alert(1)" }, "d1");
+
+    expect(sent[0].html).not.toContain("javascript:");
+    expect(sent[0].html).not.toContain("<a href=");
+  });
 });

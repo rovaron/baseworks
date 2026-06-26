@@ -18,6 +18,17 @@ function escapeHtml(value: string): string {
 }
 
 /**
+ * Render the optional CTA link. Only `http(s)` URLs are linked, and the value is
+ * HTML-escaped — so a malformed/hostile `url` can neither break out of the href
+ * attribute nor inject a non-http scheme (e.g. `javascript:`). A non-http(s)
+ * url drops the CTA rather than emitting an unsafe link.
+ */
+function ctaHtml(url: string | null | undefined): string {
+  if (!url || !/^https?:\/\//i.test(url)) return "";
+  return `<p><a href="${escapeHtml(url)}">View</a></p>`;
+}
+
+/**
  * Resolve a recipient's email address from the auth `user` table.
  * Runs in the worker via the owner db (cross-tenant/trusted), so no RLS scope.
  */
@@ -52,9 +63,7 @@ export class EmailAdapter implements ChannelAdapter {
     const email = await resolveRecipientEmail(this.db, n.recipientUserId);
     if (!email) return { status: "skipped", reason: "no email for recipient" };
 
-    const html = `<h2>${escapeHtml(n.title)}</h2><p>${escapeHtml(n.body)}</p>${
-      n.url ? `<p><a href="${n.url}">View</a></p>` : ""
-    }`;
+    const html = `<h2>${escapeHtml(n.title)}</h2><p>${escapeHtml(n.body)}</p>${ctaHtml(n.url)}`;
     const res = await this.provider.send({ to: email, subject: n.title, html });
     return res.skipped
       ? { status: "skipped", reason: "no provider" }
