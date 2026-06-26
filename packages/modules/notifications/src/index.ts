@@ -3,6 +3,8 @@ import type { ModuleDefinition } from "@baseworks/shared";
 import { markAllRead } from "./commands/mark-all-read";
 import { markRead } from "./commands/mark-read";
 import { notify } from "./commands/notify";
+import { sendTransactionalEmail } from "./commands/send-transactional-email";
+import { deliver } from "./jobs/deliver";
 import { listNotifications } from "./queries/list-notifications";
 import { unreadCount } from "./queries/unread-count";
 import { notificationRoutes } from "./routes";
@@ -29,10 +31,17 @@ export default {
     "notifications:notify": notify,
     "notifications:mark-read": markRead,
     "notifications:mark-all-read": markAllRead,
+    "notifications:send-transactional-email": sendTransactionalEmail,
   },
   queries: {
     "notifications:list": listNotifications,
     "notifications:unread-count": unreadCount,
+  },
+  jobs: {
+    "notifications-deliver": {
+      queue: "notifications-deliver",
+      handler: deliver,
+    },
   },
   events: ["notification.created"],
 } satisfies ModuleDefinition;

@@ -1,8 +1,11 @@
 // packages/modules/notifications/src/sse/runtime.ts
 import { env } from "@baseworks/config";
+import { getDb } from "@baseworks/db";
 import { getRedisConnection } from "@baseworks/queue";
+import { EmailAdapter } from "../channels/email";
 import { InAppAdapter } from "../channels/in-app";
 import { registerAdapter } from "../channels/registry";
+import { ResendEmailProvider } from "../channels/resend-provider";
 import { SseBridge } from "./bridge";
 
 let bridge: SseBridge | undefined;
@@ -13,6 +16,11 @@ export function ensureNotificationsRuntime(): void {
   if (wired || !env.REDIS_URL) return;
   const pub = getRedisConnection(env.REDIS_URL);
   registerAdapter(new InAppAdapter({ publish: (c, m) => pub.publish(c, m) }));
+  // Email channel: notify() enqueues a `channel-delivery` job onto
+  // `notifications-deliver`; the worker reuses this same adapter to render+send.
+  registerAdapter(
+    new EmailAdapter(new ResendEmailProvider(env.RESEND_API_KEY), getDb(env.DATABASE_URL)),
+  );
   // Dedicated subscriber connection (ioredis enters subscriber mode on the first
   // SUBSCRIBE). `enableReadyCheck: false` suppresses the post-connect `INFO`
   // probe, which otherwise races a buffered SUBSCRIBE and throws "Connection in
