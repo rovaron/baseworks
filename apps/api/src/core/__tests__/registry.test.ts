@@ -87,6 +87,12 @@ describe("ModuleRegistry edge cases", () => {
     expect(typeof eventBus.emit).toBe("function");
   });
 
+  it("loads the notifications module", async () => {
+    const registry = new ModuleRegistry({ role: "api", modules: ["notifications"] });
+    await registry.loadAll();
+    expect(registry.getLoadedNames()).toContain("notifications");
+  });
+
   it("worker role skips route attachment in getModuleRoutes", async () => {
     const registry = new ModuleRegistry({ role: "worker", modules: ["example"] });
     await registry.loadAll();

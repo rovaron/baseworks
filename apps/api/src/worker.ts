@@ -42,7 +42,7 @@ const db = getDb(env.DATABASE_URL);
 // Create module registry in worker role (skips route attachment)
 const registry = new ModuleRegistry({
   role: "worker",
-  modules: ["example", "billing", "files"],
+  modules: ["example", "billing", "files", "notifications"],
 });
 
 // Load all configured modules
