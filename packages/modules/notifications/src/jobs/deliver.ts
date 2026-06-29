@@ -2,11 +2,14 @@
 import { env } from "@baseworks/config";
 import { getDb, notification, notificationDelivery } from "@baseworks/db";
 import { eq } from "drizzle-orm";
+import pino from "pino";
 import type { DeliverableNotification } from "../channels/channel";
 import { EmailAdapter } from "../channels/email";
 import type { EmailProvider } from "../channels/email-provider";
 import { ResendEmailProvider } from "../channels/resend-provider";
 import { renderEmail } from "../lib/email-render";
+
+const logger = pino({ name: "notifications-deliver" });
 
 /**
  * Project a persisted `notification` row onto the minimal shape a channel
@@ -73,7 +76,16 @@ export async function deliver(payload: unknown, deps: Partial<DeliverDeps> = {})
 
   if (job.kind === "transactional-email") {
     const { html, subject } = await renderEmail(job.template, job.data);
-    await provider().send({ to: job.to, subject, html });
+    const res = await provider().send({ to: job.to, subject, html });
+    // No db row backs a transactional email, so a skip (e.g. missing
+    // RESEND_API_KEY) would otherwise be invisible. Surface it — in prod this
+    // means auth/billing mail is silently not being sent.
+    if (res.skipped) {
+      logger.warn(
+        { template: job.template, to: job.to },
+        "transactional email skipped (no provider)",
+      );
+    }
     return;
   }
 

@@ -111,13 +111,15 @@ export const notify = defineCommand(NotifyInput, async (input, ctx) => {
   // queue name + `{ kind: "channel-delivery", ... }` payload is the contract.
   const queue = getDeliverQueue();
   if (channelJobs.length > 0 && queue) {
-    for (const job of channelJobs) {
-      await queue.add("channel-delivery", {
-        kind: "channel-delivery",
-        deliveryId: job.deliveryId,
-        channel: job.channel,
-      });
-    }
+    await Promise.all(
+      channelJobs.map((job) =>
+        queue.add("channel-delivery", {
+          kind: "channel-delivery",
+          deliveryId: job.deliveryId,
+          channel: job.channel,
+        }),
+      ),
+    );
   }
 
   ctx.emit("notification.created", { tenantId: ctx.tenantId, count: createdIds.length });

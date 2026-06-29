@@ -33,6 +33,25 @@ describe("deliver — transactional-email branch", () => {
     expect(sent.html.length).toBeGreaterThan(0);
   });
 
+  test("completes without throwing when the provider skips (no API key)", async () => {
+    const skipping: EmailProvider = {
+      async send(): Promise<EmailSendResult> {
+        return { skipped: true };
+      },
+    };
+
+    // Resolves cleanly (and logs a warning); a skip must not crash the worker.
+    await deliver(
+      {
+        kind: "transactional-email",
+        to: "user@example.com",
+        template: "welcome",
+        data: { userName: "Ada" },
+      },
+      { provider: () => skipping },
+    );
+  });
+
   test("does not touch the db for the transactional-email branch", async () => {
     const fake = new FakeProvider();
     // db factory throws — proves the transactional branch never resolves it.
