@@ -132,7 +132,10 @@ export const notify = defineCommand(NotifyInput, async (input, ctx) => {
   // Webhook fan-out — ONCE per event (not per recipient). Eligible endpoints are
   // this tenant's active endpoints subscribed to the notification's category,
   // unless the catalog entry opts out via `webhookable: false`.
-  if (entry.webhookable !== false) {
+  // Only persist+dispatch when a queue exists — without REDIS_URL the worker can
+  // never run, so writing "pending" rows would orphan them forever.
+  const webhookQueue = entry.webhookable !== false ? getWebhookQueue() : null;
+  if (webhookQueue) {
     const deliveryIds = await requireWithTenant(ctx)(async (tx) => {
       const endpoints = await tx
         .select()
@@ -163,8 +166,7 @@ export const notify = defineCommand(NotifyInput, async (input, ctx) => {
       return ids;
     });
 
-    const webhookQueue = getWebhookQueue();
-    if (deliveryIds.length > 0 && webhookQueue) {
+    if (deliveryIds.length > 0) {
       await Promise.all(
         deliveryIds.map((deliveryId) =>
           webhookQueue.add("webhook-event", { kind: "webhook-event", deliveryId }),

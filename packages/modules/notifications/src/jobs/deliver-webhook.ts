@@ -1,9 +1,11 @@
 // packages/modules/notifications/src/jobs/deliver-webhook.ts
+import { lookup as dnsLookup } from "node:dns/promises";
+import { request as httpsRequest } from "node:https";
 import { env } from "@baseworks/config";
 import { getDb, notificationWebhook, notificationWebhookDelivery } from "@baseworks/db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import pino from "pino";
-import { assertSafeWebhookUrl } from "../lib/webhook-security";
+import { assertSafeWebhookUrl, isPrivateAddress } from "../lib/webhook-security";
 import { signWebhook } from "../lib/webhook-signature";
 
 const logger = pino({ name: "notifications-webhook" });
@@ -27,14 +29,51 @@ export interface WebhookDeps {
   now: () => number;
 }
 
-const defaultHttpPost: WebhookDeps["httpPost"] = async (url, headers, body) => {
-  const res = await fetch(url, {
-    method: "POST",
-    headers,
-    body,
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+/**
+ * Production webhook POST. Resolves the host ONCE, rejects any private/internal
+ * address, then connects to that exact validated IP (pinned) with the original
+ * hostname as TLS SNI + `Host`. Pinning + `node:https` (which does NOT follow
+ * redirects) together close two SSRF vectors that a plain `fetch` leaves open:
+ *  - DNS rebinding (the IP validated is the IP connected to — no re-resolution).
+ *  - 3xx redirect to an internal address (no redirect is ever followed; a 3xx
+ *    is returned as-is and treated as a non-2xx failure upstream).
+ */
+const defaultHttpPost: WebhookDeps["httpPost"] = async (rawUrl, headers, body) => {
+  const url = new URL(rawUrl);
+  if (url.protocol !== "https:") throw new Error("Webhook URL must use https://");
+
+  const addrs = await dnsLookup(url.hostname, { all: true });
+  if (addrs.length === 0) throw new Error(`Webhook host did not resolve: ${url.hostname}`);
+  for (const { address } of addrs) {
+    if (isPrivateAddress(address)) {
+      throw new Error(
+        `Webhook URL resolves to a private/internal address (${address}); not allowed`,
+      );
+    }
+  }
+  const pinnedIp = addrs[0].address;
+
+  return await new Promise<{ status: number }>((resolve, reject) => {
+    const req = httpsRequest(
+      {
+        host: pinnedIp,
+        servername: url.hostname, // SNI + certificate validation against the hostname
+        port: url.port ? Number(url.port) : 443,
+        path: `${url.pathname}${url.search}`,
+        method: "POST",
+        headers: { ...headers, Host: url.host },
+        timeout: REQUEST_TIMEOUT_MS,
+      },
+      (res) => {
+        res.resume(); // drain so the socket is released
+        resolve({ status: res.statusCode ?? 0 });
+      },
+    );
+    req.on("timeout", () => req.destroy(new Error("Webhook request timed out")));
+    req.on("error", reject);
+    req.write(body);
+    req.end();
   });
-  return { status: res.status };
 };
 
 const defaultDeps: Pick<WebhookDeps, "db" | "httpPost" | "now"> = {
@@ -88,23 +127,24 @@ export async function deliverWebhook(
       .update(notificationWebhookDelivery)
       .set({ status: "failed", attempts: String(attempt), httpStatus, lastError: message })
       .where(eq(notificationWebhookDelivery.id, delivery.id));
-    if (attempt >= WEBHOOK_MAX_ATTEMPTS) {
-      const failures = Number(endpoint.consecutiveFailures) + 1;
-      // biome-ignore lint/suspicious/noExplicitAny: partial column patch
-      const patch: any = {
-        consecutiveFailures: String(failures),
-        lastStatus: "failed",
-        lastDeliveryAt: new Date(),
-      };
-      if (failures >= WEBHOOK_AUTO_DISABLE_THRESHOLD) {
-        patch.status = "auto_disabled";
-        patch.disabledReason = `${failures} consecutive failures`;
-        logger.warn({ webhookId: endpoint.id, failures }, "webhook endpoint auto-disabled");
-      }
+    // Bump the endpoint's consecutive-failure count only on the FINAL attempt
+    // (=== not >=, so a stalled-job re-run with attempts already past max does
+    // not double-count). The increment + auto-disable run in ONE atomic UPDATE
+    // computed in SQL — a read-modify-write off the captured row would lose
+    // updates under worker concurrency, so auto-disable might never fire.
+    if (attempt === WEBHOOK_MAX_ATTEMPTS) {
+      const next = sql`(${notificationWebhook.consecutiveFailures}::int + 1)`;
       await db
         .update(notificationWebhook)
-        .set(patch)
+        .set({
+          consecutiveFailures: sql`${next}::text`,
+          lastStatus: "failed",
+          lastDeliveryAt: new Date(),
+          status: sql`CASE WHEN ${next} >= ${WEBHOOK_AUTO_DISABLE_THRESHOLD} THEN 'auto_disabled' ELSE ${notificationWebhook.status} END`,
+          disabledReason: sql`CASE WHEN ${next} >= ${WEBHOOK_AUTO_DISABLE_THRESHOLD} THEN ${next}::text || ' consecutive failures' ELSE ${notificationWebhook.disabledReason} END`,
+        })
         .where(eq(notificationWebhook.id, endpoint.id));
+      logger.warn({ webhookId: endpoint.id }, "webhook delivery exhausted retries");
     }
   };
 

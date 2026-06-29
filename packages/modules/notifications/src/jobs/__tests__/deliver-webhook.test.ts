@@ -1,7 +1,7 @@
 // packages/modules/notifications/src/jobs/__tests__/deliver-webhook.test.ts
 import { describe, expect, test } from "bun:test";
 import { notificationWebhook, notificationWebhookDelivery } from "@baseworks/db";
-import { deliverWebhook, WEBHOOK_AUTO_DISABLE_THRESHOLD } from "../deliver-webhook";
+import { deliverWebhook } from "../deliver-webhook";
 
 type Row = Record<string, unknown>;
 
@@ -131,10 +131,16 @@ describe("deliverWebhook", () => {
     });
   });
 
-  test("final attempt failure → bumps endpoint consecutiveFailures", async () => {
+  // The exact consecutiveFailures increment + auto-disable threshold are computed
+  // atomically in SQL (CASE/`::int + 1`), so the captured `.set()` payload holds
+  // SQL expression objects rather than literal strings — those concrete values
+  // are verified against a real DB in __integration__/deliver-webhook.test.ts.
+  // These two unit tests pin the *control flow*: the endpoint row is touched
+  // exactly once, and only on the final attempt.
+  test("final attempt failure → issues exactly one atomic endpoint failure update", async () => {
     const calls: Array<{ table: unknown; payload: Row }> = [];
     const db = fakeDb({
-      delivery: { ...baseDelivery, attempts: "2" }, // this is attempt #3 (== max)
+      delivery: { ...baseDelivery, attempts: "2" }, // this is attempt #3 (=== max)
       endpoint: { ...baseEndpoint, consecutiveFailures: "0" },
       onUpdate: (u) => calls.push(u),
     });
@@ -144,20 +150,18 @@ describe("deliverWebhook", () => {
         { db: () => db, httpPost: async () => ({ status: 500 }), lookup: okLookup },
       ),
     ).rejects.toThrow();
-    expect(updatesFor(notificationWebhook, calls)[0]).toMatchObject({
-      consecutiveFailures: "1",
-      lastStatus: "failed",
-    });
+    const epUpdates = updatesFor(notificationWebhook, calls);
+    expect(epUpdates).toHaveLength(1);
+    expect(epUpdates[0].lastStatus).toBe("failed");
+    expect(epUpdates[0].consecutiveFailures).toBeDefined(); // SQL increment expression
+    expect(epUpdates[0].status).toBeDefined(); // SQL auto-disable CASE expression
   });
 
-  test("auto-disables at the threshold of consecutive failures", async () => {
+  test("non-final attempt failure → does NOT touch the endpoint row (only the delivery)", async () => {
     const calls: Array<{ table: unknown; payload: Row }> = [];
     const db = fakeDb({
-      delivery: { ...baseDelivery, attempts: "2" },
-      endpoint: {
-        ...baseEndpoint,
-        consecutiveFailures: String(WEBHOOK_AUTO_DISABLE_THRESHOLD - 1),
-      },
+      delivery: { ...baseDelivery, attempts: "0" }, // attempt #1, below max
+      endpoint: { ...baseEndpoint, consecutiveFailures: "0" },
       onUpdate: (u) => calls.push(u),
     });
     await expect(
@@ -166,9 +170,10 @@ describe("deliverWebhook", () => {
         { db: () => db, httpPost: async () => ({ status: 500 }), lookup: okLookup },
       ),
     ).rejects.toThrow();
-    expect(updatesFor(notificationWebhook, calls)[0]).toMatchObject({
-      status: "auto_disabled",
-      consecutiveFailures: String(WEBHOOK_AUTO_DISABLE_THRESHOLD),
+    expect(updatesFor(notificationWebhook, calls)).toHaveLength(0);
+    expect(updatesFor(notificationWebhookDelivery, calls)[0]).toMatchObject({
+      status: "failed",
+      attempts: "1",
     });
   });
 
