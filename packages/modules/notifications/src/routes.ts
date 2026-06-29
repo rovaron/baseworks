@@ -1,9 +1,16 @@
 // packages/modules/notifications/src/routes.ts
 import { Elysia } from "elysia";
 import { userChannel } from "./channels/in-app";
+import { createWebhook } from "./commands/create-webhook";
+import { deleteWebhook } from "./commands/delete-webhook";
 import { markAllRead } from "./commands/mark-all-read";
 import { markRead } from "./commands/mark-read";
+import { redeliverWebhook } from "./commands/redeliver-webhook";
+import { rotateWebhookSecret } from "./commands/rotate-webhook-secret";
+import { updateWebhook } from "./commands/update-webhook";
 import { listNotifications } from "./queries/list-notifications";
+import { listWebhookDeliveries } from "./queries/list-webhook-deliveries";
+import { listWebhooks } from "./queries/list-webhooks";
 import { unreadCount } from "./queries/unread-count";
 import { getSseBridge } from "./sse/runtime"; // returns the process SseBridge (Task 7)
 
@@ -65,4 +72,30 @@ export const notificationRoutes = new Elysia({ prefix: "/api/notifications" })
         connection: "keep-alive",
       },
     });
-  });
+  })
+  .post("/webhooks", async ({ handlerCtx, body }: any) => createWebhook(body, handlerCtx))
+  .get("/webhooks", async ({ handlerCtx }: any) => listWebhooks({}, handlerCtx))
+  .patch("/webhooks/:id", async ({ handlerCtx, params, body }: any) =>
+    // Path id is authoritative — spread body first so a body-supplied `id` can't override it.
+    updateWebhook({ ...body, id: params.id }, handlerCtx),
+  )
+  .delete("/webhooks/:id", async ({ handlerCtx, params }: any) =>
+    deleteWebhook({ id: params.id }, handlerCtx),
+  )
+  .post("/webhooks/:id/rotate-secret", async ({ handlerCtx, params }: any) =>
+    rotateWebhookSecret({ id: params.id }, handlerCtx),
+  )
+  .get("/webhooks/:id/deliveries", async ({ handlerCtx, params, query }: any) =>
+    listWebhookDeliveries(
+      {
+        webhookId: params.id,
+        status: query.status,
+        limit: query.limit ? Number(query.limit) : undefined,
+        offset: query.offset ? Number(query.offset) : undefined,
+      },
+      handlerCtx,
+    ),
+  )
+  .post("/webhooks/deliveries/:deliveryId/redeliver", async ({ handlerCtx, params }: any) =>
+    redeliverWebhook({ deliveryId: params.deliveryId }, handlerCtx),
+  );
