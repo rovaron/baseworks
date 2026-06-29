@@ -12,6 +12,8 @@ export {
   member,
   notification,
   notificationDelivery,
+  notificationWebhook,
+  notificationWebhookDelivery,
   organization,
   organizationRole,primaryKeyColumn,
   session,storageJobRuns, tenantIdColumn, tenantStorageUsage, timestampColumns,
