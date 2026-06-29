@@ -76,10 +76,39 @@ export const notificationWebhook = pgTable(
     url: text("url").notNull(),
     secret: text("secret").notNull(),
     categories: jsonb("categories"),
-    enabled: boolean("enabled").notNull().default(true),
+    description: text("description"),
+    // active | disabled (tenant) | auto_disabled (system, after repeated failures)
+    status: text("status").notNull().default("active"),
+    consecutiveFailures: text("consecutive_failures").notNull().default("0"),
+    lastDeliveryAt: timestamp("last_delivery_at"),
+    lastStatus: text("last_status"), // success | failed
+    disabledReason: text("disabled_reason"),
     ...timestampColumns(),
   },
   (t) => [tenantRlsPolicy("notification_webhook_tenant_isolation", t.tenantId)],
+);
+
+/** Per (event, endpoint) delivery audit — updated in place across retries. */
+export const notificationWebhookDelivery = pgTable(
+  "notification_webhook_delivery",
+  {
+    id: primaryKeyColumn(),
+    tenantId: tenantIdColumn(),
+    webhookId: text("webhook_id").notNull(),
+    eventType: text("event_type").notNull(),
+    category: text("category").notNull(),
+    payload: jsonb("payload").notNull(),
+    status: text("status").notNull(), // pending | success | failed | skipped
+    httpStatus: text("http_status"),
+    attempts: text("attempts").notNull().default("0"),
+    lastError: text("last_error"),
+    deliveredAt: timestamp("delivered_at"),
+    ...timestampColumns(),
+  },
+  (t) => [
+    index("notification_webhook_delivery_lookup_idx").on(t.tenantId, t.webhookId, t.createdAt),
+    tenantRlsPolicy("notification_webhook_delivery_tenant_isolation", t.tenantId),
+  ],
 );
 
 /** Idempotency + audit for `once` dispatch actions. */
