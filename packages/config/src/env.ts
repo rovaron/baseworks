@@ -86,6 +86,8 @@ const serverSchema = {
   // cleanup-reap-soft-deleted job. Tombstones (deleted_at) older than this are
   // hard-deleted (storage objects + variant objects + DB row). Default 30.
   STORAGE_SOFT_DELETE_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
+  // Days to retain notification_webhook_delivery rows before the daily prune job deletes them.
+  WEBHOOK_DELIVERY_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
   // Phase 31 / OPS-03 — top-N tenants by bytes_used surfaced in the storage
   // health contributor (/health/detailed). Default 10.
   STORAGE_HEALTH_TOP_TENANTS: z.coerce.number().int().positive().default(10),
