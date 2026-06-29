@@ -1,13 +1,20 @@
 // packages/modules/notifications/src/commands/notify.ts
-import { notification, notificationDelivery } from "@baseworks/db";
+import {
+  notification,
+  notificationDelivery,
+  notificationWebhook,
+  notificationWebhookDelivery,
+} from "@baseworks/db";
 import { defineCommand, ok, requireWithTenant } from "@baseworks/shared";
 import { Type } from "@sinclair/typebox";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getCatalogEntry } from "../catalog";
 import type { Channel } from "../channels/channel";
 import { getAdapter, registeredChannels } from "../channels/registry";
 import { getDeliverQueue } from "../lib/deliver-queue";
 import { resolveRecipients } from "../lib/recipients";
+import { buildWebhookDeliveries } from "../lib/webhook-dispatch";
+import { getWebhookQueue } from "../lib/webhook-queue";
 
 const NotifyInput = Type.Object({
   type: Type.String({ minLength: 1 }),
@@ -120,6 +127,52 @@ export const notify = defineCommand(NotifyInput, async (input, ctx) => {
         }),
       ),
     );
+  }
+
+  // Webhook fan-out — ONCE per event (not per recipient). Eligible endpoints are
+  // this tenant's active endpoints subscribed to the notification's category,
+  // unless the catalog entry opts out via `webhookable: false`.
+  // Only persist+dispatch when a queue exists — without REDIS_URL the worker can
+  // never run, so writing "pending" rows would orphan them forever.
+  const webhookQueue = entry.webhookable !== false ? getWebhookQueue() : null;
+  if (webhookQueue) {
+    const deliveryIds = await requireWithTenant(ctx)(async (tx) => {
+      const endpoints = await tx
+        .select()
+        .from(notificationWebhook)
+        .where(
+          and(
+            eq(notificationWebhook.tenantId, ctx.tenantId),
+            eq(notificationWebhook.status, "active"),
+          ),
+        );
+      const rows = buildWebhookDeliveries(endpoints, {
+        tenantId: ctx.tenantId,
+        eventType: input.type,
+        category: entry.category,
+        recipientUserIds: [...recipients],
+        data: input.data ?? null,
+        occurredAt: new Date().toISOString(),
+      });
+      const ids: string[] = [];
+      for (const values of rows) {
+        // biome-ignore lint/suspicious/noExplicitAny: insert values are validated by buildWebhookDeliveries
+        const [row] = await tx
+          .insert(notificationWebhookDelivery)
+          .values(values as any)
+          .returning();
+        ids.push(row.id);
+      }
+      return ids;
+    });
+
+    if (deliveryIds.length > 0) {
+      await Promise.all(
+        deliveryIds.map((deliveryId) =>
+          webhookQueue.add("webhook-event", { kind: "webhook-event", deliveryId }),
+        ),
+      );
+    }
   }
 
   ctx.emit("notification.created", { tenantId: ctx.tenantId, count: createdIds.length });

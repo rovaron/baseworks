@@ -18,6 +18,12 @@ export interface CatalogEntry {
   defaultChannels: Channel[];
   /** When true, users cannot opt out (security/transactional). */
   required?: boolean;
+  /**
+   * When false, this type never dispatches webhooks even if a tenant endpoint
+   * subscribes to its category (for sensitive/internal-only notifications).
+   * Defaults to true (webhook-eligible) when omitted.
+   */
+  webhookable?: boolean;
   render: (data: Record<string, unknown>) => RenderedContent;
 }
 
