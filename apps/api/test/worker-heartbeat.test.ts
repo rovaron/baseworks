@@ -113,7 +113,7 @@ describe("worker.ts heartbeat wire-up integration (EXT-02 / D-12..D-14)", () => 
 
     // Mirror exactly what apps/api/src/worker.ts passes:
     //   getQueues: () => workers.map((w) => w.name)
-    const fakeWorkers = [{ name: "billing:sync-subscription" }, { name: "email-send" }];
+    const fakeWorkers = [{ name: "billing:sync-subscription" }, { name: "notifications-deliver" }];
 
     const handle = startHeartbeatPublisher({
       redis,
@@ -124,7 +124,7 @@ describe("worker.ts heartbeat wire-up integration (EXT-02 / D-12..D-14)", () => 
     await flush();
 
     const payload = JSON.parse(redis.setCalls[0].value);
-    expect(payload.queues).toEqual(["billing:sync-subscription", "email-send"]);
+    expect(payload.queues).toEqual(["billing:sync-subscription", "notifications-deliver"]);
     await handle.stop();
   });
 

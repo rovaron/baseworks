@@ -4,7 +4,9 @@ import { defineCommand, ok, requireWithTenant } from "@baseworks/shared";
 import { Type } from "@sinclair/typebox";
 import { eq } from "drizzle-orm";
 import { getCatalogEntry } from "../catalog";
+import type { Channel } from "../channels/channel";
 import { getAdapter, registeredChannels } from "../channels/registry";
+import { getDeliverQueue } from "../lib/deliver-queue";
 import { resolveRecipients } from "../lib/recipients";
 
 const NotifyInput = Type.Object({
@@ -36,6 +38,10 @@ export const notify = defineCommand(NotifyInput, async (input, ctx) => {
   const channels = entry.defaultChannels.filter((c) => registeredChannels().includes(c));
 
   const createdIds: string[] = [];
+  // Channel deliveries handed off to the `notifications-deliver` worker (every
+  // effective channel except in-app, which is delivered inline below). Enqueued
+  // AFTER the tenant tx commits so the worker can read the persisted rows.
+  const channelJobs: Array<{ deliveryId: string; channel: Channel }> = [];
   for (const recipientUserId of recipients) {
     await requireWithTenant(ctx)(async (tx) => {
       const [row] = await tx
@@ -65,31 +71,55 @@ export const notify = defineCommand(NotifyInput, async (input, ctx) => {
             status: "pending",
           } as any)
           .returning();
-        const adapter = getAdapter(channel);
-        const result = adapter
-          ? await adapter.deliver(
-              {
-                id: row.id,
-                tenantId: ctx.tenantId,
-                recipientUserId,
-                type: input.type,
-                category: entry.category,
-                severity: entry.severity,
-                title,
-                body,
-                url,
-                data: input.data ?? null,
-                actions,
-              },
-              delivery.id,
-            )
-          : ({ status: "skipped", reason: "no adapter" } as const);
-        await tx
-          .update(notificationDelivery)
-          .set({ status: result.status, error: result.status === "failed" ? result.error : null })
-          .where(eq(notificationDelivery.id, delivery.id));
+
+        if (channel === "in-app") {
+          // In-app stays inline (fast, in-process publish over Redis pub/sub).
+          const adapter = getAdapter(channel);
+          const result = adapter
+            ? await adapter.deliver(
+                {
+                  id: row.id,
+                  tenantId: ctx.tenantId,
+                  recipientUserId,
+                  type: input.type,
+                  category: entry.category,
+                  severity: entry.severity,
+                  title,
+                  body,
+                  url,
+                  data: input.data ?? null,
+                  actions,
+                },
+                delivery.id,
+              )
+            : ({ status: "skipped", reason: "no adapter" } as const);
+          await tx
+            .update(notificationDelivery)
+            .set({ status: result.status, error: result.status === "failed" ? result.error : null })
+            .where(eq(notificationDelivery.id, delivery.id));
+        } else {
+          // All other channels (email this phase, webhook in Phase 4) are
+          // delivered asynchronously by the worker. The row stays "pending"
+          // until the worker records the final status.
+          channelJobs.push({ deliveryId: delivery.id, channel });
+        }
       }
     });
+  }
+
+  // Hand off async channel deliveries to the `notifications-deliver` worker. The
+  // queue name + `{ kind: "channel-delivery", ... }` payload is the contract.
+  const queue = getDeliverQueue();
+  if (channelJobs.length > 0 && queue) {
+    await Promise.all(
+      channelJobs.map((job) =>
+        queue.add("channel-delivery", {
+          kind: "channel-delivery",
+          deliveryId: job.deliveryId,
+          channel: job.channel,
+        }),
+      ),
+    );
   }
 
   ctx.emit("notification.created", { tenantId: ctx.tenantId, count: createdIds.length });

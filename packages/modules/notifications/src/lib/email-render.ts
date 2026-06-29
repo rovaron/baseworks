@@ -1,13 +1,12 @@
-import { env } from "@baseworks/config";
 import { defaultLocale, getMessages, interpolate, type Locale } from "@baseworks/i18n";
 import { render } from "@react-email/components";
 import type { ReactElement } from "react";
-import { Resend } from "resend";
 import { BillingNotificationEmail } from "../templates/billing-notification";
 import { PasswordResetEmail } from "../templates/password-reset";
 import { TeamInviteEmail } from "../templates/team-invite";
 import { WelcomeEmail } from "../templates/welcome";
 
+// biome-ignore lint/suspicious/noExplicitAny: template props vary per template
 const templates: Record<string, (data: any) => ReactElement> = {
   welcome: (data) => WelcomeEmail(data),
   "password-reset": (data) => PasswordResetEmail(data),
@@ -25,7 +24,7 @@ const subjects: Record<string, string> = {
   "magic-link": "Your Sign-in Link",
   "billing-notification": "Billing Update",
   // Phase 12 D-09/D-10: team-invite subject is localized per-request in
-  // sendEmail() below. This fallback value is only used if message loading
+  // renderEmail() below. This fallback value is only used if message loading
   // somehow fails (defensive default).
   "team-invite": "You're Invited to Join a Team",
 };
@@ -100,65 +99,37 @@ async function resolveTeamInvite(data: {
 }
 
 /**
- * Send a transactional email via Resend and React Email.
+ * Render a transactional email template to HTML + subject.
  *
- * Processes email-send BullMQ queue jobs. Resolves the template
- * by name, renders it with React Email, and sends via Resend.
- * Skips sending gracefully when RESEND_API_KEY is not configured
- * (dev/test environments).
+ * Pure render — no provider/send. Resolves the template by name, renders it
+ * with React Email, and returns the rendered HTML plus the resolved subject.
+ * The team-invite template resolves its i18n strings/subject at render time;
+ * other templates use hardcoded English subjects.
  *
- * @param data - Job data: to (recipient), template (template
- *   name), data (template-specific props)
- * @returns void
+ * @param template - Template name (welcome, password-reset, magic-link,
+ *   billing-notification, team-invite)
+ * @param data - Template-specific props
+ * @returns The rendered HTML and the subject line
  * @throws Error if the template name is unknown
- *
- * Per D-19/D-21: Processes email-send queue jobs.
- * Per T-03-17: Graceful degradation without RESEND_API_KEY.
- * Per T-03-14: Templates receive minimal data -- no secrets.
- * Per Phase 12 D-05/D-09/D-10: team-invite resolves i18n at
- *   send time; other templates use hardcoded English.
  */
-export async function sendEmail(data: unknown): Promise<void> {
-  const {
-    to,
-    template,
-    data: templateData,
-  } = data as {
-    to: string;
-    template: string;
-    data: Record<string, unknown>;
-  };
-
-  if (!env.RESEND_API_KEY) {
-    console.log(`[EMAIL] Skipping send (no RESEND_API_KEY): template=${template}, to=${to}`);
-    return;
-  }
-
-  const resend = new Resend(env.RESEND_API_KEY);
-
-  let html: string;
-  let subject: string;
-
+export async function renderEmail(
+  template: string,
+  data: Record<string, unknown>,
+): Promise<{ html: string; subject: string }> {
   if (template === "team-invite") {
     // Phase 12: pre-resolve translations and subject for team-invite only.
-    const { props, subject: resolvedSubject } = await resolveTeamInvite(
-      templateData as Parameters<typeof resolveTeamInvite>[0],
+    const { props, subject } = await resolveTeamInvite(
+      data as Parameters<typeof resolveTeamInvite>[0],
     );
-    html = await render(TeamInviteEmail(props));
-    subject = resolvedSubject;
-  } else {
-    const Component = templates[template];
-    if (!Component) {
-      throw new Error(`Unknown email template: ${template}`);
-    }
-    html = await render(Component(templateData));
-    subject = subjects[template] ?? "Notification";
+    return { html: await render(TeamInviteEmail(props)), subject };
   }
 
-  await resend.emails.send({
-    from: "Baseworks <noreply@baseworks.dev>",
-    to,
-    subject,
-    html,
-  });
+  const Component = templates[template];
+  if (!Component) {
+    throw new Error(`Unknown email template: ${template}`);
+  }
+  return {
+    html: await render(Component(data)),
+    subject: subjects[template] ?? "Notification",
+  };
 }

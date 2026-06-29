@@ -7,7 +7,6 @@ import { createPortalSession } from "./commands/create-portal-session";
 import { recordUsage } from "./commands/record-usage";
 import { processWebhook } from "./jobs/process-webhook";
 import { provisionCustomer } from "./jobs/provision-customer";
-import { sendEmail } from "./jobs/send-email";
 import { syncUsage } from "./jobs/sync-usage";
 import { getBillingHistory } from "./queries/get-billing-history";
 import { getSubscriptionStatus } from "./queries/get-subscription-status";
@@ -66,10 +65,6 @@ export default {
     "billing-sync-usage": {
       queue: "billing-sync-usage",
       handler: syncUsage,
-    },
-    "email-send": {
-      queue: "email-send",
-      handler: sendEmail,
     },
   },
   events: ["subscription.created", "subscription.cancelled", "payment.succeeded", "payment.failed"],

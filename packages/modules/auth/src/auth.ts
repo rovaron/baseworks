@@ -17,7 +17,7 @@ import { getLocale } from "./locale-context";
 let emailQueue: ReturnType<typeof createQueue> | null = null;
 function getEmailQueue(): ReturnType<typeof createQueue> | null {
   if (!emailQueue && env.REDIS_URL) {
-    emailQueue = createQueue("email-send", env.REDIS_URL);
+    emailQueue = createQueue("notifications-deliver", env.REDIS_URL);
   }
   return emailQueue;
 }
@@ -136,6 +136,7 @@ export const auth = betterAuth({
       const queue = getEmailQueue();
       if (queue) {
         await queue.add("password-reset", {
+          kind: "transactional-email",
           to: user.email,
           template: "password-reset",
           data: { url, userName: user.name },
@@ -176,6 +177,7 @@ export const auth = betterAuth({
         const inviteLink = `${env.WEB_URL}/invite/${data.id}`;
         if (queue) {
           await queue.add("team-invite", {
+            kind: "transactional-email",
             to: data.email,
             template: "team-invite",
             data: {
@@ -197,6 +199,7 @@ export const auth = betterAuth({
         const queue = getEmailQueue();
         if (queue) {
           await queue.add("magic-link", {
+            kind: "transactional-email",
             to: email,
             template: "magic-link",
             data: { url, email },

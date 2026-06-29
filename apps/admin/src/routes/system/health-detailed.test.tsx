@@ -62,7 +62,7 @@ function makeEnvelope(over: Partial<any> = {}) {
       uptime: 3600,
       queues: [
         {
-          name: "email-send",
+          name: "notifications-deliver",
           waiting: 5,
           active: 0,
           delayed: 0,
@@ -85,7 +85,7 @@ function makeEnvelope(over: Partial<any> = {}) {
       workers: [
         {
           instanceId: "host-a",
-          queues: ["email-send"],
+          queues: ["notifications-deliver"],
           lastHeartbeat: new Date().toISOString(),
           ageSec: 5,
           status: "healthy",
