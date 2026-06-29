@@ -91,7 +91,15 @@ export function SidebarNav() {
                   const isActive =
                     item.href === "/dashboard"
                       ? pathname === "/dashboard"
-                      : pathname.startsWith(item.href);
+                      : pathname.startsWith(item.href) &&
+                        // Avoid highlighting a parent route when a more specific
+                        // nested nav item (e.g. settings/webhooks) also matches.
+                        !navItems.some(
+                          (other) =>
+                            other.href !== item.href &&
+                            other.href.startsWith(item.href) &&
+                            pathname.startsWith(other.href),
+                        );
 
                   return (
                     <SidebarMenuItem key={item.href}>

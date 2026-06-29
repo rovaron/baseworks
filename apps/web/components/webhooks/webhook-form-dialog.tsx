@@ -20,7 +20,7 @@ import {
 } from "@baseworks/ui";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -57,6 +57,20 @@ export function WebhookFormDialog({
       categories: editing?.categories ?? [],
     },
   });
+
+  // The dialog stays mounted (only `open` toggles), so RHF defaultValues — which
+  // apply once on mount — would go stale across edit/create opens. Re-seed the
+  // form (and clear any revealed secret) every time the dialog opens.
+  useEffect(() => {
+    if (open) {
+      setSecret(null);
+      form.reset({
+        url: editing?.url ?? "",
+        description: editing?.description ?? "",
+        categories: editing?.categories ?? [],
+      });
+    }
+  }, [open, editing, form]);
 
   const onSubmit = async (values: Values) => {
     try {
