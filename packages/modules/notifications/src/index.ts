@@ -1,13 +1,20 @@
 // packages/modules/notifications/src/index.ts
 import type { ModuleDefinition } from "@baseworks/shared";
+import { createWebhook } from "./commands/create-webhook";
+import { deleteWebhook } from "./commands/delete-webhook";
 import { markAllRead } from "./commands/mark-all-read";
 import { markRead } from "./commands/mark-read";
 import { notify } from "./commands/notify";
+import { redeliverWebhook } from "./commands/redeliver-webhook";
+import { rotateWebhookSecret } from "./commands/rotate-webhook-secret";
 import { sendTransactionalEmail } from "./commands/send-transactional-email";
+import { updateWebhook } from "./commands/update-webhook";
 import { deliver } from "./jobs/deliver";
 import { deliverWebhook } from "./jobs/deliver-webhook";
 import { pruneWebhookDeliveries } from "./jobs/prune-webhook-deliveries";
 import { listNotifications } from "./queries/list-notifications";
+import { listWebhookDeliveries } from "./queries/list-webhook-deliveries";
+import { listWebhooks } from "./queries/list-webhooks";
 import { unreadCount } from "./queries/unread-count";
 import { notificationRoutes } from "./routes";
 import { ensureNotificationsRuntime } from "./sse/runtime";
@@ -34,10 +41,17 @@ export default {
     "notifications:mark-read": markRead,
     "notifications:mark-all-read": markAllRead,
     "notifications:send-transactional-email": sendTransactionalEmail,
+    "notifications:create-webhook": createWebhook,
+    "notifications:update-webhook": updateWebhook,
+    "notifications:delete-webhook": deleteWebhook,
+    "notifications:rotate-webhook-secret": rotateWebhookSecret,
+    "notifications:redeliver-webhook": redeliverWebhook,
   },
   queries: {
     "notifications:list": listNotifications,
     "notifications:unread-count": unreadCount,
+    "notifications:list-webhooks": listWebhooks,
+    "notifications:list-webhook-deliveries": listWebhookDeliveries,
   },
   jobs: {
     "notifications-deliver": {
