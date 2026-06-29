@@ -21,7 +21,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@baseworks/ui";
-import { CreditCard, LayoutDashboard, LogOut, Settings } from "lucide-react";
+import { CreditCard, LayoutDashboard, LogOut, Settings, Webhook } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -34,12 +34,14 @@ const navIcons = {
   dashboard: LayoutDashboard,
   billing: CreditCard,
   settings: Settings,
+  webhooks: Webhook,
 };
 
 const navHrefs = [
   { key: "dashboard", href: "/dashboard", icon: navIcons.dashboard },
   { key: "billing", href: "/dashboard/billing", icon: navIcons.billing },
   { key: "settings", href: "/dashboard/settings", icon: navIcons.settings },
+  { key: "webhooks", href: "/dashboard/settings/webhooks", icon: navIcons.webhooks },
 ];
 
 export function SidebarNav() {
