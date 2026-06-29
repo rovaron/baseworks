@@ -5,6 +5,8 @@ import { markRead } from "./commands/mark-read";
 import { notify } from "./commands/notify";
 import { sendTransactionalEmail } from "./commands/send-transactional-email";
 import { deliver } from "./jobs/deliver";
+import { deliverWebhook } from "./jobs/deliver-webhook";
+import { pruneWebhookDeliveries } from "./jobs/prune-webhook-deliveries";
 import { listNotifications } from "./queries/list-notifications";
 import { unreadCount } from "./queries/unread-count";
 import { notificationRoutes } from "./routes";
@@ -41,6 +43,16 @@ export default {
     "notifications-deliver": {
       queue: "notifications-deliver",
       handler: deliver,
+    },
+    "notifications-webhook": {
+      queue: "notifications-webhook",
+      handler: deliverWebhook,
+      concurrency: 20,
+    },
+    "notifications-webhook-prune": {
+      queue: "notifications-webhook-prune",
+      handler: pruneWebhookDeliveries,
+      repeat: { pattern: "0 3 * * *" }, // daily at 03:00
     },
   },
   events: ["notification.created"],
