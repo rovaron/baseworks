@@ -76,7 +76,8 @@ export const notificationRoutes = new Elysia({ prefix: "/api/notifications" })
   .post("/webhooks", async ({ handlerCtx, body }: any) => createWebhook(body, handlerCtx))
   .get("/webhooks", async ({ handlerCtx }: any) => listWebhooks({}, handlerCtx))
   .patch("/webhooks/:id", async ({ handlerCtx, params, body }: any) =>
-    updateWebhook({ id: params.id, ...body }, handlerCtx),
+    // Path id is authoritative — spread body first so a body-supplied `id` can't override it.
+    updateWebhook({ ...body, id: params.id }, handlerCtx),
   )
   .delete("/webhooks/:id", async ({ handlerCtx, params }: any) =>
     deleteWebhook({ id: params.id }, handlerCtx),

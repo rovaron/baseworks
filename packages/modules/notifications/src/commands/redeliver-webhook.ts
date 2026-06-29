@@ -44,6 +44,24 @@ export const redeliverWebhook = defineCommand(Input, async (input, ctx) => {
   });
 
   if (!newId) return err("DELIVERY_NOT_FOUND");
-  await queue.add("webhook-event", { kind: "webhook-event", deliveryId: newId });
+
+  try {
+    await queue.add("webhook-event", { kind: "webhook-event", deliveryId: newId });
+  } catch (e) {
+    // The clone row is already committed; if the enqueue fails (e.g. Redis blip)
+    // no worker will ever pick it up, so compensate by removing the orphan
+    // rather than leaving a perpetually-pending delivery in the history.
+    await requireWithTenant(ctx)((tx) =>
+      tx
+        .delete(notificationWebhookDelivery)
+        .where(
+          and(
+            eq(notificationWebhookDelivery.id, newId),
+            eq(notificationWebhookDelivery.tenantId, ctx.tenantId),
+          ),
+        ),
+    );
+    return err(e instanceof Error ? e.message : "ENQUEUE_FAILED");
+  }
   return ok({ deliveryId: newId });
 });
