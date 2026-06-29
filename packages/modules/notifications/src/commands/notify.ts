@@ -1,13 +1,12 @@
 // packages/modules/notifications/src/commands/notify.ts
-import { env } from "@baseworks/config";
 import { notification, notificationDelivery } from "@baseworks/db";
-import { createQueue } from "@baseworks/queue";
 import { defineCommand, ok, requireWithTenant } from "@baseworks/shared";
 import { Type } from "@sinclair/typebox";
 import { eq } from "drizzle-orm";
 import { getCatalogEntry } from "../catalog";
 import type { Channel } from "../channels/channel";
 import { getAdapter, registeredChannels } from "../channels/registry";
+import { getDeliverQueue } from "../lib/deliver-queue";
 import { resolveRecipients } from "../lib/recipients";
 
 const NotifyInput = Type.Object({
@@ -110,8 +109,8 @@ export const notify = defineCommand(NotifyInput, async (input, ctx) => {
 
   // Hand off async channel deliveries to the `notifications-deliver` worker. The
   // queue name + `{ kind: "channel-delivery", ... }` payload is the contract.
-  if (channelJobs.length > 0 && env.REDIS_URL) {
-    const queue = createQueue("notifications-deliver", env.REDIS_URL);
+  const queue = getDeliverQueue();
+  if (channelJobs.length > 0 && queue) {
     for (const job of channelJobs) {
       await queue.add("channel-delivery", {
         kind: "channel-delivery",

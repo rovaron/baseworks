@@ -2,10 +2,32 @@
 import { env } from "@baseworks/config";
 import { getDb, notification, notificationDelivery } from "@baseworks/db";
 import { eq } from "drizzle-orm";
+import type { DeliverableNotification } from "../channels/channel";
 import { EmailAdapter } from "../channels/email";
 import type { EmailProvider } from "../channels/email-provider";
 import { ResendEmailProvider } from "../channels/resend-provider";
 import { renderEmail } from "../lib/email-render";
+
+/**
+ * Project a persisted `notification` row onto the minimal shape a channel
+ * adapter consumes. Explicit (rather than a blanket `as`) so a schema/contract
+ * drift surfaces as a compile error here instead of silently mis-delivering.
+ */
+function toDeliverable(row: typeof notification.$inferSelect): DeliverableNotification {
+  return {
+    id: row.id,
+    tenantId: row.tenantId,
+    recipientUserId: row.recipientUserId,
+    type: row.type,
+    category: row.category,
+    severity: row.severity as DeliverableNotification["severity"],
+    title: row.title,
+    body: row.body,
+    url: row.url,
+    data: row.data as Record<string, unknown> | null,
+    actions: row.actions,
+  };
+}
 
 /**
  * Discriminated payload for the `notifications-deliver` worker.
@@ -79,16 +101,16 @@ export async function deliver(payload: unknown, deps: Partial<DeliverDeps> = {})
   try {
     if (job.channel === "email") {
       const adapter = new EmailAdapter(provider(), db);
-      const r = await adapter.deliver(notif as never, delivery.id);
+      const r = await adapter.deliver(toDeliverable(notif), delivery.id);
       result =
         r.status === "sent"
           ? { status: "sent", providerMessageId: r.providerMessageId }
           : r.status === "failed"
             ? { status: "failed", error: r.error }
-            : { status: "skipped" };
+            : { status: "skipped", error: r.reason };
     }
   } catch (err) {
-    result = { status: "failed", error: String(err) };
+    result = { status: "failed", error: err instanceof Error ? err.message : String(err) };
   }
 
   await db

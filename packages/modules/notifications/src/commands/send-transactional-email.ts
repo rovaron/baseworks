@@ -1,8 +1,7 @@
 // packages/modules/notifications/src/commands/send-transactional-email.ts
-import { env } from "@baseworks/config";
-import { createQueue } from "@baseworks/queue";
 import { defineCommand, ok } from "@baseworks/shared";
 import { Type } from "@sinclair/typebox";
+import { getDeliverQueue } from "../lib/deliver-queue";
 
 const Input = Type.Object({
   to: Type.String(),
@@ -19,8 +18,9 @@ const Input = Type.Object({
  * Falls back to a console log when `REDIS_URL` is unset (dev/test).
  */
 export const sendTransactionalEmail = defineCommand(Input, async (input) => {
-  if (env.REDIS_URL) {
-    await createQueue("notifications-deliver", env.REDIS_URL).add("transactional-email", {
+  const queue = getDeliverQueue();
+  if (queue) {
+    await queue.add("transactional-email", {
       kind: "transactional-email",
       to: input.to,
       template: input.template,
