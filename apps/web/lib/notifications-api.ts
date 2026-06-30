@@ -12,18 +12,20 @@ export interface NotificationItem {
   createdAt: string;
 }
 
-const n = () => (api.api as any).notifications;
+const n = () => api.api.notifications;
 
 export async function fetchNotifications(unreadOnly = false): Promise<NotificationItem[]> {
   const res = await n().get({ query: { limit: 20, unreadOnly: String(unreadOnly) } });
   if (res.error) throw res.error;
-  return (res.data?.data ?? res.data ?? []) as NotificationItem[];
+  if (!res.data.success) throw new Error(res.data.error);
+  return res.data.data;
 }
 
 export async function fetchUnreadCount(): Promise<number> {
   const res = await n()["unread-count"].get();
   if (res.error) throw res.error;
-  return (res.data?.data?.unread ?? res.data?.unread ?? 0) as number;
+  if (!res.data.success) throw new Error(res.data.error);
+  return res.data.data.unread;
 }
 
 export async function markNotificationRead(id: string): Promise<void> {

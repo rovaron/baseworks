@@ -72,18 +72,15 @@ export default function InviteAcceptPage() {
   } = useQuery<InvitationData>({
     queryKey: ["invitation", token],
     queryFn: async () => {
-      const { data, error } = await (api.api.invitations as any)[token].get();
-      if (error) {
+      const res = await api.api.invitations({ id: token }).get();
+      if (res.error) {
         throw new Error("invalid");
       }
-      if (
-        !data ||
-        typeof data !== "object" ||
-        typeof (data as InvitationData).status !== "string"
-      ) {
+      const env = res.data;
+      if (!env?.success || !env.data) {
         throw new Error("invalid");
       }
-      return data as InvitationData;
+      return env.data;
     },
     retry: false,
   });

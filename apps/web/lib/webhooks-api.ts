@@ -40,20 +40,27 @@ export interface UpdateWebhookInput {
   status?: "active" | "disabled";
 }
 
-// The notifications module mounts routes under /api/notifications; Eden envelope
-// types aren't exposed, so use the same `any` accessor as lib/notifications-api.ts.
-const w = () => (api.api as any).notifications.webhooks;
+// The notifications module mounts the webhook routes under /api/notifications/webhooks.
+const w = () => api.api.notifications.webhooks;
 
 // Backend handlers return a { success, data } / { success, error } Result at HTTP 200.
-function unwrap<T>(res: { data: any; error: any }): T {
-  if (res.error)
-    throw new Error(String(res.error?.value ?? res.error?.message ?? "Request failed"));
-  const env = res.data;
-  if (env && typeof env === "object" && "success" in env) {
-    if (!env.success) throw new Error(env.error ?? "Request failed");
-    return env.data as T;
+type Envelope<T> = { success: true; data: T } | { success: false; error: string };
+
+function unwrap<T>(res: { data: Envelope<T> | null; error: { value?: unknown } | null }): T {
+  if (res.error) {
+    const value = res.error.value;
+    const message =
+      typeof value === "string"
+        ? value
+        : value && typeof value === "object" && "message" in value
+          ? String((value as { message?: unknown }).message)
+          : "Request failed";
+    throw new Error(message);
   }
-  return env as T;
+  const env = res.data;
+  if (!env) throw new Error("Request failed");
+  if (!env.success) throw new Error(env.error);
+  return env.data;
 }
 
 export async function listWebhooks(): Promise<WebhookEndpoint[]> {

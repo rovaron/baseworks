@@ -25,5 +25,15 @@ export const listNotifications = defineQuery(Input, async (input, ctx) => {
       .limit(input.limit ?? 20)
       .offset(input.offset ?? 0),
   )) as (typeof notification.$inferSelect)[];
-  return ok(rows);
+  // Emit dates as ISO strings and narrow `severity` so the inferred type matches the
+  // over-the-wire shape the HTTP client receives.
+  return ok(
+    rows.map(({ severity, readAt, createdAt, updatedAt, ...rest }) => ({
+      ...rest,
+      severity: severity as "info" | "success" | "warning" | "error",
+      readAt: readAt ? readAt.toISOString() : null,
+      createdAt: createdAt.toISOString(),
+      updatedAt: updatedAt.toISOString(),
+    })),
+  );
 });
