@@ -10,13 +10,9 @@ const withNextIntl = createNextIntlPlugin("./lib/i18n.ts");
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@baseworks/ui", "@baseworks/api-client", "@baseworks/i18n"],
-  // Type checking runs separately via `bun run typecheck` at root.
-  // Disabled here because @baseworks/api-client has a type-only import
-  // to @baseworks/api (the Elysia app type for Eden Treaty), which chains
-  // into backend modules not resolvable from the web app context.
-  typescript: {
-    ignoreBuildErrors: true,
-  },
+  // Type checking runs separately via `bun run typecheck` at root,
+  // which type-checks apps/web against its own tsconfig (with the full
+  // @baseworks/* path aliases so Eden Treaty's App type resolves).
 };
 
 export default withNextIntl(nextConfig);
