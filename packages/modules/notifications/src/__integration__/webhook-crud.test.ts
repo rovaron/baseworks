@@ -110,13 +110,11 @@ describe("webhook CRUD", () => {
     expect(row.consecutiveFailures).toBe("0");
   }, 30_000);
 
-  test("tenant cannot edit or re-enable an admin_disabled (force-disabled) endpoint", async () => {
+  test("admin_disabled endpoint is fully locked from tenant commands", async () => {
     if (!ok) return console.warn("SKIPPED");
     const ctx = makeCtx(T, "u1");
-    const created = await createWebhook(
-      { url: "https://example.com/hook", categories: ["system"] },
-      ctx,
-    );
+    const url = "https://example.com/hook";
+    const created = await createWebhook({ url, categories: ["system"] }, ctx);
     if (!created.success) throw new Error("setup failed");
     const id = created.data.id;
     // Simulate a platform-admin force-disable (the locked state).
@@ -125,16 +123,28 @@ describe("webhook CRUD", () => {
       .set({ status: "admin_disabled", disabledReason: "Force-disabled by platform admin: abuse" })
       .where(eq(notificationWebhook.id, id));
 
-    // Tenant attempts to re-enable — must be rejected, not silently applied.
+    // Re-enable — rejected.
     const reenable = await updateWebhook({ id, status: "active" }, ctx);
     expect(reenable.success).toBe(false);
     if (!reenable.success) expect(reenable.error).toBe("WEBHOOK_ADMIN_LOCKED");
 
-    // Tenant attempts an unrelated edit — also locked out.
+    // Any other edit — rejected.
     const edit = await updateWebhook({ id, description: "sneaky" }, ctx);
     expect(edit.success).toBe(false);
 
-    // The row is untouched.
+    // Rotate secret — rejected.
+    const rotated = await rotateWebhookSecret({ id }, ctx);
+    expect(rotated.success).toBe(false);
+
+    // Delete — rejected (can't erase the audit trail and recreate).
+    const removed = await deleteWebhook({ id }, ctx);
+    expect(removed.success).toBe(false);
+
+    // Re-register the SAME url as a fresh endpoint — rejected.
+    const recreate = await createWebhook({ url, categories: ["system"] }, ctx);
+    expect(recreate.success).toBe(false);
+
+    // The locked row is still there, untouched, and active dispatch can't pick it up.
     const [row] = await getDb()
       .select()
       .from(notificationWebhook)

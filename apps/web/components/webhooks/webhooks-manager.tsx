@@ -87,39 +87,43 @@ export function WebhooksManager() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       {/* A platform-admin force-disable (admin_disabled) locks the
-                          endpoint — the tenant cannot edit or re-enable it. */}
-                      {wh.status !== "admin_disabled" && (
-                        <DropdownMenuItem onClick={() => openEdit(wh)}>
-                          {t("webhooks.edit")}
-                        </DropdownMenuItem>
-                      )}
+                          endpoint: it is read-only to the tenant (only delivery
+                          history remains) — they cannot edit, re-enable, rotate,
+                          or delete it. Only a platform admin can lift the lock. */}
                       <DropdownMenuItem onClick={() => setDeliveriesFor(wh.id)}>
                         {t("webhooks.deliveries")}
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => rotate(wh.id)}>
-                        {t("webhooks.rotateSecret")}
-                      </DropdownMenuItem>
-                      {wh.status === "admin_disabled" ? null : wh.status === "active" ? (
-                        <DropdownMenuItem
-                          onClick={() => update({ id: wh.id, input: { status: "disabled" } })}
-                        >
-                          {t("webhooks.disable")}
-                        </DropdownMenuItem>
-                      ) : (
-                        <DropdownMenuItem
-                          onClick={() => update({ id: wh.id, input: { status: "active" } })}
-                        >
-                          {t("webhooks.enable")}
-                        </DropdownMenuItem>
+                      {wh.status !== "admin_disabled" && (
+                        <>
+                          <DropdownMenuItem onClick={() => openEdit(wh)}>
+                            {t("webhooks.edit")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => rotate(wh.id)}>
+                            {t("webhooks.rotateSecret")}
+                          </DropdownMenuItem>
+                          {wh.status === "active" ? (
+                            <DropdownMenuItem
+                              onClick={() => update({ id: wh.id, input: { status: "disabled" } })}
+                            >
+                              {t("webhooks.disable")}
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem
+                              onClick={() => update({ id: wh.id, input: { status: "active" } })}
+                            >
+                              {t("webhooks.enable")}
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => {
+                              if (window.confirm(t("webhooks.confirmDelete"))) remove(wh.id);
+                            }}
+                          >
+                            {t("webhooks.delete")}
+                          </DropdownMenuItem>
+                        </>
                       )}
-                      <DropdownMenuItem
-                        className="text-destructive"
-                        onClick={() => {
-                          if (window.confirm(t("webhooks.confirmDelete"))) remove(wh.id);
-                        }}
-                      >
-                        {t("webhooks.delete")}
-                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
