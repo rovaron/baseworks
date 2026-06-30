@@ -9,7 +9,8 @@
     "users": "Users",
     "billing": "Billing",
     "system": "System",
-    "jobs": "Job Monitor"
+    "jobs": "Job Monitor",
+    "webhooks": "Webhooks"
   },
   "roles": {
     "title": "Tenant Roles",
@@ -186,6 +187,46 @@
       "deactivateFailed": "Failed to deactivate tenant",
       "updateFailed": "Failed to update tenant"
     }
+  },
+  "webhooks": {
+    "title": "Webhooks",
+    "searchPlaceholder": "Search by URL or tenant",
+    "empty": "No webhook endpoints across any tenant.",
+    "loadError": "Failed to load webhooks.",
+    "columns": {
+      "tenant": "Tenant",
+      "url": "Endpoint URL",
+      "categories": "Categories",
+      "status": "Status",
+      "failures": "Failures",
+      "lastDelivery": "Last delivery"
+    },
+    "status": { "active": "Active", "disabled": "Disabled", "autoDisabled": "Auto-disabled" },
+    "filter": {
+      "label": "Status",
+      "all": "All statuses",
+      "active": "Active",
+      "disabled": "Disabled",
+      "autoDisabled": "Auto-disabled"
+    },
+    "actions": { "viewDeliveries": "View deliveries", "forceDisable": "Force-disable" },
+    "deliveries": {
+      "title": "Deliveries",
+      "empty": "No deliveries yet.",
+      "event": "Event",
+      "status": "Status",
+      "code": "Code",
+      "attempts": "Attempts"
+    },
+    "disableDialog": {
+      "title": "Force-disable webhook",
+      "description": "Disable {url}? The tenant stops receiving callbacks until they re-enable it.",
+      "reasonLabel": "Reason (optional)",
+      "cancel": "Cancel",
+      "confirm": "Force-disable",
+      "disabling": "Disabling…"
+    },
+    "toast": { "disabled": "Webhook force-disabled", "disableFailed": "Failed to disable webhook" }
   },
   "billingOverview": {
     "title": "Billing Overview",
