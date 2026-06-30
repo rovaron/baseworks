@@ -215,7 +215,11 @@
       "autoDisabled": "Desativado automaticamente",
       "adminDisabled": "Desativado pelo admin"
     },
-    "actions": { "viewDeliveries": "Ver entregas", "forceDisable": "Forçar desativação", "reenable": "Reativar" },
+    "actions": {
+      "viewDeliveries": "Ver entregas",
+      "forceDisable": "Forçar desativação",
+      "reenable": "Reativar"
+    },
     "deliveries": {
       "title": "Entregas",
       "empty": "Nenhuma entrega ainda.",
@@ -232,7 +236,12 @@
       "confirm": "Forçar desativação",
       "disabling": "Desativando…"
     },
-    "toast": { "disabled": "Webhook desativado", "disableFailed": "Falha ao desativar webhook", "reenabled": "Webhook reativado", "reenableFailed": "Falha ao reativar webhook" }
+    "toast": {
+      "disabled": "Webhook desativado",
+      "disableFailed": "Falha ao desativar webhook",
+      "reenabled": "Webhook reativado",
+      "reenableFailed": "Falha ao reativar webhook"
+    }
   },
   "billingOverview": {
     "title": "Visão Geral de Faturamento",

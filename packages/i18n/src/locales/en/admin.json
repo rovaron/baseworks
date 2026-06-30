@@ -201,7 +201,12 @@
       "failures": "Failures",
       "lastDelivery": "Last delivery"
     },
-    "status": { "active": "Active", "disabled": "Disabled", "autoDisabled": "Auto-disabled", "adminDisabled": "Disabled by admin" },
+    "status": {
+      "active": "Active",
+      "disabled": "Disabled",
+      "autoDisabled": "Auto-disabled",
+      "adminDisabled": "Disabled by admin"
+    },
     "filter": {
       "label": "Status",
       "all": "All statuses",
@@ -210,7 +215,11 @@
       "autoDisabled": "Auto-disabled",
       "adminDisabled": "Disabled by admin"
     },
-    "actions": { "viewDeliveries": "View deliveries", "forceDisable": "Force-disable", "reenable": "Re-enable" },
+    "actions": {
+      "viewDeliveries": "View deliveries",
+      "forceDisable": "Force-disable",
+      "reenable": "Re-enable"
+    },
     "deliveries": {
       "title": "Deliveries",
       "empty": "No deliveries yet.",
@@ -227,7 +236,12 @@
       "confirm": "Force-disable",
       "disabling": "Disabling…"
     },
-    "toast": { "disabled": "Webhook force-disabled", "disableFailed": "Failed to disable webhook", "reenabled": "Webhook re-enabled", "reenableFailed": "Failed to re-enable webhook" }
+    "toast": {
+      "disabled": "Webhook force-disabled",
+      "disableFailed": "Failed to disable webhook",
+      "reenabled": "Webhook re-enabled",
+      "reenableFailed": "Failed to re-enable webhook"
+    }
   },
   "billingOverview": {
     "title": "Billing Overview",
