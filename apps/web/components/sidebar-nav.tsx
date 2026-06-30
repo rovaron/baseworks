@@ -21,7 +21,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@baseworks/ui";
-import { CreditCard, LayoutDashboard, LogOut, Settings } from "lucide-react";
+import { CreditCard, LayoutDashboard, LogOut, Settings, Webhook } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -34,12 +34,14 @@ const navIcons = {
   dashboard: LayoutDashboard,
   billing: CreditCard,
   settings: Settings,
+  webhooks: Webhook,
 };
 
 const navHrefs = [
   { key: "dashboard", href: "/dashboard", icon: navIcons.dashboard },
   { key: "billing", href: "/dashboard/billing", icon: navIcons.billing },
   { key: "settings", href: "/dashboard/settings", icon: navIcons.settings },
+  { key: "webhooks", href: "/dashboard/settings/webhooks", icon: navIcons.webhooks },
 ];
 
 export function SidebarNav() {
@@ -89,7 +91,15 @@ export function SidebarNav() {
                   const isActive =
                     item.href === "/dashboard"
                       ? pathname === "/dashboard"
-                      : pathname.startsWith(item.href);
+                      : pathname.startsWith(item.href) &&
+                        // Avoid highlighting a parent route when a more specific
+                        // nested nav item (e.g. settings/webhooks) also matches.
+                        !navItems.some(
+                          (other) =>
+                            other.href !== item.href &&
+                            other.href.startsWith(item.href) &&
+                            pathname.startsWith(other.href),
+                        );
 
                   return (
                     <SidebarMenuItem key={item.href}>

@@ -6,6 +6,7 @@
   "nav": {
     "dashboard": "Painel",
     "billing": "Faturamento",
+    "webhooks": "Webhooks",
     "settings": "Configurações",
     "navigation": "Navegação",
     "workspace": "Espaço de trabalho",

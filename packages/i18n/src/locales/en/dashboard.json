@@ -6,6 +6,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "billing": "Billing",
+    "webhooks": "Webhooks",
     "settings": "Settings",
     "navigation": "Navigation",
     "workspace": "Workspace",
