@@ -15,6 +15,11 @@ import {
   adminListFilesForTenant,
   adminSignUpload,
 } from "@baseworks/module-files";
+import {
+  adminForceDisableWebhook,
+  adminListAllWebhooks,
+  adminListWebhookDeliveries,
+} from "@baseworks/module-notifications";
 import { getRedisConnection } from "@baseworks/queue";
 import { and, count, eq, like, or, sql } from "drizzle-orm";
 import { Elysia, t } from "elysia";
@@ -447,6 +452,39 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
       return { error: r.error };
     }
     return r.data;
+  })
+
+  // --- Webhook Oversight (cross-tenant) ---
+  .get("/webhooks", async (ctx: any) => {
+    const limit = Number(ctx.query?.limit) || 20;
+    const offset = Number(ctx.query?.offset) || 0;
+    const search = ctx.query?.search as string | undefined;
+    const status = ctx.query?.status as string | undefined;
+    const result = await adminListAllWebhooks({ search, status, limit, offset });
+    if (!result.success) {
+      ctx.set.status = 400;
+      return result;
+    }
+    return result.data;
+  })
+  .get("/webhooks/:id/deliveries", async (ctx: any) => {
+    const limit = Number(ctx.query?.limit) || 20;
+    const offset = Number(ctx.query?.offset) || 0;
+    const result = await adminListWebhookDeliveries(ctx.params.id, { limit, offset });
+    if (!result.success) {
+      ctx.set.status = 400;
+      return result;
+    }
+    return result.data;
+  })
+  .patch("/webhooks/:id/disable", async (ctx: any) => {
+    const reason = (ctx.body?.reason as string) ?? "";
+    const result = await adminForceDisableWebhook(ctx.params.id, reason);
+    if (!result.success) {
+      ctx.set.status = 400;
+      return result;
+    }
+    return result.data;
   })
 
   // --- User Management ---
