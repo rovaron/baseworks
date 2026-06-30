@@ -27,6 +27,8 @@ function statusBadge(status: string, t: (k: string) => string) {
   if (status === "active") return <Badge>{t("webhooks.statusActive")}</Badge>;
   if (status === "disabled")
     return <Badge variant="secondary">{t("webhooks.statusDisabled")}</Badge>;
+  if (status === "admin_disabled")
+    return <Badge variant="destructive">{t("webhooks.statusAdminDisabled")}</Badge>;
   return <Badge variant="destructive">{t("webhooks.statusAutoDisabled")}</Badge>;
 }
 
@@ -84,36 +86,44 @@ export function WebhooksManager() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => openEdit(wh)}>
-                        {t("webhooks.edit")}
-                      </DropdownMenuItem>
+                      {/* A platform-admin force-disable (admin_disabled) locks the
+                          endpoint: it is read-only to the tenant (only delivery
+                          history remains) — they cannot edit, re-enable, rotate,
+                          or delete it. Only a platform admin can lift the lock. */}
                       <DropdownMenuItem onClick={() => setDeliveriesFor(wh.id)}>
                         {t("webhooks.deliveries")}
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => rotate(wh.id)}>
-                        {t("webhooks.rotateSecret")}
-                      </DropdownMenuItem>
-                      {wh.status === "active" ? (
-                        <DropdownMenuItem
-                          onClick={() => update({ id: wh.id, input: { status: "disabled" } })}
-                        >
-                          {t("webhooks.disable")}
-                        </DropdownMenuItem>
-                      ) : (
-                        <DropdownMenuItem
-                          onClick={() => update({ id: wh.id, input: { status: "active" } })}
-                        >
-                          {t("webhooks.enable")}
-                        </DropdownMenuItem>
+                      {wh.status !== "admin_disabled" && (
+                        <>
+                          <DropdownMenuItem onClick={() => openEdit(wh)}>
+                            {t("webhooks.edit")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => rotate(wh.id)}>
+                            {t("webhooks.rotateSecret")}
+                          </DropdownMenuItem>
+                          {wh.status === "active" ? (
+                            <DropdownMenuItem
+                              onClick={() => update({ id: wh.id, input: { status: "disabled" } })}
+                            >
+                              {t("webhooks.disable")}
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem
+                              onClick={() => update({ id: wh.id, input: { status: "active" } })}
+                            >
+                              {t("webhooks.enable")}
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => {
+                              if (window.confirm(t("webhooks.confirmDelete"))) remove(wh.id);
+                            }}
+                          >
+                            {t("webhooks.delete")}
+                          </DropdownMenuItem>
+                        </>
                       )}
-                      <DropdownMenuItem
-                        className="text-destructive"
-                        onClick={() => {
-                          if (window.confirm(t("webhooks.confirmDelete"))) remove(wh.id);
-                        }}
-                      >
-                        {t("webhooks.delete")}
-                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>

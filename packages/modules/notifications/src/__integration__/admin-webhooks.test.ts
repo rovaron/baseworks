@@ -7,6 +7,7 @@ import {
   adminForceDisableWebhook,
   adminListAllWebhooks,
   adminListWebhookDeliveries,
+  adminReenableWebhook,
 } from "../commands/admin-webhooks";
 
 const TA = "admin-wh-it-tenant-a";
@@ -98,7 +99,7 @@ describe("admin webhook oversight", () => {
     expect(res.data.data.length).toBeGreaterThanOrEqual(1);
   }, 30000);
 
-  test("force-disable flips status + records reason", async () => {
+  test("force-disable locks status to admin_disabled + records reason", async () => {
     if (!ready) return console.warn("SKIPPED");
     const res = await adminForceDisableWebhook(idA, "spam");
     expect(res.success).toBe(true);
@@ -106,8 +107,22 @@ describe("admin webhook oversight", () => {
       .select()
       .from(notificationWebhook)
       .where(eq(notificationWebhook.id, idA));
-    expect(row.status).toBe("auto_disabled");
+    expect(row.status).toBe("admin_disabled");
     expect(row.disabledReason).toContain("platform admin");
+  }, 30000);
+
+  test("admin re-enable lifts the lock + resets failures/reason", async () => {
+    if (!ready) return console.warn("SKIPPED");
+    // idA is admin_disabled from the previous test.
+    const res = await adminReenableWebhook(idA);
+    expect(res.success).toBe(true);
+    const [row] = await db()
+      .select()
+      .from(notificationWebhook)
+      .where(eq(notificationWebhook.id, idA));
+    expect(row.status).toBe("active");
+    expect(row.consecutiveFailures).toBe("0");
+    expect(row.disabledReason).toBeNull();
   }, 30000);
 
   test("force-disable of an unknown id returns an error", async () => {

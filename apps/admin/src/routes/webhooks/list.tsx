@@ -52,6 +52,8 @@ function statusBadge(status: string, t: (k: string) => string) {
   if (status === "active") return <Badge variant="default">{t("webhooks.status.active")}</Badge>;
   if (status === "disabled")
     return <Badge variant="secondary">{t("webhooks.status.disabled")}</Badge>;
+  if (status === "admin_disabled")
+    return <Badge variant="destructive">{t("webhooks.status.adminDisabled")}</Badge>;
   return <Badge variant="destructive">{t("webhooks.status.autoDisabled")}</Badge>;
 }
 
@@ -115,6 +117,21 @@ export function Component() {
     },
   });
 
+  const reenableMutation = useMutation({
+    mutationFn: async (target: WebhookRow) => {
+      const res = await (api.api.admin.webhooks as any)({ id: target.id }).enable.patch({});
+      if (res.error) throw new Error(res.error?.value?.message ?? "request failed");
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success(t("webhooks.toast.reenabled"));
+      queryClient.invalidateQueries({ queryKey: ["admin", "webhooks"] });
+    },
+    onError: () => {
+      toast.error(t("webhooks.toast.reenableFailed"));
+    },
+  });
+
   const rows = (result as any)?.data ?? [];
   const total = (result as any)?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -165,12 +182,19 @@ export function Component() {
             <DropdownMenuItem onClick={() => setDeliveriesFor(row.original.id)}>
               {t("webhooks.actions.viewDeliveries")}
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => setDisableTarget(row.original)}
-              className="text-destructive"
-            >
-              {t("webhooks.actions.forceDisable")}
-            </DropdownMenuItem>
+            {row.original.status !== "active" && (
+              <DropdownMenuItem onClick={() => reenableMutation.mutate(row.original)}>
+                {t("webhooks.actions.reenable")}
+              </DropdownMenuItem>
+            )}
+            {row.original.status !== "admin_disabled" && (
+              <DropdownMenuItem
+                onClick={() => setDisableTarget(row.original)}
+                className="text-destructive"
+              >
+                {t("webhooks.actions.forceDisable")}
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       ),
@@ -214,6 +238,7 @@ export function Component() {
             <SelectItem value="active">{t("webhooks.filter.active")}</SelectItem>
             <SelectItem value="disabled">{t("webhooks.filter.disabled")}</SelectItem>
             <SelectItem value="auto_disabled">{t("webhooks.filter.autoDisabled")}</SelectItem>
+            <SelectItem value="admin_disabled">{t("webhooks.filter.adminDisabled")}</SelectItem>
           </SelectContent>
         </Select>
       </div>

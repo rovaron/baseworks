@@ -100,9 +100,10 @@ export async function adminListWebhookDeliveries(
 }
 
 /**
- * Force-disable a webhook (abuse response). Sets status='auto_disabled' and
- * records the operator reason. Owner db; gated at the route. Keys on the global
- * webhook id (uuid PK), so no tenant param is required.
+ * Force-disable a webhook (abuse response). Sets status='admin_disabled' — a
+ * locked state the tenant cannot lift via the self-serve UI (see update-webhook)
+ * — and records the operator reason. Owner db; gated at the route. Keys on the
+ * global webhook id (uuid PK), so no tenant param is required.
  */
 export async function adminForceDisableWebhook(webhookId: string, reason: string) {
   const db = getDb(env.DATABASE_URL); // scoped-db-allow: operator cross-tenant moderation — gated by requirePlatformAdmin
@@ -112,7 +113,23 @@ export async function adminForceDisableWebhook(webhookId: string, reason: string
     : "Force-disabled by platform admin";
   const updated = await db
     .update(notificationWebhook)
-    .set({ status: "auto_disabled", disabledReason })
+    .set({ status: "admin_disabled", disabledReason })
+    .where(eq(notificationWebhook.id, webhookId))
+    .returning({ id: notificationWebhook.id });
+  if (updated.length === 0) return err("WEBHOOK_NOT_FOUND");
+  return ok({ id: webhookId });
+}
+
+/**
+ * Re-enable a webhook that was force-disabled (lift the operator lock). Sets
+ * status='active', resets the failure counter, and clears the disabled reason.
+ * Owner db; gated at the route. Only a platform admin can undo admin_disabled.
+ */
+export async function adminReenableWebhook(webhookId: string) {
+  const db = getDb(env.DATABASE_URL); // scoped-db-allow: operator cross-tenant moderation — gated by requirePlatformAdmin
+  const updated = await db
+    .update(notificationWebhook)
+    .set({ status: "active", consecutiveFailures: "0", disabledReason: null })
     .where(eq(notificationWebhook.id, webhookId))
     .returning({ id: notificationWebhook.id });
   if (updated.length === 0) return err("WEBHOOK_NOT_FOUND");

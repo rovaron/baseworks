@@ -29,6 +29,7 @@
     "statusActive": "Ativo",
     "statusDisabled": "Desativado",
     "statusAutoDisabled": "Desativado automaticamente",
+    "statusAdminDisabled": "Desativado pelo admin",
     "secretTitle": "Segredo de assinatura",
     "secretWarning": "Copie este segredo agora — ele não será mostrado novamente.",
     "copy": "Copiar",

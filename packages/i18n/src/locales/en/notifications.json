@@ -29,6 +29,7 @@
     "statusActive": "Active",
     "statusDisabled": "Disabled",
     "statusAutoDisabled": "Auto-disabled",
+    "statusAdminDisabled": "Disabled by admin",
     "secretTitle": "Signing secret",
     "secretWarning": "Copy this secret now — it will not be shown again.",
     "copy": "Copy",
