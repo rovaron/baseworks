@@ -6,11 +6,19 @@
 import { dirname } from "node:path";
 import { env } from "@baseworks/config";
 import { requirePlatformAdmin } from "@baseworks/module-auth";
-import { createBullBoard } from "@bull-board/api";
-import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
-import { ElysiaAdapter } from "@bull-board/elysia";
 import type { Queue } from "bullmq";
 import { Elysia } from "elysia";
+
+// NOTE: `@bull-board/*` is intentionally NOT imported statically here. Those
+// packages are CommonJS and do a synchronous `require("elysia")` on evaluation,
+// which transitively `require()`s memoirist's `bun` build — an async module Bun
+// can only satisfy from cache. When this module's static graph evaluates the CJS
+// @bull-board before elysia's async ESM load finishes, the sync require triggers
+// memoirist's async load and Bun throws "require() async module ... unsupported"
+// (intermittent — it depends on which module the loader reaches first). Loading
+// them via dynamic import() inside the async factory below defers it until after
+// the entry's `import { Elysia } from "elysia"` has fully resolved (elysia +
+// memoirist cached), so @bull-board's internal sync require resolves from cache.
 
 // Resolve @bull-board/ui's installed dist directory at runtime. Bun's isolated
 // install does NOT hoist @bull-board/ui to the workspace-root node_modules, so
@@ -34,6 +42,15 @@ const uiBasePath = dirname(uiPkgPath);
  * @returns Awaitable Elysia plugin ready to be mounted with `app.use(plugin)`.
  */
 export async function createBullBoardPlugin(queues: Queue[]) {
+  // Dynamic import (see the note at the top of this file): elysia is already
+  // loaded by the time this async factory runs, so @bull-board's internal sync
+  // require("elysia") resolves from cache instead of racing memoirist's load.
+  const [{ createBullBoard }, { BullMQAdapter }, { ElysiaAdapter }] = await Promise.all([
+    import("@bull-board/api"),
+    import("@bull-board/api/bullMQAdapter"),
+    import("@bull-board/elysia"),
+  ]);
+
   // D-04 — frame-ancestors: ADMIN_URL is the only allowed embedder. When unset,
   // degrade to 'none' (strictest possible — bull-board still serves but cannot be iframed).
   const frameAncestors = env.ADMIN_URL ? `'${env.ADMIN_URL}'` : "'none'";
