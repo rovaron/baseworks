@@ -85,7 +85,7 @@ const getMock = vi.fn(async () => ({
   error: null,
 }));
 vi.mock("@/lib/api", () => ({
-  api: { api: { admin: { webhooks: { get: (...a: any[]) => getMock(...a) } } } },
+  api: { api: { admin: { webhooks: { get: getMock } } } },
 }));
 
 let Component: React.ComponentType;
