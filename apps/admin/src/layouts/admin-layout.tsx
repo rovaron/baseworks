@@ -34,6 +34,7 @@ import {
   ListTodo,
   LogOut,
   Users,
+  Webhook,
 } from "lucide-react";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
@@ -47,6 +48,7 @@ const navItems = [
   { titleKey: "nav.tenants", icon: Building2, href: "/tenants" },
   { titleKey: "nav.roles", icon: KeyRound, href: "/roles" },
   { titleKey: "nav.users", icon: Users, href: "/users" },
+  { titleKey: "nav.webhooks", icon: Webhook, href: "/webhooks" },
   { titleKey: "nav.billing", icon: CreditCard, href: "/billing" },
   { titleKey: "nav.system", icon: Activity, href: "/system" },
   { titleKey: "nav.jobs", icon: ListTodo, href: "/jobs" },

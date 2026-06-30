@@ -18,6 +18,7 @@ export const router = createBrowserRouter([
       { path: "roles", lazy: () => import("../routes/roles/list") },
       { path: "users", lazy: () => import("../routes/users/list") },
       { path: "users/:id", lazy: () => import("../routes/users/detail") },
+      { path: "webhooks", lazy: () => import("../routes/webhooks/list") },
       { path: "billing", lazy: () => import("../routes/billing/overview") },
       { path: "system", lazy: () => import("../routes/system/health") },
       { path: "jobs", lazy: () => import("../routes/jobs") },
