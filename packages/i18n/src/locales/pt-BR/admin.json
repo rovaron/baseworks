@@ -9,7 +9,8 @@
     "users": "Usuários",
     "billing": "Faturamento",
     "system": "Sistema",
-    "jobs": "Monitor de Jobs"
+    "jobs": "Monitor de Jobs",
+    "webhooks": "Webhooks"
   },
   "roles": {
     "title": "Funções do Tenant",
@@ -186,6 +187,50 @@
       "deactivateFailed": "Falha ao desativar tenant",
       "updateFailed": "Falha ao atualizar tenant"
     }
+  },
+  "webhooks": {
+    "title": "Webhooks",
+    "searchPlaceholder": "Buscar por URL ou tenant",
+    "empty": "Nenhum endpoint de webhook em nenhum tenant.",
+    "loadError": "Falha ao carregar webhooks.",
+    "columns": {
+      "tenant": "Tenant",
+      "url": "URL do endpoint",
+      "categories": "Categorias",
+      "status": "Status",
+      "failures": "Falhas",
+      "lastDelivery": "Última entrega"
+    },
+    "status": {
+      "active": "Ativo",
+      "disabled": "Desativado",
+      "autoDisabled": "Desativado automaticamente"
+    },
+    "filter": {
+      "label": "Status",
+      "all": "Todos os status",
+      "active": "Ativo",
+      "disabled": "Desativado",
+      "autoDisabled": "Desativado automaticamente"
+    },
+    "actions": { "viewDeliveries": "Ver entregas", "forceDisable": "Forçar desativação" },
+    "deliveries": {
+      "title": "Entregas",
+      "empty": "Nenhuma entrega ainda.",
+      "event": "Evento",
+      "status": "Status",
+      "code": "Código",
+      "attempts": "Tentativas"
+    },
+    "disableDialog": {
+      "title": "Forçar desativação do webhook",
+      "description": "Desativar {url}? O tenant deixa de receber callbacks até reativá-lo.",
+      "reasonLabel": "Motivo (opcional)",
+      "cancel": "Cancelar",
+      "confirm": "Forçar desativação",
+      "disabling": "Desativando…"
+    },
+    "toast": { "disabled": "Webhook desativado", "disableFailed": "Falha ao desativar webhook" }
   },
   "billingOverview": {
     "title": "Visão Geral de Faturamento",
