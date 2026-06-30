@@ -32,6 +32,12 @@ export {
   type Severity,
 } from "./catalog";
 export type { Channel, ChannelAdapter, DeliveryResult } from "./channels/channel";
+export {
+  type AdminWebhookRow,
+  adminForceDisableWebhook,
+  adminListAllWebhooks,
+  adminListWebhookDeliveries,
+} from "./commands/admin-webhooks";
 
 export default {
   name: "notifications",
