@@ -477,15 +477,19 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
     }
     return result.data;
   })
-  .patch("/webhooks/:id/disable", async (ctx: any) => {
-    const reason = (ctx.body?.reason as string) ?? "";
-    const result = await adminForceDisableWebhook(ctx.params.id, reason);
-    if (!result.success) {
-      ctx.set.status = 400;
-      return result;
-    }
-    return result.data;
-  })
+  .patch(
+    "/webhooks/:id/disable",
+    async (ctx: any) => {
+      const reason = ctx.body?.reason ?? "";
+      const result = await adminForceDisableWebhook(ctx.params.id, reason);
+      if (!result.success) {
+        ctx.set.status = result.error === "WEBHOOK_NOT_FOUND" ? 404 : 400;
+        return result;
+      }
+      return result.data;
+    },
+    { body: t.Object({ reason: t.Optional(t.String()) }) },
+  )
 
   // --- User Management ---
   // Delegated to the better-auth admin plugin (`auth.api.listUsers`) so the user
