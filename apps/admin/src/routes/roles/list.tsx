@@ -38,6 +38,20 @@ interface OrgRole {
   permission: Record<string, string[]> | null;
 }
 
+/** Coerce a loosely-typed JSON permission map from the API into the matrix shape. */
+function asPermission(value: unknown): Record<string, string[]> {
+  return value !== null && typeof value === "object" ? (value as Record<string, string[]>) : {};
+}
+
+/** Pull a human error string out of an Eden error envelope's value union. */
+function errorMessage(value: unknown): string {
+  if (value !== null && typeof value === "object" && "error" in value) {
+    const e = (value as { error: unknown }).error;
+    if (typeof e === "string") return e;
+  }
+  return "request failed";
+}
+
 /**
  * The operator-facing permission matrix. Mirrors the Baseworks app resources in
  * the shared statement catalog (access-control.ts). The server validates any
@@ -73,15 +87,17 @@ export function Component() {
       return res.data;
     },
   });
-  const tenants: TenantOption[] = (tenantsResult as any)?.data ?? [];
+  const tenants: TenantOption[] = tenantsResult?.data ?? [];
 
   const rolesQuery = useQuery({
     queryKey: ["admin", "tenant-roles", tenantId],
     enabled: !!tenantId,
     queryFn: async () => {
-      const res = await (api.api.admin.tenants as any)({ id: tenantId }).roles.get();
+      const res = await api.api.admin.tenants({ id: tenantId! }).roles.get();
       if (res.error) throw res.error;
-      return (res.data?.data as OrgRole[]) ?? [];
+      return res.data.data.map(
+        (r): OrgRole => ({ id: r.id, role: r.role, permission: asPermission(r.permission) }),
+      );
     },
   });
 
@@ -95,11 +111,11 @@ export function Component() {
       const permission = Object.fromEntries(
         Object.entries(role.perms).filter(([, actions]) => actions.length > 0),
       );
-      const client = (api.api.admin.tenants as any)({ id: tenantId });
+      const client = api.api.admin.tenants({ id: tenantId! });
       const res = role.original
         ? await client.roles({ role: role.original }).patch({ permission })
         : await client.roles.post({ role: role.name, permission });
-      if (res.error) throw new Error(res.error?.value?.error ?? "request failed");
+      if (res.error) throw new Error(errorMessage(res.error.value));
       return res.data;
     },
     onSuccess: () => {
@@ -112,10 +128,8 @@ export function Component() {
 
   const deleteMutation = useMutation({
     mutationFn: async (roleName: string) => {
-      const res = await (api.api.admin.tenants as any)({ id: tenantId })
-        .roles({ role: roleName })
-        .delete();
-      if (res.error) throw new Error(res.error?.value?.error ?? "request failed");
+      const res = await api.api.admin.tenants({ id: tenantId! }).roles({ role: roleName }).delete();
+      if (res.error) throw new Error(errorMessage(res.error.value));
       return res.data;
     },
     onSuccess: () => {

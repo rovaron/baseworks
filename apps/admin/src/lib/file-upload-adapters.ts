@@ -18,15 +18,6 @@ function httpError(message: string, status?: number): Error & { status?: number 
   return Object.assign(new Error(message), { status });
 }
 
-type SignEnvelope = {
-  fileId: string;
-  method: string;
-  url: string;
-  headers?: Record<string, string> | null;
-  fields?: Record<string, string> | null;
-  expiresAt: string;
-};
-
 /**
  * sign() adapter for a given TARGET tenant. Calls
  * POST /api/admin/tenants/:id/files/sign-upload and converts the envelope into an
@@ -40,7 +31,7 @@ export function makeAdminSign(tenantId: string) {
     mimeType: string;
     byteSize: number;
   }): Promise<UploadDescriptor> => {
-    const res = await (api.api.admin.tenants as any)({ id: tenantId }).files["sign-upload"].post({
+    const res = await api.api.admin.tenants({ id: tenantId }).files["sign-upload"].post({
       mimeType: meta.mimeType,
       byteSize: meta.byteSize,
       originalFilename: meta.name,
@@ -48,7 +39,10 @@ export function makeAdminSign(tenantId: string) {
     if (res.error || !res.data) {
       throw httpError("sign-upload failed", res.error?.status);
     }
-    const env = res.data as SignEnvelope;
+    const env = res.data;
+    if ("error" in env) {
+      throw httpError("sign-upload failed");
+    }
 
     if (env.method === "POST" && env.fields) {
       return {
@@ -72,9 +66,7 @@ export function makeAdminSign(tenantId: string) {
 /** complete() adapter — server-authoritative finalize for the TARGET tenant. */
 export function makeAdminComplete(tenantId: string) {
   return async (fileId: string): Promise<unknown> => {
-    const res = await (api.api.admin.tenants as any)({ id: tenantId })
-      .files({ fileId })
-      .complete.post();
+    const res = await api.api.admin.tenants({ id: tenantId }).files({ fileId }).complete.post();
     if (res.error) {
       throw httpError("complete failed", res.error.status);
     }
@@ -84,16 +76,15 @@ export function makeAdminComplete(tenantId: string) {
 
 /** Resolve a short-lived signed READ url for a file in the TARGET tenant. */
 export async function adminGetReadUrl(tenantId: string, fileId: string): Promise<string | null> {
-  const res = await (api.api.admin.tenants as any)({ id: tenantId })
-    .files({ fileId })
-    ["read-url"].get();
+  const res = await api.api.admin.tenants({ id: tenantId }).files({ fileId })["read-url"].get();
   if (res.error || !res.data) return null;
-  return (res.data as { url: string }).url;
+  if ("error" in res.data) return null;
+  return res.data.url;
 }
 
 /** Soft-delete a file in the TARGET tenant. */
 export async function adminDeleteFile(tenantId: string, fileId: string): Promise<void> {
-  const res = await (api.api.admin.tenants as any)({ id: tenantId }).files({ fileId }).delete();
+  const res = await api.api.admin.tenants({ id: tenantId }).files({ fileId }).delete();
   if (res.error) {
     throw httpError("delete failed", res.error.status);
   }
@@ -111,7 +102,7 @@ export type AdminFileRow = {
   originalFilename: string | null;
   transforms: unknown;
   variantCount: number;
-  createdAt: string;
+  createdAt: Date | string;
   uploadedByUserId: string | null;
 };
 
@@ -119,11 +110,14 @@ export type AdminFileRow = {
 export async function adminListFiles(
   tenantId: string,
 ): Promise<{ files: AdminFileRow[]; total: number }> {
-  const res = await (api.api.admin.tenants as any)({ id: tenantId }).files.get();
+  const res = await api.api.admin.tenants({ id: tenantId }).files.get();
   if (res.error || !res.data) {
     throw httpError("list failed", res.error?.status);
   }
-  return res.data as { files: AdminFileRow[]; total: number };
+  if ("error" in res.data) {
+    throw httpError("list failed");
+  }
+  return { files: res.data.files, total: res.data.total };
 }
 
 /** Build the FileUpload labels bag from a useTranslation("files") instance. */

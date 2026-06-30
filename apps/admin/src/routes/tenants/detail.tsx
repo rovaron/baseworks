@@ -275,19 +275,23 @@ export function Component() {
   } = useQuery({
     queryKey: ["admin", "tenants", id],
     queryFn: async () => {
-      const res = await (api.api.admin.tenants as any)({ id: id! }).get();
+      const res = await api.api.admin.tenants({ id: id! }).get();
       if (res.error) throw res.error;
       return res.data;
     },
     enabled: !!id,
   });
 
-  const tenant = (result as any)?.data;
-  const isDeactivated = tenant?.metadata?.deactivated;
+  const tenant = result && "data" in result ? result.data : undefined;
+  const metadata =
+    tenant && tenant.metadata !== null && typeof tenant.metadata === "object"
+      ? (tenant.metadata as Record<string, unknown>)
+      : null;
+  const isDeactivated = metadata?.deactivated;
 
   const toggleMutation = useMutation({
     mutationFn: async () => {
-      const res = await (api.api.admin.tenants as any)({ id: id! }).patch({
+      const res = await api.api.admin.tenants({ id: id! }).patch({
         metadata: isDeactivated
           ? { deactivated: false, reactivatedAt: new Date().toISOString() }
           : { deactivated: true, deactivatedAt: new Date().toISOString() },

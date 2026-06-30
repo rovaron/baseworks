@@ -28,9 +28,14 @@ import { api } from "@/lib/api";
 interface Tenant {
   id: string;
   name: string;
-  slug: string;
-  createdAt: string;
-  metadata: Record<string, any> | null;
+  slug: string | null;
+  createdAt: Date | string;
+  metadata: Record<string, unknown> | null;
+}
+
+/** Coerce a loosely-typed JSON metadata blob from the API into an object map. */
+function asMetadata(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object" ? (value as Record<string, unknown>) : null;
 }
 
 const PAGE_SIZE = 20;
@@ -72,7 +77,7 @@ export function Component() {
 
   const deactivateMutation = useMutation({
     mutationFn: async (tenant: Tenant) => {
-      const res = await (api.api.admin.tenants as any)({ id: tenant.id }).patch({
+      const res = await api.api.admin.tenants({ id: tenant.id }).patch({
         metadata: { deactivated: true, deactivatedAt: new Date().toISOString() },
       });
       if (res.error) throw new Error(res.error?.value?.message ?? "request failed");
@@ -88,8 +93,14 @@ export function Component() {
     },
   });
 
-  const tenants = (result as any)?.data ?? [];
-  const total = (result as any)?.total ?? 0;
+  const tenants: Tenant[] = (result?.data ?? []).map((t) => ({
+    id: t.id,
+    name: t.name,
+    slug: t.slug,
+    createdAt: t.createdAt,
+    metadata: asMetadata(t.metadata),
+  }));
+  const total = result?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const columns: ColumnDef<Tenant, any>[] = [

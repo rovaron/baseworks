@@ -43,16 +43,17 @@ export function WebhookDeliveriesDialog({
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "webhooks", webhookId, "deliveries"],
     queryFn: async () => {
-      const res = await (api.api.admin.webhooks as any)({ id: webhookId }).deliveries.get({
+      const res = await api.api.admin.webhooks({ id: webhookId! }).deliveries.get({
         query: { limit: 50, offset: 0 },
       });
       if (res.error) throw res.error;
-      return res.data;
+      if (!("data" in res.data)) return [] as Delivery[];
+      return res.data.data satisfies Delivery[];
     },
     enabled: !!webhookId,
   });
 
-  const deliveries: Delivery[] = (data as any)?.data ?? [];
+  const deliveries: Delivery[] = data ?? [];
 
   return (
     <Dialog open={!!webhookId} onOpenChange={() => onClose()}>
