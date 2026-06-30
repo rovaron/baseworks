@@ -1,6 +1,5 @@
 import type { ModuleDefinition } from "@baseworks/shared";
 import { fileRelationsRegistry } from "@baseworks/storage";
-import { Elysia } from "elysia";
 import { logger } from "../lib/logger";
 import { CqrsBus } from "./cqrs";
 import { TypedEventBus } from "./event-bus";
@@ -49,16 +48,17 @@ export function assertValidQueueNames(moduleName: string, jobs: ModuleDefinition
 /**
  * Config-driven module registry.
  *
- * Loads modules listed in {@link RegistryConfig}, registers their
- * commands and queries into the {@link CqrsBus}, and provides
- * route-mounting helpers for the Elysia app composition chain.
+ * Loads modules listed in {@link RegistryConfig} and registers their
+ * commands, queries, health contributors, file-relations and jobs.
  * Each module is dynamically imported from the static import map
- * to maintain Bun analyzability.
+ * to maintain Bun analyzability. Route plugins are NOT mounted via the
+ * registry -- apps/api static-chains the concrete route plugins directly so
+ * their types flow into Eden Treaty's App inference.
  *
  * @example
  * const registry = new ModuleRegistry({ role: "api", modules: ["auth", "billing"] });
  * await registry.loadAll();
- * app.use(registry.getModuleRoutes());
+ * wrapCqrsBus(registry.getCqrs(), errorTracker);
  */
 export class ModuleRegistry {
   private loaded = new Map<string, ModuleDefinition>();
@@ -180,40 +180,6 @@ export class ModuleRegistry {
       { count: this.loaded.size, modules: [...this.loaded.keys()] },
       "Module registry initialized",
     );
-  }
-
-  /**
-   * Returns the auth module's routes plugin for mounting BEFORE tenant middleware.
-   * Auth routes (signup, login, OAuth callbacks) must not require tenant context.
-   */
-  getAuthRoutes(): any {
-    const authModule = this.loaded.get("auth");
-    if (authModule?.routes) return authModule.routes;
-    return null;
-  }
-
-  /**
-   * Returns a single Elysia plugin that chains all non-auth, non-billing module routes.
-   * Used in the app composition chain to preserve type inference for Eden Treaty.
-   */
-  getModuleRoutes() {
-    const plugin = new Elysia({ name: "module-routes" });
-
-    if (this.config.role === "worker") {
-      logger.info("Worker role -- skipping route attachment");
-      return plugin;
-    }
-
-    for (const [name, def] of this.loaded) {
-      // Auth and billing routes are mounted separately for type chain preservation
-      if (name === "auth" || name === "billing") continue;
-      if (def.routes) {
-        plugin.use(def.routes as any);
-        logger.info({ module: name }, "Routes attached via getModuleRoutes");
-      }
-    }
-
-    return plugin;
   }
 
   /** Returns the CqrsBus instance used by this registry. */

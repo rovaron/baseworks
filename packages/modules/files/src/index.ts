@@ -66,6 +66,9 @@ export { setCleanupEventSink } from "./lib/cleanup-events";
 // Phase 28 / IMG-01 — worker binds this to its registry event bus so the
 // image-transform job's lifecycle events are emitted + traced.
 export { setTransformEventSink } from "./lib/transform-events";
+// Re-exported so apps/api can static-chain the plugin with its precise Elysia
+// type (Eden Treaty end-to-end typing).
+export { filesRoutes } from "./routes";
 
 /**
  * Phase 30 / UI-02 — generic `admin-attachment` file relation.

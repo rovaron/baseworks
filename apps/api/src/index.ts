@@ -7,10 +7,15 @@ import {
 } from "@baseworks/config";
 import { closeDb, getDb, getRlsDb, scopedDb, withTenant } from "@baseworks/db";
 import { defaultLocale } from "@baseworks/i18n";
-import { promoteConfiguredAdmins, requirePermission } from "@baseworks/module-auth";
-import { billingWebhookRoutes, registerBillingHooks } from "@baseworks/module-billing";
-import { registerExampleHooks } from "@baseworks/module-example";
-import { registerFilesHooks } from "@baseworks/module-files";
+import { authRoutes, promoteConfiguredAdmins, requirePermission } from "@baseworks/module-auth";
+import {
+  billingRoutes,
+  billingWebhookRoutes,
+  registerBillingHooks,
+} from "@baseworks/module-billing";
+import { exampleRoutes, registerExampleHooks } from "@baseworks/module-example";
+import { filesRoutes, registerFilesHooks } from "@baseworks/module-files";
+import { notificationRoutes } from "@baseworks/module-notifications";
 import {
   getErrorTracker,
   getTracer,
@@ -99,18 +104,6 @@ registerExampleHooks(registry.getEventBus());
 // Phase 26 / QUO-01 — register files hooks (seed tenant_storage_usage row on
 // tenant.created, ON CONFLICT DO NOTHING; resilient, never crashes tenant creation)
 registerFilesHooks(registry.getEventBus());
-
-// Get module routes for direct .use() chaining.
-// The registry getters erase the plugins to `any` (getAuthRoutes / ModuleDefinition.routes),
-// which would taint the whole App routes type and collapse Eden Treaty inference (.admin et al.).
-// Re-annotating the locals with the concrete plugin types via type-only `import(...)` queries
-// (zero runtime import — the modules are still sourced from the registry value) restores precise
-// inference without changing runtime behavior or eager-loading the billing plugin at boot.
-const authRoutes: typeof import("@baseworks/module-auth").authRoutes | null =
-  registry.getAuthRoutes();
-const billingModule = registry.getLoaded().get("billing");
-const billingApiRoutes: typeof import("@baseworks/module-billing").billingRoutes | undefined =
-  billingModule?.routes;
 
 // Phase 22 / OPS-01 / Pitfall 10 — collect all module-registered queue names and construct
 // read-only Queue references for bull-board to introspect. The API process does NOT run
@@ -293,8 +286,9 @@ const app = new Elysia()
   // operator-scope band: same RBAC discipline as bull-board, no tenant context required.
   .use(healthDetailedPlugin)
   // Auth routes -- mounted BEFORE tenant middleware so signup/login/OAuth
-  // callbacks do NOT require tenant context (D-16)
-  .use(authRoutes ?? new Elysia())
+  // callbacks do NOT require tenant context (D-16). Static-chained as the
+  // concrete plugin so its route types reach Eden Treaty's App inference.
+  .use(authRoutes)
   // Public Stripe webhook -- mounted in the PRE-TENANT band (alongside authRoutes)
   // so unauthenticated provider callbacks are NOT rejected by the tenant derive
   // (billing-webhook-mounted-inside-tenant-scope). The tenant-scoped billing
@@ -331,8 +325,9 @@ const app = new Elysia()
       registry.getCqrs().execute(command, input, handlerCtx);
     return { handlerCtx };
   })
-  // Billing HTTP routes (tenant-scoped commands/queries)
-  .use(billingApiRoutes ?? new Elysia())
+  // Billing HTTP routes (tenant-scoped commands/queries). Static-chained as the
+  // concrete plugin so its route types reach Eden Treaty's App inference.
+  .use(billingRoutes)
   // Admin API routes (cross-tenant, owner-only)
   .use(adminRoutes)
   // Owner-only route: delete tenant (per D-13, TNNT-04).
@@ -371,8 +366,15 @@ const app = new Elysia()
       return result.data;
     }),
   )
-  // Non-auth, non-billing module routes (e.g., example)
-  .use(registry.getModuleRoutes());
+  // Tenant-scoped module route plugins (example, files, notifications).
+  // Static-chained as concrete Elysia plugins -- NOT via a runtime registry loop
+  // -- so each module's route types flow into App for Eden Treaty inference.
+  // They stay in the tenant-scoped band (after tenantMiddleware + handlerCtx
+  // derive) because their handlers read the tenant-scoped context. The registry
+  // still governs jobs/commands/events at runtime; it no longer attaches routes.
+  .use(exampleRoutes)
+  .use(filesRoutes)
+  .use(notificationRoutes);
 
 // Phase 19 D-01/D-12 — Bun.serve fetch wrapper is the single ALS seed point for
 // every HTTP request. Elysia runs inside `obsContext.run(...)` so every log line,
