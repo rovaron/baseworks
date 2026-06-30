@@ -6,7 +6,7 @@ export interface WebhookEndpoint {
   url: string;
   categories: string[] | null;
   description: string | null;
-  status: "active" | "disabled" | "auto_disabled";
+  status: "active" | "disabled" | "auto_disabled" | "admin_disabled";
   consecutiveFailures: string;
   lastDeliveryAt: string | null;
   lastStatus: string | null;

@@ -27,6 +27,8 @@ function statusBadge(status: string, t: (k: string) => string) {
   if (status === "active") return <Badge>{t("webhooks.statusActive")}</Badge>;
   if (status === "disabled")
     return <Badge variant="secondary">{t("webhooks.statusDisabled")}</Badge>;
+  if (status === "admin_disabled")
+    return <Badge variant="destructive">{t("webhooks.statusAdminDisabled")}</Badge>;
   return <Badge variant="destructive">{t("webhooks.statusAutoDisabled")}</Badge>;
 }
 
@@ -84,16 +86,20 @@ export function WebhooksManager() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => openEdit(wh)}>
-                        {t("webhooks.edit")}
-                      </DropdownMenuItem>
+                      {/* A platform-admin force-disable (admin_disabled) locks the
+                          endpoint — the tenant cannot edit or re-enable it. */}
+                      {wh.status !== "admin_disabled" && (
+                        <DropdownMenuItem onClick={() => openEdit(wh)}>
+                          {t("webhooks.edit")}
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem onClick={() => setDeliveriesFor(wh.id)}>
                         {t("webhooks.deliveries")}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => rotate(wh.id)}>
                         {t("webhooks.rotateSecret")}
                       </DropdownMenuItem>
-                      {wh.status === "active" ? (
+                      {wh.status === "admin_disabled" ? null : wh.status === "active" ? (
                         <DropdownMenuItem
                           onClick={() => update({ id: wh.id, input: { status: "disabled" } })}
                         >

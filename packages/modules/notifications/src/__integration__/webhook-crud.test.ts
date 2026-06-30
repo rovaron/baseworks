@@ -109,4 +109,36 @@ describe("webhook CRUD", () => {
     expect(row.status).toBe("active");
     expect(row.consecutiveFailures).toBe("0");
   }, 30_000);
+
+  test("tenant cannot edit or re-enable an admin_disabled (force-disabled) endpoint", async () => {
+    if (!ok) return console.warn("SKIPPED");
+    const ctx = makeCtx(T, "u1");
+    const created = await createWebhook(
+      { url: "https://example.com/hook", categories: ["system"] },
+      ctx,
+    );
+    if (!created.success) throw new Error("setup failed");
+    const id = created.data.id;
+    // Simulate a platform-admin force-disable (the locked state).
+    await getDb()
+      .update(notificationWebhook)
+      .set({ status: "admin_disabled", disabledReason: "Force-disabled by platform admin: abuse" })
+      .where(eq(notificationWebhook.id, id));
+
+    // Tenant attempts to re-enable — must be rejected, not silently applied.
+    const reenable = await updateWebhook({ id, status: "active" }, ctx);
+    expect(reenable.success).toBe(false);
+    if (!reenable.success) expect(reenable.error).toBe("WEBHOOK_ADMIN_LOCKED");
+
+    // Tenant attempts an unrelated edit — also locked out.
+    const edit = await updateWebhook({ id, description: "sneaky" }, ctx);
+    expect(edit.success).toBe(false);
+
+    // The row is untouched.
+    const [row] = await getDb()
+      .select()
+      .from(notificationWebhook)
+      .where(eq(notificationWebhook.id, id));
+    expect(row.status).toBe("admin_disabled");
+  }, 30_000);
 });

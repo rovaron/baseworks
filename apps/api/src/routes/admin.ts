@@ -19,6 +19,7 @@ import {
   adminForceDisableWebhook,
   adminListAllWebhooks,
   adminListWebhookDeliveries,
+  adminReenableWebhook,
 } from "@baseworks/module-notifications";
 import { getRedisConnection } from "@baseworks/queue";
 import { and, count, eq, like, or, sql } from "drizzle-orm";
@@ -490,6 +491,14 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
     },
     { body: t.Object({ reason: t.Optional(t.String()) }) },
   )
+  .patch("/webhooks/:id/enable", async (ctx: any) => {
+    const result = await adminReenableWebhook(ctx.params.id);
+    if (!result.success) {
+      ctx.set.status = result.error === "WEBHOOK_NOT_FOUND" ? 404 : 400;
+      return result;
+    }
+    return result.data;
+  })
 
   // --- User Management ---
   // Delegated to the better-auth admin plugin (`auth.api.listUsers`) so the user

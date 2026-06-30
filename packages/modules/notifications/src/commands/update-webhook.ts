@@ -19,6 +19,10 @@ const Input = Type.Object({
  * Edit an endpoint. Re-validates a changed URL through the SSRF guard.
  * Re-enabling (status → active) also clears any auto-disable lockout by
  * resetting consecutiveFailures.
+ *
+ * An endpoint a platform admin has force-disabled (status `admin_disabled`) is
+ * locked: tenants cannot edit or re-enable it — only a platform admin can lift
+ * the lock (see adminReenableWebhook).
  */
 export const updateWebhook = defineCommand(Input, async (input, ctx) => {
   if (input.categories !== undefined && !isValidCategories(input.categories)) {
@@ -46,15 +50,30 @@ export const updateWebhook = defineCommand(Input, async (input, ctx) => {
   }
   if (Object.keys(patch).length === 0) return err("NO_FIELDS_TO_UPDATE");
 
-  const updated = (await requireWithTenant(ctx)((tx) =>
-    tx
+  const where = and(
+    eq(notificationWebhook.id, input.id),
+    eq(notificationWebhook.tenantId, ctx.tenantId),
+  );
+
+  // Read-then-write in one tenant-scoped transaction so the admin-lock check is
+  // atomic with the update (a tenant can't race past a concurrent force-disable).
+  const result = await requireWithTenant(ctx)(async (tx) => {
+    const [current] = (await tx
+      .select({ status: notificationWebhook.status })
+      .from(notificationWebhook)
+      .where(where)
+      .limit(1)) as { status: string }[];
+    if (!current) return { kind: "not_found" as const };
+    if (current.status === "admin_disabled") return { kind: "locked" as const };
+    const [row] = (await tx
       .update(notificationWebhook)
       .set(patch)
-      .where(
-        and(eq(notificationWebhook.id, input.id), eq(notificationWebhook.tenantId, ctx.tenantId)),
-      )
-      .returning(),
-  )) as (typeof notificationWebhook.$inferSelect)[];
-  if (updated.length === 0) return err("WEBHOOK_NOT_FOUND");
-  return ok(serializeWebhook(updated[0]));
+      .where(where)
+      .returning()) as (typeof notificationWebhook.$inferSelect)[];
+    return { kind: "ok" as const, row };
+  });
+
+  if (result.kind === "not_found") return err("WEBHOOK_NOT_FOUND");
+  if (result.kind === "locked") return err("WEBHOOK_ADMIN_LOCKED");
+  return ok(serializeWebhook(result.row));
 });

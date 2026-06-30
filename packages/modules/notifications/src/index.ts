@@ -37,6 +37,7 @@ export {
   adminForceDisableWebhook,
   adminListAllWebhooks,
   adminListWebhookDeliveries,
+  adminReenableWebhook,
 } from "./commands/admin-webhooks";
 
 export default {
