@@ -95,13 +95,13 @@ export function MembersList() {
     queryKey: ["org-roles", activeTenant?.id],
     enabled: !!activeTenant?.id,
     queryFn: async () => {
-      const res = await auth.organization.listOrgRoles({
+      const res = await auth.organization.listRoles({
         query: { organizationId: activeTenant!.id },
       });
-      return (res.data as any[])?.map((r) => r.role) ?? [];
+      return res.data?.map((r) => r.role) ?? [];
     },
   });
-  const allRoles = ["owner", "admin", "member", ...((rolesQuery.data as string[]) ?? [])];
+  const allRoles = ["owner", "admin", "member", ...(rolesQuery.data ?? [])];
 
   const setRoleMutation = useMutation({
     mutationFn: async ({ memberId, role }: { memberId: string; role: string }) => {

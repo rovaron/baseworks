@@ -33,7 +33,11 @@ export { platformAdminRoles } from "@baseworks/module-auth/access-control";
 export function createAuth(baseUrl: string) {
   return createAuthClient({
     baseURL: baseUrl,
-    plugins: [organizationClient({ ac, roles }), magicLinkClient(), adminClient()],
+    plugins: [
+      organizationClient({ ac, roles, dynamicAccessControl: { enabled: true } }),
+      magicLinkClient(),
+      adminClient(),
+    ],
     fetchOptions: {
       credentials: "include",
     },

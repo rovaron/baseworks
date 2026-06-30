@@ -358,7 +358,15 @@ const app = new Elysia()
   // + files:get-read-url (zero auth<->files import). Eden type: api.api.profile.get().
   .group("/api", (group) =>
     group.get("/profile", async (ctx: any) => {
-      const result = await registry.getCqrs().execute("auth:get-profile", {}, ctx.handlerCtx);
+      const result = await registry.getCqrs().execute<{
+        id: string;
+        name: string | null;
+        email: string;
+        image: string | null;
+        emailVerified: boolean;
+        createdAt: Date;
+        avatarUrl: string | null;
+      }>("auth:get-profile", {}, ctx.handlerCtx);
       if (!result.success) {
         ctx.set.status = 401;
         return { error: result.error };
