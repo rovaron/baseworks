@@ -241,58 +241,59 @@ const Sidebar = React.forwardRef<
     }
 
     return (
+      // biome-ignore lint/a11y/noStaticElementInteractions: hover-to-expand is a pointer-only progressive enhancement; the sidebar remains fully keyboard-navigable via its buttons, and the mouse handlers carry no semantic role.
       <div
         ref={ref}
-        className="group peer hidden text-sidebar-foreground md:block"
+        // Pure-flexbox sidebar: this is an in-flow flex item in the SidebarProvider
+        // row, so its own width reserves the space — there is no position:fixed
+        // sidebar and no width-mirroring "gap" div, hence no --sidebar-width value
+        // that must be kept in sync across two elements. Toggling expanded/collapsed
+        // animates this width and flexbox grows/shrinks the SidebarInset content
+        // area. `sticky top-0 h-svh` keeps it pinned full-height while the page
+        // scrolls. Width uses self `data-[collapsible=...]` (the data attr is on
+        // THIS element, so group-data — which reads an ancestor — would not apply).
+        className={cn(
+          "group peer sticky top-0 hidden h-svh shrink-0 text-sidebar-foreground md:block",
+          className,
+        )}
         data-state={effectiveState}
         data-collapsible={effectiveState === "collapsed" ? collapsible : ""}
         data-variant={variant}
         data-side={side}
+        onMouseEnter={() => {
+          if (isTablet) {
+            clearTimeout(hoverTimeoutRef.current);
+            hoverTimeoutRef.current = setTimeout(() => setIsHoverExpanded(true), 200);
+          }
+        }}
+        onMouseLeave={() => {
+          if (isTablet) {
+            clearTimeout(hoverTimeoutRef.current);
+            hoverTimeoutRef.current = setTimeout(() => setIsHoverExpanded(false), 200);
+          }
+        }}
+        {...props}
       >
-        {/* This is what handles the sidebar gap on desktop */}
+        {/* The width lives on this child and is driven by the parent's data-collapsible
+            via group-data-* (the parent carries the `group` class). The parent (an
+            in-flow flex item in the SidebarProvider row) sizes to this child's width,
+            so collapsing shrinks the parent and flexbox grows the SidebarInset. */}
         <div
+          data-sidebar="sidebar"
           className={cn(
-            "relative w-[var(--sidebar-width)] bg-transparent transition-[width] duration-200 ease-linear",
-            "group-data-[collapsible=offcanvas]:w-0",
-            "group-data-[side=right]:rotate-180",
-            variant === "floating" || variant === "inset"
-              ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4))]"
-              : "group-data-[collapsible=icon]:w-[var(--sidebar-width-icon)]",
+            // Width + collapse transition live in globals.css, keyed on the parent's
+            // data-collapsible — Tailwind v4 wraps group-* variants in :where() (zero
+            // specificity), so an arbitrary `group-data-[…]:w-[…]` ties with the base
+            // width and loses on source order. A plain descendant rule wins cleanly.
+            "flex h-full flex-col overflow-hidden bg-sidebar",
+            variant === "sidebar"
+              ? side === "left"
+                ? "border-r border-sidebar-border"
+                : "border-l border-sidebar-border"
+              : "rounded-lg border border-sidebar-border shadow",
           )}
-        />
-        {/* biome-ignore lint/a11y/noStaticElementInteractions: hover-to-expand is a pointer-only progressive enhancement on the desktop rail; the sidebar remains fully keyboard-navigable via its buttons, and the mouse handlers carry no semantic role */}
-        <div
-          className={cn(
-            "fixed inset-y-0 z-10 hidden h-svh w-[var(--sidebar-width)] transition-[left,right,width] duration-200 ease-linear md:flex",
-            side === "left"
-              ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
-              : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
-            // Adjust the padding for floating and inset variants.
-            variant === "floating" || variant === "inset"
-              ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4)_+2px)]"
-              : "group-data-[collapsible=icon]:w-[var(--sidebar-width-icon)] group-data-[side=left]:border-r group-data-[side=right]:border-l",
-            className,
-          )}
-          onMouseEnter={() => {
-            if (isTablet) {
-              clearTimeout(hoverTimeoutRef.current);
-              hoverTimeoutRef.current = setTimeout(() => setIsHoverExpanded(true), 200);
-            }
-          }}
-          onMouseLeave={() => {
-            if (isTablet) {
-              clearTimeout(hoverTimeoutRef.current);
-              hoverTimeoutRef.current = setTimeout(() => setIsHoverExpanded(false), 200);
-            }
-          }}
-          {...props}
         >
-          <div
-            data-sidebar="sidebar"
-            className="flex h-full w-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow"
-          >
-            {children}
-          </div>
+          {children}
         </div>
       </div>
     );
@@ -360,7 +361,10 @@ const SidebarInset = React.forwardRef<HTMLDivElement, React.ComponentProps<"main
       <main
         ref={ref}
         className={cn(
-          "relative flex w-full flex-1 flex-col bg-background",
+          // min-w-0 lets this flex item shrink below its content's intrinsic width
+          // so wide tables scroll inside their own container instead of pushing the
+          // layout (and lets the sidebar's width changes drive this column's width).
+          "relative flex w-full min-w-0 flex-1 flex-col bg-background",
           "md:peer-data-[variant=inset]:m-2 md:peer-data-[state=collapsed]:peer-data-[variant=inset]:ml-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow",
           className,
         )}

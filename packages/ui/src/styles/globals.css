@@ -135,3 +135,25 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 }
+
+/*
+ * Sidebar width + collapse transition.
+ *
+ * The sidebar is an in-flow flex item (no position:fixed, no width-mirroring gap
+ * div), so its width drives the adjacent content area via flexbox. The width is
+ * keyed on the parent's data-collapsible (set by the Sidebar component). Written
+ * as plain CSS rather than Tailwind `group-data-[…]:w-[…]` because Tailwind v4
+ * wraps group-* variants in :where() (zero specificity) — the collapse utility
+ * then ties with the base width and loses on source order. A real descendant
+ * selector (specificity 0,2,0 > 0,1,0) wins cleanly.
+ */
+[data-sidebar="sidebar"] {
+  width: var(--sidebar-width);
+  transition: width 200ms ease-linear;
+}
+[data-collapsible="icon"] [data-sidebar="sidebar"] {
+  width: var(--sidebar-width-icon);
+}
+[data-collapsible="offcanvas"] [data-sidebar="sidebar"] {
+  width: 0;
+}
