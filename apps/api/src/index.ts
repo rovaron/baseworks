@@ -401,6 +401,10 @@ const app = new Elysia()
 // obsContext.traceId end-to-end (producer span, BullMQ carrier, worker log line).
 const server = Bun.serve({
   port: env.PORT,
+  // SO_REUSEPORT — lets multiple API processes bind the same PORT so the kernel
+  // load-balances TCP connections across them. This is what makes vertical scaling
+  // work: run N processes (see supervisor.ts) and add/remove them without a proxy.
+  reusePort: true,
   fetch(req) {
     const cookieHeader = req.headers.get("cookie");
     const parsedLocale = parseNextLocaleCookie(cookieHeader);
@@ -487,9 +491,22 @@ async function shutdown() {
   if (shuttingDown) return;
   shuttingDown = true;
   logger.info("API shutting down...");
+  // Safety net: if draining hangs (a request never completes), force-exit so a
+  // downscale/deploy can't block forever. The supervisor's own SIGKILL timeout is
+  // a second backstop; this keeps a standalone process from hanging too.
+  const forceExit = setTimeout(
+    () => {
+      logger.warn("API shutdown drain timed out; forcing exit");
+      process.exit(0);
+    },
+    Number(process.env.SHUTDOWN_DRAIN_MS ?? 25_000),
+  );
+  forceExit.unref?.();
   try {
-    // Stop accepting new connections and let in-flight requests finish.
-    server.stop(true);
+    // Stop accepting new connections and let in-flight requests DRAIN (no arg =
+    // graceful; `stop(true)` would force-close active requests). This is what makes
+    // downscaling a process safe — in-flight requests complete before we tear down.
+    await server.stop();
     // Close Redis (shared queue connection) then the DB pool. Order matters:
     // drain the server first so nothing else issues queries/commands.
     await closeConnection();
@@ -497,6 +514,7 @@ async function shutdown() {
   } catch (err) {
     logger.error({ err: String(err) }, "Error during API shutdown");
   } finally {
+    clearTimeout(forceExit);
     process.exit(0);
   }
 }

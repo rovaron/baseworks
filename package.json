@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "api": "bun run --watch apps/api/src/index.ts",
+    "cluster": "bun run apps/api/src/supervisor.ts",
     "worker": "bun run apps/api/src/worker.ts",
     "db:generate": "bun drizzle-kit generate --config packages/db/drizzle.config.ts",
     "db:migrate": "bun drizzle-kit migrate --config packages/db/drizzle.config.ts",
