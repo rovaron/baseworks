@@ -76,7 +76,7 @@ fileRelationsRegistry.register(OWNER_MODULE, KIND, {
 });
 
 // Mount the REAL routes behind a derived handlerCtx (mirrors the apps/api scoped
-// band: tenantMiddleware + handlerCtx derive run before getModuleRoutes()).
+// band: tenantMiddleware + handlerCtx derive run before the module route chain).
 const app = new Elysia()
   .derive(() => ({
     handlerCtx: {

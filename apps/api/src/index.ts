@@ -380,6 +380,12 @@ const app = new Elysia()
   // They stay in the tenant-scoped band (after tenantMiddleware + handlerCtx
   // derive) because their handlers read the tenant-scoped context. The registry
   // still governs jobs/commands/events at runtime; it no longer attaches routes.
+  //
+  // COUPLING: this chain must stay in sync with the `modules` config above.
+  // Route mounting is now static (Eden types require it), so removing a module
+  // from `modules` no longer removes its routes. To disable a module, remove BOTH
+  // its `modules` entry AND its `.use(...Routes)` line here. (Routes call their
+  // commands directly, so a mismatch degrades jobs/event-subscribers, not routes.)
   .use(exampleRoutes)
   .use(filesRoutes)
   .use(notificationRoutes);

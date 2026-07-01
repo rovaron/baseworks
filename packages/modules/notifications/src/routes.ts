@@ -15,10 +15,11 @@ import { unreadCount } from "./queries/unread-count";
 import { getSseBridge } from "./sse/runtime"; // returns the process SseBridge (Task 7)
 
 /**
- * Notifications HTTP routes. Auto-mounts via getModuleRoutes() in apps/api's
- * scoped band (AFTER tenantMiddleware + the handlerCtx derive), so
- * `ctx.handlerCtx` (with tenantId/userId/withTenant) is guaranteed present —
- * no explicit .use() in apps/api (files/billing routes are the pattern).
+ * Notifications HTTP routes. Statically chained (`.use(notificationRoutes)`) in
+ * apps/api's scoped band, AFTER tenantMiddleware + the handlerCtx derive, so
+ * `ctx.handlerCtx` (with tenantId/userId/withTenant) is guaranteed present. It is
+ * chained as the concrete plugin (not via the registry) so its route types reach
+ * Eden Treaty's `App` inference.
  *
  * Every read/write of `notification*` is RLS-scoped via handlerCtx.withTenant
  * (inside the query/command) AND filtered by recipient_user_id = ctx.userId.
