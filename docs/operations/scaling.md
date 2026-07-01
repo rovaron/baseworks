@@ -47,7 +47,31 @@ BullMQ is built for this — multiple workers pull the same Redis queue. Repeata
 Each process opens its own pool (`DB_POOL_MAX`, default **10**). `(N api + M worker) × pool` must stay under Postgres `max_connections` (~100 default). So:
 
 - Keep per-process pools small (drop `DB_POOL_MAX` to 5–8 when running many processes).
-- Past ~8–10 processes, put **PgBouncer (transaction mode)** in front — hundreds of app connections multiplex onto a small server pool. RLS uses `SET app.tenant_id` *inside each transaction*, so **transaction-mode pooling is compatible** (session mode is not required). See the PgBouncer setup in the deploy docs.
+- Past ~8–10 processes, put **PgBouncer (transaction mode)** in front — hundreds of app connections multiplex onto a small server pool.
+
+### PgBouncer setup
+
+A profile-gated `pgbouncer` service ships in `docker-compose.yml` (config in `docker/pgbouncer/`). It's **off by default**; start it with:
+
+```bash
+docker compose --profile scale up -d pgbouncer   # listens on :6432
+```
+
+Then point the app at it and disable prepared statements:
+
+```bash
+DATABASE_URL=postgres://baseworks:…@localhost:6432/baseworks
+DATABASE_URL_RLS=postgres://baseworks_rls:…@localhost:6432/baseworks
+DB_PREPARE=false
+```
+
+Three things make this correct and safe:
+
+1. **Transaction mode + RLS.** The app sets `SET app.tenant_id` *inside each transaction*, so transaction pooling is compatible (session mode is not required).
+2. **`DB_PREPARE=false` is mandatory.** postgres.js prepared statements are session-scoped; under transaction pooling a follow-up query can land on a different server session. `connection.ts` reads `DB_PREPARE` and turns them off when set.
+3. **User pass-through preserves RLS (security-critical).** The config does NOT pin a `user=` on the database, so PgBouncer connects to Postgres as the *client's* role — `baseworks_rls` stays RLS-enforced instead of being collapsed onto the owner. `auth_query` resolves each role's verifier from `pg_authid`, so only the owner credential lives in `userlist.txt` (replace it for production and mount it as a secret).
+
+Tune `default_pool_size` in `docker/pgbouncer/pgbouncer.ini` to stay well under Postgres `max_connections`.
 
 ## Notes
 

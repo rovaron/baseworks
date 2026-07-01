@@ -31,6 +31,30 @@ services:
       retries: 5
       start_period: 5s
 
+  # Opt-in connection pooler — start with `docker compose --profile scale up pgbouncer`.
+  # Multiplexes many app connections onto a small Postgres pool, so you can run many
+  # API/worker processes (see docs/operations/scaling.md) without exhausting Postgres
+  # max_connections. Route DATABASE_URL(_RLS) at localhost:6432 and set DB_PREPARE=false
+  # (transaction pooling can't use prepared statements). Off by default (profile-gated),
+  # so normal `docker compose up` is unchanged.
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    profiles: ["scale"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "6432:6432"
+    volumes:
+      - ./docker/pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./docker/pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 6432 -U baseworks -d baseworks"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   api:
     build:
       context: .

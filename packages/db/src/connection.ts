@@ -25,6 +25,11 @@ export function createDb(connectionString: string) {
     max: Number(process.env.DB_POOL_MAX ?? 10),
     idle_timeout: 20,
     max_lifetime: 60 * 30,
+    // Prepared statements are session-scoped and DO NOT work through PgBouncer in
+    // transaction pooling mode (each query may land on a different server session).
+    // When routing DATABASE_URL through PgBouncer (transaction mode), set
+    // DB_PREPARE=false. Direct-to-Postgres keeps prepared statements (the default).
+    prepare: process.env.DB_PREPARE !== "false",
   });
   const db = drizzle(sql, {
     schema,
