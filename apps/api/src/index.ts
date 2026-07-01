@@ -521,5 +521,22 @@ async function shutdown() {
 process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);
 
+// Cluster orphan guard: when spawned by the supervisor (CLUSTER_CHILD=1), self-
+// terminate if the parent dies — otherwise a SIGKILLed supervisor would leave us
+// bound to the shared reusePort socket as a zombie, and a fresh supervisor would
+// stack MORE processes on top. On POSIX, ppid becomes 1 (reparented to init) when
+// the parent dies; we detect the change and drain out cleanly.
+if (process.env.CLUSTER_CHILD) {
+  const parentPid = process.ppid;
+  const orphanWatch = setInterval(() => {
+    if (process.ppid !== parentPid) {
+      logger.warn({ parentPid, ppid: process.ppid }, "cluster supervisor gone — self-terminating");
+      clearInterval(orphanWatch);
+      void shutdown();
+    }
+  }, 2000);
+  orphanWatch.unref?.();
+}
+
 // Export app type for Eden Treaty (used by @baseworks/api-client)
 export type App = typeof app;

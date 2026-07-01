@@ -8,9 +8,11 @@
  *
  * It autoscales on CPU utilization (portable, computed from os.cpus() deltas —
  * works on Linux and Windows), within [CLUSTER_MIN, CLUSTER_MAX] (max defaults to
- * the physical core count; past cores you just thrash). Downscaling is graceful:
- * a removed child gets SIGTERM, drains in-flight requests (index.ts shutdown),
- * then exits — with a SIGKILL backstop if it hangs.
+ * the physical core count; past cores you just thrash). Downscaling is graceful
+ * on POSIX: a removed child gets SIGTERM, drains in-flight requests (index.ts
+ * shutdown), then exits — with a SIGKILL backstop if it hangs. NOTE: on Windows
+ * there is no real SIGTERM; Bun maps kill("SIGTERM") to a hard terminate, so the
+ * graceful-drain guarantee holds on Linux (production), not Windows dev.
  *
  * Run: `bun run apps/api/src/supervisor.ts` (or the `cluster` package script).
  *
@@ -58,41 +60,64 @@ interface Child {
 const children = new Map<number, Child>();
 let nextId = 1;
 let shuttingDown = false;
+let paused = false; // crash-loop pause — halts ALL respawns (incl. ensureFloor/scaleTick)
 let lastScaleAt = 0;
-let recentCrashes = 0; // simple crash-loop guard
+
+// Scaling decisions use the LIVE (accepting-traffic) count, NOT children.size —
+// a draining child has already called server.stop() so it takes no new traffic.
+// Counting it would let a second downscale drain the last live worker → 0 listeners.
+function liveCount(): number {
+  let n = 0;
+  for (const c of children.values()) if (!c.draining) n++;
+  return n;
+}
+
+// Crash-loop detection over a sliding 60s window (avoids monotonic accumulation
+// of sporadic crashes over long uptime falsely tripping the pause).
+const crashTimes: number[] = [];
+function recordCrash(): number {
+  const now = Date.now();
+  crashTimes.push(now);
+  const cutoff = now - 60_000;
+  while (crashTimes.length > 0 && crashTimes[0] < cutoff) crashTimes.shift();
+  return crashTimes.length;
+}
 
 function spawnChild(): void {
-  if (shuttingDown) return;
+  if (shuttingDown || paused) return;
   const id = nextId++;
   const startedAt = Date.now();
   const proc = Bun.spawn(["bun", "run", ENTRY], {
-    env: { ...process.env, INSTANCE_ROLE: "api" },
+    env: {
+      ...process.env,
+      INSTANCE_ROLE: "api",
+      // Mark as a supervised child so index.ts self-terminates if orphaned, and
+      // give it a drain budget strictly LESS than our SIGKILL deadline (DRAIN_MS)
+      // so a cleanly-draining child always self-exits before we force-kill it.
+      CLUSTER_CHILD: "1",
+      SHUTDOWN_DRAIN_MS: String(Math.max(1000, DRAIN_MS - 3000)),
+    },
     stdout: "inherit",
     stderr: "inherit",
     onExit(_proc, code, signal) {
       const child = children.get(id);
       children.delete(id);
       if (shuttingDown) return;
-      const graceful = child?.draining ?? false;
-      if (graceful) {
-        log("child drained + exited", { id, poolSize: children.size });
+      if (child?.draining) {
+        log("child drained + exited", { id, live: liveCount() });
         return;
       }
       // Unexpected exit — crash. Protect against tight crash loops.
       const lived = Date.now() - startedAt;
-      log("child exited unexpectedly", {
-        id,
-        code,
-        signal,
-        livedMs: lived,
-        poolSize: children.size,
-      });
+      log("child exited unexpectedly", { id, code, signal, livedMs: lived, live: liveCount() });
       if (lived < 3000) {
-        recentCrashes++;
-        if (recentCrashes >= MAX * 3) {
-          log("crash loop detected — pausing respawns for 30s", { recentCrashes });
+        const recent = recordCrash();
+        if (recent >= MAX * 3) {
+          paused = true; // halts ensureFloor + scaleTick respawns during the pause
+          log("crash loop detected — pausing respawns for 30s", { recentCrashes: recent });
           setTimeout(() => {
-            recentCrashes = 0;
+            paused = false;
+            crashTimes.length = 0;
             ensureFloor();
           }, 30_000);
           return;
@@ -100,12 +125,11 @@ function spawnChild(): void {
         setTimeout(ensureFloor, 1000); // brief backoff before respawn
         return;
       }
-      recentCrashes = 0;
       ensureFloor();
     },
   });
   children.set(id, { id, proc, startedAt, draining: false });
-  log("spawned child", { id, pid: proc.pid, poolSize: children.size });
+  log("spawned child", { id, pid: proc.pid, live: liveCount() });
 }
 
 function drainOne(): void {
@@ -125,9 +149,9 @@ function drainOne(): void {
   }, DRAIN_MS);
 }
 
-/** Respawn until the pool is back to at least MIN (covers crash losses). */
+/** Respawn until the LIVE pool is back to at least MIN (covers crash/drain losses). */
 function ensureFloor(): void {
-  while (!shuttingDown && children.size < MIN) spawnChild();
+  while (!shuttingDown && !paused && liveCount() < MIN) spawnChild();
 }
 
 // CPU utilization across all cores, 0..1, from cumulative os.cpus() time deltas.
@@ -151,18 +175,18 @@ function cpuUtilization(): number {
 }
 
 function scaleTick(): void {
-  if (shuttingDown) return;
+  if (shuttingDown || paused) return;
   ensureFloor();
   const util = cpuUtilization();
-  const size = children.size;
+  const live = liveCount(); // decide on live (accepting-traffic) count, not draining
   const cooled = Date.now() - lastScaleAt >= COOLDOWN_MS;
   const pct = Math.round(util * 100);
-  if (util >= CPU_HIGH && size < MAX && cooled) {
-    log("scaling up", { cpuPct: pct, from: size, to: size + 1 });
+  if (util >= CPU_HIGH && live < MAX && cooled) {
+    log("scaling up", { cpuPct: pct, from: live, to: live + 1 });
     spawnChild();
     lastScaleAt = Date.now();
-  } else if (util <= CPU_LOW && size > MIN && cooled) {
-    log("scaling down", { cpuPct: pct, from: size, to: size - 1 });
+  } else if (util <= CPU_LOW && live > MIN && cooled) {
+    log("scaling down", { cpuPct: pct, from: live, to: live - 1 });
     drainOne();
     lastScaleAt = Date.now();
   }
