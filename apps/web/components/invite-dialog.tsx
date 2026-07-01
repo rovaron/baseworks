@@ -82,7 +82,11 @@ export function InviteDialog({ orgId, orgName }: InviteDialogProps) {
   });
 
   const inviteMutation = useMutation({
-    mutationFn: async (values: { email?: string; role: string; mode: "email" | "link" }) => {
+    mutationFn: async (values: {
+      email?: string;
+      role: "admin" | "member";
+      mode: "email" | "link";
+    }) => {
       const payload = {
         role: values.role,
         mode: values.mode,
@@ -96,7 +100,7 @@ export function InviteDialog({ orgId, orgName }: InviteDialogProps) {
       queryClient.invalidateQueries({ queryKey: ["invitations"] });
 
       if (variables.mode === "email") {
-        toast.success(t("toast.inviteSent", { email: variables.email }));
+        toast.success(t("toast.inviteSent", { email: variables.email ?? "" }));
         handleClose();
       } else {
         // Link mode: show the generated URL

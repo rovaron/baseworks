@@ -41,9 +41,9 @@ interface WebhookRow {
   status: string;
   consecutiveFailures: string;
   lastStatus: string | null;
-  lastDeliveryAt: string | null;
+  lastDeliveryAt: Date | string | null;
   disabledReason: string | null;
-  createdAt: string;
+  createdAt: Date | string;
 }
 
 const PAGE_SIZE = 20;
@@ -100,7 +100,7 @@ export function Component() {
 
   const disableMutation = useMutation({
     mutationFn: async (target: WebhookRow) => {
-      const res = await (api.api.admin.webhooks as any)({ id: target.id }).disable.patch({
+      const res = await api.api.admin.webhooks({ id: target.id }).disable.patch({
         reason,
       });
       if (res.error) throw new Error(res.error?.value?.message ?? "request failed");
@@ -119,7 +119,7 @@ export function Component() {
 
   const reenableMutation = useMutation({
     mutationFn: async (target: WebhookRow) => {
-      const res = await (api.api.admin.webhooks as any)({ id: target.id }).enable.patch({});
+      const res = await api.api.admin.webhooks({ id: target.id }).enable.patch({});
       if (res.error) throw new Error(res.error?.value?.message ?? "request failed");
       return res.data;
     },
@@ -132,8 +132,8 @@ export function Component() {
     },
   });
 
-  const rows = (result as any)?.data ?? [];
-  const total = (result as any)?.total ?? 0;
+  const rows: WebhookRow[] = result && "data" in result ? result.data : [];
+  const total = result && "total" in result ? result.total : 0;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const columns: ColumnDef<WebhookRow, any>[] = [

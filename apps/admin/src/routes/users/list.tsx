@@ -30,7 +30,7 @@ interface User {
   name: string;
   email: string;
   image: string | null;
-  createdAt: string;
+  createdAt: Date | string;
   banned?: boolean;
   banReason?: string | null;
 }
@@ -76,7 +76,7 @@ export function Component() {
   const banMutation = useMutation({
     mutationFn: async (user: User) => {
       const newBanned = !user.banned;
-      const res = await (api.api.admin.users as any)({ id: user.id }).patch({
+      const res = await api.api.admin.users({ id: user.id }).patch({
         banned: newBanned,
         ...(newBanned ? { banReason: "Banned by admin" } : {}),
       });
@@ -94,7 +94,7 @@ export function Component() {
 
   const impersonateMutation = useMutation({
     mutationFn: async (user: User) => {
-      const res = await (api.api.admin.users as any)({ id: user.id }).impersonate.post({});
+      const res = await api.api.admin.users({ id: user.id }).impersonate.post({});
       if (res.error) throw new Error(res.error?.value?.message ?? "request failed");
       return res.data;
     },
@@ -107,8 +107,16 @@ export function Component() {
     },
   });
 
-  const users = (result as any)?.data ?? [];
-  const total = (result as any)?.total ?? 0;
+  const users: User[] = (result && "data" in result ? result.data : []).map((u) => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    image: u.image ?? null,
+    createdAt: u.createdAt,
+    banned: u.banned ?? undefined,
+    banReason: u.banReason ?? null,
+  }));
+  const total = result && "total" in result ? result.total : 0;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const columns: ColumnDef<User, any>[] = [

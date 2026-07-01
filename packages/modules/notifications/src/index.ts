@@ -39,6 +39,9 @@ export {
   adminListWebhookDeliveries,
   adminReenableWebhook,
 } from "./commands/admin-webhooks";
+// Re-exported so apps/api can static-chain the plugin with its precise Elysia
+// type (Eden Treaty end-to-end typing).
+export { notificationRoutes } from "./routes";
 
 export default {
   name: "notifications",

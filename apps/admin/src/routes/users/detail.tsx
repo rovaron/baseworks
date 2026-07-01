@@ -42,7 +42,7 @@ export function Component() {
   } = useQuery({
     queryKey: ["admin", "users", id],
     queryFn: async () => {
-      const res = await (api.api.admin.users as any)({ id: id! }).get();
+      const res = await api.api.admin.users({ id: id! }).get();
       if (res.error) throw res.error;
       return res.data;
     },
@@ -55,7 +55,7 @@ export function Component() {
   const banMutation = useMutation({
     mutationFn: async () => {
       const newBanned = !isBanned;
-      const res = await (api.api.admin.users as any)({ id: id! }).patch({
+      const res = await api.api.admin.users({ id: id! }).patch({
         banned: newBanned,
         ...(newBanned ? { banReason: "Banned by admin" } : {}),
       });
@@ -74,7 +74,7 @@ export function Component() {
 
   const impersonateMutation = useMutation({
     mutationFn: async () => {
-      const res = await (api.api.admin.users as any)({ id: id! }).impersonate.post({});
+      const res = await api.api.admin.users({ id: id! }).impersonate.post({});
       if (res.error) throw new Error(res.error?.value?.message ?? "request failed");
       return res.data;
     },

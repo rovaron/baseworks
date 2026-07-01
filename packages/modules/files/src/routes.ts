@@ -2,11 +2,11 @@
  * Phase 26 / UPL-01, MOD-02 — files module HTTP routes.
  * Phase 27 / UPL-02, UPL-04, ATT-01, ATT-02 — complete / read-url / delete / list.
  *
- * `filesRoutes` mounts the tenant-scoped file endpoints under /api/files. It
- * auto-mounts via getModuleRoutes() in apps/api's scoped band (AFTER
- * tenantMiddleware + the handlerCtx derive), so `ctx.handlerCtx` is guaranteed
- * present — no explicit .use() in apps/api (billing/routes.ts is the pattern).
- * Param routes read `ctx.params.fileId` (auth/routes.ts uses ctx.params.id).
+ * `filesRoutes` mounts the tenant-scoped file endpoints under /api/files. It is
+ * statically chained (`.use(filesRoutes)`) in apps/api's scoped band, AFTER
+ * tenantMiddleware + the handlerCtx derive, so `ctx.handlerCtx` is guaranteed
+ * present. Chained as the concrete plugin (not via the registry) so its route
+ * types reach Eden Treaty's `App`. Param routes read `ctx.params.fileId`.
  *
  * Error → HTTP status mapping is per-route (contract §1–§5). Common rules:
  *   not_found            → 404 (covers cross-tenant ids — no existence leak, R2)

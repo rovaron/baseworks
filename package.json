@@ -21,7 +21,7 @@
     "lint:tenant-db": "bash scripts/lint-no-unscoped-tenant-db.sh",
     "lint:rls-coverage": "bash scripts/lint-rls-coverage.sh",
     "lint:fix": "biome check --write .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p apps/web/tsconfig.json && tsc --noEmit -p apps/admin/tsconfig.json",
     "validate": "bun scripts/validate-docs.ts",
     "validate-cors": "bun scripts/validate-cors.ts",
     "test": "bun test apps/api/src && bun test apps/api/test && bun test apps/api/__tests__ && bun test packages/config && bun test packages/db && bun test packages/modules/auth/__tests__ packages/modules/auth/src/__tests__ && bun test packages/modules/auth/src/__integration__ && bun test packages/modules/billing && bun test packages/modules/notifications && bun test packages/modules/example && bun test packages/modules/files/src/__tests__ && bun test packages/modules/files/src/__unit__ && bun test packages/modules/files/src/__integration__ && bun test packages/modules/files/src/hooks/__tests__ && bun test packages/modules/files/src/jobs/__tests__ && bun test packages/queue && bun test packages/shared && bun test packages/storage && bun test scripts/__tests__ && cd packages/ui && bun run test && cd ../../apps/web && bun run test",

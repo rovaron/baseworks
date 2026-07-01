@@ -47,16 +47,16 @@ export function RolesManager() {
     queryKey: ["org-roles", activeTenant?.id],
     enabled: !!activeTenant?.id,
     queryFn: async () => {
-      const res = await auth.organization.listOrgRoles({
+      const res = await auth.organization.listRoles({
         query: { organizationId: activeTenant!.id },
       });
-      return (res.data as any[]) ?? [];
+      return res.data ?? [];
     },
   });
 
   const saveMutation = useMutation({
     mutationFn: async (role: { name: string; perms: Record<string, string[]> }) => {
-      await auth.organization.createOrgRole({
+      await auth.organization.createRole({
         organizationId: activeTenant!.id,
         role: role.name,
         permission: role.perms,
@@ -72,7 +72,7 @@ export function RolesManager() {
 
   const deleteMutation = useMutation({
     mutationFn: async (roleName: string) => {
-      await auth.organization.deleteOrgRole({ organizationId: activeTenant!.id, roleName });
+      await auth.organization.deleteRole({ organizationId: activeTenant!.id, roleName });
     },
     onSuccess: () => {
       toast.success(t("toast.deleted"));

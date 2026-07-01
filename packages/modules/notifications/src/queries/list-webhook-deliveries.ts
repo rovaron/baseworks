@@ -28,5 +28,13 @@ export const listWebhookDeliveries = defineQuery(Input, async (input, ctx) => {
       .limit(input.limit ?? 20)
       .offset(input.offset ?? 0),
   )) as (typeof notificationWebhookDelivery.$inferSelect)[];
-  return ok(rows);
+  // Emit dates as ISO strings so the inferred type matches the over-the-wire shape.
+  return ok(
+    rows.map(({ deliveredAt, createdAt, updatedAt, ...rest }) => ({
+      ...rest,
+      deliveredAt: deliveredAt ? deliveredAt.toISOString() : null,
+      createdAt: createdAt.toISOString(),
+      updatedAt: updatedAt.toISOString(),
+    })),
+  );
 });

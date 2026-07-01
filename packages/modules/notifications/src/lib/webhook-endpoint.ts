@@ -20,8 +20,28 @@ export function generateWebhookSecret(): string {
   return `whsec_${nanoid(32)}`;
 }
 
-/** Public projection of an endpoint row — the `secret` is never returned from reads. */
+/** Public projection of an endpoint row — the `secret` is never returned from reads.
+ * Dates are emitted as ISO strings and the json `categories` column is typed so the
+ * shape matches what the HTTP client actually receives over the wire (Eden infers
+ * this return type for `App`). */
 export function serializeWebhook(row: typeof notificationWebhook.$inferSelect) {
-  const { secret: _secret, ...rest } = row;
-  return rest;
+  const {
+    secret: _secret,
+    categories,
+    status,
+    lastStatus,
+    lastDeliveryAt,
+    createdAt,
+    updatedAt,
+    ...rest
+  } = row;
+  return {
+    ...rest,
+    status: status as "active" | "disabled" | "auto_disabled" | "admin_disabled",
+    lastStatus: lastStatus as "success" | "failed" | null,
+    categories: categories as string[] | null,
+    lastDeliveryAt: lastDeliveryAt ? lastDeliveryAt.toISOString() : null,
+    createdAt: createdAt.toISOString(),
+    updatedAt: updatedAt.toISOString(),
+  };
 }

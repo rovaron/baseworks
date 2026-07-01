@@ -93,13 +93,18 @@ describe("ModuleRegistry edge cases", () => {
     expect(registry.getLoadedNames()).toContain("notifications");
   });
 
-  it("worker role skips route attachment in getModuleRoutes", async () => {
+  it("worker role still loads modules and registers their CQRS handlers", async () => {
+    // Route plugins are no longer attached via the registry (apps/api
+    // static-chains the concrete plugins so their types reach Eden's App).
+    // The registry remains responsible for jobs/commands/queries/events in
+    // every role, including worker.
     const registry = new ModuleRegistry({ role: "worker", modules: ["example"] });
     await registry.loadAll();
 
-    // getModuleRoutes should return an Elysia plugin without attaching routes
-    const routes = registry.getModuleRoutes();
-    expect(routes).toBeDefined();
+    expect(registry.getLoadedNames()).toEqual(["example"]);
+    const cqrs = registry.getCqrs();
+    expect(cqrs.hasCommand("example:create")).toBe(true);
+    expect(cqrs.hasQuery("example:list")).toBe(true);
   });
 });
 

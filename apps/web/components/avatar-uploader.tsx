@@ -43,16 +43,6 @@ function initials(name?: string | null, email?: string | null): string {
   return "?";
 }
 
-interface Profile {
-  id: string;
-  name: string | null;
-  email: string;
-  image: string | null;
-  emailVerified: boolean;
-  createdAt: string;
-  avatarUrl: string | null;
-}
-
 export function AvatarUploader() {
   const t = useTranslations("files");
   const tc = useTranslations("common");
@@ -60,10 +50,15 @@ export function AvatarUploader() {
 
   const profileQuery = useQuery({
     queryKey: ["profile"],
-    queryFn: async (): Promise<Profile> => {
+    queryFn: async () => {
       const res = await api.api.profile.get();
       if (res.error || !res.data) throw new Error("profile");
-      return res.data as Profile;
+      // The route's success body is the profile object; the global error
+      // middleware's envelope shapes ({ success: false, ... }) also widen the
+      // typed response union, so narrow positively on the profile discriminant.
+      const data = res.data;
+      if (!("id" in data)) throw new Error("profile");
+      return data;
     },
   });
 
