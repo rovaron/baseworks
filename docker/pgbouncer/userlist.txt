@@ -1,0 +1,6 @@
+; PgBouncer auth_user credential — ONLY the owner/superuser used by `auth_query`
+; needs to be here; every other role (incl. baseworks_rls) is resolved dynamically
+; from pg_authid. Dev default below matches docker-compose's POSTGRES_PASSWORD.
+; PRODUCTION: replace with your real owner password (or a SCRAM verifier) and keep
+; this file out of the image — mount it as a secret.
+"baseworks" "baseworks"
