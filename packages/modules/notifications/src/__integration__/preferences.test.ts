@@ -135,6 +135,31 @@ describe("listPreferences", () => {
     // labels come through.
     expect(prefs.find((p) => p.category === "security")?.label).toBe("Security");
   }, 30_000);
+
+  test("clamps a non-mutable category to email=true even with a stored opt-out row", async () => {
+    if (!live) return console.warn("SKIPPED");
+    const ctx = makeCtx(T, "u-clamp");
+    // setPreferences can't create this, so insert a raw opt-out row directly
+    // (owner role) to simulate a stale/legacy row for the always-on category.
+    await getDb()
+      .insert(notificationPreference)
+      .values({
+        tenantId: T,
+        userId: "u-clamp",
+        category: "security",
+        channel: "email",
+        enabled: false,
+        // biome-ignore lint/suspicious/noExplicitAny: raw insert for the edge case
+      } as any);
+
+    const res = await listPreferences({}, ctx);
+    expect(res.success).toBe(true);
+    if (!res.success) return;
+    const security = res.data.preferences.find((p) => p.category === "security");
+    // Reported ON (matches notify()'s always-deliver bypass), never OFF.
+    expect(security?.email).toBe(true);
+    expect(security?.mutable).toBe(false);
+  }, 30_000);
 });
 
 async function emailDeliveries(tenantId: string, notificationId: string) {

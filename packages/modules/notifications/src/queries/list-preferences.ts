@@ -31,7 +31,10 @@ export const listPreferences = defineQuery(Input, async (_input, ctx) => {
   const preferences = getCategories().map((c) => ({
     category: c.key,
     label: c.label,
-    email: !disabled.has(c.key),
+    // Non-mutable categories are always delivered (notify() bypasses the gate for
+    // them), so report email ON regardless of any stored row — keeps the displayed
+    // state honest with delivery behavior even if a stale opt-out row exists.
+    email: c.mutable ? !disabled.has(c.key) : true,
     mutable: c.mutable,
   }));
 

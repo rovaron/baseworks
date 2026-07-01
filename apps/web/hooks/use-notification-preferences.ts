@@ -50,9 +50,14 @@ export function useNotificationPreferences() {
 
   return {
     preferences: (query.data ?? []) as NotificationPreference[],
-    isLoading: query.isPending && !!tenantId,
+    // No tenant yet = still loading (query is disabled/pending) — show the skeleton
+    // rather than a bare empty panel until the active tenant resolves.
+    isLoading: !tenantId || query.isPending,
     isError: query.isError,
+    // Fire-and-forget: onError rolls back the optimistic update + toasts. Using
+    // mutate (not mutateAsync) avoids an unhandled rejection from the un-awaited
+    // Switch onCheckedChange handler when a save fails.
     setEmail: (category: string, enabled: boolean) =>
-      setM.mutateAsync([{ category, channel: "email", enabled }]),
+      setM.mutate([{ category, channel: "email", enabled }]),
   };
 }
