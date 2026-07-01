@@ -7,8 +7,10 @@ import { markAllRead } from "./commands/mark-all-read";
 import { markRead } from "./commands/mark-read";
 import { redeliverWebhook } from "./commands/redeliver-webhook";
 import { rotateWebhookSecret } from "./commands/rotate-webhook-secret";
+import { setPreferences } from "./commands/set-preferences";
 import { updateWebhook } from "./commands/update-webhook";
 import { listNotifications } from "./queries/list-notifications";
+import { listPreferences } from "./queries/list-preferences";
 import { listWebhookDeliveries } from "./queries/list-webhook-deliveries";
 import { listWebhooks } from "./queries/list-webhooks";
 import { unreadCount } from "./queries/unread-count";
@@ -45,6 +47,8 @@ export const notificationRoutes = new Elysia({ prefix: "/api/notifications" })
   .get("/unread-count", async ({ handlerCtx }: any) => unreadCount({}, handlerCtx))
   .post("/:id/read", async ({ handlerCtx, params }: any) => markRead({ id: params.id }, handlerCtx))
   .post("/read-all", async ({ handlerCtx }: any) => markAllRead({}, handlerCtx))
+  .get("/preferences", async ({ handlerCtx }: any) => listPreferences({}, handlerCtx))
+  .put("/preferences", async ({ handlerCtx, body }: any) => setPreferences(body, handlerCtx))
   .get("/stream", ({ handlerCtx }: any) => {
     const channel = userChannel(handlerCtx.tenantId, handlerCtx.userId);
     const bridge = getSseBridge();
