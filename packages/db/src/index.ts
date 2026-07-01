@@ -12,6 +12,7 @@ export {
   member,
   notification,
   notificationDelivery,
+  notificationPreference,
   notificationWebhook,
   notificationWebhookDelivery,
   organization,
