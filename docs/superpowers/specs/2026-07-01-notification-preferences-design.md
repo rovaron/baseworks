@@ -43,17 +43,72 @@ enforced in `notify()`, with a read/write API and a settings-page UI.
    (catalog default). Only choices are stored; `enabled=true` and `enabled=false`
    rows are both persisted (clean `updatedAt`/audit), but the *effective* default
    for an absent row is enabled.
-3. **Required types bypass preferences.** If a catalog entry has `required: true`,
-   its email always sends regardless of any opt-out (security/transactional). This
-   reuses the existing per-type `required` hook — no new send-time concept.
-4. **Locked categories in the UI** come from a small explicit set,
-   `requiredCategories`, seeded with `security`. A locked category renders a
-   disabled toggle ("always on"). This is the UI's lock source; the send-time
-   bypass remains driven by per-type `entry.required`. Both express "cannot be
-   muted."
+3. **Categories are a Level-1 registry (typed union + runtime defs).** This is
+   the `Channel`/`registerAdapter` pattern already in the codebase: the category
+   *keys* are a central typed union (`Category`), while each category's *def*
+   (`{ label, mutable }`) is registered at runtime via `registerCategory`. The
+   notifications module seeds the built-in taxonomy; other modules can register
+   their own category's def at boot without editing notifications-module files.
+   `Category` stays compile-time safe (so a catalog entry's `category` field is
+   checked); adding a brand-new key is a one-line union edit (rare). Chosen over a
+   fully-static object (couples every producer to one shared file) and over
+   declaration-merging (decouples keys too, but adds `declare module` ceremony
+   that's too magic for a starter kit).
+4. **"Mutable" drives both the send-time bypass and the UI lock.** A category
+   with `mutable: false` (seeded: `security`) can never be muted — the UI renders
+   it as a disabled toggle and `setPreferences` rejects opting out of it.
+   Independently, any *type* with `required: true` in the catalog also bypasses
+   preferences (a transactional type inside an otherwise-mutable category, e.g. a
+   failed-payment email in `billing`). Effective rule in `notify()`:
+   **deliver-regardless when `entry.required || !getCategory(category)?.mutable`.**
 5. **Per-user only.** Scoped by `ctx.userId` + RLS. No tenant defaults in v1.
+6. **Catalog stays static; per-module type registration is a tracked follow-up.**
+   This task decouples *categories* (what preferences read). Migrating the
+   *catalog* of notification **types** to per-module registration — the change
+   that removes the real growth bottleneck as types multiply — is deliberately
+   out of scope here and noted under "Follow-up" below. A type's `category` field
+   remains type-checked against the Level-1 union regardless, so the two compose.
 
 ## Architecture & data flow
+
+### Category registry
+
+File: `packages/modules/notifications/src/categories.ts` (new). Holds the typed
+key union, the runtime def registry, and seeds the built-in taxonomy at module
+load — **unconditionally** (not inside `ensureNotificationsRuntime()`, which is
+`REDIS_URL`-gated; preferences must work without Redis).
+
+```ts
+export type Category = "system" | "team" | "billing" | "files" | "security";
+export interface CategoryDef {
+  label: string;    // default English label; UI prefers its own i18n key, falls back to this
+  mutable: boolean; // false = always-on (UI locks it, setPreferences rejects opt-out)
+}
+
+const registry = new Map<Category, CategoryDef>();
+export function registerCategory(key: Category, def: CategoryDef): void {
+  registry.set(key, def); // key is compile-time-checked; idempotent (safe under per-suite re-import)
+}
+export function getCategory(key: Category): CategoryDef | undefined {
+  return registry.get(key);
+}
+/** All registered categories in insertion order — the source of truth for the API/UI. */
+export function getCategories(): Array<{ key: Category } & CategoryDef> {
+  return [...registry.entries()].map(([key, def]) => ({ key, ...def }));
+}
+
+// Built-in taxonomy owned by the notifications module. Other modules may call
+// registerCategory() at their own boot to add a def for a new key.
+registerCategory("system", { label: "System", mutable: true });
+registerCategory("team", { label: "Team", mutable: true });
+registerCategory("billing", { label: "Billing", mutable: true });
+registerCategory("files", { label: "Files", mutable: true });
+registerCategory("security", { label: "Security", mutable: false });
+```
+
+`catalog.ts` imports `Category` from here instead of declaring its own union
+(single source of truth for the key set); `index.ts` re-exports `Category`,
+`registerCategory`, and the `CategoryDef` type from `./categories`.
 
 ### Enforcement in `notify()`
 
@@ -66,7 +121,11 @@ Today `notify()` resolves recipients, then per recipient inserts the
 
 Change: gate the **email** entries in `channelJobs` by preference.
 
-- If `entry.required === true`, skip the whole check (email always sends).
+- **Bypass rule:** if `entry.required || !getCategory(entry.category)?.mutable`,
+  skip the whole preference check — email always sends (transactional type, or an
+  always-on category like `security`). An unknown category resolves to
+  `undefined` → treated as non-mutable → delivered (safe default, never silently
+  dropped).
 - Otherwise, run **one** batched query for the muted set:
   `SELECT user_id FROM notification_preference WHERE tenant_id = :tenant AND
   category = :category AND channel = 'email' AND enabled = false AND user_id IN
@@ -82,15 +141,7 @@ testable without a DB:
 File: `packages/modules/notifications/src/lib/preferences.ts`
 
 ```ts
-export const NOTIFICATION_CATEGORIES = [
-  "system", "team", "billing", "files", "security",
-] as const;
-export type PrefCategory = (typeof NOTIFICATION_CATEGORIES)[number];
-
-/** Categories whose notifications can never be muted (UI renders them locked). */
-export const REQUIRED_CATEGORIES: ReadonlySet<PrefCategory> = new Set(["security"]);
-
-/** Pref rows are stored per (user, category, 'email'); this is the only channel
+/** Pref rows are stored per (user, category, 'email'); email is the only channel
  *  wired today. Kept as a constant so push/sms can extend it later. */
 export const PREFERENCE_CHANNELS = ["email"] as const;
 export type PreferenceChannel = (typeof PREFERENCE_CHANNELS)[number];
@@ -104,8 +155,9 @@ export function mutedUserSet(
 }
 ```
 
-`notify()` calls the query, passes rows to `mutedUserSet`, and filters email
-jobs. The `entry.required` bypass is checked in `notify()` before the query.
+The category key set + `mutable` flags live in `categories.ts` (above), not here.
+`notify()` applies the bypass rule, runs the query, passes rows to `mutedUserSet`,
+and filters email jobs.
 
 ### API
 
@@ -116,31 +168,33 @@ RLS-scoped via `requireWithTenant` and keyed to `ctx.userId`.
 **Query — `listPreferences`** (`src/queries/list-preferences.ts`)
 
 - Input: `{}`.
-- Reads the user's stored rows for `channel='email'`, overlays them on the
-  category defaults, returns the effective matrix:
+- Iterates `getCategories()`, overlays the user's stored `channel='email'` rows,
+  returns the effective matrix driven entirely by the registry:
 
 ```ts
 // ok({ preferences: [...] })
 {
   preferences: Array<{
-    category: PrefCategory;
+    category: Category;  // key
+    label: string;       // registry def label (UI may prefer its own i18n)
     email: boolean;      // effective: default true, overridden by a stored row
-    required: boolean;   // REQUIRED_CATEGORIES.has(category)
+    mutable: boolean;    // registry def; false => UI locks the toggle
   }>;
 }
 ```
 
-The response always contains all 5 categories (defaults filled in) so the UI
-does not need to know the catalog.
+The response contains every registered category (in registry order) so the UI
+maps over it with nothing hardcoded — add a category to the registry and it
+appears here automatically.
 
 **Command — `setPreferences`** (`src/commands/set-preferences.ts`)
 
 - Input: `{ preferences: Array<{ category: string; channel: 'email'; enabled: boolean }> }`.
-- Validation (fail-loud): each `category` ∈ `NOTIFICATION_CATEGORIES`; each
-  `channel` ∈ `PREFERENCE_CHANNELS`. Reject the whole request on any unknown
-  value.
-- Rejects writes to a `REQUIRED_CATEGORIES` category with `enabled=false`
-  (can't mute a locked category) — returns a validation error.
+- Validation (fail-loud): each `category` must resolve via `getCategory(...)`
+  (i.e. be registered); each `channel` ∈ `PREFERENCE_CHANNELS`. Reject the whole
+  request on any unknown value.
+- Rejects `enabled=false` for a category whose def is `mutable: false`
+  (can't mute an always-on category) — returns a validation error.
 - Upserts each entry on the unique index
   `(tenant_id, user_id, category, channel)` with `enabled` +
   `updated_at = now()`. `userId = ctx.userId`, `tenantId = ctx.tenantId`.
@@ -160,8 +214,9 @@ does not need to know the catalog.
 ```ts
 export interface NotificationPreference {
   category: string;
+  label: string;
   email: boolean;
-  required: boolean;
+  mutable: boolean;
 }
 export async function fetchPreferences(): Promise<NotificationPreference[]> { ... }
 export async function savePreferences(
@@ -176,7 +231,8 @@ Both use the Eden client `api.api.notifications.preferences` and throw on
 
 - React Query `useQuery(['notification-preferences'], fetchPreferences)`.
 - Renders a labelled list: one row per category, a `Switch` (`@baseworks/ui`)
-  bound to `email`. Required categories → disabled switch + "Always on" hint.
+  bound to `email`. `mutable: false` categories → disabled switch + "Always on"
+  hint.
 - `useMutation(savePreferences)` on toggle (optimistic update +
   invalidate/rollback on error), toast on failure. Category labels come from
   i18n (`notifications.preferences.categories.*`).
@@ -191,7 +247,7 @@ Both use the Eden client `api.api.notifications.preferences` and throw on
 
 - Unknown category/channel in `setPreferences` → validation error (fail-loud,
   matches `getCatalogEntry` throwing on unknown types).
-- Attempt to mute a `REQUIRED_CATEGORIES` category → validation error.
+- Attempt to mute a `mutable: false` category → validation error.
 - `notify()` preference query failure must not silently drop email: it runs
   inside the existing tenant tx path; a thrown error fails the `notify()` call
   as today (no swallow). If no rows match, the muted set is empty → all emails
@@ -201,11 +257,13 @@ Both use the Eden client `api.api.notifications.preferences` and throw on
 
 ## Testing (TDD, per-suite isolation — separate `bun test` invocations)
 
-**Unit** (`src/lib/__tests__/preferences.test.ts`)
+**Unit** (`src/lib/__tests__/preferences.test.ts` + `src/__tests__/categories.test.ts`)
 
 - `mutedUserSet`: only `enabled=false` rows produce muted ids; empty rows →
   empty set; mixed rows filter correctly.
-- `REQUIRED_CATEGORIES` / `NOTIFICATION_CATEGORIES` membership guards.
+- Category registry: `getCategories()` returns the 5 built-ins with correct
+  `mutable` flags (`security` locked, rest mutable); `getCategory('security')?.mutable === false`;
+  `registerCategory` adds/overrides a def and is idempotent.
 
 **Integration** (`src/__integration__/preferences.test.ts`, real DB via `_ctx`)
 
@@ -220,20 +278,23 @@ production seam:
 
 - `test.billing.email` → `{ category: "billing", severity: "info",
   defaultChannels: ["in-app", "email"], render: () => ({ title, body }) }`
-- `test.security.required` → same shape with `category: "security"`,
-  `required: true`.
+- `test.billing.required` → same shape, `required: true` (a transactional type
+  inside the otherwise-mutable `billing` category — isolates the required-bypass
+  path from the category `mutable` path).
 
 Cases:
 
 - Opt out of `billing` email (`setPreferences`) → `notify("test.billing.email")`
   creates the in-app `notification` row for the recipient but **no** email
   `notification_delivery` row.
-- `notify("test.security.required")` with a `security` email opt-out present →
-  email `notification_delivery` row **is** created (required bypass).
-- No opt-out → `billing` email delivery row is created (default enabled).
+- Same `billing` opt-out present → `notify("test.billing.required")` **does**
+  create the email `notification_delivery` row (per-type `required` bypass, even
+  though the category is muted).
+- No opt-out → `test.billing.email` email delivery row is created (default enabled).
 - `setPreferences` then `listPreferences` round-trips; `listPreferences` returns
-  all 5 categories with correct effective `email` + `required` flags.
-- `setPreferences` with an unknown category rejects; muting `security` rejects.
+  all registered categories with correct effective `email` + `mutable` flags.
+- `setPreferences` with an unknown category rejects; muting `security`
+  (`mutable: false`) rejects.
 
 **Web** (`apps/web/components/__tests__/notification-preferences.test.tsx`)
 
@@ -245,6 +306,8 @@ Cases:
 
 **Create**
 
+- `packages/modules/notifications/src/categories.ts` (category registry)
+- `packages/modules/notifications/src/__tests__/categories.test.ts`
 - `packages/modules/notifications/src/lib/preferences.ts`
 - `packages/modules/notifications/src/lib/__tests__/preferences.test.ts`
 - `packages/modules/notifications/src/queries/list-preferences.ts`
@@ -255,6 +318,10 @@ Cases:
 
 **Modify**
 
+- `packages/modules/notifications/src/catalog.ts` (import `Category` from
+  `./categories` instead of declaring the union)
+- `packages/modules/notifications/src/index.ts` (re-export `Category`,
+  `CategoryDef`, `registerCategory`, `getCategories` from `./categories`)
 - `packages/modules/notifications/src/commands/notify.ts` (email gating)
 - `packages/modules/notifications/src/routes.ts` (2 routes)
 - `apps/web/lib/notifications-api.ts` (2 client helpers + type)
@@ -262,4 +329,19 @@ Cases:
 - i18n message catalogs (`notifications.preferences.*` labels)
 
 No schema/migration change — the `notification_preference` table already exists.
+
+## Follow-up (out of scope, tracked)
+
+- **Per-module catalog registration.** Migrate the static `notificationCatalog`
+  to a runtime `registerNotificationType()` seam (mirroring `registerCategory` /
+  `registerAdapter`) so each producing module owns its notification **types**
+  without editing the notifications module. This is where decoupling pays off as
+  types multiply; it's independent of this task and composes with the Level-1
+  category union (a type's `category` stays type-checked). Do it when real typed
+  producers start landing.
+- **Tenant-admin default preferences.** Requires a schema change (nullable
+  `user_id` or a separate defaults table); would let an org set baseline opt-outs
+  users inherit.
+- **Additional per-user channels** (push/SMS) reuse the same `channel` column and
+  `PREFERENCE_CHANNELS` constant once those adapters exist.
 ```
