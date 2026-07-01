@@ -401,6 +401,10 @@ const app = new Elysia()
 // obsContext.traceId end-to-end (producer span, BullMQ carrier, worker log line).
 const server = Bun.serve({
   port: env.PORT,
+  // SO_REUSEPORT — lets multiple API processes bind the same PORT so the kernel
+  // load-balances TCP connections across them. This is what makes vertical scaling
+  // work: run N processes (see supervisor.ts) and add/remove them without a proxy.
+  reusePort: true,
   fetch(req) {
     const cookieHeader = req.headers.get("cookie");
     const parsedLocale = parseNextLocaleCookie(cookieHeader);
@@ -487,9 +491,22 @@ async function shutdown() {
   if (shuttingDown) return;
   shuttingDown = true;
   logger.info("API shutting down...");
+  // Safety net: if draining hangs (a request never completes), force-exit so a
+  // downscale/deploy can't block forever. The supervisor's own SIGKILL timeout is
+  // a second backstop; this keeps a standalone process from hanging too.
+  const forceExit = setTimeout(
+    () => {
+      logger.warn("API shutdown drain timed out; forcing exit");
+      process.exit(0);
+    },
+    Number(process.env.SHUTDOWN_DRAIN_MS ?? 25_000),
+  );
+  forceExit.unref?.();
   try {
-    // Stop accepting new connections and let in-flight requests finish.
-    server.stop(true);
+    // Stop accepting new connections and let in-flight requests DRAIN (no arg =
+    // graceful; `stop(true)` would force-close active requests). This is what makes
+    // downscaling a process safe — in-flight requests complete before we tear down.
+    await server.stop();
     // Close Redis (shared queue connection) then the DB pool. Order matters:
     // drain the server first so nothing else issues queries/commands.
     await closeConnection();
@@ -497,11 +514,29 @@ async function shutdown() {
   } catch (err) {
     logger.error({ err: String(err) }, "Error during API shutdown");
   } finally {
+    clearTimeout(forceExit);
     process.exit(0);
   }
 }
 process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);
+
+// Cluster orphan guard: when spawned by the supervisor (CLUSTER_CHILD=1), self-
+// terminate if the parent dies — otherwise a SIGKILLed supervisor would leave us
+// bound to the shared reusePort socket as a zombie, and a fresh supervisor would
+// stack MORE processes on top. On POSIX, ppid becomes 1 (reparented to init) when
+// the parent dies; we detect the change and drain out cleanly.
+if (process.env.CLUSTER_CHILD) {
+  const parentPid = process.ppid;
+  const orphanWatch = setInterval(() => {
+    if (process.ppid !== parentPid) {
+      logger.warn({ parentPid, ppid: process.ppid }, "cluster supervisor gone — self-terminating");
+      clearInterval(orphanWatch);
+      void shutdown();
+    }
+  }, 2000);
+  orphanWatch.unref?.();
+}
 
 // Export app type for Eden Treaty (used by @baseworks/api-client)
 export type App = typeof app;
