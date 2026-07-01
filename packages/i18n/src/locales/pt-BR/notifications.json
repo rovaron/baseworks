@@ -45,5 +45,20 @@
     "attempts": "Tentativas",
     "time": "Hora",
     "confirmDelete": "Excluir este endpoint de webhook? Seu histórico de entregas será removido."
+  },
+  "preferences": {
+    "tabLabel": "Notificações",
+    "title": "Preferências de notificação",
+    "description": "Escolha quais notificações por e-mail você recebe. As notificações no aplicativo são sempre exibidas.",
+    "alwaysOn": "Sempre ativo",
+    "saved": "Preferências salvas",
+    "loadError": "Não foi possível carregar suas preferências.",
+    "categories": {
+      "system": "Sistema",
+      "team": "Equipe",
+      "billing": "Cobrança",
+      "files": "Arquivos",
+      "security": "Segurança"
+    }
   }
 }

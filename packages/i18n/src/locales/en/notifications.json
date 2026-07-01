@@ -45,5 +45,20 @@
     "attempts": "Attempts",
     "time": "Time",
     "confirmDelete": "Delete this webhook endpoint? Its delivery history will be removed."
+  },
+  "preferences": {
+    "tabLabel": "Notifications",
+    "title": "Notification preferences",
+    "description": "Choose which email notifications you receive. In-app notifications are always shown.",
+    "alwaysOn": "Always on",
+    "saved": "Preferences saved",
+    "loadError": "Couldn't load your preferences.",
+    "categories": {
+      "system": "System",
+      "team": "Team",
+      "billing": "Billing",
+      "files": "Files",
+      "security": "Security"
+    }
   }
 }
