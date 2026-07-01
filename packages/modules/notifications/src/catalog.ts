@@ -1,7 +1,7 @@
 // packages/modules/notifications/src/catalog.ts
+import type { Category } from "./categories";
 import type { Channel } from "./channels/channel";
 
-export type Category = "system" | "team" | "billing" | "files" | "security";
 export type Severity = "info" | "success" | "warning" | "error";
 
 export interface RenderedContent {
