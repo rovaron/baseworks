@@ -6,12 +6,14 @@ import { useQueryState } from "nuqs";
 import { Suspense } from "react";
 import { InviteDialog } from "@/components/invite-dialog";
 import { MembersList } from "@/components/members-list";
+import { NotificationPreferences } from "@/components/notification-preferences";
 import { PendingInvitations } from "@/components/pending-invitations";
 import { useTenant } from "@/components/tenant-provider";
 
 function SettingsContent() {
   const [tab, setTab] = useQueryState("tab", { defaultValue: "team" });
   const t = useTranslations("invite");
+  const tn = useTranslations("notifications");
   const { activeTenant } = useTenant();
 
   return (
@@ -20,6 +22,7 @@ function SettingsContent() {
       <Tabs value={tab ?? "team"} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="team">{t("settings.tabs.team")}</TabsTrigger>
+          <TabsTrigger value="notifications">{tn("preferences.tabLabel")}</TabsTrigger>
         </TabsList>
         <TabsContent value="team" className="space-y-8">
           <div className="space-y-4">
@@ -33,6 +36,9 @@ function SettingsContent() {
             <h2 className="text-xl font-semibold">{t("pending.title")}</h2>
             <PendingInvitations />
           </div>
+        </TabsContent>
+        <TabsContent value="notifications">
+          <NotificationPreferences />
         </TabsContent>
       </Tabs>
     </div>

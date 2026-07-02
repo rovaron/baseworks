@@ -37,3 +37,25 @@ export async function markAllNotificationsRead(): Promise<void> {
   const res = await n()["read-all"].post();
   if (res.error) throw res.error;
 }
+
+export interface NotificationPreference {
+  category: string;
+  label: string;
+  email: boolean;
+  mutable: boolean;
+}
+
+export async function fetchPreferences(): Promise<NotificationPreference[]> {
+  const res = await n().preferences.get();
+  if (res.error) throw res.error;
+  if (!res.data.success) throw new Error(res.data.error);
+  return res.data.data.preferences;
+}
+
+export async function savePreferences(
+  prefs: Array<{ category: string; channel: "email"; enabled: boolean }>,
+): Promise<void> {
+  const res = await n().preferences.put({ preferences: prefs });
+  if (res.error) throw res.error;
+  if (!res.data.success) throw new Error(res.data.error);
+}

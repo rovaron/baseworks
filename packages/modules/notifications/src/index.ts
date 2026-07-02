@@ -25,12 +25,18 @@ ensureNotificationsRuntime();
 
 export {
   type CatalogEntry,
-  type Category,
   getCatalogEntry,
   type NotificationType,
   notificationCatalog,
   type Severity,
 } from "./catalog";
+export {
+  type Category,
+  type CategoryDef,
+  getCategories,
+  getCategory,
+  registerCategory,
+} from "./categories";
 export type { Channel, ChannelAdapter, DeliveryResult } from "./channels/channel";
 export {
   type AdminWebhookRow,

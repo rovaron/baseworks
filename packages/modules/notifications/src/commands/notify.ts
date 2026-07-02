@@ -2,16 +2,19 @@
 import {
   notification,
   notificationDelivery,
+  notificationPreference,
   notificationWebhook,
   notificationWebhookDelivery,
 } from "@baseworks/db";
 import { defineCommand, ok, requireWithTenant } from "@baseworks/shared";
 import { Type } from "@sinclair/typebox";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { getCatalogEntry } from "../catalog";
+import { getCategory } from "../categories";
 import type { Channel } from "../channels/channel";
 import { getAdapter, registeredChannels } from "../channels/registry";
 import { getDeliverQueue } from "../lib/deliver-queue";
+import { mutedUserSet } from "../lib/preferences";
 import { resolveRecipients } from "../lib/recipients";
 import { buildWebhookDeliveries } from "../lib/webhook-dispatch";
 import { getWebhookQueue } from "../lib/webhook-queue";
@@ -44,6 +47,33 @@ export const notify = defineCommand(NotifyInput, async (input, ctx) => {
   // Channels we will actually deliver this phase = catalog defaults ∩ registered adapters.
   const channels = entry.defaultChannels.filter((c) => registeredChannels().includes(c));
 
+  // Email preference gate. Bypassed entirely for `required` types or for
+  // categories that are not `mutable` (always-on, e.g. security). An unregistered
+  // category resolves to undefined → treated as non-mutable → delivered (safe:
+  // never silently drop). Otherwise fetch this category's email opt-outs for the
+  // resolved recipients, once, before the per-recipient loop.
+  const emailBypass = entry.required === true || getCategory(entry.category)?.mutable !== true;
+  let mutedEmail = new Set<string>();
+  if (!emailBypass && channels.includes("email") && recipients.size > 0) {
+    const optOut = await requireWithTenant(ctx)((tx) =>
+      tx
+        .select({
+          userId: notificationPreference.userId,
+          enabled: notificationPreference.enabled,
+        })
+        .from(notificationPreference)
+        .where(
+          and(
+            eq(notificationPreference.category, entry.category),
+            eq(notificationPreference.channel, "email"),
+            eq(notificationPreference.enabled, false),
+            inArray(notificationPreference.userId, [...recipients]),
+          ),
+        ),
+    );
+    mutedEmail = mutedUserSet(optOut as Array<{ userId: string; enabled: boolean }>);
+  }
+
   const createdIds: string[] = [];
   // Channel deliveries handed off to the `notifications-deliver` worker (every
   // effective channel except in-app, which is delivered inline below). Enqueued
@@ -69,6 +99,7 @@ export const notify = defineCommand(NotifyInput, async (input, ctx) => {
       createdIds.push(row.id);
 
       for (const channel of channels) {
+        if (channel === "email" && mutedEmail.has(recipientUserId)) continue;
         const [delivery] = await tx
           .insert(notificationDelivery)
           .values({
